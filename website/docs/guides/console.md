@@ -25,11 +25,36 @@ Module pages are separate routes below `/s/:service/*`. Their labels and count c
 
 ## Read status carefully
 
+The header's **Connected** indicator describes the console's WebSocket connection
+to Backplane. Each view reports its own data freshness; this indicator does not
+certify dependency health or a working telemetry pipeline.
+
 - A healthy instance is not proof that every downstream workflow can complete.
 - A saved configuration revision may still be pending or rejected by an instance.
 - A successful workflow start is not a successful workflow result.
 - A telemetry query with no rows is different from an unavailable store.
 - Infrastructure OK is a bounded connectivity check, not end-to-end telemetry validation.
+
+### Infrastructure checks
+
+The Infrastructure page shows the latest checks performed by the replica named
+in **Checked by**. It does not aggregate all Backplane replicas or all nodes of a
+dependency cluster. The dependency table describes each check and its last
+completion time. Hover the relative time to see an absolute timestamp.
+
+Each dependency is checked every five seconds, with a three-second timeout.
+The console reads cached results every five seconds. **Refresh** rereads the
+latest results and configured capabilities; it does not launch probes.
+
+**OK** and **NO** apply to fresh, completed checks. **Stale** means current health
+is unknown: the transport disconnected, the API read failed, or the check is over
+15 seconds old. The last result remains visible for context but stops counting
+as available or unavailable. Reconnecting only restores fresh status after a
+successful API read; an open socket without fresh checks still shows **Stale**.
+
+The separate **Deployment features** panel reflects configuration. **Enabled**
+does not mean that its dependencies are healthy. **Required** and **Optional**
+describe whether a dependency is mandatory for the installation.
 
 ## Working safely with forms
 

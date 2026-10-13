@@ -6,18 +6,19 @@ import { usePlatformText } from './locales.js';
 export function usePlatformQuery<T>(key: string, read: (signal: AbortSignal) => Promise<T>) {
   const owner = useBackplane(), connection = useConnection(), session = connection.session?.id ?? null;
   const latest = useRef(read); latest.current = read;
-  const [refresh, setRefresh] = useState(0), [stored, setStored] = useState<{ owner: typeof owner; session: typeof session; key: string; value?: T; error?: unknown; loading: boolean }>();
+  const [refresh, setRefresh] = useState(0), [stored, setStored] = useState<{ owner: typeof owner; session: typeof session; key: string; connectionId?: typeof connection.connectionId; value?: T; error?: unknown; loading: boolean }>();
   useEffect(() => {
     const controller = new AbortController();
-    setStored((old) => ({ owner, session, key, value: old?.owner === owner && old.session === session && old.key === key ? old.value : undefined, loading: true }));
+    setStored((old) => old?.owner === owner && old.session === session && old.key === key
+      ? { ...old, loading: true } : { owner, session, key, loading: true });
     if (connection.connection === 'connected') void Promise.resolve().then(() => latest.current(controller.signal)).then((value) => {
-      if (!controller.signal.aborted) setStored({ owner, session, key, value, loading: false });
-    }, (error) => { if (!controller.signal.aborted) setStored((old) => ({ owner, session, key, value: old?.value, error, loading: false })); });
+      if (!controller.signal.aborted) setStored({ owner, session, key, connectionId: connection.connectionId, value, loading: false });
+    }, (error) => { if (!controller.signal.aborted) setStored((old) => ({ ...old, owner, session, key, error, loading: false })); });
     return () => controller.abort();
   }, [owner, session, key, connection.connection, connection.connectionId, refresh]);
   const visible = stored?.owner === owner && stored.session === session && stored.key === key ? stored : undefined;
   return { value: visible?.value, error: visible?.error, loading: visible?.loading ?? true,
-    stale: !!visible?.value && (visible.loading || connection.connection !== 'connected'), refresh: useCallback(() => setRefresh((value) => value + 1), []) };
+    stale: visible?.value !== undefined && (visible.error !== undefined || connection.connection !== 'connected' || visible.connectionId !== connection.connectionId), refresh: useCallback(() => setRefresh((value) => value + 1), []) };
 }
 
 /** A mutation runs once; callers must explicitly decide how to recover uncertain outcomes. */

@@ -25,7 +25,7 @@ function useCrumbs(modules: Record<string, ModuleEntry>): Crumb[] {
     const path = rest.join('/'), page = modules[service]?.plugin?.navigation.nav.find((entry) => entry.path === path);
     return [{ label: t('services'), to: '/services' }, { label: service, to: `/services/${service}` }, { label: page ? i18n.t(page.labelKey, { ns: `module.${service}` }) : path || t('module') }];
   }
-  return [{ label: t(root === 'explore' || root === 'audit' || root === 'errors' || root === 'dev' || root === 'wiring' ? root : 'services') }];
+  return [{ label: t(root === 'explore' || root === 'audit' || root === 'errors' || root === 'dev' || root === 'wiring' || root === 'infrastructure' ? root : 'services') }];
 }
 
 export function Header({ services, modules, mode, onThemeChange, onLogout, logoutPending, navigationOpen, onNavigationToggle }: {
@@ -45,8 +45,8 @@ export function Header({ services, modules, mode, onThemeChange, onLogout, logou
     </nav>
     <div className="console-header-center"><CommandPalette services={services} modules={modules} mode={mode} onThemeChange={onThemeChange} /></div>
     <div className="console-header-actions">
-      <span className="console-connection" role="status" title={t(connected ? 'connected' : 'disconnected', { state: connection.connection })}>
-        <StatusDot tone={connected ? 'success' : 'warning'} pulse={!connected} /><span>{t(connected ? 'live' : 'reconnecting')}</span>
+      <span className="console-connection" role="status" title={t(connected ? 'connectionHelp' : 'disconnected', { state: connection.connection })}>
+        <StatusDot tone={connected ? 'success' : 'warning'} pulse={!connected} /><span>{t(connected ? 'connected' : connection.connection === 'offline' ? 'disconnected' : 'reconnecting', { state: connection.connection })}</span>
       </span>
       <Button variant="ghost" size="icon" aria-label={t(mode === 'dark' ? 'light' : 'dark')} title={t(mode === 'dark' ? 'light' : 'dark')} onClick={() => onThemeChange(mode === 'dark' ? 'light' : 'dark')}>{mode === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</Button>
       <SessionMenu onLogout={onLogout} pending={logoutPending} />

@@ -332,6 +332,7 @@ test-dev: ## Browser acceptance against the installation started by make dev
 	node tests/login-browser.mjs
 	node tests/dev-browser.mjs
 	node tests/console-browser.mjs
+	node tests/infrastructure-browser.mjs
 
 .PHONY: dev-minimal
 dev-minimal: dev-build ## Start console with PostgreSQL, Consul and Valkey only
