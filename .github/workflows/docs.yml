@@ -10,7 +10,7 @@ on:
       - 'web/README.md'
       - 'web/templates/module/README.md'
       - 'web/packages/errors/README.md'
-      - 'web/apps/embedding/public/favicon.svg'
+      - 'web/apps/console/public/favicon.svg'
       - '.github/assets/**'
       - '.github/workflows/docs.yml'
   pull_request:
@@ -22,7 +22,7 @@ on:
       - 'web/README.md'
       - 'web/templates/module/README.md'
       - 'web/packages/errors/README.md'
-      - 'web/apps/embedding/public/favicon.svg'
+      - 'web/apps/console/public/favicon.svg'
       - '.github/assets/**'
       - '.github/workflows/docs.yml'
   workflow_dispatch:

@@ -302,14 +302,13 @@ test-audit: ## Durable audit: real PostgreSQL transactions, replica leases, outa
 	GOWORK=off BACKPLANE_TEST_PG="postgres://backplane:backplane@localhost:5433/backplane?sslmode=disable" \
 		go test -race -count=1 ./internal/audit ./internal/store
 
-# Development installation; product shell remains a separate design step.
+# Development installation with the production console and live example module.
 DEV_COMPOSE = docker compose --profile full -f docker-compose.yaml -f docker-compose.observability.yaml -f docker-compose.dev.yaml
 .PHONY: dev dev-down dev-build dev-logs test-dev
-dev-build: ## Build the live module and development host, then static Go binaries
+dev-build: ## Build the console, example module and static Go binaries
 	cd web
 	yarn install --frozen-lockfile
 	yarn build
-	yarn workspace @backplane/embedding build --mode live --outDir dist-live
 	cd ..
 	CGO_ENABLED=0 GOWORK=off $(MAKE) backplane hello formatter
 	CGO_ENABLED=0 GOWORK=off go build -o "$(BIN)/setup-example" ./examples/demo/cmd/setup
@@ -319,7 +318,7 @@ dev: dev-build ## Start the complete live installation with a seeded hello/forma
 	node web/scripts/dev-ready.mjs
 	$(DEV_COMPOSE) run --rm seed
 	curl --fail --silent --show-error 'http://127.0.0.1:8080/hello/?name=Developer'
-	echo 'Live component fixture: http://127.0.0.1:8081/backplane/ (DEV_ADMIN_TOKEN)'
+	echo 'Development console: http://127.0.0.1:8081/backplane/ (DEV_ADMIN_TOKEN)'
 
 dev-down: ## Stop the development installation; retain stored data
 	$(DEV_COMPOSE) down

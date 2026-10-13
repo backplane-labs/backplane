@@ -1,6 +1,8 @@
 # Platform design decisions
 
-These rules define the current product and extension boundaries.
+These rules define the current product and extension boundaries. The detailed
+[frontend integration contract](../reference/frontend-contract.md) is published
+from its canonical source next to the code.
 
 ## One frontend stack
 

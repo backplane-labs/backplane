@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { ProxyOptions } from 'vite';
-import { consoleDevServer } from '../apps/embedding/dev-proxy';
+import { consoleDevServer } from '../apps/console/dev-proxy';
 
 function request(headers: IncomingMessage['headers']) { return { headers } as IncomingMessage; }
 describe('console development proxy', () => {

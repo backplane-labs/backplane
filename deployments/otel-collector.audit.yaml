@@ -1,4 +1,4 @@
-# Application audit (platform-design §14, docs/audit-api.md): log records
+# Application audit (docs/audit-api.md): log records
 # marked backplane.audit=true go to backplane's OTLP audit listener, which
 # keeps them; logs still go wherever the main config sends them. Merge it
 # with the main config:

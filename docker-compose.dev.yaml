@@ -4,7 +4,7 @@ x-runtime: &runtime
   restart: unless-stopped
   volumes:
     - ./bin:/app/bin:ro
-    - ./web/apps/embedding/dist-live:/app/web/apps/embedding/dist-live:ro
+    - ./web/apps/console/dist:/app/web/apps/console/dist:ro
     - ./web/templates/module/dist/plugin:/app/web/templates/module/dist/plugin:ro
   environment: &environment
     BACKPLANE_CONSUL_ADDR: consul:8500
@@ -31,7 +31,7 @@ services:
       BACKPLANE_VALKEY_ADDR: valkey:6379
       BACKPLANE_CONSOLE_PREFIX: /backplane
       BACKPLANE_CONSOLE_INSECURE_COOKIE: "true"
-      BACKPLANE_CONSOLE_ASSETS_DIR: /app/web/apps/embedding/dist-live
+      BACKPLANE_CONSOLE_ASSETS_DIR: /app/web/apps/console/dist
       BACKPLANE_OTLP_URL: http://collector:4318
       BACKPLANE_AUDIT_EXPORT_URL: http://collector:4318/v1/logs
       BACKPLANE_INFRASTRUCTURE_COLLECTOR_URL: http://collector:13133/

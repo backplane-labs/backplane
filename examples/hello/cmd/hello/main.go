@@ -10,10 +10,10 @@
 //     delivery options, idempotent through event.DeliveryOf.
 //   - internal/flows: the Greet hook (Call and workflows.CallHook), the Echo
 //     activity (Handle) and the workflow-backed Welcome, workflows Declare,
-//     Register and an hourly Schedule.
+//     Register and a Report workflow for administrative schedules.
 //   - internal/web and internal/legacy: HTTP, GraphQL, middleware and
 //     interceptors; a listener of its own announced by svc.API.
-//   - internal/admin, ui: the internal API and the console plugin bundle.
+//   - internal/admin: the internal API; HELLO_UI_ASSETS supplies the UI bundle.
 //
 // Consul, NATS and Temporal are optional: without them hello starts with
 // warnings and the local fallbacks answer.
@@ -21,9 +21,7 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"time"
 
@@ -39,7 +37,6 @@ import (
 	"github.com/gopherex/backplane/examples/hello/internal/store"
 	"github.com/gopherex/backplane/examples/hello/internal/web"
 	helloconsolev1 "github.com/gopherex/backplane/examples/hello/proto/hello/console/v1"
-	helloui "github.com/gopherex/backplane/examples/hello/ui"
 	"github.com/gopherex/backplane/pkg/backplane"
 	"github.com/gopherex/backplane/pkg/backplane/api"
 	"github.com/gopherex/backplane/pkg/backplane/config"
@@ -145,16 +142,10 @@ func run(ctx context.Context) error {
 	// Internal API and UI bundle for the console plugin.
 	svc.Internal(func(r grpc.ServiceRegistrar) { helloconsolev1.RegisterAdminServiceServer(r, st.Admin) })
 
-	bundle, err := fs.Sub(helloui.Dist, "dist")
-	if err != nil {
-		return errors.Join(fmt.Errorf("ui bundle: %w", err), svc.Close())
-	}
-
+	// UI delivery is optional; make dev supplies the real module build.
 	if st.UIAssets != "" {
-		bundle = os.DirFS(st.UIAssets)
+		svc.UI(os.DirFS(st.UIAssets))
 	}
-
-	svc.UI(bundle)
 
 	// Probes beyond the required dependencies, which are readiness already.
 	svc.LivenessProbe(probe.FromError(st.Greeter.Alive))

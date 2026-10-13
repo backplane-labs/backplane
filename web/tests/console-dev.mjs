@@ -38,9 +38,9 @@ try {
   const platformSocketCount = () => sockets.filter((url) => new URL(url).pathname.endsWith('/ws')).length;
   const before = platformSocketCount();
   assert.ok(sockets.some((url) => new URL(url).pathname.endsWith('/__vite_hmr')));
-  await edit('../apps/embedding/src/console/console.css', (css) => `${css}\n.console-brand { --backplane-hmr-check: ready; }\n`);
+  await edit('../apps/console/src/console/console.css', (css) => `${css}\n.console-brand { --backplane-hmr-check: ready; }\n`);
   await expect.poll(() => page.locator('.console-brand').evaluate((element) => getComputedStyle(element).getPropertyValue('--backplane-hmr-check').trim())).toBe('ready');
-  await edit('../apps/embedding/src/console/Console.tsx', (source) => source.replace('className="console-shell"', 'className="console-shell" data-hmr-check="updated"'));
+  await edit('../apps/console/src/console/Console.tsx', (source) => source.replace('className="console-shell"', 'className="console-shell" data-hmr-check="updated"'));
   await expect(page.locator('.console-shell')).toHaveAttribute('data-hmr-check', 'updated');
   await expect(page.getByLabel('Display name')).toHaveValue('Unsaved HMR draft');
   assert.equal(await page.evaluate(() => window.__backplaneHmrProbe), 'same-document');

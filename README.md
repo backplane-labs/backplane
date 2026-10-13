@@ -97,7 +97,7 @@ Module authors develop and serve their UI locally with `yarn dev` or a
 container. They do not need to start the platform. The platform embeds the
 module at deployment time through the shared routing and SDK contract.
 See the [author template](web/templates/module/README.md),
-[package contract](docs/frontend-platform.md) and [UI kit](docs/ui-kit.md).
+[package contract](docs/frontend-contract.md) and [UI kit](docs/ui-kit.md).
 
 ## Install a release
 
@@ -123,13 +123,16 @@ and [configuration](deployments/README.md). The publishing workflow runs on
 | [`pkg/backplane`](pkg/backplane) | Go service SDK and driver interfaces |
 | [`cmd/backplane`](cmd/backplane) | Platform server |
 | [`backplanepb`](backplanepb) | Protobuf contracts and generated Go API |
-| [`internal`](internal) | Catalog, console, storage, routing, audit and telemetry |
+| [`internal`](internal) | Catalog, console, configuration, wiring, audit and telemetry |
 | [`web/packages`](web/packages) | Coordinated TypeScript API, SDK and UI packages |
-| [`web/apps/embedding`](web/apps/embedding) | Production console host |
+| [`web/apps/console`](web/apps/console) | Production console host |
 | [`web/apps/catalog`](web/apps/catalog) | Storybook component catalog |
+| [`web/tests/fixtures/embedding`](web/tests/fixtures/embedding) | Isolated module compatibility host |
+| [`web/build`](web/build) | Shared internal library build settings |
 | [`examples`](examples) | Hello and formatter services with real contracts |
 | [`deployments`](deployments) | Container builds, deployment and OTel configuration |
-| [`docs`](docs) | Architecture, API and development guides |
+| [`docs`](docs) | Canonical API, frontend and development references |
+| [`website/docs`](website/docs) | English architecture, usage and deployment handbook |
 
 ## Develop
 

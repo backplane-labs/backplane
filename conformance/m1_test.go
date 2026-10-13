@@ -286,9 +286,17 @@ func TestM1(t *testing.T) {
 		"BACKPLANE_CONSUL_CHECK_INTERVAL=2s",
 	)
 
+	// This Go-only test verifies authenticated immutable bundle delivery.
+	// Browser acceptance separately uses the real compiled module.
+	uiDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(uiDir, "plugin.json"), []byte(`{"sdk_major":0}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
 	helloPort := freePort(t)
 	w.helloURL = "http://127.0.0.1:" + helloPort
 	w.helloEnv = []string{
+		"HELLO_UI_ASSETS=" + uiDir,
 		"BACKPLANE_CONSUL_ADDR=" + addr,
 		"BACKPLANE_INSTANCE=" + m1Hello,
 		"HELLO_LEGACY_LISTEN=:" + freePort(t),

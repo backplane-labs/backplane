@@ -9,7 +9,7 @@ RUN --mount=type=secret,id=github_token,required=true \
     export NODE_AUTH_TOKEN="$(cat /run/secrets/github_token)" && \
     yarn install --frozen-lockfile && \
     yarn build:packages && \
-    yarn workspace @backplane/embedding build --mode live --outDir dist-live
+    yarn workspace @backplane/console build
 
 FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS go
 WORKDIR /src
@@ -29,7 +29,7 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
 COPY --from=go /out/backplane /app/bin/backplane
-COPY --from=web /src/web/apps/embedding/dist-live /app/console
+COPY --from=web /src/web/apps/console/dist /app/console
 COPY LICENSE /app/LICENSE
 ENV BACKPLANE_CONSOLE_ASSETS_DIR=/app/console BACKPLANE_CONSOLE_PREFIX=/backplane
 EXPOSE 8081 9400

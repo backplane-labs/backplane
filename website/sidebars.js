@@ -6,10 +6,10 @@ module.exports = {
       'concepts/architecture', 'concepts/contracts', 'concepts/decisions', 'concepts/dependencies',
     ] },
     { type: 'category', label: 'Go service SDK', items: [
-      'sdk/go', 'sdk/components', 'sdk/configuration', 'sdk/routes', 'sdk/hooks', 'sdk/events', 'sdk/workflows', 'sdk/testing',
+      'sdk/go', 'sdk/components', 'sdk/configuration', 'sdk/apis', 'sdk/hooks', 'sdk/events', 'sdk/workflows', 'sdk/testing',
     ] },
     { type: 'category', label: 'Frontend and modules', items: [
-      'sdk/frontend', 'sdk/modules', 'sdk/service-api',
+      'sdk/frontend', 'sdk/modules', 'sdk/service-api', 'reference/frontend-contract',
       'reference/ui-kit', 'reference/components', 'reference/schema-forms',
       'reference/editors', 'reference/charts', 'reference/observability-ui', 'reference/platform-ui',
       'reference/module-template', 'reference/frontend-workspace',
@@ -19,7 +19,7 @@ module.exports = {
       'guides/telemetry', 'guides/audit', 'guides/errors', 'guides/troubleshooting', 'reference/examples',
     ] },
     { type: 'category', label: 'Deployment and maintenance', items: [
-      'deploying/overview', 'deploying/docker', 'deploying/gateway', 'deploying/security', 'deploying/availability',
+      'deploying/overview', 'deploying/docker', 'deploying/external-routing', 'deploying/security', 'deploying/availability',
       'deploying/releases', 'reference/configuration', 'reference/otlp', 'reference/development', 'reference/releases',
     ] },
     { type: 'category', label: 'Platform API', items: [

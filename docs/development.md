@@ -25,9 +25,8 @@ backend authentication or production CSP.
 Set `BACKPLANE_DEV_TARGET` to another installation origin if needed, without
 credentials, a path or query. `BACKPLANE_CONSOLE_BASE` defaults to `/backplane/`
 and must match the backend prefix. After the initial package build,
-`rtk proxy yarn workspace @backplane/embedding dev` starts Vite directly.
+`rtk proxy yarn workspace @backplane/console dev` starts Vite directly.
 This command requires a running backend; it does not start Docker or seed data.
-See [handoff validation status](handoff-baseline.md) for completed checks and scope.
 
 Run `make dev` at the repository root. Requirements: Docker Compose, Go 1.26,
 Node >=22.12, Yarn 1.22.22 and GitHub Packages read credentials in the user's
@@ -49,8 +48,8 @@ The token is not prefilled or saved in browser storage.
 The development
 host loads the hello plugin from hello's platform port through backplane's
 protected, hashed bundle proxy. Its internal `GetStats` client and the platform
-clients share one WebSocket. The landing page is Services; Explore and Audit are
-the next fixed entries in the left navigation. Service groups contain pages
+clients share one WebSocket. The landing page is Services; Wiring, Explore, Errors, Audit and Infrastructure
+are the remaining platform entries in the left navigation. Service groups contain pages
 declared by their modules. Service administration is under `/services/:service`.
 The technical kit acceptance fixture remains directly accessible at
 `/backplane/dev`; it is not part of the product navigation.
@@ -99,13 +98,12 @@ the backend capabilities; TraceQL is not advertised unless enabled by deployment
 - `make test-dev`: real running installation; does not start it implicitly.
 - `make lint` and `GOWORK=off go test -race ./...`: backend checks.
 
-The contract/reference and package guides are linked from
-[implementation scope](implementation-plan.md). Application modules (Kratos
-wrappers, mail services) are outside this work.
+See the [frontend contract](frontend-contract.md), [API reference](api-reference.md)
+and [English handbook](../website/docs/intro.md) for current integration boundaries.
 
 For the console without optional infrastructure, use `make dev-minimal`.
 PostgreSQL, Consul and Valkey remain required. The **Infrastructure** page shows
-configured dependencies as OK/NO and separately lists deployment capabilities.
+configured dependencies as OK/NO/Stale and separately lists deployment capabilities.
 See [deployment modes](../deployments/README.md#server-capabilities-and-infrastructure-health) for
 Compose profiles and endpoints. Service **Workflows** includes administrative
 schedule creation, editing and deletion; module SDKs never reconcile schedules.
@@ -149,3 +147,30 @@ Tags trigger [release packaging](releases.md): Linux archives with the console,
 multi-platform GHCR images, GitHub Packages and a GitHub Release with checksums.
 The release requires successful push CI for the tagged commit. Its manual run
 rehearses the builds without publication.
+
+## Frontend source map
+
+| Path | Responsibility |
+| --- | --- |
+| `web/apps/console/src/main.tsx` | Production session, theme and i18n bootstrap; always uses the real client |
+| `web/apps/console/src/console/` | Shell, navigation, product routes and service administration |
+| `web/apps/console/src/console/registry.ts`, `ConsoleRuntime.tsx` | Catalog and module ownership outside shell Fast Refresh |
+| `web/apps/console/src/dev.tsx` | Explicit live composition acceptance page at `/backplane/dev` |
+| `web/apps/catalog/` | Storybook and visual compatibility fixture |
+| `web/tests/fixtures/embedding/` | Isolated module host used by browser and external-package acceptance |
+| `web/templates/module/` | Standalone author template and the hello remote used by the dev installation |
+| `web/build/` | Shared internal library build presets |
+
+The console always builds to `web/apps/console/dist`. There is no fixture mode
+or HTML switch in the product bootstrap. The embedding fixture uses its own
+explicit fake client and is never part of the release console.
+
+After changing a package, rebuild it with `yarn workspace <package> build`.
+Adding or renaming an export requires restarting Vite: federation fixes the
+shared export list at startup. Catalog ownership stays outside the shell so
+TSX/CSS hot updates preserve the module draft, session and platform socket.
+
+`yarn test:console-dev` checks those guarantees by temporarily editing two shell
+files and restoring them; run it without concurrent editing. Cleanup refuses to
+overwrite concurrent changes. Packed-consumer verification needs roughly 1.3 GB
+and 70,000 inodes in `TMPDIR`; use disk-backed temporary storage if necessary.

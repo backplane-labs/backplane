@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 const website = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const root = resolve(website, '..');
 const sources = {
+  'docs/frontend-contract.md': 'frontend-contract',
   'docs/api-client.md': 'client', 'docs/audit-api.md': 'audit',
   'docs/obs-api.md': 'observability-api', 'docs/errors.md': 'errors',
   'docs/telemetry-admission.md': 'otlp', 'deployments/README.md': 'configuration',
@@ -17,18 +18,14 @@ const sources = {
   'web/packages/errors/README.md': 'browser-errors', 'docs/api-reference.md': 'api',
 };
 const routes = Object.fromEntries(Object.entries(sources).map(([source, id]) => [source, `reference/${id}.md`]));
-routes['platform-design.md'] = 'concepts/architecture.md';
-routes['docs/frontend-platform.md'] = 'concepts/decisions.md';
-routes['docs/console-review.md'] = 'guides/console.md';
 const repository = 'https://github.com/gopherex/backplane/blob/master/';
 function links(text, source, target) {
   return text.replace(/\]\(([^)]+)\)/g, (match, href) => {
     if (/^(?:[a-z]+:|#|\/)/i.test(href)) return match;
     const [path, anchor] = href.split('#');
     const file = posix.normalize(posix.join(posix.dirname(source), path));
-    const mapped = routes[file];
-    // Historical numeric design anchors have no counterpart in the English handbook.
-    const fragment = anchor && !['platform-design.md', 'docs/frontend-platform.md'].includes(file) ? `#${anchor}` : '';
+    const mapped = routes[file] ?? (file.startsWith('website/docs/') ? file.slice('website/docs/'.length) : undefined);
+    const fragment = anchor ? `#${anchor}` : '';
     return `](${mapped ? relative(dirname(target), mapped) : repository + file}${fragment})`;
   });
 }
@@ -55,7 +52,7 @@ for (const section of sections) {
 await writeFile(resolve(reference, 'api.md'), index);
 await mkdir(resolve(website, 'static/img'), { recursive: true });
 for (const [source, target] of [
-  ['web/apps/embedding/public/favicon.svg', 'favicon.svg'],
+  ['web/apps/console/public/favicon.svg', 'favicon.svg'],
   ['.github/assets/banner.svg', 'banner.svg'], ['.github/assets/console.png', 'console.png'],
 ]) await copyFile(resolve(root, source), resolve(website, 'static/img', target));
 console.log(`Synced ${Object.keys(sources).length} references, ${sections.length} API services and brand assets`);

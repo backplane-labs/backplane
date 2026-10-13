@@ -11,7 +11,7 @@ const csp = [...declaration.matchAll(/"([^"]*)"/g)].map((part) => part[1]).join(
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
 const mounts = [
   ['/backplane/plugins/hello/fixture-v1/', process.env.BACKPLANE_PLUGIN_DIR ?? resolve(root, 'templates/module/dist/plugin')],
-  ['/backplane/', process.env.BACKPLANE_HOST_DIR ?? resolve(root, 'apps/embedding/dist')],
+  ['/backplane/', process.env.BACKPLANE_HOST_DIR ?? resolve(root, 'tests/fixtures/embedding/dist')],
 ];
 createServer(async (request, response) => {
   response.setHeader('Content-Security-Policy', csp);

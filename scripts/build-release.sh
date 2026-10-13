@@ -9,7 +9,7 @@ node web/scripts/release-packages.mjs "$version" "$output" --check
 commit="${COMMIT:-$(git rev-parse HEAD)}"
 build_time="${BUILD_TIME:-$(git show -s --format=%cI HEAD)}"
 mkdir -p "$output"
-(cd web && yarn build:packages && yarn workspace @backplane/embedding build --mode live --outDir dist-live)
+(cd web && yarn build:packages && yarn workspace @backplane/console build)
 node web/scripts/release-packages.mjs "$version" "$output"
 for arch in amd64 arm64; do
   tree="$output/linux_$arch"
@@ -18,7 +18,7 @@ for arch in amd64 arm64; do
     -ldflags="-s -w -X github.com/gopherex/backplane/pkg/backplane/build.Service=backplane -X github.com/gopherex/backplane/pkg/backplane/build.Version=$version -X github.com/gopherex/backplane/pkg/backplane/build.Commit=$commit -X github.com/gopherex/backplane/pkg/backplane/build.Date=$build_time" \
     -o "$tree/bin/backplane" ./cmd/backplane
   mkdir -p "$tree/console"
-  cp -R web/apps/embedding/dist-live/. "$tree/console/"
+  cp -R web/apps/console/dist/. "$tree/console/"
   cp LICENSE "$tree/LICENSE"
   cp deployments/README.release.md "$tree/README.md"
   tar -czf "$output/backplane_${version}_linux_${arch}.tar.gz" -C "$tree" .

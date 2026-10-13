@@ -46,18 +46,14 @@ func TestBrowserConsole(t *testing.T) {
 
 	shell := fstest.MapFS{}
 
-	err = fs.WalkDir(os.DirFS(filepath.Join(web, "apps", "embedding", "dist")), ".", func(path string, entry fs.DirEntry, err error) error {
+	err = fs.WalkDir(os.DirFS(filepath.Join(web, "apps", "console", "dist")), ".", func(path string, entry fs.DirEntry, err error) error {
 		if err != nil || entry.IsDir() {
 			return err
 		}
 
-		body, err := os.ReadFile(filepath.Join(web, "apps", "embedding", "dist", path))
+		body, err := os.ReadFile(filepath.Join(web, "apps", "console", "dist", path))
 		if err != nil {
 			return err
-		}
-
-		if path == "index.html" {
-			body = []byte(strings.Replace(string(body), "<head>", `<head><meta name="backplane-fixture" content="live">`, 1))
 		}
 
 		shell[path] = &fstest.MapFile{Data: body, Mode: 0o644}

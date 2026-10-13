@@ -26,7 +26,7 @@ try {
     expected.set(manifest.name, hashes(join(directory, 'dist')));
   }
   console.log(`Packed ${Object.keys(resolutions).length} packages; external consumer: ${scratch}`);
-  for (const [name, source] of [['module', 'templates/module'], ['host', 'apps/embedding']]) {
+  for (const [name, source] of [['module', 'templates/module'], ['host', 'tests/fixtures/embedding']]) {
     const target = join(scratch, name);
     cpSync(join(root, source), target, { recursive: true, filter: (path) => !['node_modules', 'dist'].includes(basename(path)) });
     const manifestPath = join(target, 'package.json'), manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
@@ -41,7 +41,7 @@ try {
       cpSync(join(scratch, 'module/src/fixtures.ts'), join(target, 'src/fixtures.ts'));
       cpSync(join(scratch, 'module/src/standalone.css'), join(target, 'src/standalone.css'));
       const entry = join(target, 'src/main.tsx');
-      writeFileSync(entry, readFileSync(entry, 'utf8').replaceAll('../../../templates/module/src/', './'));
+      writeFileSync(entry, readFileSync(entry, 'utf8').replaceAll('../../../../templates/module/src/', './'));
     }
     cpSync(join(root, 'yarn.lock'), join(target, 'yarn.lock'));
     run('yarn', ['install', '--non-interactive'], target);

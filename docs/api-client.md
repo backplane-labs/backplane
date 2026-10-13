@@ -1,6 +1,6 @@
 # Console client contract
 
-[All 72 methods](api-reference.md) are generated from every service in
+[All console methods](api-reference.md) are generated from every service in
 `backplane.console.v1`, including ObsService and AuditService. Imports use
 `@gopherex/backplane-api`; transport/session ownership is in
 `@gopherex/backplane-client`; React integration is in `@gopherex/backplane-react`.

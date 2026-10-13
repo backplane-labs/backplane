@@ -6,7 +6,7 @@ The workspace provides thirteen `@gopherex/backplane-*` packages: `api`, `client
 a standalone author template and an embedded host acceptance fixture. Product
 console screens use the same packages and shared light/dark tokens.
 
-The [package contract](../docs/frontend-platform.md) and
+The [package contract](../docs/frontend-contract.md) and
 [component matrix](../docs/ui-components.md) describe the public scope.
 
 Requirements: Node >=22.12 and Yarn 1.22.22. Gopherex dependencies are downloaded
@@ -117,3 +117,16 @@ The standalone template also includes a ready static-server Dockerfile.
 The [release workflow](../docs/releases.md) publishes all thirteen packages to
 GitHub Packages on a coordinated version tag and attaches their tarballs to
 GitHub Releases. A manual release run rehearses builds without publication.
+
+## Internal applications and build settings
+
+`apps/console` is the production application and always connects to the platform.
+Its default `yarn build` output is `apps/console/dist`; no special mode is required.
+`tests/fixtures/embedding` is the independent test host for module federation and
+CSP checks. It uses explicit fixture data and builds separately from the console.
+`apps/catalog` contains Storybook and the component compatibility fixture.
+
+Library packages share `build/library.mjs` for Vite and
+`build/tsconfig.library.json` for TypeScript. Package-specific configuration keeps
+its own `src` and `dist` directories and selects declaration-only output when
+Vite produces JavaScript. These internal presets are not published dependencies.

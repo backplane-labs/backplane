@@ -8,13 +8,14 @@
   "workspaces": [
     "packages/*",
     "apps/*",
-    "templates/*"
+    "templates/*",
+    "tests/fixtures/embedding"
   ],
   "scripts": {
-    "dev:console": "yarn build:packages && yarn workspace @backplane/embedding dev",
+    "dev:console": "yarn build:packages && yarn workspace @backplane/console dev",
     "test:console-dev": "node tests/console-dev.mjs",
     "dev": "yarn build:packages && yarn workspace @backplane/catalog dev",
-    "build": "yarn build:packages && yarn workspace @backplane/catalog build && yarn workspace @backplane/module-template build && yarn workspace @backplane/embedding build",
+    "build": "yarn build:packages && yarn workspace @backplane/catalog build && yarn workspace @backplane/module-template build && yarn workspace @backplane/console build && yarn workspace @backplane/embedding-fixture build",
     "typecheck": "tsc --noEmit",
     "test:browser": "playwright test",
     "test:unit": "vitest run",

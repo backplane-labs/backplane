@@ -28,7 +28,7 @@ import (
 	"github.com/gopherex/backplane/internal/bindings"
 )
 
-// M2 end to end (platform-design.md §16.2): the real backplane binary and
+// M2 execution conformance: the real backplane binary and
 // the real hello, with NATS and Temporal of platform-in-a-box, direct process listeners. The milestone's proof — "binding hello.Greet := hello.Echo, rule
 // on hello.Greeted := hello.Echo; decoupling end to end, one trace through
 // everything" — driven through the console's /ws as the console drives it.

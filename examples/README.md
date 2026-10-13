@@ -93,3 +93,23 @@ publication, configuration reconciliation, bound greeting events, both reactor
 and rule delivery, crash and rejoin of one backplane, and endpoint retirement
 with retained manifests followed by service return. Test-owned processes,
 streams, Consul keys, endpoint and database are cleaned up.
+
+## Hello UI delivery
+
+Hello declares its console module only when `HELLO_UI_ASSETS` points to a real
+built bundle. `make dev` builds `web/templates/module/dist/plugin` and mounts it
+into hello. Running the Go example alone without that variable serves its APIs
+without advertising a nonexistent UI. To attach the module to a host process:
+
+```sh
+cd web
+yarn build:packages
+yarn workspace @backplane/module-template build
+cd ..
+HELLO_UI_ASSETS="$PWD/web/templates/module/dist/plugin" make run-hello
+```
+
+Authors who ship assets inside their own binary can pass an embedded filesystem
+to `svc.UI`; see the [module delivery contract](../website/docs/sdk/modules.md).
+The reference example uses the deployment-owned directory so Go tests and builds
+do not require Node or generated JavaScript assets.

@@ -1,4 +1,4 @@
-# Frontend and M3 contract
+# Frontend package and integration contract
 
 This document records the frontend package and integration contract. The
 [English handbook](https://gopherex.github.io/backplane/) describes current
@@ -30,9 +30,9 @@ dependencies; the public npm registry is not a publication target.
 | `plugin-build` | Pinned build preset, shared dependency contract, remote and manifest output | Running a local platform for authors |
 
 Names are `@gopherex/backplane-<suffix>`. Create packages when they have a real
-implementation; do not publish empty placeholders. `web/apps/embedding` builds
-the live platform console in `live` mode and the isolated compatibility host in
-default mode. `web/apps/catalog` documents the kit. Package exports keep heavy editors and charts
+implementation; do not publish empty placeholders. `web/apps/console` is the
+production console. The isolated compatibility host lives in
+`web/tests/fixtures/embedding`. `web/apps/catalog` documents the kit. Package exports keep heavy editors and charts
 out of simple API consumers. Public APIs do not expose Grafana implementation
 details unnecessarily. Copied code retains its upstream notices and revision.
 
@@ -80,10 +80,11 @@ relative to the module's `/s/<service>/` base. The platform controls the root
 router, its pages and the registry of module navigation entries. A module cannot
 replace the root router or register another module's paths. The SDK validates
 route/navigation declarations, supports deep links and disposes module effects
-on unmount. The shell has a header and a left navigation tree: Services, Explore
-and Audit first, followed by services with module-owned page leaves. The sidebar
+on unmount. The shell has a header and a left navigation tree: Services, Wiring, Explore,
+Errors, Audit and Infrastructure first, followed by services with module-owned
+page leaves. The sidebar
 supports a collapsed rail, hover/focus expansion, pinning and adjustable width.
-See [console layout](console-review.md).
+See [console guide](../website/docs/guides/console.md).
 
 Production delivery remains service-owned: a built remote is served by the
 module's platform port, cached/proxied by backplane, and loaded from the console
@@ -256,26 +257,12 @@ the search language. Unsupported signal/language combinations return a clear
 error. Editors expose only supported languages and fetch field suggestions through
 the platform API. Queries are not rewritten silently into a different language.
 
-## Implementation and acceptance order
+## Verification boundaries
 
-1. Specification and complete component matrix, including upstream provenance.
-2. Technical compatibility fixture: shadcn table/form, a Grafana visualization
-   and time control, query editor, both themes, keyboard/overlay checks. This
-   verifies the hybrid stack before building the console's visual design.
-3. Generated API, cookie/reconnect client, React adapters and standalone template.
-   Prove standalone dev/container launch without the platform, then embedded
-   navigation/deep links, singleton contexts, same-origin bundle loading and CSP.
-4. Durable audit and OTLP/Victoria vertical slices with real storage and failure
-   cases. Query fixture logs with structured bodies, an integer above 2^53 and
-   nanosecond times; retrieve a cross-service trace and metric series. Show both
-   declared and undeclared sources. Verify outbox outage recovery on two replicas.
-5. Complete the kit matrix, document examples/states in Storybook, and connect the
-   hello/formatter UI example to real data in `make dev`.
-6. Type/build/test, browser and installation checks; pack and consume packages
-   outside the workspace; publish a coordinated GitHub Packages release and
-   verify a clean external consumer against the published versions.
+Standalone development must work without platform infrastructure. Embedding checks
+must exercise the module under the host router, shared providers and production CSP.
+Packed-consumer checks install actual package tarballs outside the workspace.
+Live backend tests verify real persistence, transport and storage behavior; mock
+results alone are not evidence of a working telemetry or execution pipeline.
 
-Do not count mocked transport tests as real OTLP/storage acceptance or a working
-standalone page as proof of embedding. Completion requires both. If a dependency
-cannot meet this contract, document the concrete incompatibility and resolve the
-product choice before committing to a workaround.
+See [development and verification](development.md) for the supported commands.

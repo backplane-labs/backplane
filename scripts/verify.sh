@@ -15,7 +15,7 @@ cleanup() {
 trap cleanup EXIT
 make lint gen breaking
 git diff --exit-code -- backplanepb internal/store/db web/packages/api/src docs/api-reference.md web/tests/api-examples.generated.ts
-(cd web && yarn build && yarn workspace @backplane/embedding build --mode live --outDir dist-live && yarn typecheck && yarn test:unit && yarn test:browser && yarn test:errors-browser && yarn build:storybook && yarn test:storybook && yarn test:packed)
+(cd web && yarn build && yarn typecheck && yarn test:unit && yarn test:browser && yarn test:errors-browser && yarn build:storybook && yarn test:storybook && yarn test:packed)
 "${full[@]}" up -d --wait
 export BACKPLANE_TEST_CONSUL=localhost:8500 BACKPLANE_TEST_NATS=localhost:4222 BACKPLANE_TEST_TEMPORAL=localhost:7233
 export BACKPLANE_TEST_VALKEY=localhost:6379 BACKPLANE_TEST_PG='postgres://backplane:backplane@localhost:5433/backplane?sslmode=disable'

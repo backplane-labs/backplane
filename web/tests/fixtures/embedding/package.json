@@ -1,10 +1,9 @@
 {
-  "name": "@backplane/embedding",
+  "name": "@backplane/embedding-fixture",
   "version": "0.1.1",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --mode live",
     "build": "vite build"
   },
   "dependencies": {

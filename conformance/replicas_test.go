@@ -207,7 +207,7 @@ func newReplicaWorld(t *testing.T) *replicaWorld {
 			"BACKPLANE_NEXUS_ABSENCE_GRACE=1s", "BACKPLANE_AUDIT_EXPORT_URL="+w.auditSink.url)
 
 		if os.Getenv("BACKPLANE_TEST_BROWSER") == "1" {
-			assets, err := filepath.Abs("../web/apps/embedding/dist-live")
+			assets, err := filepath.Abs("../web/apps/console/dist")
 			if err != nil {
 				t.Fatal(err)
 			}

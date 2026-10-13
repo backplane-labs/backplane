@@ -19,9 +19,36 @@ The sidebar can collapse to a rail, expand on hover/focus and be pinned. Drag it
 | Errors | OTel exceptions, browser state/history and related telemetry |
 | Infrastructure | Configured dependency status and available capabilities |
 
-Service administration includes configuration, API reference, wiring, events, workflows/schedules, telemetry, audit and errors where applicable. Capability state distinguishes a disabled feature from an empty result.
+## Service administration and module pages
 
-Module pages are separate routes below `/s/:service/*`. Their labels and count come from the module. Opening service administration does not require that service to ship a custom UI.
+All paths below are relative to the configured console prefix, normally
+`/backplane/`. Platform administration owns `/services/:service/...`; modules
+own `/s/:service/*`. Modules define their own labels, page count and route tree.
+A failed module does not hide other services or prevent platform administration.
+
+| Route | Content |
+| --- | --- |
+| `/services` | Summary tiles and the catalog as cards, a table or a system map |
+| `/services/:service` | Overview: instances, component tree, service contract and metadata |
+| `…/api` | Service API reference, schemas, types and bundled files |
+| `…/configuration` | Settings, instance rollout, revisions, diff and rollback |
+| `…/automation` | Hooks, bindings and event rules, with links to Wiring |
+| `…/operations` | Call hooks, run activities, publish test events and start workflows |
+| `…/events` | Streams, subscribers, messages and dead letters |
+| `…/workflows` | Workflows, runs and administrative schedules |
+| `…/telemetry` | Explore scoped to the service's telemetry selectors |
+| `…/errors` | Exception records attributed to the service |
+| `…/audit` | Audit entries attributed to the service |
+| `/s/:service/*` | Module-owned pages |
+
+Wiring accepts links such as `?binding=<hook>`, `?rule=<id>` and
+`?event=<event>` for a new rule. Its `view` parameter selects graph, YAML,
+versions, test or runs. Explore keeps query state in the URL.
+
+The console is a dense operator workspace built from the shared kit: semantic
+status colors, panels, summary tiles and consistent forms. Platform headers
+stay in place while content areas scroll. The hidden `/dev` route is an explicit
+live composition acceptance fixture, not a product navigation entry.
 
 ## Read status carefully
 

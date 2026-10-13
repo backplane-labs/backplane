@@ -1,7 +1,7 @@
 # UI component matrix
 
 This is the target coverage contract, not a list of completed components.
-See [package and runtime boundaries](frontend-platform.md).
+See [package and runtime boundaries](frontend-contract.md).
 Rows distinguish available implementations from pending compositions. A row is complete only with exported
 implementation, English resources, dark/light stories and the relevant checks
 below. Several upstream stories can map to one public platform component.
@@ -11,7 +11,7 @@ for actions, precision inputs, async selection, forms, files, time ranges,
 virtualized tables and trees. [Schema forms](schema-forms.md) use the published
 schemapb engine. Storybook includes primitives, composed controls, error/readonly
 states and schema fixtures in both themes. Editors, charts, observability and API-aware compositions are exported from
-their [separate packages](frontend-platform.md). The inventory below uses **available** for an
+their [separate packages](frontend-contract.md). The inventory below uses **available** for an
 existing public primitive/composition; it does not imply that every upstream
 storybook example has been reproduced verbatim.
 
