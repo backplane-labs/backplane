@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Build-only rehearsal version (must match frontend packages)'
+        description: 'Artifact version for a build-only rehearsal (normally taken from the tag)'
         required: true
         default: '0.1.1'
 permissions:
@@ -35,6 +35,7 @@ jobs:
         run: |
           version="${RELEASE_VERSION#v}"
           [[ "$version" =~ ^[01]\.[0-9]+\.[0-9]+$ ]] || exit 1
+          node scripts/stamp-release.mjs "$version"
           node web/scripts/release-packages.mjs "$version" bin/release --check
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Require successful CI for this commit
@@ -173,7 +174,9 @@ jobs:
         working-directory: bin/release
         run: sha256sum *.tar.gz *.tgz frontend-packages.json image-digest.txt > SHA256SUMS
       - name: Publish coordinated frontend packages to GitHub Packages
-        run: node web/scripts/release-packages.mjs "$RELEASE_VERSION" bin/release --publish
+        run: |
+          node scripts/stamp-release.mjs "$RELEASE_VERSION"
+          node web/scripts/release-packages.mjs "$RELEASE_VERSION" bin/release --publish
       - name: Create GitHub Release and upload assets
         run: |
           python3 scripts/release-notes.py "$RELEASE_VERSION" bin/release/image-digest.txt > bin/release/notes.md

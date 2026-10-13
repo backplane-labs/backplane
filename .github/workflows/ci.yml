@@ -126,6 +126,7 @@ jobs:
           docker compose -f docker-compose.yaml -f docker-compose.minimal.yaml config --quiet
           bash -n scripts/verify.sh
           bash -n scripts/build-release.sh
+          node --test scripts/stamp-release.test.mjs
 
   verify:
     if: github.event_name == 'workflow_dispatch'

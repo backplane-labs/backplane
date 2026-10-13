@@ -8,10 +8,16 @@ verification suite.
 
 ## Version contract
 
-The server tag and all 13 public `@gopherex/backplane-*` packages must agree on
-the version. Before tagging, update the package manifests and their internal
-dependency versions together and commit the result. The documentation package version must agree as well. Version validation
-fails before building or publishing if these values diverge.
+The `vX.Y.Z` tag is the source of truth for the server, container, all 13 public
+`@gopherex/backplane-*` packages and documentation. No package-version edit or
+version-bump commit is required before `make release`.
+
+CI stamps the tag version into its checkout before dependency installation and
+build. It updates package versions and internal workspace dependency references
+together, including the module template. Documentation build versions and usage
+examples receive the same version. The publication job stamps its fresh checkout
+as well, then verifies that the package archives match that release. Source
+manifest versions are development defaults; they do not choose the release.
 
 Frontend plugin compatibility is currently SDK major **0**. A 1.x release
 requires updating and validating the host/module compatibility contract; a
@@ -51,7 +57,8 @@ images, publishing packages, deploying Pages or creating a release. Download `re
 from the workflow's artifacts. A rehearsal proves the builds; registry write
 permissions are exercised by an actual tagged release.
 
-Local equivalents, after installing dependencies:
+Local equivalents, after installing dependencies in a disposable checkout
+(the artifact build stamps its package manifests and documentation examples):
 
 ```sh
 bash scripts/build-release.sh 0.1.1
@@ -96,5 +103,5 @@ another base path, change `website/docusaurus.config.js` and rebuild.
 Edit guides in `website/docs`; reference pages are synchronized from source
 documents by `website/scripts/sync-reference.mjs`. From `website`, run
 `yarn install --frozen-lockfile` and `yarn build` to validate links and anchors,
-or `yarn start` for development. Release CI checks the site package version
-against the coordinated tag before building.
+or `yarn start` for development. Release CI stamps the site and its examples from the coordinated tag before
+building.

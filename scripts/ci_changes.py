@@ -30,6 +30,7 @@ def classify(paths):
         elif path.startswith(("docker-compose", "deployments/")) or path in {
             ".dockerignore", ".github/workflows/release.yml",
             "scripts/build-release.sh", "scripts/release-notes.py",
+            "scripts/stamp-release.mjs", "scripts/stamp-release.test.mjs",
         }:
             selected.add("compose")
         elif path.startswith(("pkg/", "internal/", "cmd/", "examples/", "conformance/")) or path in {

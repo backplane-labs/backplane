@@ -5,6 +5,7 @@ cd "$(dirname "$0")/.."
 version="${1:?usage: build-release.sh X.Y.Z [OUTPUT]}"
 [[ "$version" =~ ^[01]\.[0-9]+\.[0-9]+$ ]] || { echo 'Expected X.Y.Z (major 0 or 1)' >&2; exit 1; }
 output="$(realpath -m "${2:-bin/release}")"
+node scripts/stamp-release.mjs "$version"
 node web/scripts/release-packages.mjs "$version" "$output" --check
 commit="${COMMIT:-$(git rev-parse HEAD)}"
 build_time="${BUILD_TIME:-$(git show -s --format=%cI HEAD)}"
