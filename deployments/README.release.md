@@ -16,9 +16,9 @@ export BACKPLANE_CONSOLE_PREFIX='/backplane'
 ./bin/backplane
 ```
 
-The console listens on :8081, platform probes on :9400 and xDS on :18000.
+The console listens on :8081, platform probes on :9400.
 Expose the console through HTTPS; the cookie is secure by default. Configure
-`BACKPLANE_XDS_ENABLED=false` when not using Envoy. NATS, Temporal and the
+NATS, Temporal and the
 OTel/Victoria stack are optional; enable only the capabilities you use.
 
 Verify downloads with `sha256sum --ignore-missing -c SHA256SUMS` from the release.

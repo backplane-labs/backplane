@@ -1,4 +1,4 @@
-package route
+package api
 
 import (
 	"io/fs"
@@ -42,14 +42,14 @@ func schemaFS(source fs.FS, entry string, format backplanev1.SchemaFormat) apiFi
 	return apiFiles{files: &routes.SchemaFiles{Files: files, Ref: ref, Err: err}}
 }
 
-func (a apiFiles) applyHTTP(m *routes.Managed)        { m.OpenAPI, m.SchemaFiles = nil, a.files }
-func (a apiFiles) applyHTTPDecl(r *backplanev1.Route) { a.applyDecl(r) }
-func (a apiFiles) applyDecl(r *backplanev1.Route) {
-	r.Schema = &backplanev1.Route_Bundle{Bundle: a.files.Ref}
+func (a apiFiles) applyHTTP(m *routes.Managed)      { m.OpenAPI, m.SchemaFiles = nil, a.files }
+func (a apiFiles) applyHTTPDecl(r *backplanev1.API) { a.applyDecl(r) }
+func (a apiFiles) applyDecl(r *backplanev1.API) {
+	r.Schema = &backplanev1.API_Bundle{Bundle: a.files.Ref}
 }
 func (a apiFiles) schemaFiles() *routes.SchemaFiles { return a.files }
 
-func declaredFiles[T any](r *backplanev1.Route, opts []T) *routes.SchemaFiles {
+func declaredFiles[T any](r *backplanev1.API, opts []T) *routes.SchemaFiles {
 	for _, opt := range opts {
 		if source, ok := any(opt).(interface{ schemaFiles() *routes.SchemaFiles }); ok {
 			if files := source.schemaFiles(); files.Ref == r.GetBundle() {

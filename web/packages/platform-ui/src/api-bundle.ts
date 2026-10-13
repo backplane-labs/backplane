@@ -1,6 +1,6 @@
 import { create } from '@bufbuild/protobuf';
 import { parseDocument } from 'yaml';
-import { SchemaFormat, ManifestSchema, RouteKind, RouteSchema, type APISchemaBundle } from '@gopherex/backplane-api/backplanepb/v1/manifest_pb';
+import { SchemaFormat, ManifestSchema, ApiKind, APISchema, type APISchemaBundle } from '@gopherex/backplane-api/backplanepb/v1/manifest_pb';
 import { readAPIDocument, type APIResult } from './api-document.js';
 
 export type APIFileReader = (hash: string, file: string, signal: AbortSignal) => Promise<Uint8Array>;
@@ -9,11 +9,11 @@ export type APIFileReader = (hash: string, file: string, signal: AbortSignal) =>
 export async function readAPIBundle(bundle: APISchemaBundle, read: APIFileReader, signal: AbortSignal): Promise<APIResult> {
   if (bundle.format === SchemaFormat.GRAPHQL) {
     const value = await read(bundle.hash, bundle.entry, signal);
-    return readAPIDocument(create(RouteSchema, { kind: RouteKind.GRAPHQL, schema: { case: 'graphql', value } }), create(ManifestSchema));
+    return readAPIDocument(create(APISchema, { kind: ApiKind.GRAPHQL, schema: { case: 'graphql', value } }), create(ManifestSchema));
   }
   if (bundle.format !== SchemaFormat.OPENAPI) return { problem: 'invalid', detail: 'Unsupported API bundle format.' };
   const source = await bundleOpenAPI(bundle.entry, (file) => read(bundle.hash, file, signal));
-  return readAPIDocument(create(RouteSchema, { kind: RouteKind.HTTP, schema: { case: 'openapi', value: new TextEncoder().encode(source) } }), create(ManifestSchema));
+  return readAPIDocument(create(APISchema, { kind: ApiKind.HTTP, schema: { case: 'openapi', value: new TextEncoder().encode(source) } }), create(ManifestSchema));
 }
 
 /** Rewrite file references to internal JSON pointers, preserving recursive refs. */

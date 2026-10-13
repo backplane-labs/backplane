@@ -25,7 +25,7 @@ export function ServiceCard({ item }: { item: ServiceOverview }) {
       <Meter value={summary.healthy} max={summary.instances} tone={tone === 'neutral' ? 'danger' : tone} label={t('instances')} />
     </div>
     <div className="grid grid-cols-4 gap-2">
-      <Figure label={t('routes')} value={item.detail ? contract.routes : '—'} />
+      <Figure label={t('apis')} value={item.detail ? contract.apis : '—'} />
       <Figure label={t('hooks')} value={item.detail ? contract.hooks : '—'} />
       <Figure label={t('events')} value={item.detail ? contract.events : '—'} />
       <Figure label={t('workflows')} value={item.detail ? contract.workflows : '—'} />

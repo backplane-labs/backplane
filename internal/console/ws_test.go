@@ -75,10 +75,10 @@ func TestUpgradeRequiresSessionAndOrigin(t *testing.T) {
 	own.mustDial(ownCookie)
 }
 
-// Behind backplane's Envoy Host arrives without its port (strip_any_host_port)
+// Behind a reverse proxy Host arrives without its port (strip_any_host_port)
 // and the port comes in X-Forwarded-Port: the console still knows its own
 // origin on a non-default port, and only that one.
-func TestOwnOriginBehindEnvoy(t *testing.T) {
+func TestOwnOriginBehindProxy(t *testing.T) {
 	t.Parallel()
 
 	e := newEnv(t, nil)

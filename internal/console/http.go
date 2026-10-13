@@ -123,7 +123,7 @@ func (c *Console) originAllowed(r *http.Request) bool {
 
 // forwardedAuthority is the request's host with the port the client
 // connected to, when a proxy stripped the port from Host and passed it in
-// X-Forwarded-Port — backplane's Envoy does both (§6), so a console on a
+// X-Forwarded-Port — a reverse proxy does both (§6), so a console on a
 // non-default port (localhost:10000) still recognizes its own origin.
 // Empty when Host has a port or X-Forwarded-Port is absent.
 func forwardedAuthority(r *http.Request) string {

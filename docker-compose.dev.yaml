@@ -17,8 +17,6 @@ x-runtime: &runtime
     OTEL_METRIC_EXPORT_INTERVAL: "5000"
   depends_on: [consul, postgres, valkey, nats, temporal, collector]
 services:
-  envoy:
-    volumes: ["./deployments/envoy/envoy.dev.yaml:/etc/envoy/envoy.yaml:ro"]
   backplane:
     <<: *runtime
     command: [/app/bin/backplane]
@@ -37,7 +35,6 @@ services:
       BACKPLANE_OTLP_URL: http://collector:4318
       BACKPLANE_AUDIT_EXPORT_URL: http://collector:4318/v1/logs
       BACKPLANE_INFRASTRUCTURE_COLLECTOR_URL: http://collector:13133/
-      BACKPLANE_INFRASTRUCTURE_GATEWAY_URL: http://envoy:9901/ready
       BACKPLANE_OBS_LOGS_URL: http://victorialogs:9428
       BACKPLANE_OBS_METRICS_URL: http://victoriametrics:8428
       BACKPLANE_OBS_TRACES_URL: http://victoriatraces:10428
@@ -53,6 +50,7 @@ services:
       - collector-audit:/var/lib/otelcol/audit
   hello:
     <<: *runtime
+    ports: ["127.0.0.1:8080:8080", "127.0.0.1:8083:8083"]
     command: [/app/bin/hello]
     environment:
       <<: *environment
@@ -60,6 +58,7 @@ services:
       HELLO_UI_ASSETS: /app/web/templates/module/dist/plugin
   formatter:
     <<: *runtime
+    ports: ["127.0.0.1:8082:8080"]
     command: [/app/bin/formatter]
     environment:
       <<: *environment

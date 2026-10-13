@@ -33,8 +33,8 @@ Once both services appear healthy in the catalog:
 
 ```sh
 make setup-example
-curl 'http://localhost:10000/hello/?name=ann'
-curl 'http://localhost:10000/formatter/'
+curl 'http://localhost:8080/hello/?name=ann'
+curl 'http://localhost:8082/formatter/'
 ```
 
 Setup logs in with `BACKPLANE_ADMIN_TOKEN` (default `DEV_ADMIN_TOKEN` from
@@ -58,7 +58,7 @@ deduplicates the hook execution, not HTTP requests or their greeting events.
 | Required/optional dependencies, probes, retry, shutdown | hello `internal/store`, `cmd/hello` |
 | Lifecycle, goroutines, singleton, telemetry | hello `internal/greeter` |
 | Live config, validation, watch | `greeter.suffix`, `greeter.excited`; `formatter.prefix`, `formatter.suffix` |
-| gRPC, streaming, REST transcoding, Connect, ws-proto | hello `HelloService`, `Countdown` |
+| Native gRPC, streaming, ws-proto | hello `HelloService`, `Countdown` |
 | HTTP, GraphQL, route policies, separate listener | hello `internal/web`, `internal/legacy` |
 | Internal console API and plugin bundle delivery | hello `internal/admin`, `ui` |
 | Hook Call / workflows.CallHook, idempotency key | hello `Greet`, HTTP handler / `Welcome` |
@@ -80,7 +80,6 @@ see [module template](../web/templates/module/README.md).
 ```sh
 make test
 make conformance
-make test-envoy
 make test-m1
 make test-m2
 make test-replicas

@@ -12,7 +12,7 @@
 //     activity (Handle) and the workflow-backed Welcome, workflows Declare,
 //     Register and an hourly Schedule.
 //   - internal/web and internal/legacy: HTTP, GraphQL, middleware and
-//     interceptors; a listener of its own announced by svc.Route.
+//     interceptors; a listener of its own announced by svc.API.
 //   - internal/admin, ui: the internal API and the console plugin bundle.
 //
 // Consul, NATS and Temporal are optional: without them hello starts with
@@ -41,19 +41,14 @@ import (
 	helloconsolev1 "github.com/gopherex/backplane/examples/hello/proto/hello/console/v1"
 	helloui "github.com/gopherex/backplane/examples/hello/ui"
 	"github.com/gopherex/backplane/pkg/backplane"
+	"github.com/gopherex/backplane/pkg/backplane/api"
 	"github.com/gopherex/backplane/pkg/backplane/config"
 	"github.com/gopherex/backplane/pkg/backplane/deps"
 	"github.com/gopherex/backplane/pkg/backplane/drivers/standard"
-	"github.com/gopherex/backplane/pkg/backplane/route"
 	"github.com/gopherex/backplane/pkg/backplane/wsproto"
 )
 
-// Route policy at Envoy.
 const (
-	httpTimeout   = 5 * time.Second
-	streamTimeout = time.Minute
-	corsMaxAge    = time.Hour
-	maxGraphQL    = 64 << 10
 	// cacheRetry bounds the delay between attempts to provide the cache.
 	cacheRetry = 10 * time.Second
 )
@@ -130,25 +125,22 @@ func run(ctx context.Context) error {
 
 	st := svc.State()
 
-	// External API: one implementation over gRPC (+Connect) and ws-proto.
-	svc.GRPC(st.Greeter.Register, route.Transcode(), route.Reflection(),
-		route.Interceptors(web.Unary(svc.Log())), route.StreamInterceptors(web.Stream(svc.Log())),
-		route.Timeout(streamTimeout))
+	// External API: one implementation over native gRPC and ws-proto.
+	svc.GRPC(st.Greeter.Register, api.Reflection(),
+		api.Interceptors(web.Unary(svc.Log())), api.StreamInterceptors(web.Stream(svc.Log())))
 	// The zero origin policy: same-origin browsers and non-browser clients.
-	wsproto.Serve(svc, "/ws/", route.Origins{}, st.Greeter.Register,
-		route.Interceptors(web.Unary(svc.Log())), route.Middleware(web.ServedBy(svc.Name())))
+	wsproto.Serve(svc, "/ws/", api.Origins{}, st.Greeter.Register,
+		api.Interceptors(web.Unary(svc.Log())), api.Middleware(web.ServedBy(svc.Name())))
 
-	// HTTP and GraphQL, with their Envoy policy.
+	// HTTP and GraphQL, with application middleware.
 	svc.HTTP("/hello/", web.Hello(st.Flows.Greet, st.Greeter),
-		route.OpenAPIFS(web.API, "openapi.yaml"),
-		route.Middleware(web.ServedBy(svc.Name())), route.Timeout(httpTimeout),
-		route.CORS(route.CORSPolicy{Origins: []string{"*"}, Methods: []string{"GET"}, MaxAge: corsMaxAge}))
-	svc.GraphQL("/graphql/", web.GraphQL(st.Greeter), web.Introspection,
-		route.Timeout(httpTimeout), route.MaxRequestBytes(maxGraphQL))
+		api.OpenAPIFS(web.API, "openapi.yaml"),
+		api.Middleware(web.ServedBy(svc.Name())))
+	svc.GraphQL("/graphql/", web.GraphQL(st.Greeter), web.Introspection)
 
-	// A listener hello serves itself, announced for Envoy.
-	svc.Route(route.HTTP(legacy.Prefix,
-		route.Port(st.Legacy.Port()), route.Timeout(httpTimeout), route.OpenAPI(legacy.API)))
+	// A listener hello serves itself, described for the API catalog.
+	svc.API(api.HTTP(legacy.Prefix,
+		api.Port(st.Legacy.Port()), api.OpenAPI(legacy.API)))
 
 	// Internal API and UI bundle for the console plugin.
 	svc.Internal(func(r grpc.ServiceRegistrar) { helloconsolev1.RegisterAdminServiceServer(r, st.Admin) })

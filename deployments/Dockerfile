@@ -32,6 +32,6 @@ COPY --from=go /out/backplane /app/bin/backplane
 COPY --from=web /src/web/apps/embedding/dist-live /app/console
 COPY LICENSE /app/LICENSE
 ENV BACKPLANE_CONSOLE_ASSETS_DIR=/app/console BACKPLANE_CONSOLE_PREFIX=/backplane
-EXPOSE 8081 9400 18000
+EXPOSE 8081 9400
 USER nonroot:nonroot
 ENTRYPOINT ["/app/bin/backplane"]

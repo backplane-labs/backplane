@@ -29,15 +29,15 @@ make dev
 
 ## Open the console
 
-Open **http://127.0.0.1:10000/backplane/**. The local development operator credential is `dev-admin-token-change-me`; set `DEV_ADMIN_TOKEN` before starting the stack to change it. This is a development default, not a production credential.
+Open **http://127.0.0.1:8081/backplane/**. The local development operator credential is `dev-admin-token-change-me`; set `DEV_ADMIN_TOKEN` before starting the stack to change it. This is a development default, not a production credential.
 
 Login creates an HttpOnly cookie. The frontend does not store the operator token. Services is the landing page; the sidebar also exposes platform tools and module-owned pages.
 
 ## Exercise the connected services
 
 ```bash
-curl --fail 'http://127.0.0.1:10000/hello/?name=ann'
-curl --fail 'http://127.0.0.1:10000/formatter/'
+curl --fail 'http://127.0.0.1:8080/hello/?name=ann'
+curl --fail 'http://127.0.0.1:8082/formatter/'
 ```
 
 The greeting should use formatter's output (`Welcome, ann!` with default configuration). Formatter's statistics show activity, rule and reactor work. Event processing is asynchronous: refresh the statistics after delivery.

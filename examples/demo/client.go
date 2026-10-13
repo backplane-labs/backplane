@@ -23,7 +23,7 @@ var (
 
 // Connect authenticates using a deployment-provided token, then opens the
 // console's ws-proto transport using the returned HttpOnly session cookie.
-// base includes the console prefix, e.g. http://localhost:10000/backplane.
+// base includes the console prefix, e.g. http://localhost:8081/backplane.
 func Connect(ctx context.Context, base, token string) (*wsrpc.ClientConn, error) {
 	target, err := url.Parse(strings.TrimRight(base, "/"))
 	if err != nil {

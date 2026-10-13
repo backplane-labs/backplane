@@ -1,4 +1,4 @@
-const base = process.env.BACKPLANE_DEMO_URL ?? 'http://127.0.0.1:10000/backplane';
+const base = process.env.BACKPLANE_DEMO_URL ?? 'http://127.0.0.1:8081/backplane';
 const deadline = Date.now() + 120000;
 while (true) {
   try {
@@ -9,7 +9,7 @@ while (true) {
       return Array.isArray(entries) && entries.some((entry) => entry.Service?.ID === `${name}-dev`);
     }));
     if (session.status === 401 && services.every(Boolean)) { console.log('Development console and all three services are ready'); break; }
-  } catch { /* Bounded readiness wait while registry and xDS converge. */ }
+  } catch { /* Bounded readiness wait while the registry converges. */ }
   if (Date.now() >= deadline) throw new Error('Development services did not become ready; inspect make dev-logs');
   await new Promise((resolve) => setTimeout(resolve, 1000));
 }

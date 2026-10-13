@@ -59,7 +59,7 @@ func KeepSlog() Option { return func(o *options) { o.slog = false } }
 // GRPCServerOptions are passed to every public gRPC server after the
 // SDK's own (telemetry, limits of config.Server, panic recovery): a later
 // limit overrides the SDK's; interceptors run inside recovery and outside
-// those of route.Interceptors. The platform port is not affected.
+// those of api.Interceptors. The platform port is not affected.
 func GRPCServerOptions(opts ...grpc.ServerOption) Option {
 	return func(o *options) { o.grpc = append(o.grpc, opts...) }
 }

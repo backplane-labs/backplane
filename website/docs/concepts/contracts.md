@@ -9,7 +9,7 @@ A manifest is the catalog's description of a service version. It is not a deploy
 | Activity | A typed operation the service offers to other flows | Bindings, event rules and direct runs |
 | Event | A named asynchronous fact with a payload schema | Reactors and event rules |
 | Workflow | A durable entrypoint offered by a service | Workflow runs and administrative schedules |
-| Route | Public protocol, prefix/port, routing policy and optional API document | Envoy and service API viewer |
+| API | Service protocol, local prefix/port and optional API document | Service API viewer |
 | Internal API | Protobuf methods intended for authenticated console access | Generated module clients and relay |
 | UI bundle | Module metadata, compatible SDK major and assets | Console module host |
 | Telemetry selectors | Optional related source presets | Service-scoped observability views |

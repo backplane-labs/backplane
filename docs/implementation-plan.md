@@ -71,7 +71,7 @@ standalone Docker image also passed both browser scenarios.
 No frontend packages have been published.
 
 Step 7 evidence: `make dev` starts the complete compose installation, seeds the
-named binding/rule and returns `Welcome, Developer!` through Envoy. `make test-dev`
+named binding/rule and returns `Welcome, Developer!` through the direct service listener. `make test-dev`
 passes live service-client relay on the host socket, config validation/save,
 hook execution, audit, stored logs/metrics, themes and logout. See
 [development](development.md). The live host includes the product console;

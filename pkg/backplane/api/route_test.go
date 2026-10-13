@@ -1,4 +1,4 @@
-package route_test
+package api_test
 
 import (
 	"errors"
@@ -6,60 +6,60 @@ import (
 	"testing"
 
 	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
+	"github.com/gopherex/backplane/pkg/backplane/api"
 	"github.com/gopherex/backplane/pkg/backplane/internal/link"
 	"github.com/gopherex/backplane/pkg/backplane/internal/routes"
-	"github.com/gopherex/backplane/pkg/backplane/route"
 )
 
 func TestDeclarative(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]struct {
-		decl      route.Decl
-		kind      backplanev1.RouteKind
+		decl      api.Decl
+		kind      backplanev1.ApiKind
 		prefix    string
 		host      string
 		port      uint32
 		hasSchema bool
 	}{
 		"grpc": {
-			route.GRPC("hello.v1.Hello", route.Port(9000)),
-			backplanev1.RouteKind_ROUTE_KIND_GRPC, "/hello.v1.Hello/", "", 9000, false,
+			api.GRPC("hello.v1.Hello", api.Port(9000)),
+			backplanev1.ApiKind_API_KIND_GRPC, "/hello.v1.Hello/", "", 9000, false,
 		},
-		"connect": {
-			route.GRPC("hello.v1.Hello", route.Transcode(), route.Descriptors([]byte{1})),
-			backplanev1.RouteKind_ROUTE_KIND_CONNECT, "/hello.v1.Hello/", "", 0, true,
+		"grpc descriptors": {
+			api.GRPC("hello.v1.Hello", api.Descriptors([]byte{1})),
+			backplanev1.ApiKind_API_KIND_GRPC, "/hello.v1.Hello/", "", 0, true,
 		},
 		"http host": {
-			route.HTTP("/x/", route.Host("api.example.com"), route.OpenAPI([]byte("{}"))),
-			backplanev1.RouteKind_ROUTE_KIND_HTTP, "/x/", "api.example.com", 0, true,
+			api.HTTP("/x/", api.Host("api.example.com"), api.OpenAPI([]byte("{}"))),
+			backplanev1.ApiKind_API_KIND_HTTP, "/x/", "api.example.com", 0, true,
 		},
 		"http normalized": {
-			route.HTTP("/api", route.Port(8081)),
-			backplanev1.RouteKind_ROUTE_KIND_HTTP, "/api/", "", 8081, false,
+			api.HTTP("/api", api.Port(8081)),
+			backplanev1.ApiKind_API_KIND_HTTP, "/api/", "", 8081, false,
 		},
 		"graphql": {
-			route.GraphQL("/graphql", []byte("{}")),
-			backplanev1.RouteKind_ROUTE_KIND_GRAPHQL, "/graphql/", "", 0, true,
+			api.GraphQL("/graphql", []byte("{}")),
+			backplanev1.ApiKind_API_KIND_GRAPHQL, "/graphql/", "", 0, true,
 		},
 		"graphql no introspection": {
-			route.GraphQL("/graphql/", nil, route.Host("gql.example.com")),
-			backplanev1.RouteKind_ROUTE_KIND_GRAPHQL, "/graphql/", "gql.example.com", 0, false,
+			api.GraphQL("/graphql/", nil, api.Host("gql.example.com")),
+			backplanev1.ApiKind_API_KIND_GRAPHQL, "/graphql/", "gql.example.com", 0, false,
 		},
 		"wsproto": {
-			route.WSProto("/ws", nil),
-			backplanev1.RouteKind_ROUTE_KIND_WS_PROTO, "/ws/", "", 0, false,
+			api.WSProto("/ws", nil),
+			backplanev1.ApiKind_API_KIND_WS_PROTO, "/ws/", "", 0, false,
 		},
 		"wsproto descriptors": {
-			route.WSProto("/ws/", []byte{1}, route.Port(7000)),
-			backplanev1.RouteKind_ROUTE_KIND_WS_PROTO, "/ws/", "", 7000, true,
+			api.WSProto("/ws/", []byte{1}, api.Port(7000)),
+			backplanev1.ApiKind_API_KIND_WS_PROTO, "/ws/", "", 7000, true,
 		},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			r, err := link.Routes.Decl(c.decl)
+			r, err := link.APIs.Decl(c.decl)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -78,7 +78,7 @@ func TestDeclarative(t *testing.T) {
 func TestGRPCDeclNamesService(t *testing.T) {
 	t.Parallel()
 
-	r, err := link.Routes.Decl(route.GRPC("hello.v1.Hello"))
+	r, err := link.APIs.Decl(api.GRPC("hello.v1.Hello"))
 	if err != nil || !slices.Equal(r.GetServices(), []string{"hello.v1.Hello"}) {
 		t.Fatalf("services %v err %v", r.GetServices(), err)
 	}
@@ -87,18 +87,18 @@ func TestGRPCDeclNamesService(t *testing.T) {
 func TestBadPrefixIsDeclError(t *testing.T) {
 	t.Parallel()
 
-	for name, d := range map[string]route.Decl{
-		"http relative":     route.HTTP("api"),
-		"http method":       route.HTTP("GET /x"),
-		"http wildcard":     route.HTTP("/x/{id}"),
-		"graphql relative":  route.GraphQL("graphql", nil),
-		"wsproto wildcard":  route.WSProto("/ws/{x}", nil),
-		"http with options": route.HTTP("api", route.Port(1), route.Host("h")),
+	for name, d := range map[string]api.Decl{
+		"http relative":     api.HTTP("api"),
+		"http method":       api.HTTP("GET /x"),
+		"http wildcard":     api.HTTP("/x/{id}"),
+		"graphql relative":  api.GraphQL("graphql", nil),
+		"wsproto wildcard":  api.WSProto("/ws/{x}", nil),
+		"http with options": api.HTTP("api", api.Port(1), api.Host("h")),
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			if _, err := link.Routes.Decl(d); !errors.Is(err, routes.ErrPrefix) {
+			if _, err := link.APIs.Decl(d); !errors.Is(err, routes.ErrPrefix) {
 				t.Fatalf("want ErrPrefix, got %v", err)
 			}
 		})
@@ -108,7 +108,7 @@ func TestBadPrefixIsDeclError(t *testing.T) {
 func TestZeroDeclIsError(t *testing.T) {
 	t.Parallel()
 
-	if _, err := link.Routes.Decl(route.Decl{}); err == nil {
+	if _, err := link.APIs.Decl(api.Decl{}); err == nil {
 		t.Fatal("zero Decl accepted")
 	}
 }
@@ -149,17 +149,17 @@ func TestPrefix(t *testing.T) {
 func TestManagedOptions(t *testing.T) {
 	t.Parallel()
 
-	g := link.Routes.GRPC([]route.GRPCOption{route.Transcode(), route.Listen(":9000"), route.Host("api.example.com")})
-	if g.Listen != ":9000" || g.Host != "api.example.com" || !g.Transcode || g.OpenAPI != nil {
+	g := link.APIs.GRPC([]api.GRPCOption{api.Listen(":9000")})
+	if g.Listen != ":9000" || g.Host != "" || g.OpenAPI != nil {
 		t.Fatalf("grpc: %+v", g)
 	}
 
-	if d := link.Routes.GRPC([]route.GRPCOption(nil)); d.Transcode || d.Listen != "" || d.Host != "" {
+	if d := link.APIs.GRPC([]api.GRPCOption(nil)); d.Listen != "" || d.Host != "" {
 		t.Fatalf("grpc defaults: %+v", d)
 	}
 
-	h := link.Routes.HTTP([]route.HTTPOption{route.OpenAPI([]byte("{}")), route.Listen(":8081"), route.Host("h")})
-	if h.Listen != ":8081" || h.Host != "h" || string(h.OpenAPI) != "{}" || h.Transcode {
+	h := link.APIs.HTTP([]api.HTTPOption{api.OpenAPI([]byte("{}")), api.Listen(":8081"), api.Host("h")})
+	if h.Listen != ":8081" || h.Host != "h" || string(h.OpenAPI) != "{}" {
 		t.Fatalf("http: %+v", h)
 	}
 }
@@ -167,16 +167,16 @@ func TestManagedOptions(t *testing.T) {
 func TestOrigins(t *testing.T) {
 	t.Parallel()
 
-	var zero route.Origins
+	var zero api.Origins
 	if zero.IsAny() || len(zero.Patterns()) != 0 {
 		t.Fatalf("zero origins: %v %v", zero.IsAny(), zero.Patterns())
 	}
 
-	if !route.AnyOrigin().IsAny() {
+	if !api.AnyOrigin().IsAny() {
 		t.Fatal("AnyOrigin")
 	}
 
-	o := route.AllowOrigins("app.example.com", "*.example.com")
+	o := api.AllowOrigins("app.example.com", "*.example.com")
 	if o.IsAny() || !slices.Equal(o.Patterns(), []string{"app.example.com", "*.example.com"}) {
 		t.Fatalf("patterns: %v", o.Patterns())
 	}

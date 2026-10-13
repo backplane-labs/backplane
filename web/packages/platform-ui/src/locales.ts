@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 export const platformEnglish = {
-  externalAPI: 'External API', externalAPIHelp: 'Public routes and API documents published by this service.', externalRoute: 'Route',
+  externalAPI: 'External API', externalAPIHelp: 'APIs served by this service and their documentation. External publication belongs to deployment.', externalEndpoint: 'API',
   apiSchemaMissing: 'No API document published', apiSchemaMissingHelp: 'The route is registered, but the service has not attached an API document.',
   apiSchemaInvalid: 'Could not read the API document', apiOperations: 'Operations', apiSearch: 'Find a method or path', apiNoOperations: 'No matching operations.',
   apiParameters: 'Parameters', apiRequest: 'Request body', apiResponse: 'Response', apiSecurity: 'Security requirements', apiTypes: 'Schemas and types',
@@ -40,7 +40,7 @@ export const platformEnglish = {
   configKeys: 'Config keys', liveCount_one: '{{count}} live', liveCount_other: '{{count}} live', components: 'Components', noComponents: 'No components declared.',
   instanceDetail: 'Instance state as published by its SDK.', catalogOnly: 'Known to the catalog only', revApplied: 'rev {{revision}} applied', revRejected: 'rev {{revision}} rejected',
   openInstance: 'Open instance {{id}}', health: 'Health', passing: 'Passing', failing: 'Failing', commit: 'Commit', started: 'Started', tags: 'Tags',
-  transports: 'Transports', configSources: 'Configuration sources', routes: 'Routes', noRoutes: 'No routes declared.', hooks: 'Hooks', required: 'required',
+  transports: 'Transports', configSources: 'Configuration sources', apis: 'APIs', noAPIs: 'No APIs declared.', hooks: 'Hooks', required: 'required',
   noHooks: 'No hooks declared.', activities: 'Activities', noActivities: 'No activities declared.', events: 'Events', publishes: 'publishes', consumes: 'consumes',
   noEvents: 'No events published or consumed.', workflows: 'Workflows', noWorkflows: 'No workflows declared.', noSchedules: 'No schedules declared.',
   paused: 'Paused', optional: 'optional',

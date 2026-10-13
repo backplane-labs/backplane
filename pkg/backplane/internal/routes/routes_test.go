@@ -2,18 +2,14 @@ package routes_test
 
 import (
 	"context"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"slices"
 	"testing"
-	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/durationpb"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
 	"github.com/gopherex/backplane/pkg/backplane/internal/routes"
 )
 
@@ -172,58 +168,5 @@ func TestHosts(t *testing.T) {
 
 	if _, body := serve(t, h, "other.org"); body != "any" {
 		t.Fatalf("fallback: %q", body)
-	}
-}
-
-func TestCheckPolicy(t *testing.T) {
-	t.Parallel()
-
-	ok := []*backplanev1.RoutePolicy{
-		nil,
-		{},
-		{Timeout: durationpb.New(0), Retry: &backplanev1.RetryPolicy{Attempts: 1}},
-		{Cors: &backplanev1.Cors{Origins: []string{"*"}}},
-	}
-	for _, p := range ok {
-		if err := routes.CheckPolicy(p); err != nil {
-			t.Fatalf("%v: %v", p, err)
-		}
-	}
-
-	bad := map[string]*backplanev1.RoutePolicy{
-		"timeout":  {Timeout: durationpb.New(-time.Second)},
-		"idle":     {IdleTimeout: durationpb.New(-time.Second)},
-		"per try":  {Retry: &backplanev1.RetryPolicy{Attempts: 1, PerTryTimeout: durationpb.New(-1)}},
-		"attempts": {Retry: &backplanev1.RetryPolicy{}},
-		"origins":  {Cors: &backplanev1.Cors{}},
-		"max age":  {Cors: &backplanev1.Cors{Origins: []string{"*"}, MaxAge: durationpb.New(-1)}},
-	}
-	for name, p := range bad {
-		if err := routes.CheckPolicy(p); !errors.Is(err, routes.ErrPolicy) {
-			t.Fatalf("%s: want ErrPolicy, got %v", name, err)
-		}
-	}
-}
-
-func TestWrapOrder(t *testing.T) {
-	t.Parallel()
-
-	var order []string
-
-	tag := func(s string) func(http.Handler) http.Handler {
-		return func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				order = append(order, s)
-
-				next.ServeHTTP(w, r)
-			})
-		}
-	}
-
-	m := routes.Managed{Middleware: []func(http.Handler) http.Handler{tag("a"), tag("b")}}
-	serve(t, m.Wrap(text("")), "")
-
-	if !slices.Equal(order, []string{"a", "b"}) {
-		t.Fatalf("order %v", order)
 	}
 }

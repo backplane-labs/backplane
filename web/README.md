@@ -103,7 +103,7 @@ session/provider. It is not an event/cursor replay helper.
 
 From the repository root, `make dev` builds and starts the stack, backplane,
 hello and formatter with a seeded binding and event rule. Open
-`http://127.0.0.1:10000/backplane/` and use `DEV_ADMIN_TOKEN` (the documented local
+`http://127.0.0.1:8081/backplane/` and use `DEV_ADMIN_TOKEN` (the documented local
 default is `dev-admin-token-change-me`). `Development acceptance` opens the live
 kit composition fixture. See [development instructions](../docs/development.md).
 `make test-dev` exercises service relay, configuration, hook execution, audit and

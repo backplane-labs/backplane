@@ -1,4 +1,4 @@
-package route
+package api
 
 // Origins is the browser origin policy of a WebSocket endpoint (ws-proto).
 // It is a required argument where it applies; the

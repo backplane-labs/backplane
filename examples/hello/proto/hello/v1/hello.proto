@@ -4,8 +4,8 @@ package hello.v1;
 
 option go_package = "github.com/gopherex/backplane/examples/hello/proto/hello/v1;hellov1";
 
-// External API of hello. One implementation is served over gRPC (with
-// Connect transcoding) and ws-proto.
+// External API of hello. One implementation is served over native gRPC
+// and ws-proto.
 service HelloService {
   rpc Greet(GreetRequest) returns (GreetResponse);
   // Server stream: exercises streaming over gRPC and ws-proto.

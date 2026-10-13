@@ -14,7 +14,6 @@ The repository includes:
 | `docker-compose.minimal.yaml` | Minimal console without Temporal, NATS, gateway or telemetry |
 | `docker-compose.dev.yaml` | Built Backplane, hello, formatter and seeded development wiring |
 | `docker-compose.observability.yaml` | Independent Collector and Victoria stores |
-| `deployments/envoy.yaml` | Gateway bootstrap using Backplane xDS |
 | `deployments/otel-collector.yaml` and audit overlay | Telemetry routing and trusted audit forwarding |
 
 These are development/reference configurations. Replace local passwords, unsecured endpoints and host mappings for your environment. Do not expose administrative infrastructure ports through a public ingress.

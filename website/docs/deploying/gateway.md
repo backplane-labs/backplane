@@ -1,36 +1,54 @@
-# Gateway and service discovery
+# External routing and service discovery
 
-Backplane can generate Envoy configuration from registered service routes. Envoy handles public traffic; Backplane supplies xDS over its configured listener. The gateway is optional and is not a general service mesh controller.
-
-## Request paths
+External routing belongs to deployment. Backplane and its SDK do not configure
+proxies, supply xDS/EDS, publish routes or choose external URLs. The platform does
+not require a particular gateway.
 
 ```mermaid
 flowchart LR
-  User[Application caller] --> Envoy
-  Envoy -->|Public route| Service[Service public listener]
-  Browser[Operator browser] --> Envoy
-  Envoy -->|Console prefix| Console[Backplane console]
-  Console -->|Authenticated relay| Internal[Service platform listener]
-  BP[Backplane xDS] --> Envoy
-  Consul[Consul registration and health] --> BP
+  Caller[Application caller] --> Proxy[Deployment-owned proxy]
+  Proxy --> Public[Service public listener]
+  Browser[Operator browser] --> Proxy
+  Proxy --> Console[Backplane console listener]
+  Console --> Internal[Service platform port]
+  Service[Service SDK] --> Consul[Consul catalog and KV]
+  Consul --> Catalog[Backplane catalog]
 ```
 
-Managed HTTP/gRPC endpoints and independently owned listeners both need accurate route metadata. The latter are only announced: the SDK does not start them on your behalf.
+## Who configures what
 
-## Addresses and ports
+The service author chooses protocols, handlers, local paths, ports and application
+middleware. The operator configures domains, published paths, rewrites, authentication
+and upstream discovery in the deployment's proxy or Kubernetes gateway.
+TLS terminates in deployment before traffic reaches the application's HTTP listener.
 
-A bind address tells the process where to listen. An advertised address tells other processes where to connect. `localhost` inside a container refers to that container, so do not advertise it to a gateway in another container. Use routable container/service addresses and stable declared ports.
+In Kubernetes, target the application's Kubernetes Service with the gateway already
+used by the installation. In Compose, use container DNS names and the service ports.
+Consul service discovery can also be used independently by infrastructure. Backplane
+reading the Consul catalog for console operations does not configure that discovery.
 
-The example topology exposes gateway HTTP on port 10000 and its admin interface on a development-only address. Backplane's xDS listener defaults to 18000. Keep administrative listeners private and follow the [configuration reference](../reference/configuration.md) for actual mappings.
+## Console behind a reverse proxy
 
-## Route policy
+Forward the console listener (default `8081`) with WebSocket upgrades enabled.
+Preserve the path including `BACKPLANE_CONSOLE_PREFIX`, such as `/backplane`.
+Preserve Host and configure allowed origins when the browser's origin differs.
+Set `BACKPLANE_CONSOLE_TRUSTED_PROXIES` only to addresses/CIDRs of actual trusted proxies.
+Keep secure cookies enabled for HTTPS deployments; insecure cookies are a local HTTP option.
 
-Route declarations carry protocol, prefix/host, target port and supported policy such as timeout, CORS and request bounds. Streaming methods need suitable timeouts. The console requires WebSocket upgrade forwarding; API schema and plugin assets must retain the configured console prefix.
+The proxy only needs to expose the console listener to serve the shell, session API,
+WebSocket API, module assets and API schema files. The console fetches module assets
+and calls internal APIs using service platform addresses, independently of the proxy.
+Do not publish platform ports as application endpoints.
 
-Public service authentication remains the service/deployment's responsibility. Console cookie authentication protects the administrative console and relay, not every public application route.
+## API metadata
 
-## Deployment and verification
+`Manifest.apis` describes what a service serves and supplies documents for the API
+viewer. It is not a desired proxy configuration. Declaring an API does not make it
+externally reachable, and the console does not claim that publication was applied.
 
-Use the supplied Envoy bootstrap as a reference and point it at the actual Backplane xDS address. With no gateway, set `BACKPLANE_XDS_ENABLED=false`; do not leave a required listener/probe configured for an integration you omitted.
+## Local development
 
-Verify one HTTP route and each protocol you rely on. Check the service's advertised target and Consul health before investigating the browser. `make test-envoy` exercises generated routing with the reference topology. The development Compose overlay targets the container Backplane, while host-process conformance uses the host topology; do not mix them.
+`make dev` exposes the console at `http://127.0.0.1:8081/backplane/`, hello at
+`http://127.0.0.1:8080/hello/`, its independently served example at
+`http://127.0.0.1:8083/legacy/`, and formatter at `http://127.0.0.1:8082/formatter/`.
+The standard stack runs without an external gateway.

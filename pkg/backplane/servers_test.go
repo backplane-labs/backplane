@@ -27,10 +27,10 @@ import (
 	helloconsolev1 "github.com/gopherex/backplane/examples/hello/proto/hello/console/v1"
 	hellov1 "github.com/gopherex/backplane/examples/hello/proto/hello/v1"
 	"github.com/gopherex/backplane/pkg/backplane"
+	"github.com/gopherex/backplane/pkg/backplane/api"
 	"github.com/gopherex/backplane/pkg/backplane/deps"
 	"github.com/gopherex/backplane/pkg/backplane/drivers/standard"
 	"github.com/gopherex/backplane/pkg/backplane/internal/guard"
-	"github.com/gopherex/backplane/pkg/backplane/route"
 	"github.com/gopherex/backplane/pkg/backplane/wsproto"
 )
 
@@ -134,16 +134,16 @@ func TestServerFeatures(t *testing.T) {
 	}
 
 	svc.GRPC(func(r grpc.ServiceRegistrar) { hellov1.RegisterHelloServiceServer(r, hello{}) },
-		route.Interceptors(seen.unary("hello")), route.Reflection(), route.Timeout(time.Minute))
+		api.Interceptors(seen.unary("hello")), api.Reflection())
 	svc.GRPC(func(r grpc.ServiceRegistrar) { helloconsolev1.RegisterAdminServiceServer(r, admin{}) },
-		route.Interceptors(seen.unary("admin")))
-	wsproto.Serve(svc, "/ws/", route.AnyOrigin(),
+		api.Interceptors(seen.unary("admin")))
+	wsproto.Serve(svc, "/ws/", api.AnyOrigin(),
 		func(r grpc.ServiceRegistrar) { hellov1.RegisterHelloServiceServer(r, hello{}) },
-		route.Interceptors(seen.unary("ws")))
+		api.Interceptors(seen.unary("ws")))
 	svc.HTTP("/boom", http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic("http boom") }))
-	svc.HTTP("/api", text("a"), route.Host("a.example.com"))
-	svc.HTTP("/api", text("b"), route.Host("*.b.example.com"))
-	svc.HTTP("/mw", text("mw"), route.Middleware(func(next http.Handler) http.Handler {
+	svc.HTTP("/api", text("a"), api.Host("a.example.com"))
+	svc.HTTP("/api", text("b"), api.Host("*.b.example.com"))
+	svc.HTTP("/mw", text("mw"), api.Middleware(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("X-Middleware", "on")
 			next.ServeHTTP(w, r)

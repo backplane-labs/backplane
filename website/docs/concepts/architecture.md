@@ -13,8 +13,8 @@ flowchart TB
   Service <--> Temporal
   BP -->|Optional| NATS[NATS JetStream]
   Service <--> NATS
-  BP -->|Optional xDS| Envoy[Envoy gateway]
-  Envoy --> Service
+  Caller[Application caller] --> Proxy[Deployment-owned proxy]
+  Proxy --> Service
   Browser -->|Bounded OTLP proxy| BP
   BP --> Collector[Independent OTel Collector]
   Service --> Collector
@@ -38,7 +38,7 @@ Services are independently built. A consumer can define compatible JSON payload 
 
 PostgreSQL stores authoritative control state and audit. Consul supplies registration, health and the distributed configuration view used by services. Reconciliation bridges committed operator intent and runtime state; UI status distinguishes a saved revision from one applied by an instance.
 
-Public application requests normally travel through Envoy to services. The console's authenticated internal API relay is a separate path. The server proxies module assets so embedded modules load from the console origin; it does not build or deploy those modules.
+External publication and routing belong to deployment; application requests reach the services' own public listeners. The console's authenticated internal API relay is a separate path. The server proxies module assets so embedded modules load from the console origin; it does not build or deploy those modules.
 
 Temporal provides durable workflow execution and Nexus dispatch when enabled. NATS JetStream provides durable event delivery when enabled. Neither is required to run the core SDK in standalone mode. [Dependency modes](dependencies.md) explain which platform capabilities disappear when a runtime is absent.
 

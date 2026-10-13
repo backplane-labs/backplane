@@ -21,7 +21,6 @@ import (
 	"github.com/gopherex/backplane/internal/console"
 	"github.com/gopherex/backplane/internal/obs"
 	"github.com/gopherex/backplane/internal/otlp"
-	"github.com/gopherex/backplane/internal/xds"
 	"github.com/gopherex/backplane/pkg/backplane/config"
 	"github.com/gopherex/backplane/pkg/backplane/infra/postgres"
 	"github.com/gopherex/backplane/pkg/backplane/infra/valkey"
@@ -37,11 +36,9 @@ type Config struct {
 	// PostgreSQL, schema `backplane`: BACKPLANE_PG_DSN, _QUERY_LOG, _POOL_*.
 	PG postgres.Config `json:"pg"`
 	// Valkey keeps what every replica shares briefly: login attempts.
-	Valkey valkey.Config `json:"valkey"`
-	// xDS (ADS) for Envoy.
-	XDS            XDS            `json:"xds"`
+	Valkey         valkey.Config  `json:"valkey"`
 	Infrastructure Infrastructure `json:"infrastructure"`
-	// Console HTTP: `/`, `/ws`, `/auth`, `/plugins`, served behind Envoy.
+	// Console HTTP: `/`, `/ws`, `/auth`, `/plugins`, served directly or behind a deployment-owned proxy.
 	Console Console `json:"console"`
 	// Admin token of the console (§11.3): the secret /auth/login accepts,
 	// set in the deployment; required, at least 16 characters. Changing it
@@ -60,24 +57,12 @@ type Config struct {
 	Nexus Nexus `json:"nexus"`
 }
 
-// XDS is the control plane Envoy connects to: BACKPLANE_XDS_*.
-type XDS struct {
-	Enabled bool   `json:"enabled" schemapb:"default=true"`
-	Listen  string `json:"listen"  schemapb:"default=:18000"`
-	// HTTPPort is the port of Envoy's public HTTP listener the snapshot
-	// describes (Envoy binds it, not backplane).
-	HTTPPort int64 `json:"http_port" schemapb:"default=10000;gte=1;lte=65535"`
-}
-
 // Console of the installation (§11): BACKPLANE_CONSOLE_*.
 type Console struct {
 	// AssetsDir serves a built console shell from a deployment-owned directory.
 	AssetsDir string `json:"assets_dir,omitempty"`
 	Listen    string `json:"listen"               schemapb:"default=:8081"`
-	// The console lives on its own host (console.example.com) or under a
-	// prefix of a shared one (/backplane); one of them, or neither — then it
-	// takes `/` of the default virtual host.
-	Host   string `json:"host,omitempty"`
+	// Prefix mounts the console under a path such as /backplane.
 	Prefix string `json:"prefix,omitempty"`
 	// Origins allowed to open /ws (https://console.example.com); empty:
 	// the console's own host.
@@ -92,7 +77,7 @@ type Console struct {
 // Settings of the console component.
 func (c Config) consoleSettings() console.Settings {
 	return console.Settings{
-		Listen: c.Console.Listen, Host: c.Console.Host, Prefix: c.Console.Prefix,
+		Listen: c.Console.Listen, Prefix: c.Console.Prefix,
 		Origins: c.Console.Origins, TrustedProxies: c.Console.TrustedProxies, InsecureCookie: c.Console.InsecureCookie,
 		AdminToken: c.AdminToken, InternalSecret: c.InternalSecret,
 	}
@@ -105,7 +90,6 @@ var (
 	ErrNoValkey     = errors.New("valkey.addr is required (BACKPLANE_VALKEY_ADDR)")
 	ErrAddr         = errors.New("want host:port with a port in 1..65535")
 	ErrPortTaken    = errors.New("port is used twice")
-	ErrHostOrPrefix = errors.New("console: host and prefix exclude each other")
 	ErrPrefix       = errors.New("console.prefix: want /path without a trailing slash")
 	ErrOrigin       = errors.New("console.origins: want scheme://host[:port]")
 	ErrProxy        = errors.New("console.trusted_proxies: want an address or CIDR")
@@ -170,12 +154,8 @@ func (c Config) ports() []error {
 	}
 
 	for _, l := range []struct{ name, addr string }{
-		{"xds.listen", c.XDS.Listen}, {"console.listen", c.Console.Listen}, {"audit.listen", c.Audit.Listen},
+		{"console.listen", c.Console.Listen}, {"audit.listen", c.Audit.Listen},
 	} {
-		if l.name == "xds.listen" && !c.XDS.Enabled {
-			continue
-		}
-
 		port, err := listenPort(l.addr)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s %q: %w", l.name, l.addr, err))
@@ -197,10 +177,6 @@ func (c Config) ports() []error {
 
 func (c Console) validate() []error {
 	var errs []error
-
-	if c.Host != "" && c.Prefix != "" {
-		errs = append(errs, ErrHostOrPrefix)
-	}
 
 	if c.Prefix != "" && (!strings.HasPrefix(c.Prefix, "/") || strings.HasSuffix(c.Prefix, "/")) {
 		errs = append(errs, fmt.Errorf("%q: %w", c.Prefix, ErrPrefix))
@@ -225,7 +201,7 @@ func (c Console) validate() []error {
 	return errs
 }
 
-// listenPort is the port of a listen address (":18000", "0.0.0.0:18000").
+// listenPort is the port of a listen address (":8081", "0.0.0.0:8081").
 func listenPort(addr string) (int, error) {
 	_, p, err := net.SplitHostPort(addr)
 	if err != nil {
@@ -244,25 +220,6 @@ func httpURL(s string) bool {
 	u, err := url.Parse(s)
 
 	return err == nil && u.Host != "" && (u.Scheme == "http" || u.Scheme == "https")
-}
-
-// xdsConfig is the xDS server's configuration: its listener, Envoy's
-// public listener and the console's routes, which lead to the console
-// listener of every healthy backplane instance (this one's advertise
-// address while the catalog lists none).
-func xdsConfig(c Config, advertise string) xds.Config {
-	port, _ := listenPort(c.Console.Listen) // Validate checked it
-
-	return xds.Config{
-		Listen: c.XDS.Listen,
-		Gateway: xds.Gateway{
-			Port: uint32(c.XDS.HTTPPort), //nolint:gosec // 1..65535 by the schema
-			Console: xds.Console{
-				Host: c.Console.Host, Prefix: c.Console.Prefix,
-				Port: uint32(port), Service: Name, Fallback: advertise, //nolint:gosec // a port
-			},
-		},
-	}
 }
 
 // Nexus controls cleanup of endpoints whose services have no instances.

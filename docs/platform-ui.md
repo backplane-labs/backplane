@@ -9,8 +9,8 @@ router-agnostic: navigation leaves them through callbacks (`onNavigate`,
 
 | Export | Behavior |
 | --- | --- |
-| `ServiceCatalog`, `ServiceInspector` | Instances (phase, uptime, address, applied/rejected revision, readiness) with an instance drawer (transports, node readiness, per-key configuration source, effective masked configuration); contract panels for routes, hooks with binding state, activities, published/consumed events, workflows, schedules; component tree; metadata |
-| `ServiceAPI`, `ServiceAPIDocument` | External API reference: route selector, searchable operations and types, linked request/response types, visible examples with copy, schema constraints and nested fields, streaming RPC signatures, GraphQL queries/mutations/subscriptions, source preview and JSON download. OpenAPI JSON/YAML (3.x and Swagger 2.0), protobuf descriptor sets and GraphQL introspection. `ServiceAPI` reads the catalog; `ServiceAPIDocument` accepts a manifest directly. Route/operation state leaves through `onStateChange`. |
+| `ServiceCatalog`, `ServiceInspector` | Instances (phase, uptime, address, applied/rejected revision, readiness) with an instance drawer (transports, node readiness, per-key configuration source, effective masked configuration); contract panels for APIs, hooks with binding state, activities, published/consumed events, workflows, schedules; component tree; metadata |
+| `ServiceAPI`, `ServiceAPIDocument` | External API reference: API selector, searchable operations and types, linked request/response types, visible examples with copy, schema constraints and nested fields, streaming RPC signatures, GraphQL queries/mutations/subscriptions, source preview and JSON download. OpenAPI JSON/YAML (3.x and Swagger 2.0), protobuf descriptor sets and GraphQL introspection. `ServiceAPI` reads the catalog; `ServiceAPIDocument` accepts a manifest directly. API/operation state leaves through `onStateChange`. |
 | `ConfigurationPanel` | Live settings grouped by top-level key; each path shows title, description, unit, per-instance source and effective value; an override switch opens a typed editor (switch, number, text, choice, JSON); dirty markers, validation per path, save with comment; rollout per instance; revision history with a diff drawer and rollback |
 | `AutomationPanel` | A service's wiring at a glance: its hooks with binding state, version and activities, the rules on its events with state, and the bindings and rules elsewhere that call its activities; every row opens it in Wiring (`onOpenWiring`) |
 | `WiringWorkspace` | Wiring (see below): live lists of bindings and rules by service, the activity palette, an overview of what needs attention, and the editor of the open item; state (`target`, `view`) reported through `onStateChange` for the URL |
@@ -105,7 +105,7 @@ are stored in URL query parameters. This is documentation, without executing
 requests against the service. Missing and malformed documents have explicit
 states; one malformed route does not prevent viewing another.
 
-`Manifest.routes` contains any number of public routes. Each route has at most
+`Manifest.apis` contains any number of API declarations. Each API has at most
 one schema: inline OpenAPI/protobuf/GraphQL bytes, or an `APISchemaBundle`
 reference (`hash`, `entry`, `format`) for separately delivered OpenAPI/GraphQL
 files. The manifest retains its 512 KiB limit; file payloads do not enter Consul KV.
@@ -118,10 +118,10 @@ import "embed"
 //go:embed api
 var apiFiles embed.FS
 
-svc.HTTP("/api/", handler, route.OpenAPIFS(apiFiles, "api/openapi.yaml"))
+svc.HTTP("/api/", handler, api.OpenAPIFS(apiFiles, "api/openapi.yaml"))
 // Or announce a handler served on an independent listener:
-svc.Route(route.HTTP("/api/", route.Port(8082),
-    route.OpenAPIFS(apiFiles, "api/openapi.yaml")))
+svc.API(api.HTTP("/api/", api.Port(8082),
+    api.OpenAPIFS(apiFiles, "api/openapi.yaml")))
 ```
 
 The SDK snapshots regular files once and hashes both paths and contents. A later
@@ -147,22 +147,22 @@ absolute paths and paths escaping the bundle are rejected. The source preview
 and download contain the resulting self-contained JSON document. The hello
 example demonstrates a root YAML referencing `schemas/greeting.yaml`.
 
-`route.OpenAPI([]byte)` remains available for small self-contained documents;
+`api.OpenAPI([]byte)` remains available for small self-contained documents;
 attach an embedded JSON/YAML byte slice as before. Inline documents support
 internal JSON pointers and report unresolved references.
 
 For managed gRPC and ws-proto registrations the SDK collects the registered
 services' descriptors and **transitive imports** automatically into the shared
 `Manifest.descriptors`. The API viewer limits the methods to the services
-announced on the selected route. For independently served gRPC endpoints, pass
-`route.Descriptors(fds)`; declarative `route.WSProto` takes `fds` directly.
+announced on the selected API. For independently served gRPC endpoints, pass
+`api.Descriptors(fds)`; declarative `api.WSProto` takes `fds` directly.
 Produce that binary descriptor set with imports included (for example,
 `protoc --include_imports --include_source_info --descriptor_set_out=api.pb ...`)
 and embed it as `[]byte`. Source comments are displayed when source info exists.
 GraphQL takes one introspection JSON document, either `{"__schema": ...}` or the
 ordinary response envelope `{"data":{"__schema": ...}}`.
-For large introspection JSON, use `route.GraphQLFS(files, "schema.json")` and pass
-nil for the inline introspection argument of `Service.GraphQL`/`route.GraphQL`.
+For large introspection JSON, use `api.GraphQLFS(files, "schema.json")` and pass
+nil for the inline introspection argument of `Service.GraphQL`/`api.GraphQL`.
 
 ## Layout contract
 

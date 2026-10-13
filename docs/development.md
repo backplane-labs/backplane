@@ -16,7 +16,7 @@ without rebuilding Go binaries or restarting containers. Shared package changes
 still require their package build and a browser refresh.
 
 Vite proxies only `auth/*`, `ws` and `plugins/*` to the existing installation at
-`http://127.0.0.1:10000`; application routes/assets and HMR stay on Vite. Cookies
+`http://127.0.0.1:8081`; application routes/assets and HMR stay on Vite. Cookies
 remain HttpOnly; module clients use the host backend socket. HMR has its own
 socket, not a second RPC transport. The proxy verifies the browser origin before
 rewriting it for backend origin checks. It binds to loopback and does not change
@@ -39,7 +39,7 @@ Collector/Victoria stores and backplane/hello/formatter containers; waits for
 operator endpoint and all three Consul health checks; installs `hello.Greet -> formatter.Format` and the
 `hello.Greeted -> formatter.Record` rule; and sends a sample greeting.
 
-Open `http://127.0.0.1:10000/backplane/`. The local default operator token is
+Open `http://127.0.0.1:8081/backplane/`. The local default operator token is
 `dev-admin-token-change-me`; override it with `DEV_ADMIN_TOKEN`. The development
 console uses an operator token to create a cookie session. Its centered login
 screen explains the credential, supports dark/light themes and token visibility,
@@ -66,9 +66,8 @@ The console asset prefix is configured at build time with
 console navigation acceptance, including both themes, keyboard/mobile behavior
 and axe accessibility checks on the shell.
 To run it through Vite, use
-`rtk proxy env BACKPLANE_DEV_URL=http://127.0.0.1:5173 BACKPLANE_DEV_TARGET=http://127.0.0.1:10000 make test-dev`.
-The second origin is used for direct service requests such as `/hello/`, which
-are outside the console proxy. From `web/`, `yarn test:console-dev` checks HMR;
+`rtk proxy env BACKPLANE_DEV_URL=http://127.0.0.1:5173 BACKPLANE_DEV_TARGET=http://127.0.0.1:8081 make test-dev`.
+`BACKPLANE_DEV_TARGET` selects the console upstream. Direct service requests such as `/hello/` use `BACKPLANE_HELLO_URL` (default `http://127.0.0.1:8080`). From `web/`, `yarn test:console-dev` checks HMR;
 it temporarily edits and restores shell TSX/CSS, so do not edit those files
 concurrently.
 `make dev-down` stops the installation and keeps database/telemetry volumes.
@@ -79,10 +78,9 @@ validators may still reject a revision. Check per-instance applied/rejected
 status before treating it as deployed. The fixture's settings page explicitly saves only local state.
 
 The compose overlays use the same base project as `make up`. Do not run
-conformance processes that own xDS or register the same services alongside the
+conformance processes that register the same services alongside the
 live installation. After `make dev-down`, `make up` restores the host-process
-conformance topology. The `docker-compose.dev.yaml` overlay points Envoy at the
-container backplane; the base topology points it at the host.
+conformance topology. The development overlay exposes direct console and service listeners; host-process tests allocate their own ports.
 
 The container runtime uses built binaries and read-only asset mounts. It does
 not install frontend dependencies or receive package-registry credentials.
@@ -108,7 +106,7 @@ wrappers, mail services) are outside this work.
 For the console without optional infrastructure, use `make dev-minimal`.
 PostgreSQL, Consul and Valkey remain required. The **Infrastructure** page shows
 configured dependencies as OK/NO and separately lists deployment capabilities.
-See [deployment modes](../deployments/README.md#server-deployment-modes) for
+See [deployment modes](../deployments/README.md#server-capabilities-and-infrastructure-health) for
 Compose profiles and endpoints. Service **Workflows** includes administrative
 schedule creation, editing and deletion; module SDKs never reconcile schedules.
 

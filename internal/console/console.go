@@ -1,5 +1,5 @@
 // Package console is backplane's console server (§11): the HTTP the shell
-// talks to, behind Envoy like any service's routes.
+// talks to directly or through a deployment-owned reverse proxy.
 //
 //	POST /auth/login     {token} → session cookie (HttpOnly, SameSite=Strict)
 //	POST /auth/logout    ends the session
@@ -14,9 +14,8 @@
 //	GET  /               the shell
 //
 // The console listens on its own address (Settings.Listen) from the start
-// of its node to its stop, under Settings.Prefix (or at "/"): Envoy routes
-// the console's host or prefix there (cluster backplane_console, §6) and
-// passes the path as is.
+// of its node to its stop, under Settings.Prefix (or at "/"). A reverse
+// proxy must preserve this path and support WebSocket upgrades.
 package console
 
 import (
@@ -68,15 +67,13 @@ type Settings struct {
 	// Listen is the console's own listener (":8081"); empty: none (the
 	// Handler is served by someone else, e.g. a test server).
 	Listen string
-	// Host the console is served on (Envoy matches it); empty: any.
-	Host string
 	// Prefix the console is mounted under ("/backplane"); empty: "/".
 	Prefix string
 	// Origins allowed to open /ws and to log in (scheme://host[:port]);
 	// empty: the request's own host.
 	Origins []string
 	// TrustedProxies whose X-Forwarded-For names the client (addresses,
-	// CIDRs): Envoy's addresses.
+	// CIDRs): deployment-owned proxy addresses.
 	TrustedProxies []string
 	// InsecureCookie drops Secure from the session cookie and HSTS from the
 	// responses: plain-HTTP development only.

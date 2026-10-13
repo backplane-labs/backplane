@@ -10,7 +10,6 @@ Distinguish a **service using the Go SDK** from the **Backplane server**. A stan
 | Temporal | Optional | Hooks/bindings, durable runs, workflow-backed activities and administrative schedules |
 | NATS JetStream | Optional | Events, reactors and dead-letter operations |
 | NATS + Temporal | Both needed for rules | Event-triggered durable wiring execution |
-| Envoy/xDS | Optional | Generated public routing through the gateway |
 | Collector | Optional integration | OTLP forwarding, trusted application audit pipeline |
 | Victoria stores | Optional per signal | Logs, metrics, traces and Errors queries |
 

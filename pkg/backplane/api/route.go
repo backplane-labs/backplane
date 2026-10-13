@@ -1,21 +1,9 @@
-// Package route describes a service's public routes for Envoy.
-//
-// Managed routes are served by the SDK: Service.GRPC, Service.HTTP,
-// Service.GraphQL and the wsproto package. Declarative routes (route.GRPC,
-// route.HTTP, route.GraphQL, route.WSProto passed to Service.Route)
-// announce what the author serves on their own listener. Every function
-// takes its own option interface: an option that makes no sense for it does
-// not compile.
-//
-// HTTP prefixes are normalized to end with "/": "/api" serves "/api/..." in
-// Go and at Envoy alike. A route matches by prefix and, with Host, by host
-// too; two routes with the same host and prefix on one port are an error.
-//
-// Envoy policy (Timeout, IdleTimeout, Retry, CORS, MaxRequestBytes) applies
-// to every route and lands in the manifest; the SDK itself does not enforce
-// it. Interceptors, StreamInterceptors and Middleware wrap only the
-// registration they are passed to.
-package route
+// Package api describes the APIs a service serves, independently of deployment.
+// Managed APIs are served by the SDK; declarations passed to Service.API
+// describe the author's own listener. Publication and protocol conversion
+// belong to the application and deployment. Middleware and interceptors
+// execute inside the service.
+package api
 
 import (
 	"errors"
@@ -27,7 +15,7 @@ import (
 
 //nolint:gochecknoinits // installs the private accessors for the SDK core
 func init() {
-	link.Routes.Decl = func(d any) (*backplanev1.Route, error) {
+	link.APIs.Decl = func(d any) (*backplanev1.API, error) {
 		decl, _ := d.(Decl)
 		if decl.r == nil && decl.err == nil {
 			return nil, errZeroDecl
@@ -35,8 +23,8 @@ func init() {
 
 		return decl.r, errors.Join(decl.err, filesError(decl.files))
 	}
-	link.Routes.Files = func(d any) *routes.SchemaFiles { decl, _ := d.(Decl); return decl.files }
-	link.Routes.GRPC = func(opts any) routes.Managed {
+	link.APIs.Files = func(d any) *routes.SchemaFiles { decl, _ := d.(Decl); return decl.files }
+	link.APIs.GRPC = func(opts any) routes.Managed {
 		var m routes.Managed
 
 		list, _ := opts.([]GRPCOption)
@@ -46,7 +34,7 @@ func init() {
 
 		return m
 	}
-	link.Routes.HTTP = func(opts any) routes.Managed {
+	link.APIs.HTTP = func(opts any) routes.Managed {
 		var m routes.Managed
 
 		list, _ := opts.([]HTTPOption)
@@ -56,7 +44,7 @@ func init() {
 
 		return m
 	}
-	link.Routes.WS = func(opts any) routes.Managed {
+	link.APIs.WS = func(opts any) routes.Managed {
 		var m routes.Managed
 
 		list, _ := opts.([]WSProtoOption)
@@ -68,7 +56,7 @@ func init() {
 	}
 }
 
-var errZeroDecl = errors.New("route: zero Decl: use route.GRPC, HTTP, GraphQL or WSProto")
+var errZeroDecl = errors.New("api: zero Decl: use api.GRPC, HTTP, GraphQL or WSProto")
 
 // Option interfaces, one per function.
 type (
@@ -78,12 +66,12 @@ type (
 	HTTPOption interface{ applyHTTP(m *routes.Managed) }
 	// WSProtoOption configures wsproto.Serve.
 	WSProtoOption interface{ applyWS(m *routes.Managed) }
-	// GRPCDeclOption configures route.GRPC.
-	GRPCDeclOption interface{ applyGRPCDecl(r *backplanev1.Route) }
-	// HTTPDeclOption configures route.HTTP.
-	HTTPDeclOption interface{ applyHTTPDecl(r *backplanev1.Route) }
-	// DeclOption configures route.GraphQL and route.WSProto.
-	DeclOption interface{ applyDecl(r *backplanev1.Route) }
+	// GRPCDeclOption configures api.GRPC.
+	GRPCDeclOption interface{ applyGRPCDecl(r *backplanev1.API) }
+	// HTTPDeclOption configures api.HTTP.
+	HTTPDeclOption interface{ applyHTTPDecl(r *backplanev1.API) }
+	// DeclOption configures api.GraphQL and api.WSProto.
+	DeclOption interface{ applyDecl(r *backplanev1.API) }
 )
 
 type listen string
@@ -105,16 +93,15 @@ func Listen(addr string) ListenOption { return listen(addr) }
 
 type host string
 
-func (h host) applyGRPC(m *routes.Managed)        { m.Host = string(h) }
-func (h host) applyHTTP(m *routes.Managed)        { m.Host = string(h) }
-func (h host) applyWS(m *routes.Managed)          { m.Host = string(h) }
-func (h host) applyGRPCDecl(r *backplanev1.Route) { h.applyDecl(r) }
-func (h host) applyHTTPDecl(r *backplanev1.Route) { h.applyDecl(r) }
-func (h host) applyDecl(r *backplanev1.Route)     { r.Host = string(h) }
+func (h host) applyGRPC(m *routes.Managed)      { m.Host = string(h) }
+func (h host) applyHTTP(m *routes.Managed)      { m.Host = string(h) }
+func (h host) applyWS(m *routes.Managed)        { m.Host = string(h) }
+func (h host) applyGRPCDecl(r *backplanev1.API) { h.applyDecl(r) }
+func (h host) applyHTTPDecl(r *backplanev1.API) { h.applyDecl(r) }
+func (h host) applyDecl(r *backplanev1.API)     { r.Host = string(h) }
 
-// HostOption applies to every route.
+// HostOption applies to managed HTTP/ws-proto APIs and API declarations.
 type HostOption interface {
-	GRPCOption
 	HTTPOption
 	WSProtoOption
 	GRPCDeclOption
@@ -129,9 +116,9 @@ func Host(h string) HostOption { return host(h) }
 
 type port uint32
 
-func (p port) applyGRPCDecl(r *backplanev1.Route) { r.Port = uint32(p) }
-func (p port) applyHTTPDecl(r *backplanev1.Route) { r.Port = uint32(p) }
-func (p port) applyDecl(r *backplanev1.Route)     { r.Port = uint32(p) }
+func (p port) applyGRPCDecl(r *backplanev1.API) { r.Port = uint32(p) }
+func (p port) applyHTTPDecl(r *backplanev1.API) { r.Port = uint32(p) }
+func (p port) applyDecl(r *backplanev1.API)     { r.Port = uint32(p) }
 
 // PortOption applies to declarative routes.
 type PortOption interface {
@@ -144,27 +131,11 @@ type PortOption interface {
 // registered in Consul.
 func Port(p uint16) PortOption { return port(p) }
 
-type transcode struct{}
-
-func (transcode) applyGRPC(m *routes.Managed) { m.Transcode = true }
-func (transcode) applyGRPCDecl(r *backplanev1.Route) {
-	r.Kind = backplanev1.RouteKind_ROUTE_KIND_CONNECT
-}
-
-// TranscodeOption applies to gRPC routes.
-type TranscodeOption interface {
-	GRPCOption
-	GRPCDeclOption
-}
-
-// Transcode asks Envoy to add gRPC-Web and REST-JSON transcoding (Connect).
-func Transcode() TranscodeOption { return transcode{} }
-
 type openAPI []byte
 
 func (o openAPI) applyHTTP(m *routes.Managed) { m.OpenAPI, m.SchemaFiles = o, nil }
-func (o openAPI) applyHTTPDecl(r *backplanev1.Route) {
-	r.Schema = &backplanev1.Route_Openapi{Openapi: o}
+func (o openAPI) applyHTTPDecl(r *backplanev1.API) {
+	r.Schema = &backplanev1.API_Openapi{Openapi: o}
 }
 
 // OpenAPIOption applies to HTTP routes.
@@ -174,7 +145,7 @@ type OpenAPIOption interface {
 }
 
 // OpenAPI attaches a self-contained OpenAPI document (JSON or YAML) to an
-// HTTP route. spec can be a []byte populated by go:embed. Bundle multi-file
+// HTTP API. spec can be a []byte populated by go:embed. Bundle multi-file
 // specifications with internal $ref links before embedding, or use OpenAPIFS
 // to carry several files without bundling. Each HTTP route may carry its own
 // document; a service can announce multiple routes.
@@ -182,26 +153,26 @@ func OpenAPI(spec []byte) OpenAPIOption { return openAPI(spec) }
 
 type descriptors []byte
 
-func (d descriptors) applyGRPCDecl(r *backplanev1.Route) {
-	r.Schema = &backplanev1.Route_Descriptors{Descriptors: d}
+func (d descriptors) applyGRPCDecl(r *backplanev1.API) {
+	r.Schema = &backplanev1.API_Descriptors{Descriptors: d}
 }
 
 // Descriptors attaches a serialized FileDescriptorSet to a declarative gRPC
 // route; managed routes derive descriptors from registration.
 func Descriptors(fds []byte) GRPCDeclOption { return descriptors(fds) }
 
-// Decl is a declarative route: the author serves it, the SDK announces it.
+// Decl describes an API served on the author's own listener.
 // Build one with GRPC, HTTP, GraphQL or WSProto.
 type Decl struct {
-	r     *backplanev1.Route
+	r     *backplanev1.API
 	err   error
 	files *routes.SchemaFiles
 }
 
 // GRPC declares a gRPC service (full name) the author serves.
 func GRPC(service string, opts ...GRPCDeclOption) Decl {
-	r := &backplanev1.Route{
-		Kind:     backplanev1.RouteKind_ROUTE_KIND_GRPC,
+	r := &backplanev1.API{
+		Kind:     backplanev1.ApiKind_API_KIND_GRPC,
 		Prefix:   "/" + service + "/",
 		Services: []string{service},
 	}
@@ -214,7 +185,7 @@ func GRPC(service string, opts ...GRPCDeclOption) Decl {
 
 // HTTP declares an HTTP prefix the author serves.
 func HTTP(prefix string, opts ...HTTPDeclOption) Decl {
-	r, err := prefixed(backplanev1.RouteKind_ROUTE_KIND_HTTP, prefix)
+	r, err := prefixed(backplanev1.ApiKind_API_KIND_HTTP, prefix)
 	for _, o := range opts {
 		o.applyHTTPDecl(r)
 	}
@@ -225,9 +196,9 @@ func HTTP(prefix string, opts ...HTTPDeclOption) Decl {
 // GraphQL declares a GraphQL endpoint the author serves, with its
 // introspection result (JSON); nil when there is none.
 func GraphQL(prefix string, introspection []byte, opts ...DeclOption) Decl {
-	r, err := prefixed(backplanev1.RouteKind_ROUTE_KIND_GRAPHQL, prefix)
+	r, err := prefixed(backplanev1.ApiKind_API_KIND_GRAPHQL, prefix)
 	if introspection != nil {
-		r.Schema = &backplanev1.Route_Graphql{Graphql: introspection}
+		r.Schema = &backplanev1.API_Graphql{Graphql: introspection}
 	}
 
 	for _, o := range opts {
@@ -240,9 +211,9 @@ func GraphQL(prefix string, introspection []byte, opts ...DeclOption) Decl {
 // WSProto declares a ws-proto endpoint the author serves, with its
 // serialized FileDescriptorSet; nil when there is none.
 func WSProto(prefix string, descriptors []byte, opts ...DeclOption) Decl {
-	r, err := prefixed(backplanev1.RouteKind_ROUTE_KIND_WS_PROTO, prefix)
+	r, err := prefixed(backplanev1.ApiKind_API_KIND_WS_PROTO, prefix)
 	if descriptors != nil {
-		r.Schema = &backplanev1.Route_Descriptors{Descriptors: descriptors}
+		r.Schema = &backplanev1.API_Descriptors{Descriptors: descriptors}
 	}
 
 	for _, o := range opts {
@@ -252,9 +223,9 @@ func WSProto(prefix string, descriptors []byte, opts ...DeclOption) Decl {
 	return Decl{r: r, err: err, files: declaredFiles(r, opts)}
 }
 
-func prefixed(kind backplanev1.RouteKind, prefix string) (*backplanev1.Route, error) {
+func prefixed(kind backplanev1.ApiKind, prefix string) (*backplanev1.API, error) {
 	p, err := routes.Prefix(prefix)
 
 	//nolint:wrapcheck // routes.Prefix speaks for this package ("route: bad path prefix")
-	return &backplanev1.Route{Kind: kind, Prefix: p}, err
+	return &backplanev1.API{Kind: kind, Prefix: p}, err
 }

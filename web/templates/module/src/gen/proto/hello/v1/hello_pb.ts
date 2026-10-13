@@ -81,8 +81,8 @@ export const CountdownResponseSchema: GenMessage<CountdownResponse> = /*@__PURE_
   messageDesc(file_proto_hello_v1_hello, 3);
 
 /**
- * External API of hello. One implementation is served over gRPC (with
- * Connect transcoding) and ws-proto.
+ * External API of hello. One implementation is served over native gRPC
+ * and ws-proto.
  *
  * @generated from service hello.v1.HelloService
  */

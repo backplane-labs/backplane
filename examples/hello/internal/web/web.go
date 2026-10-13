@@ -63,7 +63,7 @@ func Hello(greet hook.Ref[flows.GreetIn, flows.GreetOut], g *greeter.Greeter) ht
 }
 
 // Introspection is the GraphQL endpoint's introspection result, announced
-// with the route.
+// with the api.
 //
 //nolint:gochecknoglobals // constant document
 var Introspection = []byte(`{"__schema":{"queryType":{"name":"Query"},"types":[` +

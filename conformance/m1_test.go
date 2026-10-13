@@ -32,24 +32,17 @@ import (
 	hellov1 "github.com/gopherex/backplane/examples/hello/proto/hello/v1"
 )
 
-// M1 end to end (platform-design.md §16.2): the real backplane binary and
-// the real hello, Envoy of platform-in-a-box in front. The scenario is the
-// milestone's proof — "form → revision → KV → service" and the entry
-// through Envoy — driven the way the console drives it: login, /ws.
-//
-// It owns :18000 (Envoy's ADS, deployments/envoy/envoy.yaml) and the
-// routes of Envoy's :10000, so it runs alone: `make test-m1`.
+// M1 exercises configuration, relay and bundles using direct process listeners.
+// It owns the hello service identity in Consul, but allocates its own ports.
 const (
-	m1Prefix     = "/backplane" // the console under a prefix of Envoy's :10000
+	m1Prefix     = "/backplane" // directly mounted console prefix
 	m1Hello      = "m1-hello-1"
 	m1Backplane  = "m1-backplane-1"
 	m1Version    = "0.0.0-m1" // backplane's manifest version: removed after the run
 	m1HelloVer   = "9.9.7"
 	m1Reconcile  = 500 * time.Millisecond
 	m1Wait       = 30 * time.Second
-	m1EnvoyWait  = 90 * time.Second // Envoy's ADS reconnect backoff reaches 30s
 	m1StopWait   = 30 * time.Second
-	m1Envoy      = "localhost:10000"
 	m1SuffixPath = "greeter.suffix"
 	m1SuffixKey  = "config/" + service + "/greeter/suffix"
 	m1Revision   = "config/" + service + "/_revision"
@@ -214,7 +207,6 @@ func m1Database(t *testing.T, dsn string) string {
 type m1 struct {
 	consul    *api.Client
 	consulURL string
-	admin     string // Envoy admin
 	host      string // this host as containers reach it
 	secret    string // backplane's internal secret, accepted by hello
 	token     string // the console's admin token
@@ -222,36 +214,37 @@ type m1 struct {
 	helloEnv  []string
 	hello     *m1Proc
 	console   string // host:port of the console listener
+	helloURL  string // direct public API address
 }
 
-// m1Env skips without the stack: Consul, PostgreSQL and Envoy.
-func m1Env(t *testing.T) (string, string, string) {
+// m1Env skips without the stack: Consul and PostgreSQL.
+func m1Env(t *testing.T) (string, string) {
 	t.Helper()
 
-	addr, dsn, admin := os.Getenv("BACKPLANE_TEST_CONSUL"), os.Getenv("BACKPLANE_TEST_PG"), os.Getenv("BACKPLANE_TEST_ENVOY")
-	if addr == "" || dsn == "" || admin == "" {
-		t.Skip("BACKPLANE_TEST_CONSUL, BACKPLANE_TEST_PG and BACKPLANE_TEST_ENVOY not set (make up; make test-m1)")
+	addr, dsn := os.Getenv("BACKPLANE_TEST_CONSUL"), os.Getenv("BACKPLANE_TEST_PG")
+	if addr == "" || dsn == "" {
+		t.Skip("BACKPLANE_TEST_CONSUL and BACKPLANE_TEST_PG not set (make up; make test-m1)")
 	}
 
-	return addr, dsn, admin
+	return addr, dsn
 }
 
 // TestM1 runs backplane and hello and walks the M1 scenario.
 //
-//nolint:paralleltest // owns :18000, Envoy's routes and the hello service
+//nolint:paralleltest // owns the hello service identity
 func TestM1(t *testing.T) {
-	addr, dsn, admin := m1Env(t)
+	addr, dsn := m1Env(t)
 
 	c, err := api.NewClient(&api.Config{Address: addr})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	w := &m1{consul: c, consulURL: addr, admin: admin, host: advertise(t), secret: m1Random(t), token: m1Random(t)}
+	w := &m1{consul: c, consulURL: addr, host: advertise(t), secret: m1Random(t), token: m1Random(t)}
 
 	// One hello per Consul: wait out another suite's, then own every key of
 	// the service (and of this run's backplane instance and version).
-	m1Until(t, m1EnvoyWait, "no live hello instance on this Consul (stop other hello runs)", func() (bool, string) {
+	m1Until(t, m1Wait, "no live hello instance on this Consul (stop other hello runs)", func() (bool, string) {
 		keys, _, err := c.KV().Keys(m1InstancesPrefix(service), "", nil)
 
 		return err == nil && len(keys) == 0, fmt.Sprint(keys, err)
@@ -269,8 +262,6 @@ func TestM1(t *testing.T) {
 	wipe()
 	t.Cleanup(wipe) // after both processes stopped: no reconciler rewrites config/
 
-	rejectedBefore := m1Rejected(t, admin)
-
 	dir := t.TempDir()
 	backplaneBin := m1Build(t, dir, "backplane", "../cmd/backplane", m1Version)
 	w.helloBin = m1Build(t, dir, service, "../examples/hello/cmd/hello", m1HelloVer)
@@ -287,8 +278,6 @@ func TestM1(t *testing.T) {
 		"BACKPLANE_PUBLIC_PORT="+freePort(t),
 		"BACKPLANE_INTERNAL_SECRET="+w.secret,
 		"BACKPLANE_ADMIN_TOKEN="+w.token,
-		"BACKPLANE_XDS_LISTEN=:18000",
-		"BACKPLANE_XDS_HTTP_PORT=10000",
 		"BACKPLANE_CONSOLE_LISTEN=:"+consolePort,
 		"BACKPLANE_CONSOLE_PREFIX="+m1Prefix,
 		"BACKPLANE_CONSOLE_INSECURE_COOKIE=true",
@@ -297,13 +286,15 @@ func TestM1(t *testing.T) {
 		"BACKPLANE_CONSUL_CHECK_INTERVAL=2s",
 	)
 
+	helloPort := freePort(t)
+	w.helloURL = "http://127.0.0.1:" + helloPort
 	w.helloEnv = []string{
 		"BACKPLANE_CONSUL_ADDR=" + addr,
 		"BACKPLANE_INSTANCE=" + m1Hello,
 		"HELLO_LEGACY_LISTEN=:" + freePort(t),
 		"BACKPLANE_ADVERTISE=" + w.host,
 		"BACKPLANE_INTERNAL_PORT=" + freePort(t),
-		"BACKPLANE_PUBLIC_PORT=" + freePort(t),
+		"BACKPLANE_PUBLIC_PORT=" + helloPort,
 		"BACKPLANE_INTERNAL_SECRET=" + w.secret,
 		"BACKPLANE_SHUTDOWN_DRAIN=100ms",
 		"BACKPLANE_CONSUL_CHECK_INTERVAL=2s",
@@ -314,56 +305,43 @@ func TestM1(t *testing.T) {
 		return m1Ready(w.hello, w.helloEnv)
 	})
 
-	// a. The registry sees hello: through Envoy's console route (Envoy may
-	// still be backing off its ADS reconnect), then directly.
-	m1Until(t, m1EnvoyWait, "envoy routes to the console", func() (bool, string) {
-		code, body := httpGet("http://" + m1Envoy + m1Prefix + "/auth/session")
-
+	// The console and registry are available on their own listener.
+	m1Until(t, m1Wait, "console listening", func() (bool, string) {
+		code, body := httpGet("http://" + w.console + m1Prefix + "/auth/session")
 		return code == http.StatusUnauthorized, fmt.Sprintf("%d %q", code, body)
 	})
 
-	viaEnvoy, err := w.dial(t, "http://"+m1Envoy)
-	if err != nil {
-		t.Fatalf("console through envoy: %v", err)
-	}
-
-	direct, err := w.dial(t, "http://"+w.console)
+	cc, err := w.dial(t, "http://"+w.console)
 	if err != nil {
 		t.Fatalf("console directly: %v", err)
 	}
 
-	for name, cc := range map[string]*wsrpc.ClientConn{"envoy": viaEnvoy, "direct": direct} {
-		m1Until(t, m1Wait, "CatalogService.ListServices lists hello, "+name, func() (bool, string) {
-			return m1Listed(t, cc)
-		})
-	}
+	m1Until(t, m1Wait, "CatalogService.ListServices lists hello", func() (bool, string) {
+		return m1Listed(t, cc)
+	})
 
-	ui := m1Plugin(t, viaEnvoy)
+	ui := m1Plugin(t, cc)
 
-	// b. hello through Envoy with its default suffix.
+	// b. hello directly with its default suffix.
 	w.greets(t, "Hello, m1!")
 
 	// c. Validate, save, apply.
-	w.saves(t, viaEnvoy)
+	w.saves(t, cc)
 
 	// e. The reconciler repairs Consul KV.
 	w.repairs(t)
 
 	// d. Rollback is a new revision with the old value.
-	w.rollsBack(t, viaEnvoy)
+	w.rollsBack(t, cc)
 
 	// f. The relay to hello's internal API.
-	m1Relay(t, viaEnvoy)
+	m1Relay(t, cc)
 
-	// g. The plugin bundle through the console, via Envoy.
+	// g. The plugin bundle through the console, directly.
 	w.bundle(t, ui)
 
-	// h. hello leaves Envoy's routes when it stops, returns when it starts.
+	// h. hello leaves Consul when it stops, returns when it starts.
 	w.restarts(t)
-
-	if after := m1Rejected(t, admin); after != rejectedBefore {
-		t.Errorf("envoy rejected %d xDS updates (backplane logs each NACK)", after-rejectedBefore)
-	}
 }
 
 func m1InstancesPrefix(name string) string { return "backplane/services/" + name + "/instances/" }
@@ -387,7 +365,7 @@ func m1Ready(p *m1Proc, env []string) (bool, string) {
 	return code == http.StatusOK, fmt.Sprintf("%d %s", code, body)
 }
 
-// login posts the admin token to the console at base (Envoy or direct),
+// login posts the admin token to the console at base (direct listener or a deployment-owned proxy),
 // as the shell does: same-origin, JSON.
 func (w *m1) login(t *testing.T, base string) (string, error) {
 	t.Helper()
@@ -530,12 +508,12 @@ func m1Plugin(t *testing.T, cc *wsrpc.ClientConn) string {
 	return res.GetLatest().GetUi().GetHash()
 }
 
-// greets waits until hello through Envoy answers want.
+// greets waits until hello directly answers want.
 func (w *m1) greets(t *testing.T, want string) {
 	t.Helper()
 
-	m1Until(t, m1EnvoyWait, "GET /hello/?name=m1 through envoy = "+strconv.Quote(want), func() (bool, string) {
-		code, body := httpGet("http://" + m1Envoy + "/hello/?name=m1")
+	m1Until(t, m1Wait, "GET /hello/?name=m1 directly = "+strconv.Quote(want), func() (bool, string) {
+		code, body := httpGet(w.helloURL + "/hello/?name=m1")
 
 		return code == http.StatusOK && strings.TrimSpace(body) == want, fmt.Sprintf("%d %q", code, body)
 	})
@@ -749,17 +727,17 @@ func m1Relay(t *testing.T, cc *wsrpc.ClientConn) {
 	}
 }
 
-// bundle: plugin.json of hello's UI through Envoy's console route, with
+// bundle: plugin.json of hello's UI through the direct console listener, with
 // the cookie; immutable by its hash.
 func (w *m1) bundle(t *testing.T, hash string) {
 	t.Helper()
 
-	cookie, err := w.login(t, "http://"+m1Envoy)
+	cookie, err := w.login(t, "http://"+w.console)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	bundleURL := fmt.Sprintf("http://%s%s/plugins/%s/%s/plugin.json", m1Envoy, m1Prefix, service, hash)
+	bundleURL := fmt.Sprintf("http://%s%s/plugins/%s/%s/plugin.json", w.console, m1Prefix, service, hash)
 
 	req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, bundleURL, http.NoBody)
 	req.Header.Set("Cookie", cookie)
@@ -804,17 +782,16 @@ func m1Do(req *http.Request) (int, string) {
 	return res.StatusCode, string(body)
 }
 
-// restarts: a stopped hello deregisters and Envoy answers 503; started
-// again, it is routed and applies the current revision from KV.
+// restarts: a stopped hello deregisters and leaves Consul; started
+// again, it serves directly and applies the current revision from KV.
 func (w *m1) restarts(t *testing.T) {
 	t.Helper()
 
 	w.hello.stop(t)
 
-	m1Until(t, m1Wait, "envoy stops routing to the stopped hello (503)", func() (bool, string) {
-		code, body := httpGet("http://" + m1Envoy + "/hello/?name=m1")
-
-		return code == http.StatusServiceUnavailable, fmt.Sprintf("%d %q", code, body)
+	m1Until(t, m1Wait, "stopped hello leaves Consul catalog", func() (bool, string) {
+		entries, _, err := w.consul.Health().Service(service, "", false, nil)
+		return err == nil && len(entries) == 0, fmt.Sprintf("%d entries: %v", len(entries), err)
 	})
 
 	w.hello = m1Start(t, service+" (restarted)", w.helloBin, w.helloEnv...)
@@ -833,27 +810,6 @@ func (w *m1) restarts(t *testing.T) {
 
 		return st.GetConfigRevision() == 3, fmt.Sprint("revision ", st.GetConfigRevision())
 	})
-}
-
-// m1Rejected sums Envoy's xDS update_rejected counters.
-func m1Rejected(t *testing.T, admin string) int {
-	t.Helper()
-
-	code, stats := httpGet("http://" + admin + "/stats?filter=update_rejected")
-	if code != http.StatusOK {
-		t.Fatalf("envoy admin %s: %d %s", admin, code, stats)
-	}
-
-	n := 0
-
-	for line := range strings.Lines(stats) {
-		if _, v, ok := strings.Cut(line, ": "); ok {
-			k, _ := strconv.Atoi(strings.TrimSpace(v))
-			n += k
-		}
-	}
-
-	return n
 }
 
 // testValkey is BACKPLANE_TEST_VALKEY (make up: localhost:6379), which the

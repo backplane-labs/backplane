@@ -33,7 +33,7 @@ export const GetCapabilitiesRequestSchema: GenMessage<GetCapabilitiesRequest> = 
 export type Capability = Message<"backplane.console.v1.Capability"> & {
   /**
    * Stable feature key: events, workflows, schedules, bindings, rules,
-   * metrics, logs, traces, telemetry, gateway, audit, audit_export.
+   * metrics, logs, traces, telemetry, audit, audit_export.
    *
    * @generated from field: string name = 1;
    */

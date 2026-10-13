@@ -56,7 +56,7 @@ func (c *Console) plugin(w http.ResponseWriter, r *http.Request) {
 func (c *Console) apiFile(w http.ResponseWriter, r *http.Request) {
 	hash := r.PathValue("hash")
 	c.serveBundle(w, r, "/_backplane/api/"+hash, func(m *backplanev1.Manifest) bool {
-		for _, route := range m.GetRoutes() {
+		for _, route := range m.GetApis() {
 			if route.GetBundle().GetHash() == hash && hash != "" {
 				return true
 			}

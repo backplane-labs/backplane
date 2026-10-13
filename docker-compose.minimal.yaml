@@ -17,7 +17,6 @@ services:
       BACKPLANE_CONSOLE_PREFIX: /backplane
       BACKPLANE_CONSOLE_INSECURE_COOKIE: "true"
       BACKPLANE_CONSOLE_ASSETS_DIR: /app/web/apps/embedding/dist-live
-      BACKPLANE_XDS_ENABLED: "false"
       # When using profiles, opt in explicitly to the corresponding endpoints.
       BACKPLANE_NATS_URL: ${BACKPLANE_NATS_URL:-}
       BACKPLANE_TEMPORAL_ADDR: ${BACKPLANE_TEMPORAL_ADDR:-}

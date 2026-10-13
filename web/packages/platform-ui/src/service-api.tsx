@@ -1,7 +1,7 @@
 import { useId, useMemo, useState } from 'react';
 import { create } from '@bufbuild/protobuf';
 import { CatalogServiceClient, GetServiceRequestSchema } from '@gopherex/backplane-api';
-import { RouteKind, type Manifest } from '@gopherex/backplane-api/backplanepb/v1/manifest_pb';
+import { ApiKind, type Manifest } from '@gopherex/backplane-api/backplanepb/v1/manifest_pb';
 import { useBackplane, useClient } from '@gopherex/backplane-react';
 import { Badge, Button, ClipboardButton, EmptyState, Input, SelectControl, Panel, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@gopherex/backplane-ui';
 import { EditorActions, JSONViewer } from '@gopherex/backplane-editors';
@@ -11,7 +11,7 @@ import { usePlatformText } from './locales.js';
 import { QueryState, usePlatformQuery } from './runtime.js';
 import { readAPIBundle, type APIFileReader } from './api-bundle.js';
 
-export interface ServiceAPIState { route: number; operation?: string }
+export interface ServiceAPIState { api: number; operation?: string }
 
 /** External, declared API documentation; it never invokes a service endpoint. */
 export function ServiceAPI({ service, mode, state, onStateChange }: {
@@ -30,19 +30,19 @@ export function ServiceAPI({ service, mode, state, onStateChange }: {
 export function ServiceAPIDocument({ manifest, mode, state: controlled, onStateChange, readFile }: {
   manifest: Manifest; mode: ThemeMode; state?: ServiceAPIState; onStateChange?: (state: ServiceAPIState) => void; readFile?: APIFileReader;
 }) {
-  const text = usePlatformText(), [local, setLocal] = useState<ServiceAPIState>({ route: 0 });
+  const text = usePlatformText(), [local, setLocal] = useState<ServiceAPIState>({ api: 0 });
   const state = controlled ?? local;
   const update = (next: ServiceAPIState) => { setLocal(next); onStateChange?.(next); };
-  const index = Number.isSafeInteger(state.route) && manifest.routes[state.route] ? state.route : 0;
-  const route = manifest.routes[index];
+  const index = Number.isSafeInteger(state.api) && manifest.apis[state.api] ? state.api : 0;
+  const route = manifest.apis[index];
   const result = useMemo(() => route ? readAPIDocument(route, manifest) : undefined, [route, manifest]);
-  if (!route) return <EmptyState title={text('noRoutes')} />;
+  if (!route) return <EmptyState title={text('noAPIs')} />;
   return <div className="grid min-w-0 gap-4">
-    <label className="grid gap-1 text-sm">{text('externalRoute')}<SelectControl aria-label={text('externalRoute')} value={String(index)} onValueChange={(value) => update({ route: Number(value) })}
-      options={manifest.routes.map((entry, i) => ({ value: String(i), label: `${RouteKind[entry.kind]} · ${entry.host}${entry.prefix}${entry.port ? ` :${entry.port}` : ''}` }))} /></label>
-    {route.schema.case === 'bundle' ? <APIBundleView key={`${route.schema.value.hash}:${route.schema.value.entry}`} bundle={route.schema.value} readFile={readFile} mode={mode} operation={state.operation} onOperation={(operation) => update({ route: index, operation })} /> : <>
+    <label className="grid gap-1 text-sm">{text('externalEndpoint')}<SelectControl aria-label={text('externalEndpoint')} value={String(index)} onValueChange={(value) => update({ api: Number(value) })}
+      options={manifest.apis.map((entry, i) => ({ value: String(i), label: `${ApiKind[entry.kind]} · ${entry.host}${entry.prefix}${entry.port ? ` :${entry.port}` : ''}` }))} /></label>
+    {route.schema.case === 'bundle' ? <APIBundleView key={`${route.schema.value.hash}:${route.schema.value.entry}`} bundle={route.schema.value} readFile={readFile} mode={mode} operation={state.operation} onOperation={(operation) => update({ api: index, operation })} /> : <>
       {result && 'problem' in result && <EmptyState title={text(result.problem === 'missing' ? 'apiSchemaMissing' : 'apiSchemaInvalid')} description={result.problem === 'missing' ? text('apiSchemaMissingHelp') : result.detail} />}
-      {result && 'document' in result && <APIBrowser key={`${index}:${manifest.version}`} document={result.document} mode={mode} operation={state.operation} onOperation={(operation) => update({ route: index, operation })} />}
+      {result && 'document' in result && <APIBrowser key={`${index}:${manifest.version}`} document={result.document} mode={mode} operation={state.operation} onOperation={(operation) => update({ api: index, operation })} />}
     </>}
   </div>;
 }

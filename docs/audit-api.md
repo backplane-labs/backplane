@@ -190,7 +190,7 @@ The Collector's audit pipeline (`deployments/otel-collector.audit.yaml`, merged
 with the main configuration) keeps the marked records and exports them over
 OTLP/gRPC (`opentelemetry.proto.collector.logs.v1.LogsService/Export`) to
 backplane's audit listener, `BACKPLANE_AUDIT_LISTEN` (`:4317`). It is internal:
-never publish it through Envoy. With `BACKPLANE_AUDIT_KEYS` (a JSON array of
+never publish it through the direct service listener. With `BACKPLANE_AUDIT_KEYS` (a JSON array of
 keys, each at least 16 characters) the listener requires one as
 `authorization: Bearer <key>`.
 

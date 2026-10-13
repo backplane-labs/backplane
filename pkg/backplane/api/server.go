@@ -1,4 +1,4 @@
-package route
+package api
 
 import (
 	"net/http"
@@ -60,5 +60,5 @@ func (reflection) applyGRPC(m *routes.Managed) { m.Reflection = true }
 
 // Reflection serves grpc.reflection (v1 and v1alpha) on this route's port,
 // once per port, for grpcurl and similar tools. It is not announced to
-// Envoy: it answers on the port directly.
+// external routing: it answers on the port directly.
 func Reflection() GRPCOption { return reflection{} }

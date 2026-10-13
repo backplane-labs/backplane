@@ -31,11 +31,11 @@ var ConfigState func(rt any) configrt.State
 //nolint:gochecknoglobals // set once by config at init
 var SetLive func(live, v any)
 
-// Routes extracts what the public route package keeps private.
+// APIs extracts what the public api package keeps private.
 //
-//nolint:gochecknoglobals // set once by route at init
-var Routes struct {
-	Decl  func(d any) (*backplanev1.Route, error)
+//nolint:gochecknoglobals // set once by api at init
+var APIs struct {
+	Decl  func(d any) (*backplanev1.API, error)
 	Files func(d any) *routes.SchemaFiles
 	GRPC  func(opts any) routes.Managed
 	HTTP  func(opts any) routes.Managed

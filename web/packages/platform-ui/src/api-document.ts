@@ -1,7 +1,7 @@
 import { fromBinary, toJson } from '@bufbuild/protobuf';
 import { FileDescriptorSetSchema, type DescriptorProto, type FieldDescriptorProto } from '@bufbuild/protobuf/wkt';
 import { parseDocument } from 'yaml';
-import { RouteKind, type Manifest, type Route } from '@gopherex/backplane-api/backplanepb/v1/manifest_pb';
+import { ApiKind, type Manifest, type API } from '@gopherex/backplane-api/backplanepb/v1/manifest_pb';
 
 type ObjectValue = Record<string, unknown>;
 export interface APIField { name: string; type: string; required?: boolean; description?: string; references?: string[] }
@@ -17,12 +17,12 @@ const entries = (value: unknown) => Object.entries(object(value));
 const decode = (bytes: Uint8Array) => new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 
 /** The catalog carries self-contained documents. Never fetch a schema's URLs. */
-export function readAPIDocument(route: Route, manifest: Manifest): APIResult {
+export function readAPIDocument(route: API, manifest: Manifest): APIResult {
   try {
     if (route.schema.case === 'openapi') return { document: openAPI(decode(route.schema.value)) };
     if (route.schema.case === 'graphql') return { document: graphQL(decode(route.schema.value)) };
     const bytes = route.schema.case === 'descriptors' ? route.schema.value : manifest.descriptors;
-    if ([RouteKind.GRPC, RouteKind.CONNECT, RouteKind.WS_PROTO].includes(route.kind) && bytes.length) {
+    if ([ApiKind.GRPC, ApiKind.WS_PROTO].includes(route.kind) && bytes.length) {
       return { document: protobuf(bytes, route.services) };
     }
     return { problem: 'missing' };

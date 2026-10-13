@@ -27,8 +27,8 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// External API of hello. One implementation is served over gRPC (with
-// Connect transcoding) and ws-proto.
+// External API of hello. One implementation is served over native gRPC
+// and ws-proto.
 type HelloServiceClient interface {
 	Greet(ctx context.Context, in *GreetRequest, opts ...grpc.CallOption) (*GreetResponse, error)
 	// Server stream: exercises streaming over gRPC and ws-proto.
@@ -76,8 +76,8 @@ type HelloService_CountdownClient = grpc.ServerStreamingClient[CountdownResponse
 // All implementations must embed UnimplementedHelloServiceServer
 // for forward compatibility.
 //
-// External API of hello. One implementation is served over gRPC (with
-// Connect transcoding) and ws-proto.
+// External API of hello. One implementation is served over native gRPC
+// and ws-proto.
 type HelloServiceServer interface {
 	Greet(context.Context, *GreetRequest) (*GreetResponse, error)
 	// Server stream: exercises streaming over gRPC and ws-proto.

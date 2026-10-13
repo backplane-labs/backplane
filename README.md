@@ -49,7 +49,7 @@ make configure
 make dev
 ```
 
-Open **http://127.0.0.1:10000/backplane/** and sign in with the local operator
+Open **http://127.0.0.1:8081/backplane/** and sign in with the local operator
 token **`dev-admin-token-change-me`**. The installation includes backplane, hello
 and formatter, with a working hook binding and event rule. Infrastructure,
 including Temporal, runs in containers.
@@ -128,7 +128,7 @@ and [configuration](deployments/README.md). The publishing workflow runs on
 | [`web/apps/embedding`](web/apps/embedding) | Production console host |
 | [`web/apps/catalog`](web/apps/catalog) | Storybook component catalog |
 | [`examples`](examples) | Hello and formatter services with real contracts |
-| [`deployments`](deployments) | Container builds, Envoy and OTel configuration |
+| [`deployments`](deployments) | Container builds, deployment and OTel configuration |
 | [`docs`](docs) | Architecture, API and development guides |
 
 ## Develop

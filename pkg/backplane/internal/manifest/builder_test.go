@@ -86,8 +86,8 @@ func TestSharedDescriptors(t *testing.T) {
 	t.Parallel()
 
 	b := manifest.New("svc", "1.0.0")
-	b.Route(&backplanev1.Route{
-		Kind:     backplanev1.RouteKind_ROUTE_KIND_GRPC,
+	b.API(&backplanev1.API{
+		Kind:     backplanev1.ApiKind_API_KIND_GRPC,
 		Prefix:   "/" + healthService + "/",
 		Port:     8080,
 		Services: []string{healthService},
@@ -100,8 +100,8 @@ func TestSharedDescriptors(t *testing.T) {
 	}
 
 	b = manifest.New("svc", "1.0.0")
-	b.Route(&backplanev1.Route{
-		Kind:     backplanev1.RouteKind_ROUTE_KIND_GRPC,
+	b.API(&backplanev1.API{
+		Kind:     backplanev1.ApiKind_API_KIND_GRPC,
 		Prefix:   "/" + healthService + "/",
 		Port:     8080,
 		Services: []string{healthService},
@@ -110,7 +110,7 @@ func TestSharedDescriptors(t *testing.T) {
 
 	m := build(t, b)
 
-	if r := m.GetRoutes()[0]; r.GetSchema() != nil || r.GetPrefix() != "/"+healthService+"/" {
+	if r := m.GetApis()[0]; r.GetSchema() != nil || r.GetPrefix() != "/"+healthService+"/" {
 		t.Fatalf("managed route: %v", r)
 	}
 
@@ -143,15 +143,15 @@ func TestDeclarativeRouteKeepsSchema(t *testing.T) {
 	t.Parallel()
 
 	b := manifest.New("svc", "1.0.0")
-	b.Route(&backplanev1.Route{
-		Kind:     backplanev1.RouteKind_ROUTE_KIND_GRPC,
+	b.API(&backplanev1.API{
+		Kind:     backplanev1.ApiKind_API_KIND_GRPC,
 		Prefix:   "/x.v1.X/",
 		Services: []string{"x.v1.X"},
-		Schema:   &backplanev1.Route_Descriptors{Descriptors: []byte{1}},
+		Schema:   &backplanev1.API_Descriptors{Descriptors: []byte{1}},
 	})
 
 	m := build(t, b)
-	if len(m.GetDescriptors()) != 0 || len(m.GetRoutes()[0].GetDescriptors()) != 1 {
+	if len(m.GetDescriptors()) != 0 || len(m.GetApis()[0].GetDescriptors()) != 1 {
 		t.Fatalf("manifest: %v", m)
 	}
 }
@@ -165,7 +165,7 @@ func TestDuplicatesListed(t *testing.T) {
 		b.Event(&backplanev1.Event{Name: "e"})
 		b.Activity(&backplanev1.Activity{Name: "a"})
 		b.Subscription(&backplanev1.Subscription{Event: "other.E", Consumer: "c:other.E"})
-		b.Route(&backplanev1.Route{Prefix: "/api/", Port: 80})
+		b.API(&backplanev1.API{Prefix: "/api/", Port: 80})
 	}
 
 	_, err := b.Build()
@@ -206,12 +206,12 @@ func TestRouteMatchScopedByPort(t *testing.T) {
 	t.Parallel()
 
 	b := manifest.New("svc", "1.0.0")
-	b.Route(&backplanev1.Route{Prefix: "/api/", Port: 80})
-	b.Route(&backplanev1.Route{Prefix: "/api/", Port: 81})
-	b.Route(&backplanev1.Route{Host: "api.example.com", Port: 80})
+	b.API(&backplanev1.API{Prefix: "/api/", Port: 80})
+	b.API(&backplanev1.API{Prefix: "/api/", Port: 81})
+	b.API(&backplanev1.API{Host: "api.example.com", Port: 80})
 
-	if m := build(t, b); len(m.GetRoutes()) != 3 {
-		t.Fatalf("routes: %v", m.GetRoutes())
+	if m := build(t, b); len(m.GetApis()) != 3 {
+		t.Fatalf("routes: %v", m.GetApis())
 	}
 }
 
@@ -298,7 +298,7 @@ func TestUnknownServiceFails(t *testing.T) {
 	t.Parallel()
 
 	b := manifest.New("svc", "1.0.0")
-	b.Route(&backplanev1.Route{
+	b.API(&backplanev1.API{
 		Prefix: "/does.not.Exist/", Services: []string{"does.not.Exist"},
 	})
 

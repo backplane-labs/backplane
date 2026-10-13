@@ -23,7 +23,6 @@ func TestConfigFromEnv(t *testing.T) {
 	t.Setenv("BACKPLANE_CONSUL_ADDR", "consul:8500")
 	t.Setenv("BACKPLANE_ADMIN_TOKEN", "admin-token-0123456789")
 	t.Setenv("BACKPLANE_VALKEY_ADDR", "valkey:6379")
-	t.Setenv("BACKPLANE_CONSOLE_HOST", "console.example.com")
 	t.Setenv("BACKPLANE_CONSOLE_ORIGINS", `["https://console.example.com"]`)
 	t.Setenv("BACKPLANE_CONSOLE_TRUSTED_PROXIES", `["10.0.0.0/8","192.168.1.1"]`)
 	t.Setenv("BACKPLANE_OBS_METRICS_URL", "http://grafana:3000")
@@ -36,14 +35,14 @@ func TestConfigFromEnv(t *testing.T) {
 	}
 
 	if cfg.PG.DSN.Reveal() != "postgres://pg/backplane" || cfg.Consul.Addr != "consul:8500" ||
-		cfg.AdminToken.Reveal() != "admin-token-0123456789" || cfg.Console.Host != "console.example.com" ||
+		cfg.AdminToken.Reveal() != "admin-token-0123456789" ||
 		len(cfg.Console.Origins) != 1 || len(cfg.Console.TrustedProxies) != 2 ||
 		cfg.Obs.MetricsURL != "http://grafana:3000" || cfg.Valkey.Addr != "valkey:6379" {
 		t.Fatalf("env: %+v", cfg)
 	}
 
-	if cfg.XDS.Listen != ":18000" || cfg.Console.Listen != ":8081" || cfg.Audit.Listen != ":4317" || cfg.InternalPort != 9400 {
-		t.Fatalf("defaults: xds %q console %q internal %d", cfg.XDS.Listen, cfg.Console.Listen, cfg.InternalPort)
+	if cfg.Console.Listen != ":8081" || cfg.Audit.Listen != ":4317" || cfg.InternalPort != 9400 {
+		t.Fatalf("defaults: console %q internal %d", cfg.Console.Listen, cfg.InternalPort)
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -83,8 +82,7 @@ func TestValidate(t *testing.T) {
 		c.Valkey.Addr = "valkey:6379"
 		c.AdminToken = "admin-token-0123456789"
 		c.InternalPort, c.PublicPort = 9400, 8080
-		c.XDS.Enabled = true
-		c.XDS.Listen, c.Console.Listen, c.Audit.Listen = ":18000", ":8081", ":4317"
+		c.Console.Listen, c.Audit.Listen = ":8081", ":4317"
 
 		return c
 	}
@@ -103,17 +101,16 @@ func TestValidate(t *testing.T) {
 		"valkey tls":        {func(c *server.Config) { c.Valkey.TLS.Enabled, c.Valkey.TLS.CA = true, "junk" }, config.ErrTLSCA},
 		"no admin token":    {func(c *server.Config) { c.AdminToken = "" }, server.ErrNoAdminToken},
 		"short admin token": {func(c *server.Config) { c.AdminToken = "short" }, server.ErrShortAdminToken},
-		"bad listen":        {func(c *server.Config) { c.XDS.Listen = "18000" }, server.ErrAddr},
+		"bad listen":        {func(c *server.Config) { c.Console.Listen = "8081" }, server.ErrAddr},
 		"port 0":            {func(c *server.Config) { c.Console.Listen = ":0" }, server.ErrAddr},
-		"xds on public":     {func(c *server.Config) { c.XDS.Listen = ":8080" }, server.ErrPortTaken},
-		"same ports":        {func(c *server.Config) { c.Console.Listen = "127.0.0.1:18000" }, server.ErrPortTaken},
-		"host+prefix":       {func(c *server.Config) { c.Console.Host, c.Console.Prefix = "c.example.com", "/bp" }, server.ErrHostOrPrefix},
+		"console on public": {func(c *server.Config) { c.Console.Listen = ":8080" }, server.ErrPortTaken},
+		"same ports":        {func(c *server.Config) { c.Console.Listen = "127.0.0.1:4317" }, server.ErrPortTaken},
 		"prefix slash":      {func(c *server.Config) { c.Console.Prefix = "/bp/" }, server.ErrPrefix},
 		"origin path":       {func(c *server.Config) { c.Console.Origins = []string{"https://c.example.com/x"} }, server.ErrOrigin},
 		"origin scheme":     {func(c *server.Config) { c.Console.Origins = []string{"c.example.com"} }, server.ErrOrigin},
 		"proxy":             {func(c *server.Config) { c.Console.TrustedProxies = []string{"10.0.0.0/33"} }, server.ErrProxy},
 		"obs not a url":     {func(c *server.Config) { c.Obs.TracesURL = "tempo:3200" }, server.ErrURL},
-		"audit on xds":      {func(c *server.Config) { c.Audit.Listen = ":18000" }, server.ErrPortTaken},
+		"audit on console":  {func(c *server.Config) { c.Audit.Listen = ":8081" }, server.ErrPortTaken},
 	}
 
 	for name, tc := range cases {

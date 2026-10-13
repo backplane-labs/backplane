@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { chromium, expect } from '@playwright/test';
-const origin = process.env.BACKPLANE_DEV_URL ?? 'http://127.0.0.1:10000', base = `${origin}/backplane`;
-// Direct service traffic goes to Envoy, not the console-only Vite proxy.
-const serviceOrigin = process.env.BACKPLANE_DEV_TARGET ?? origin;
+const origin = process.env.BACKPLANE_DEV_URL ?? 'http://127.0.0.1:8081', base = `${origin}/backplane`;
+// Service requests go directly to hello, independently of the console proxy.
+const serviceOrigin = process.env.BACKPLANE_HELLO_URL ?? 'http://127.0.0.1:8080';
 const browser = await chromium.launch();
 try {
   const context = await browser.newContext(), page = await context.newPage(), failures = [], sockets = [];
@@ -71,7 +71,7 @@ try {
   await page.getByRole('button', { name: 'Run query', exact: true }).click();
   await expect(page.locator('canvas').first()).toBeVisible({ timeout: 20000 });
   assert.equal(await page.evaluate(() => window.__backplaneWorkflowDocument), 'same-document', 'Lazy editors/charts must not reload the page');
-  // Workflows: start GreetMany and read its result; trigger the paused HourlyReport and see its run; it stays paused.
+  // Workflows: start GreetMany, then create and trigger an administrative schedule.
   await page.goto(`${base}/services/hello/workflows`);
   const runRows = page.getByRole('table', { name: 'Runs', exact: true }).locator('tbody tr');
   const runsRefresh = page.locator('section').filter({ has: page.getByRole('group', { name: 'Run kind', exact: true }) }).getByRole('button', { name: 'Refresh', exact: true });
@@ -92,26 +92,43 @@ try {
     await runsRefresh.click();
     await expect(runRows.filter({ hasText: workflowId })).toHaveCount(1, { timeout: 2000 });
   }).toPass({ timeout: 30000 });
-  const report = page.getByRole('group', { name: 'HourlyReport', exact: true });
-  await expect(report.getByText('Paused', { exact: true })).toBeVisible();
-  await report.getByRole('button', { name: 'Runs of this schedule', exact: true }).click();
-  await expect(page.getByRole('combobox', { name: 'ID prefix', exact: true })).toContainText('hello/HourlyReport-');
-  await expect(page.getByRole('table', { name: 'Runs', exact: true }).or(page.getByText('No runs match.', { exact: true }))).toBeVisible();
-  const previousRuns = new Set(await runRows.locator('td:nth-child(2) > div:first-child').allInnerTexts());
-  await report.getByRole('button', { name: 'Trigger', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirm', exact: true }).click();
+  // Schedules belong to the administrator; the SDK does not create HourlyReport.
+  const scheduleName = `BrowserReport-${Date.now()}`;
+  await page.getByRole('button', { name: 'Create schedule', exact: true }).click();
+  const editor = page.getByRole('dialog');
+  await editor.getByRole('textbox', { name: 'Schedule name', exact: true }).fill(scheduleName);
+  await editor.getByRole('combobox', { name: 'Workflow', exact: true }).click();
+  await page.getByRole('option', { name: 'Report', exact: true }).click();
+  await editor.getByRole('checkbox', { name: 'Create paused', exact: true }).check();
+  await editor.getByRole('button', { name: 'Save schedule', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  let triggered;
-  await expect(async () => {
-    await runsRefresh.click();
-    await expect(page.getByRole('table', { name: 'Runs', exact: true })).toBeVisible({ timeout: 2000 });
-    triggered = (await runRows.locator('td:nth-child(2) > div:first-child').allInnerTexts()).find((id) => !previousRuns.has(id));
-    assert.ok(triggered?.startsWith('hello/HourlyReport-'), 'triggered run listed');
-  }).toPass({ timeout: 30000 });
-  await runRows.filter({ hasText: triggered }).click();
-  await expect(page.getByRole('dialog').getByText('Report', { exact: true })).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(report.getByText('Paused', { exact: true })).toBeVisible();
+  const report = page.getByRole('group', { name: scheduleName, exact: true });
+  try {
+    await expect(report.getByText('Paused', { exact: true })).toBeVisible();
+    await report.getByRole('button', { name: 'Runs of this schedule', exact: true }).click();
+    await expect(page.getByRole('combobox', { name: 'ID prefix', exact: true })).toContainText(`hello/${scheduleName}-`);
+    await expect(page.getByRole('table', { name: 'Runs', exact: true }).or(page.getByText('No runs match.', { exact: true }))).toBeVisible();
+    const previousRuns = new Set(await runRows.locator('td:nth-child(2) > div:first-child').allInnerTexts());
+    await report.getByRole('button', { name: 'Trigger', exact: true }).click();
+    await page.getByRole('button', { name: 'Confirm', exact: true }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    let triggered;
+    await expect(async () => {
+      await runsRefresh.click();
+      await expect(page.getByRole('table', { name: 'Runs', exact: true })).toBeVisible({ timeout: 2000 });
+      triggered = (await runRows.locator('td:nth-child(2) > div:first-child').allInnerTexts()).find((id) => !previousRuns.has(id));
+      assert.ok(triggered?.startsWith(`hello/${scheduleName}-`), 'triggered run listed');
+    }).toPass({ timeout: 30000 });
+    await runRows.filter({ hasText: triggered }).click();
+    await expect(page.getByRole('dialog').getByText('Report', { exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(report.getByText('Paused', { exact: true })).toBeVisible();
+  } finally {
+    await page.keyboard.press('Escape');
+    await report.getByRole('button', { name: 'Delete schedule', exact: true }).click();
+    await page.getByRole('button', { name: 'Confirm', exact: true }).click();
+    await expect(report).toHaveCount(0);
+  }
   await page.getByRole('button', { name: 'Light theme', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await page.getByRole('button', { name: 'Session', exact: true }).click();

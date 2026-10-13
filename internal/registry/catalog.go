@@ -1,13 +1,13 @@
 // Package registry is backplane's view of the installation, built from
 // Consul: the catalog (live instances and their health), the manifests the
 // SDK writes per version, and the instance states under their sessions.
-// Everything else in backplane — configuration, xDS, the console — reads a
+// Everything else in backplane — configuration and the console — reads a
 // Catalog snapshot and reacts to changes; nothing else talks to Consul for
 // discovery.
 //
 // A consumer takes a Source and follows it from its own goroutine:
 //
-//	func (x *XDS) follow(ctx context.Context) error {
+//	func (x *Consumer) follow(ctx context.Context) error {
 //	    changes := x.src.Changes(ctx) // closed when ctx ends
 //	    for {
 //	        x.apply(x.src.Current()) // the zero Catalog (Index 0) until synced

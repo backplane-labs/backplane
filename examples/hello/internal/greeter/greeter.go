@@ -117,7 +117,7 @@ func New(parent deps.Scope, cfg *Config, db deps.Dependency[*store.DB]) (*Greete
 // Greeted is the event the greeter raises.
 func (g *Greeter) Greeted() event.Ref[Greeted] { return g.greeted }
 
-// Register is the one registration for gRPC, Connect and ws-proto.
+// Register is the one registration for native gRPC and ws-proto.
 func (g *Greeter) Register(r grpc.ServiceRegistrar) { hellov1.RegisterHelloServiceServer(r, g) }
 
 // Text greets name and publishes Greeted; a publish that fails (no NATS)

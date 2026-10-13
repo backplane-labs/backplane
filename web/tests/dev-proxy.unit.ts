@@ -16,7 +16,7 @@ describe('console development proxy', () => {
   it('rejects foreign HTTP and WebSocket origins before any rewriting', () => {
     const config = consoleDevServer('/backplane/');
     const options = Object.values(config.proxy!)[0] as ProxyOptions;
-    for (const response of [undefined, {} as ServerResponse]) for (const origin of ['null', 'http://evil.test', 'http://127.0.0.1:10000', 'http://localhost:5173']) {
+    for (const response of [undefined, {} as ServerResponse]) for (const origin of ['null', 'http://evil.test', 'http://127.0.0.1:8081', 'http://localhost:5173']) {
       const req = request({ host: '127.0.0.1:5173', origin });
       expect(options.bypass!(req, response, options)).toBe(false);
       expect(req.headers.origin).toBe(origin);

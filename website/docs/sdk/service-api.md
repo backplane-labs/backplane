@@ -1,6 +1,6 @@
 # Publish service API documentation
 
-The service API tab renders external APIs declared by a service's routes. It supports OpenAPI, protobuf descriptors and GraphQL introspection, including request/response fields, schemas, enums and authored examples. It does not execute requests.
+The service API tab renders external APIs declared in a service's API metadata. It supports OpenAPI, protobuf descriptors and GraphQL introspection, including request/response fields, schemas, enums and authored examples. It does not execute requests.
 
 ## Multi-file OpenAPI with embed.FS
 
@@ -51,7 +51,7 @@ Embed and register the directory:
 var apiFiles embed.FS
 
 svc.HTTP("/hello/", handler,
-    route.OpenAPIFS(apiFiles, "api/openapi.yaml"))
+    api.OpenAPIFS(apiFiles, "api/openapi.yaml"))
 ```
 
 Use `fs.Sub` to limit the filesystem to the contract directory if appropriate. The SDK snapshots regular files, hashes paths and contents and announces a bundle reference. Files stay out of the 512 KiB manifest. Limits are 256 files and 32 MiB total; invalid entry paths and symlinks fail declaration/startup.
@@ -60,14 +60,14 @@ Relative references must remain inside the bundle. HTTP URLs, absolute paths and
 
 ## Protobuf and GraphQL
 
-Managed gRPC/ws-proto registrations collect descriptors and transitive imports automatically. The viewer shows only services announced by the selected route. For an independently served gRPC endpoint, supply `route.Descriptors(fds)` with a binary descriptor set including imports. Include source info when generating it to preserve comments:
+Managed gRPC/ws-proto registrations collect descriptors and transitive imports automatically. The viewer shows only services announced by the selected api. For an independently served gRPC endpoint, supply `api.Descriptors(fds)` with a binary descriptor set including imports. Include source info when generating it to preserve comments:
 
 ```bash
 protoc --include_imports --include_source_info \
   --descriptor_set_out=api.pb path/to/service.proto
 ```
 
-GraphQL accepts introspection JSON as `{"__schema": ...}` or `{"data":{"__schema": ...}}`. For a large file, use `route.GraphQLFS(files, "schema.json")` and a nil inline document. The viewer lists query/mutation/subscription fields, argument types and named definitions.
+GraphQL accepts introspection JSON as `{"__schema": ...}` or `{"data":{"__schema": ...}}`. For a large file, use `api.GraphQLFS(files, "schema.json")` and a nil inline document. The viewer lists query/mutation/subscription fields, argument types and named definitions.
 
 ## Delivery and security
 

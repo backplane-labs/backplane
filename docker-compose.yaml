@@ -1,15 +1,7 @@
 # platform-in-a-box: the stack backplane and services run against.
-# Base: PostgreSQL, Consul, Valkey. Optional profiles: events, workflows, gateway, full.
+# Base: PostgreSQL, Consul, Valkey. Optional profiles: events, workflows, full.
 # `make up` starts the full test stack; plain compose starts only the base. Ports are published on localhost for development.
 services:
-  envoy:
-    profiles: [gateway, full]
-    image: envoyproxy/envoy:v1.39.1
-    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "warn"]
-    volumes: ["./deployments/envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro"]
-    extra_hosts: ["host.docker.internal:host-gateway"]
-    ports: ["10000:10000", "9901:9901"]
-
   consul:
     image: hashicorp/consul:1.22
     command: agent -dev -client=0.0.0.0

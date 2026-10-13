@@ -1,6 +1,6 @@
 // Package legacy is a listener hello serves itself, outside the SDK's
 // public port: the service announces it with a declarative route
-// (svc.Route(route.HTTP(...))) so Envoy routes to it all the same.
+// (svc.API(api.HTTP(...))) so its API appears in the catalog.
 package legacy
 
 import (

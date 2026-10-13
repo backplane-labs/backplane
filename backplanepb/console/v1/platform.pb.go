@@ -61,7 +61,7 @@ func (*GetCapabilitiesRequest) Descriptor() ([]byte, []int) {
 type Capability struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable feature key: events, workflows, schedules, bindings, rules,
-	// metrics, logs, traces, telemetry, gateway, audit, audit_export.
+	// metrics, logs, traces, telemetry, audit, audit_export.
 	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Enabled       bool   `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	unknownFields protoimpl.UnknownFields

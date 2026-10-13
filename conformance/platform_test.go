@@ -72,7 +72,7 @@ func TestPlatformModes(t *testing.T) {
 				"BACKPLANE_CONSUL_ADDR=" + consulAddr, "BACKPLANE_PG_DSN=" + scratch, "BACKPLANE_VALKEY_ADDR=" + testValkey(t),
 				"BACKPLANE_INSTANCE=modes-" + tc.name, "BACKPLANE_ADMIN_TOKEN=" + token, "BACKPLANE_ADVERTISE=" + advertise(t),
 				"BACKPLANE_INTERNAL_PORT=" + freePort(t), "BACKPLANE_PUBLIC_PORT=" + freePort(t), "BACKPLANE_CONSOLE_LISTEN=:" + port,
-				"BACKPLANE_AUDIT_LISTEN=:" + freePort(t), "BACKPLANE_CONSOLE_INSECURE_COOKIE=true", "BACKPLANE_XDS_ENABLED=false",
+				"BACKPLANE_AUDIT_LISTEN=:" + freePort(t), "BACKPLANE_CONSOLE_INSECURE_COOKIE=true",
 				"BACKPLANE_NATS_URL=" + tc.nats, "BACKPLANE_TEMPORAL_ADDR=" + tc.temporal,
 				"BACKPLANE_INFRASTRUCTURE_COLLECTOR_URL=" + health.URL, "BACKPLANE_OTLP_URL=" + health.URL,
 				"BACKPLANE_SHUTDOWN_DRAIN=100ms", "BACKPLANE_CONSUL_CHECK_INTERVAL=1s",
@@ -96,7 +96,7 @@ func TestPlatformModes(t *testing.T) {
 				enabled[capability.GetName()] = capability.GetEnabled()
 			}
 
-			if enabled["events"] != (tc.nats != "") || enabled["schedules"] != (tc.temporal != "") || enabled["rules"] != (tc.nats != "" && tc.temporal != "") || enabled["gateway"] || !enabled["audit"] {
+			if enabled["events"] != (tc.nats != "") || enabled["schedules"] != (tc.temporal != "") || enabled["rules"] != (tc.nats != "" && tc.temporal != "") || !enabled["audit"] {
 				t.Fatalf("capabilities: %v", &caps)
 			}
 

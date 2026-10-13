@@ -19,8 +19,8 @@ message Manifest {
   ConfigSection config = 4;
   reserved 5;
   reserved "static", "dynamic";
-  // External API: proxied by Envoy, informational for the console.
-  repeated Route routes = 6;
+  // APIs served by the service. Informational: publication belongs to deployment.
+  repeated API apis = 6;
   // Internal API: full gRPC service names on the platform port; the only
   // methods the console relay forwards.
   repeated string internal_services = 7;
@@ -32,8 +32,8 @@ message Manifest {
   // order.
   repeated Node nodes = 12;
   // Serialized FileDescriptorSet covering every service named by a managed
-  // route (Route.services) and by internal_services, with transitive
-  // imports: stored once instead of per route.
+  // API (API.services) and by internal_services, with transitive
+  // imports: stored once instead of per API.
   bytes descriptors = 13;
   // Events the service reacts to.
   repeated Subscription subscriptions = 14;
@@ -82,21 +82,21 @@ enum NodeKind {
   NODE_KIND_SINGLETON = 3;
 }
 
-// A public route for Envoy.
-message Route {
+// An API served by the service. Does not configure external routing.
+message API {
   // Path prefix ("/api/"); gRPC routes use "/<full service name>/".
   string prefix = 1;
   // Host header to match in addition to the prefix; empty matches any host.
   string host = 2;
-  RouteKind kind = 3;
+  ApiKind kind = 3;
   // Port of the external API this route leads to; 0 = the port registered
   // in Consul.
   uint32 port = 4;
-  // gRPC, Connect and ws-proto: full names of the services behind the
+  // gRPC and ws-proto: full names of the services behind the
   // route; their descriptors are in Manifest.descriptors unless the route
   // carries its own.
   repeated string services = 8;
-  // Schema for transcoding and the console's API tab; optional.
+  // Schema for the console's API tab; optional.
   oneof schema {
     // OpenAPI document (HTTP).
     bytes openapi = 5;
@@ -107,8 +107,8 @@ message Route {
     // Files served by the SDK on the platform port, outside Consul KV.
     APISchemaBundle bundle = 10;
   }
-  // Envoy policy; unset fields take the platform defaults.
-  RoutePolicy policy = 9;
+  reserved 9;
+  reserved "policy";
 }
 
 // An immutable API file snapshot, delivered separately from the manifest.
@@ -125,40 +125,14 @@ enum SchemaFormat {
   SCHEMA_FORMAT_GRAPHQL = 2;
 }
 
-// What Envoy enforces on a route. Durations of zero mean "platform default";
-// a stream route should set timeout explicitly (Envoy's default is 15s).
-message RoutePolicy {
-  google.protobuf.Duration timeout = 1;
-  google.protobuf.Duration idle_timeout = 2;
-  RetryPolicy retry = 3;
-  Cors cors = 4;
-  // 0 = platform default.
-  uint64 max_request_bytes = 5;
-}
-
-message RetryPolicy {
-  uint32 attempts = 1;
-  google.protobuf.Duration per_try_timeout = 2;
-  // Envoy retry_on conditions ("5xx", "reset", "unavailable", ...).
-  repeated string retry_on = 3;
-}
-
-message Cors {
-  repeated string origins = 1;
-  repeated string methods = 2;
-  repeated string headers = 3;
-  repeated string expose_headers = 4;
-  bool credentials = 5;
-  google.protobuf.Duration max_age = 6;
-}
-
-enum RouteKind {
-  ROUTE_KIND_UNSPECIFIED = 0;
-  ROUTE_KIND_HTTP = 1;
-  ROUTE_KIND_GRPC = 2;
-  ROUTE_KIND_CONNECT = 3;
-  ROUTE_KIND_WS_PROTO = 4;
-  ROUTE_KIND_GRAPHQL = 5;
+enum ApiKind {
+  API_KIND_UNSPECIFIED = 0;
+  API_KIND_HTTP = 1;
+  API_KIND_GRPC = 2;
+  reserved 3;
+  reserved "ROUTE_KIND_CONNECT";
+  API_KIND_WS_PROTO = 4;
+  API_KIND_GRAPHQL = 5;
 }
 
 message Event {
@@ -197,8 +171,16 @@ message Activity {
   // Defaults for a binding step calling it; the binding may override.
   google.protobuf.Duration start_to_close = 5;
   google.protobuf.Duration heartbeat = 6;
-  RetryPolicy retry = 7;
+  ActivityRetry retry = 7;
   string description = 8;
+}
+
+// Default retries for a binding step executing this activity or workflow.
+message ActivityRetry {
+  uint32 attempts = 1;
+  google.protobuf.Duration per_try_timeout = 2;
+  reserved 3;
+  reserved "retry_on";
 }
 
 enum ActivityKind {

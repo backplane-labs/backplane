@@ -86,13 +86,13 @@ in another terminal, start `rtk proxy yarn dev:console`. Then from `web/`:
 rtk proxy yarn test:console-dev
 rtk proxy env BACKPLANE_DEV_URL=http://127.0.0.1:5173 node tests/login-browser.mjs
 rtk proxy env BACKPLANE_DEV_URL=http://127.0.0.1:5173 node tests/console-browser.mjs
-rtk proxy env BACKPLANE_DEV_URL=http://127.0.0.1:5173 BACKPLANE_DEV_TARGET=http://127.0.0.1:10000 node tests/dev-browser.mjs
+rtk proxy env BACKPLANE_DEV_URL=http://127.0.0.1:5173 BACKPLANE_DEV_TARGET=http://127.0.0.1:8081 node tests/dev-browser.mjs
 rtk proxy yarn test:packed
 ```
 
 At repository root, run `rtk proxy make web-check` for Storybook scenarios
 and real Go console/browser integration. Do not run host conformance
-sharing xDS/example identities alongside the same dev installation.
+sharing example service identities alongside the same dev installation.
 
 The HMR check verifies real cookie login, module assets/RPC, deep links,
 CSS/React hot updates without draft/session loss, foreign-origin rejection and

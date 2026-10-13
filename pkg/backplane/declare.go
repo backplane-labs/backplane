@@ -11,16 +11,15 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/gopherex/xprobe/pkg/probe"
 
 	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
+	"github.com/gopherex/backplane/pkg/backplane/api"
 	"github.com/gopherex/backplane/pkg/backplane/internal/health"
 	"github.com/gopherex/backplane/pkg/backplane/internal/link"
 	"github.com/gopherex/backplane/pkg/backplane/internal/manifest"
 	"github.com/gopherex/backplane/pkg/backplane/internal/routes"
-	"github.com/gopherex/backplane/pkg/backplane/route"
 )
 
 //nolint:gochecknoinits // installs the private accessor for the wsproto package
@@ -41,31 +40,31 @@ func init() {
 var (
 	errPrefixTaken    = errors.New("prefix served twice")
 	errConsolePackage = errors.New("must be in proto package")
-	errSchemaConflict = errors.New("route: inline and file API schemas declared together")
+	errSchemaConflict = errors.New("api: inline and file API schemas declared together")
 )
 
-// Route announces a route the author serves themselves.
-func (c *core) Route(d route.Decl) {
-	c.declare("route", func() {
-		r, err := link.Routes.Decl(d)
+// API describes an API the author serves on their own listener.
+func (c *core) API(d api.Decl) {
+	c.declare("API", func() {
+		r, err := link.APIs.Decl(d)
 		if err != nil {
 			c.env.Manifest.Fail(err)
 
 			return
 		}
 
-		c.env.Manifest.Route(r)
-		c.mountSchemaFiles(link.Routes.Files(d))
+		c.env.Manifest.API(r)
+		c.mountSchemaFiles(link.APIs.Files(d))
 	})
 }
 
 // GRPC serves gRPC services on a public port: one route per registered
 // service, descriptors derived from the registration. Registering the same
 // service twice on one port is a Run error; so is grpc.health.v1, which
-// every public gRPC server serves already. route.Interceptors and
-// route.StreamInterceptors wrap this registration's services only.
-func (c *core) GRPC(register func(r grpc.ServiceRegistrar), opts ...route.GRPCOption) {
-	spec := link.Routes.GRPC(opts)
+// every public gRPC server serves already. api.Interceptors and
+// api.StreamInterceptors wrap this registration's services only.
+func (c *core) GRPC(register func(r grpc.ServiceRegistrar), opts ...api.GRPCOption) {
+	spec := link.APIs.GRPC(opts)
 
 	c.declare("gRPC routes", func() {
 		p := c.port(spec.Listen)
@@ -84,49 +83,43 @@ func (c *core) GRPC(register func(r grpc.ServiceRegistrar), opts ...route.GRPCOp
 			p.reflection = true
 		}
 
-		kind := backplanev1.RouteKind_ROUTE_KIND_GRPC
-		if spec.Transcode {
-			kind = backplanev1.RouteKind_ROUTE_KIND_CONNECT
-		}
-
 		for _, name := range services {
-			r := &backplanev1.Route{Kind: kind, Port: uint32(p.port), Services: []string{name}}
+			r := &backplanev1.API{Kind: backplanev1.ApiKind_API_KIND_GRPC, Port: uint32(p.port), Services: []string{name}}
 			setMatch(r, spec.Host, "/"+name+"/")
-			r.Policy = proto.CloneOf(spec.Policy)
-			c.env.Manifest.Route(r)
+			c.env.Manifest.API(r)
 		}
 	})
 }
 
 // HTTP serves h under prefix on a public port. The prefix is normalized to
-// end with "/" ("/api" serves "/api/..."); with route.Host it matches that
+// end with "/" ("/api" serves "/api/..."); with api.Host it matches that
 // host only, so one prefix may serve several hosts. The same host and
 // prefix twice on one port is a Run error.
-func (c *core) HTTP(prefix string, h http.Handler, opts ...route.HTTPOption) {
-	c.mountHTTP("HTTP route", backplanev1.RouteKind_ROUTE_KIND_HTTP, prefix, h, link.Routes.HTTP(opts), nil)
+func (c *core) HTTP(prefix string, h http.Handler, opts ...api.HTTPOption) {
+	c.mountHTTP("HTTP route", backplanev1.ApiKind_API_KIND_HTTP, prefix, h, link.APIs.HTTP(opts), nil)
 }
 
 // GraphQL serves the author's GraphQL handler under prefix on a public
 // port, announced with its introspection result (JSON; nil when none).
-func (c *core) GraphQL(prefix string, h http.Handler, introspection []byte, opts ...route.HTTPOption) {
-	var schema *backplanev1.Route
+func (c *core) GraphQL(prefix string, h http.Handler, introspection []byte, opts ...api.HTTPOption) {
+	var schema *backplanev1.API
 	if introspection != nil {
-		schema = &backplanev1.Route{Schema: &backplanev1.Route_Graphql{Graphql: introspection}}
+		schema = &backplanev1.API{Schema: &backplanev1.API_Graphql{Graphql: introspection}}
 	}
 
-	c.mountHTTP("GraphQL route", backplanev1.RouteKind_ROUTE_KIND_GRAPHQL, prefix, h, link.Routes.HTTP(opts), schema)
+	c.mountHTTP("GraphQL route", backplanev1.ApiKind_API_KIND_GRAPHQL, prefix, h, link.APIs.HTTP(opts), schema)
 }
 
 func (c *core) mountWS(prefix string, h http.Handler, services []string, spec routes.Managed) {
-	c.mountHTTP("ws-proto route", backplanev1.RouteKind_ROUTE_KIND_WS_PROTO, prefix, h, spec,
-		&backplanev1.Route{Services: services})
+	c.mountHTTP("ws-proto route", backplanev1.ApiKind_API_KIND_WS_PROTO, prefix, h, spec,
+		&backplanev1.API{Services: services})
 }
 
 // mountHTTP serves h and announces it; extra carries the kind's schema and
 // services.
 func (c *core) mountHTTP(
-	what string, kind backplanev1.RouteKind, prefix string, h http.Handler, spec routes.Managed,
-	extra *backplanev1.Route,
+	what string, kind backplanev1.ApiKind, prefix string, h http.Handler, spec routes.Managed,
+	extra *backplanev1.API,
 ) {
 	c.declare(what, func() {
 		p, err := routes.Prefix(prefix)
@@ -143,11 +136,11 @@ func (c *core) mountHTTP(
 			return
 		}
 
-		r := &backplanev1.Route{Kind: kind, Port: uint32(port.port), Policy: proto.CloneOf(spec.Policy)}
+		r := &backplanev1.API{Kind: kind, Port: uint32(port.port)}
 		setMatch(r, spec.Host, p)
 
 		if spec.OpenAPI != nil {
-			r.Schema = &backplanev1.Route_Openapi{Openapi: spec.OpenAPI}
+			r.Schema = &backplanev1.API_Openapi{Openapi: spec.OpenAPI}
 		}
 
 		if spec.SchemaFiles != nil {
@@ -156,7 +149,7 @@ func (c *core) mountHTTP(
 				return
 			}
 
-			r.Schema = &backplanev1.Route_Bundle{Bundle: spec.SchemaFiles.Ref}
+			r.Schema = &backplanev1.API_Bundle{Bundle: spec.SchemaFiles.Ref}
 			c.mountSchemaFiles(spec.SchemaFiles)
 		}
 
@@ -167,12 +160,12 @@ func (c *core) mountHTTP(
 			}
 		}
 
-		c.env.Manifest.Route(r)
+		c.env.Manifest.API(r)
 	})
 }
 
 // setMatch matches r by path prefix and, when given, host too.
-func setMatch(r *backplanev1.Route, host, prefix string) {
+func setMatch(r *backplanev1.API, host, prefix string) {
 	r.Prefix, r.Host = prefix, host
 }
 

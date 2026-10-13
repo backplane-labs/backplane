@@ -110,20 +110,15 @@ conformance: ## SDK contract and integration tests against platform-in-a-box (ma
 	BACKPLANE_TEST_PG="postgres://backplane:backplane@localhost:5433/backplane?sslmode=disable" \
 		go test -race -count=1 ./...
 
-.PHONY: test-envoy
-test-envoy: ## xDS end to end: backplane's control plane on :18000, hello through the compose Envoy (make up)
-	BACKPLANE_TEST_ENVOY=localhost:9901 BACKPLANE_TEST_CONSUL=localhost:8500 \
-		GOWORK=off go test -race -count=1 -run TestEnvoy -v ./internal/xds/
-
 .PHONY: test-m1
-test-m1: ## M1 end to end: bin backplane + hello behind the compose Envoy — config revisions, reconciler, console, relay (make up)
-	BACKPLANE_TEST_ENVOY=localhost:9901 BACKPLANE_TEST_CONSUL=localhost:8500 BACKPLANE_TEST_VALKEY=localhost:6379 \
+test-m1: ## M1 end to end: bin backplane + hello on direct listeners — config revisions, reconciler, console, relay (make up)
+	BACKPLANE_TEST_CONSUL=localhost:8500 BACKPLANE_TEST_VALKEY=localhost:6379 \
 	BACKPLANE_TEST_PG="postgres://backplane:backplane@localhost:5433/backplane?sslmode=disable" \
 		GOWORK=off go test -race -count=1 -run '^TestM1$$' -v ./conformance/
 
 .PHONY: test-m2
-test-m2: ## M2 end to end: bin backplane + hello with NATS and Temporal behind the compose Envoy — bindings, rules, runs, one trace (make up)
-	BACKPLANE_TEST_ENVOY=localhost:9901 BACKPLANE_TEST_CONSUL=localhost:8500 BACKPLANE_TEST_VALKEY=localhost:6379 \
+test-m2: ## M2 end to end: bin backplane + hello with NATS and Temporal on direct listeners — bindings, rules, runs, one trace (make up)
+	BACKPLANE_TEST_CONSUL=localhost:8500 BACKPLANE_TEST_VALKEY=localhost:6379 \
 	BACKPLANE_TEST_NATS=localhost:4222 BACKPLANE_TEST_TEMPORAL=localhost:7233 \
 	BACKPLANE_TEST_PG="postgres://backplane:backplane@localhost:5433/backplane?sslmode=disable" \
 		GOWORK=off go test -race -count=1 -timeout 20m -run '^TestM2$$' -v ./conformance/
@@ -297,7 +292,7 @@ setup-example: ## Save hello -> formatter binding and event rule through the con
 		go run ./examples/demo/cmd/setup
 
 test-replicas: ## Two backplanes + hello + formatter: crash/rejoin, config, rules, Nexus retirement (make up)
-	BACKPLANE_TEST_ENVOY=localhost:9901 BACKPLANE_TEST_CONSUL=localhost:8500 BACKPLANE_TEST_VALKEY=localhost:6379 \
+	BACKPLANE_TEST_CONSUL=localhost:8500 BACKPLANE_TEST_VALKEY=localhost:6379 \
 	BACKPLANE_TEST_NATS=localhost:4222 BACKPLANE_TEST_TEMPORAL=localhost:7233 \
 	BACKPLANE_TEST_PG="postgres://backplane:backplane@localhost:5433/backplane?sslmode=disable" \
 		GOWORK=off go test -race -count=1 -timeout 20m -run '^TestReplicas$$' -v ./conformance/
@@ -323,8 +318,8 @@ dev: dev-build ## Start the complete live installation with a seeded hello/forma
 	$(DEV_COMPOSE) up -d --wait
 	node web/scripts/dev-ready.mjs
 	$(DEV_COMPOSE) run --rm seed
-	curl --fail --silent --show-error 'http://127.0.0.1:10000/hello/?name=Developer'
-	echo 'Live component fixture: http://127.0.0.1:10000/backplane/ (DEV_ADMIN_TOKEN)'
+	curl --fail --silent --show-error 'http://127.0.0.1:8080/hello/?name=Developer'
+	echo 'Live component fixture: http://127.0.0.1:8081/backplane/ (DEV_ADMIN_TOKEN)'
 
 dev-down: ## Stop the development installation; retain stored data
 	$(DEV_COMPOSE) down

@@ -15,7 +15,7 @@ func TestSDKDependencyBoundary(t *testing.T) {
 	cmd := exec.CommandContext(t.Context(), "go", "list", "-deps",
 		"../pkg/backplane", "../pkg/backplane/config", "../pkg/backplane/deps",
 		"../pkg/backplane/hook", "../pkg/backplane/activity", "../pkg/backplane/event",
-		"../pkg/backplane/backplanetest", "../pkg/backplane/route", "../pkg/backplane/wsproto", "../backplanepb/console/v1")
+		"../pkg/backplane/backplanetest", "../pkg/backplane/api", "../pkg/backplane/wsproto", "../backplanepb/console/v1")
 
 	cmd.Env = append(os.Environ(), "GOWORK=off")
 

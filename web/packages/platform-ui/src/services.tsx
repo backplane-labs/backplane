@@ -1,7 +1,7 @@
 import { useCallback, useState, type ReactNode } from 'react';
 import { create } from '@bufbuild/protobuf';
 import { BindingServiceClient, BindingState, CatalogServiceClient, GetServiceRequestSchema, ListBindingsRequestSchema, WatchCatalogRequestSchema, type Instance, type ServiceSummary } from '@gopherex/backplane-api';
-import { ActivityKind, NodeKind, RouteKind, type Manifest } from '@gopherex/backplane-api/backplanepb/v1/manifest_pb';
+import { ActivityKind, NodeKind, ApiKind, type Manifest } from '@gopherex/backplane-api/backplanepb/v1/manifest_pb';
 import { ConfigSource, InstancePhase } from '@gopherex/backplane-api/backplanepb/v1/instance_pb';
 import { useClient, useSnapshotWatch } from '@gopherex/backplane-react';
 import { Badge, DataTable, DetailDrawer, Duration, EmptyState, KeyValueList, Panel, StatusBadge, StatusDot, Timestamp, type StatusTone } from '@gopherex/backplane-ui';
@@ -132,12 +132,12 @@ function Contract({ manifest, hooks }: { manifest: Manifest; hooks?: { hook: str
   const text = usePlatformText();
   const state = new Map(hooks?.map((hook) => [hook.hook, hook.state]));
   return <div className="grid gap-4 lg:grid-cols-2">
-    <Panel title={<><Route className="size-4 text-muted-foreground" />{text('routes')}</>} count={manifest.routes.length} flush maxBodyHeight={260}>
-      {manifest.routes.length ? manifest.routes.map((route, index) => <Row key={index}>
-        <Badge variant="outline" className="w-20 justify-center font-mono uppercase">{enumLabel(RouteKind, route.kind)}</Badge>
+    <Panel title={<><Route className="size-4 text-muted-foreground" />{text('apis')}</>} count={manifest.apis.length} flush maxBodyHeight={260}>
+      {manifest.apis.length ? manifest.apis.map((route, index) => <Row key={index}>
+        <Badge variant="outline" className="w-20 justify-center font-mono uppercase">{enumLabel(ApiKind, route.kind)}</Badge>
         <span className="min-w-0 truncate font-mono text-xs">{route.host && <span className="text-muted-foreground">{route.host}</span>}{route.prefix}</span>
         <span className="ml-auto shrink-0"><Muted mono>{route.port ? `:${route.port}` : ''}{route.services.length ? ` ${route.services.length} svc` : ''}</Muted></span>
-      </Row>) : <Empty label={text('noRoutes')} />}
+      </Row>) : <Empty label={text('noAPIs')} />}
     </Panel>
     <Panel title={<><Link2 className="size-4 text-muted-foreground" />{text('hooks')}</>} count={manifest.hooks.length} flush maxBodyHeight={260}>
       {manifest.hooks.length ? manifest.hooks.map((hook) => {

@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file backplanepb/v1/manifest.proto.
  */
 export const file_backplanepb_v1_manifest: GenFile = /*@__PURE__*/
-  fileDesc("Ch1iYWNrcGxhbmVwYi92MS9tYW5pZmVzdC5wcm90bxIMYmFja3BsYW5lLnYxIssECghNYW5pZmVzdBIPCgdzZXJ2aWNlGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSEwoLc2RrX3ZlcnNpb24YAyABKAkSKwoGY29uZmlnGAQgASgLMhsuYmFja3BsYW5lLnYxLkNvbmZpZ1NlY3Rpb24SIwoGcm91dGVzGAYgAygLMhMuYmFja3BsYW5lLnYxLlJvdXRlEhkKEWludGVybmFsX3NlcnZpY2VzGAcgAygJEiMKBmV2ZW50cxgIIAMoCzITLmJhY2twbGFuZS52MS5FdmVudBIhCgVob29rcxgJIAMoCzISLmJhY2twbGFuZS52MS5Ib29rEioKCmFjdGl2aXRpZXMYCiADKAsyFi5iYWNrcGxhbmUudjEuQWN0aXZpdHkSHAoCdWkYCyABKAsyEC5iYWNrcGxhbmUudjEuVUkSIQoFbm9kZXMYDCADKAsyEi5iYWNrcGxhbmUudjEuTm9kZRITCgtkZXNjcmlwdG9ycxgNIAEoDBIxCg1zdWJzY3JpcHRpb25zGA4gAygLMhouYmFja3BsYW5lLnYxLlN1YnNjcmlwdGlvbhIpCglzY2hlZHVsZXMYDyADKAsyFi5iYWNrcGxhbmUudjEuU2NoZWR1bGUSKQoJd29ya2Zsb3dzGBAgAygLMhYuYmFja3BsYW5lLnYxLldvcmtmbG93EjEKCXRlbGVtZXRyeRgRIAEoCzIeLmJhY2twbGFuZS52MS5UZWxlbWV0cnlTb3VyY2VzSgQIBRAGUgZzdGF0aWNSB2R5bmFtaWMikQEKF1RlbGVtZXRyeVNvdXJjZVNlbGVjdG9yEkUKCHJlc291cmNlGAEgAygLMjMuYmFja3BsYW5lLnYxLlRlbGVtZXRyeVNvdXJjZVNlbGVjdG9yLlJlc291cmNlRW50cnkaLwoNUmVzb3VyY2VFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkwKEFRlbGVtZXRyeVNvdXJjZXMSOAoJc2VsZWN0b3JzGAEgAygLMiUuYmFja3BsYW5lLnYxLlRlbGVtZXRyeVNvdXJjZVNlbGVjdG9yIk0KDUNvbmZpZ1NlY3Rpb24SDAoEa2V5cxgBIAMoCRIgCgZzY2hlbWEYAiABKAsyEC5zY2hlbWFwYi5TY2hlbWESDAoEbGl2ZRgDIAMoCSJMCgROb2RlEgwKBHBhdGgYASABKAkSJAoEa2luZBgCIAEoDjIWLmJhY2twbGFuZS52MS5Ob2RlS2luZBIQCghvcHRpb25hbBgDIAEoCCKPAgoFUm91dGUSDgoGcHJlZml4GAEgASgJEgwKBGhvc3QYAiABKAkSJQoEa2luZBgDIAEoDjIXLmJhY2twbGFuZS52MS5Sb3V0ZUtpbmQSDAoEcG9ydBgEIAEoDRIQCghzZXJ2aWNlcxgIIAMoCRIRCgdvcGVuYXBpGAUgASgMSAASFQoLZGVzY3JpcHRvcnMYBiABKAxIABIRCgdncmFwaHFsGAcgASgMSAASLwoGYnVuZGxlGAogASgLMh0uYmFja3BsYW5lLnYxLkFQSVNjaGVtYUJ1bmRsZUgAEikKBnBvbGljeRgJIAEoCzIZLmJhY2twbGFuZS52MS5Sb3V0ZVBvbGljeUIICgZzY2hlbWEiWgoPQVBJU2NoZW1hQnVuZGxlEgwKBGhhc2gYASABKAkSDQoFZW50cnkYAiABKAkSKgoGZm9ybWF0GAMgASgOMhouYmFja3BsYW5lLnYxLlNjaGVtYUZvcm1hdCLRAQoLUm91dGVQb2xpY3kSKgoHdGltZW91dBgBIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIvCgxpZGxlX3RpbWVvdXQYAiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SKAoFcmV0cnkYAyABKAsyGS5iYWNrcGxhbmUudjEuUmV0cnlQb2xpY3kSIAoEY29ycxgEIAEoCzISLmJhY2twbGFuZS52MS5Db3JzEhkKEW1heF9yZXF1ZXN0X2J5dGVzGAUgASgEImUKC1JldHJ5UG9saWN5EhAKCGF0dGVtcHRzGAEgASgNEjIKD3Blcl90cnlfdGltZW91dBgCIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIQCghyZXRyeV9vbhgDIAMoCSKSAQoEQ29ycxIPCgdvcmlnaW5zGAEgAygJEg8KB21ldGhvZHMYAiADKAkSDwoHaGVhZGVycxgDIAMoCRIWCg5leHBvc2VfaGVhZGVycxgEIAMoCRITCgtjcmVkZW50aWFscxgFIAEoCBIqCgdtYXhfYWdlGAYgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uIkwKBUV2ZW50EgwKBG5hbWUYASABKAkSIAoGc2NoZW1hGAIgASgLMhAuc2NoZW1hcGIuU2NoZW1hEhMKC2Rlc2NyaXB0aW9uGAMgASgJIi8KDFN1YnNjcmlwdGlvbhINCgVldmVudBgBIAEoCRIQCghjb25zdW1lchgCIAEoCSKqAQoESG9vaxIMCgRuYW1lGAEgASgJEh8KBWlucHV0GAIgASgLMhAuc2NoZW1hcGIuU2NoZW1hEiAKBm91dHB1dBgDIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIQCghyZXF1aXJlZBgEIAEoCBIqCgd0aW1lb3V0GAUgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhMKC2Rlc2NyaXB0aW9uGAYgASgJIqUCCghBY3Rpdml0eRIMCgRuYW1lGAEgASgJEh8KBWlucHV0GAIgASgLMhAuc2NoZW1hcGIuU2NoZW1hEiAKBm91dHB1dBgDIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIoCgRraW5kGAQgASgOMhouYmFja3BsYW5lLnYxLkFjdGl2aXR5S2luZBIxCg5zdGFydF90b19jbG9zZRgFIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIsCgloZWFydGJlYXQYBiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SKAoFcmV0cnkYByABKAsyGS5iYWNrcGxhbmUudjEuUmV0cnlQb2xpY3kSEwoLZGVzY3JpcHRpb24YCCABKAkicAoIV29ya2Zsb3cSDAoEbmFtZRgBIAEoCRIfCgVpbnB1dBgCIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIgCgZvdXRwdXQYAyABKAsyEC5zY2hlbWFwYi5TY2hlbWESEwoLZGVzY3JpcHRpb24YBCABKAkiJQoCVUkSDAoEaGFzaBgBIAEoCRIRCglzZGtfbWFqb3IYAiABKA0i7AEKCFNjaGVkdWxlEgwKBG5hbWUYASABKAkSDgoEY3JvbhgCIAEoCUgAEioKBWV2ZXJ5GAMgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uSAASEAoId29ya2Zsb3cYBCABKAkSLgoHb3ZlcmxhcBgFIAEoDjIdLmJhY2twbGFuZS52MS5TY2hlZHVsZU92ZXJsYXASDgoGcGF1c2VkGAYgASgIEhEKCXRpbWVfem9uZRgHIAEoCRIpCgZqaXR0ZXIYCCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb25CBgoEc3BlYypxCghOb2RlS2luZBIZChVOT0RFX0tJTkRfVU5TUEVDSUZJRUQQABIXChNOT0RFX0tJTkRfQ09NUE9ORU5UEAESGAoUTk9ERV9LSU5EX0RFUEVOREVOQ1kQAhIXChNOT0RFX0tJTkRfU0lOR0xFVE9OEAMqYwoMU2NoZW1hRm9ybWF0Eh0KGVNDSEVNQV9GT1JNQVRfVU5TUEVDSUZJRUQQABIZChVTQ0hFTUFfRk9STUFUX09QRU5BUEkQARIZChVTQ0hFTUFfRk9STUFUX0dSQVBIUUwQAiqaAQoJUm91dGVLaW5kEhoKFlJPVVRFX0tJTkRfVU5TUEVDSUZJRUQQABITCg9ST1VURV9LSU5EX0hUVFAQARITCg9ST1VURV9LSU5EX0dSUEMQAhIWChJST1VURV9LSU5EX0NPTk5FQ1QQAxIXChNST1VURV9LSU5EX1dTX1BST1RPEAQSFgoSUk9VVEVfS0lORF9HUkFQSFFMEAUqZQoMQWN0aXZpdHlLaW5kEh0KGUFDVElWSVRZX0tJTkRfVU5TUEVDSUZJRUQQABIaChZBQ1RJVklUWV9LSU5EX0FDVElWSVRZEAESGgoWQUNUSVZJVFlfS0lORF9XT1JLRkxPVxACKvkBCg9TY2hlZHVsZU92ZXJsYXASIAocU0NIRURVTEVfT1ZFUkxBUF9VTlNQRUNJRklFRBAAEhkKFVNDSEVEVUxFX09WRVJMQVBfU0tJUBABEh8KG1NDSEVEVUxFX09WRVJMQVBfQlVGRkVSX09ORRACEh8KG1NDSEVEVUxFX09WRVJMQVBfQlVGRkVSX0FMTBADEiEKHVNDSEVEVUxFX09WRVJMQVBfQ0FOQ0VMX09USEVSEAQSJAogU0NIRURVTEVfT1ZFUkxBUF9URVJNSU5BVEVfT1RIRVIQBRIeChpTQ0hFRFVMRV9PVkVSTEFQX0FMTE9XX0FMTBAGQjpaOGdpdGh1Yi5jb20vZ29waGVyZXgvYmFja3BsYW5lL2JhY2twbGFuZXBiL3YxO2JhY2twbGFuZXYxYgZwcm90bzM", [file_google_protobuf_duration, file_schemapb_schema]);
+  fileDesc("Ch1iYWNrcGxhbmVwYi92MS9tYW5pZmVzdC5wcm90bxIMYmFja3BsYW5lLnYxIscECghNYW5pZmVzdBIPCgdzZXJ2aWNlGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSEwoLc2RrX3ZlcnNpb24YAyABKAkSKwoGY29uZmlnGAQgASgLMhsuYmFja3BsYW5lLnYxLkNvbmZpZ1NlY3Rpb24SHwoEYXBpcxgGIAMoCzIRLmJhY2twbGFuZS52MS5BUEkSGQoRaW50ZXJuYWxfc2VydmljZXMYByADKAkSIwoGZXZlbnRzGAggAygLMhMuYmFja3BsYW5lLnYxLkV2ZW50EiEKBWhvb2tzGAkgAygLMhIuYmFja3BsYW5lLnYxLkhvb2sSKgoKYWN0aXZpdGllcxgKIAMoCzIWLmJhY2twbGFuZS52MS5BY3Rpdml0eRIcCgJ1aRgLIAEoCzIQLmJhY2twbGFuZS52MS5VSRIhCgVub2RlcxgMIAMoCzISLmJhY2twbGFuZS52MS5Ob2RlEhMKC2Rlc2NyaXB0b3JzGA0gASgMEjEKDXN1YnNjcmlwdGlvbnMYDiADKAsyGi5iYWNrcGxhbmUudjEuU3Vic2NyaXB0aW9uEikKCXNjaGVkdWxlcxgPIAMoCzIWLmJhY2twbGFuZS52MS5TY2hlZHVsZRIpCgl3b3JrZmxvd3MYECADKAsyFi5iYWNrcGxhbmUudjEuV29ya2Zsb3cSMQoJdGVsZW1ldHJ5GBEgASgLMh4uYmFja3BsYW5lLnYxLlRlbGVtZXRyeVNvdXJjZXNKBAgFEAZSBnN0YXRpY1IHZHluYW1pYyKRAQoXVGVsZW1ldHJ5U291cmNlU2VsZWN0b3ISRQoIcmVzb3VyY2UYASADKAsyMy5iYWNrcGxhbmUudjEuVGVsZW1ldHJ5U291cmNlU2VsZWN0b3IuUmVzb3VyY2VFbnRyeRovCg1SZXNvdXJjZUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiTAoQVGVsZW1ldHJ5U291cmNlcxI4CglzZWxlY3RvcnMYASADKAsyJS5iYWNrcGxhbmUudjEuVGVsZW1ldHJ5U291cmNlU2VsZWN0b3IiTQoNQ29uZmlnU2VjdGlvbhIMCgRrZXlzGAEgAygJEiAKBnNjaGVtYRgCIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIMCgRsaXZlGAMgAygJIkwKBE5vZGUSDAoEcGF0aBgBIAEoCRIkCgRraW5kGAIgASgOMhYuYmFja3BsYW5lLnYxLk5vZGVLaW5kEhAKCG9wdGlvbmFsGAMgASgIIu4BCgNBUEkSDgoGcHJlZml4GAEgASgJEgwKBGhvc3QYAiABKAkSIwoEa2luZBgDIAEoDjIVLmJhY2twbGFuZS52MS5BcGlLaW5kEgwKBHBvcnQYBCABKA0SEAoIc2VydmljZXMYCCADKAkSEQoHb3BlbmFwaRgFIAEoDEgAEhUKC2Rlc2NyaXB0b3JzGAYgASgMSAASEQoHZ3JhcGhxbBgHIAEoDEgAEi8KBmJ1bmRsZRgKIAEoCzIdLmJhY2twbGFuZS52MS5BUElTY2hlbWFCdW5kbGVIAEIICgZzY2hlbWFKBAgJEApSBnBvbGljeSJaCg9BUElTY2hlbWFCdW5kbGUSDAoEaGFzaBgBIAEoCRINCgVlbnRyeRgCIAEoCRIqCgZmb3JtYXQYAyABKA4yGi5iYWNrcGxhbmUudjEuU2NoZW1hRm9ybWF0IkwKBUV2ZW50EgwKBG5hbWUYASABKAkSIAoGc2NoZW1hGAIgASgLMhAuc2NoZW1hcGIuU2NoZW1hEhMKC2Rlc2NyaXB0aW9uGAMgASgJIi8KDFN1YnNjcmlwdGlvbhINCgVldmVudBgBIAEoCRIQCghjb25zdW1lchgCIAEoCSKqAQoESG9vaxIMCgRuYW1lGAEgASgJEh8KBWlucHV0GAIgASgLMhAuc2NoZW1hcGIuU2NoZW1hEiAKBm91dHB1dBgDIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIQCghyZXF1aXJlZBgEIAEoCBIqCgd0aW1lb3V0GAUgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhMKC2Rlc2NyaXB0aW9uGAYgASgJIqcCCghBY3Rpdml0eRIMCgRuYW1lGAEgASgJEh8KBWlucHV0GAIgASgLMhAuc2NoZW1hcGIuU2NoZW1hEiAKBm91dHB1dBgDIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIoCgRraW5kGAQgASgOMhouYmFja3BsYW5lLnYxLkFjdGl2aXR5S2luZBIxCg5zdGFydF90b19jbG9zZRgFIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIsCgloZWFydGJlYXQYBiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SKgoFcmV0cnkYByABKAsyGy5iYWNrcGxhbmUudjEuQWN0aXZpdHlSZXRyeRITCgtkZXNjcmlwdGlvbhgIIAEoCSJlCg1BY3Rpdml0eVJldHJ5EhAKCGF0dGVtcHRzGAEgASgNEjIKD3Blcl90cnlfdGltZW91dBgCIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbkoECAMQBFIIcmV0cnlfb24icAoIV29ya2Zsb3cSDAoEbmFtZRgBIAEoCRIfCgVpbnB1dBgCIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIgCgZvdXRwdXQYAyABKAsyEC5zY2hlbWFwYi5TY2hlbWESEwoLZGVzY3JpcHRpb24YBCABKAkiJQoCVUkSDAoEaGFzaBgBIAEoCRIRCglzZGtfbWFqb3IYAiABKA0i7AEKCFNjaGVkdWxlEgwKBG5hbWUYASABKAkSDgoEY3JvbhgCIAEoCUgAEioKBWV2ZXJ5GAMgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uSAASEAoId29ya2Zsb3cYBCABKAkSLgoHb3ZlcmxhcBgFIAEoDjIdLmJhY2twbGFuZS52MS5TY2hlZHVsZU92ZXJsYXASDgoGcGF1c2VkGAYgASgIEhEKCXRpbWVfem9uZRgHIAEoCRIpCgZqaXR0ZXIYCCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb25CBgoEc3BlYypxCghOb2RlS2luZBIZChVOT0RFX0tJTkRfVU5TUEVDSUZJRUQQABIXChNOT0RFX0tJTkRfQ09NUE9ORU5UEAESGAoUTk9ERV9LSU5EX0RFUEVOREVOQ1kQAhIXChNOT0RFX0tJTkRfU0lOR0xFVE9OEAMqYwoMU2NoZW1hRm9ybWF0Eh0KGVNDSEVNQV9GT1JNQVRfVU5TUEVDSUZJRUQQABIZChVTQ0hFTUFfRk9STUFUX09QRU5BUEkQARIZChVTQ0hFTUFfRk9STUFUX0dSQVBIUUwQAiqQAQoHQXBpS2luZBIYChRBUElfS0lORF9VTlNQRUNJRklFRBAAEhEKDUFQSV9LSU5EX0hUVFAQARIRCg1BUElfS0lORF9HUlBDEAISFQoRQVBJX0tJTkRfV1NfUFJPVE8QBBIUChBBUElfS0lORF9HUkFQSFFMEAUiBAgDEAMqElJPVVRFX0tJTkRfQ09OTkVDVCplCgxBY3Rpdml0eUtpbmQSHQoZQUNUSVZJVFlfS0lORF9VTlNQRUNJRklFRBAAEhoKFkFDVElWSVRZX0tJTkRfQUNUSVZJVFkQARIaChZBQ1RJVklUWV9LSU5EX1dPUktGTE9XEAIq+QEKD1NjaGVkdWxlT3ZlcmxhcBIgChxTQ0hFRFVMRV9PVkVSTEFQX1VOU1BFQ0lGSUVEEAASGQoVU0NIRURVTEVfT1ZFUkxBUF9TS0lQEAESHwobU0NIRURVTEVfT1ZFUkxBUF9CVUZGRVJfT05FEAISHwobU0NIRURVTEVfT1ZFUkxBUF9CVUZGRVJfQUxMEAMSIQodU0NIRURVTEVfT1ZFUkxBUF9DQU5DRUxfT1RIRVIQBBIkCiBTQ0hFRFVMRV9PVkVSTEFQX1RFUk1JTkFURV9PVEhFUhAFEh4KGlNDSEVEVUxFX09WRVJMQVBfQUxMT1dfQUxMEAZCOlo4Z2l0aHViLmNvbS9nb3BoZXJleC9iYWNrcGxhbmUvYmFja3BsYW5lcGIvdjE7YmFja3BsYW5ldjFiBnByb3RvMw", [file_google_protobuf_duration, file_schemapb_schema]);
 
 /**
  * Manifest is everything a service declares. The SDK assembles it at start
@@ -48,11 +48,11 @@ export type Manifest = Message<"backplane.v1.Manifest"> & {
   config?: ConfigSection | undefined;
 
   /**
-   * External API: proxied by Envoy, informational for the console.
+   * APIs served by the service. Informational: publication belongs to deployment.
    *
-   * @generated from field: repeated backplane.v1.Route routes = 6;
+   * @generated from field: repeated backplane.v1.API apis = 6;
    */
-  routes: Route[];
+  apis: API[];
 
   /**
    * Internal API: full gRPC service names on the platform port; the only
@@ -92,8 +92,8 @@ export type Manifest = Message<"backplane.v1.Manifest"> & {
 
   /**
    * Serialized FileDescriptorSet covering every service named by a managed
-   * route (Route.services) and by internal_services, with transitive
-   * imports: stored once instead of per route.
+   * API (API.services) and by internal_services, with transitive
+   * imports: stored once instead of per API.
    *
    * @generated from field: bytes descriptors = 13;
    */
@@ -240,11 +240,11 @@ export const NodeSchema: GenMessage<Node> = /*@__PURE__*/
   messageDesc(file_backplanepb_v1_manifest, 4);
 
 /**
- * A public route for Envoy.
+ * An API served by the service. Does not configure external routing.
  *
- * @generated from message backplane.v1.Route
+ * @generated from message backplane.v1.API
  */
-export type Route = Message<"backplane.v1.Route"> & {
+export type API = Message<"backplane.v1.API"> & {
   /**
    * Path prefix ("/api/"); gRPC routes use "/<full service name>/".
    *
@@ -260,9 +260,9 @@ export type Route = Message<"backplane.v1.Route"> & {
   host: string;
 
   /**
-   * @generated from field: backplane.v1.RouteKind kind = 3;
+   * @generated from field: backplane.v1.ApiKind kind = 3;
    */
-  kind: RouteKind;
+  kind: ApiKind;
 
   /**
    * Port of the external API this route leads to; 0 = the port registered
@@ -273,7 +273,7 @@ export type Route = Message<"backplane.v1.Route"> & {
   port: number;
 
   /**
-   * gRPC, Connect and ws-proto: full names of the services behind the
+   * gRPC and ws-proto: full names of the services behind the
    * route; their descriptors are in Manifest.descriptors unless the route
    * carries its own.
    *
@@ -282,9 +282,9 @@ export type Route = Message<"backplane.v1.Route"> & {
   services: string[];
 
   /**
-   * Schema for transcoding and the console's API tab; optional.
+   * Schema for the console's API tab; optional.
    *
-   * @generated from oneof backplane.v1.Route.schema
+   * @generated from oneof backplane.v1.API.schema
    */
   schema: {
     /**
@@ -319,20 +319,13 @@ export type Route = Message<"backplane.v1.Route"> & {
     value: APISchemaBundle;
     case: "bundle";
   } | { case: undefined; value?: undefined };
-
-  /**
-   * Envoy policy; unset fields take the platform defaults.
-   *
-   * @generated from field: backplane.v1.RoutePolicy policy = 9;
-   */
-  policy?: RoutePolicy | undefined;
 };
 
 /**
- * Describes the message backplane.v1.Route.
- * Use `create(RouteSchema)` to create a new message.
+ * Describes the message backplane.v1.API.
+ * Use `create(APISchema)` to create a new message.
  */
-export const RouteSchema: GenMessage<Route> = /*@__PURE__*/
+export const APISchema: GenMessage<API> = /*@__PURE__*/
   messageDesc(file_backplanepb_v1_manifest, 5);
 
 /**
@@ -367,119 +360,6 @@ export const APISchemaBundleSchema: GenMessage<APISchemaBundle> = /*@__PURE__*/
   messageDesc(file_backplanepb_v1_manifest, 6);
 
 /**
- * What Envoy enforces on a route. Durations of zero mean "platform default";
- * a stream route should set timeout explicitly (Envoy's default is 15s).
- *
- * @generated from message backplane.v1.RoutePolicy
- */
-export type RoutePolicy = Message<"backplane.v1.RoutePolicy"> & {
-  /**
-   * @generated from field: google.protobuf.Duration timeout = 1;
-   */
-  timeout?: Duration | undefined;
-
-  /**
-   * @generated from field: google.protobuf.Duration idle_timeout = 2;
-   */
-  idleTimeout?: Duration | undefined;
-
-  /**
-   * @generated from field: backplane.v1.RetryPolicy retry = 3;
-   */
-  retry?: RetryPolicy | undefined;
-
-  /**
-   * @generated from field: backplane.v1.Cors cors = 4;
-   */
-  cors?: Cors | undefined;
-
-  /**
-   * 0 = platform default.
-   *
-   * @generated from field: uint64 max_request_bytes = 5;
-   */
-  maxRequestBytes: bigint;
-};
-
-/**
- * Describes the message backplane.v1.RoutePolicy.
- * Use `create(RoutePolicySchema)` to create a new message.
- */
-export const RoutePolicySchema: GenMessage<RoutePolicy> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 7);
-
-/**
- * @generated from message backplane.v1.RetryPolicy
- */
-export type RetryPolicy = Message<"backplane.v1.RetryPolicy"> & {
-  /**
-   * @generated from field: uint32 attempts = 1;
-   */
-  attempts: number;
-
-  /**
-   * @generated from field: google.protobuf.Duration per_try_timeout = 2;
-   */
-  perTryTimeout?: Duration | undefined;
-
-  /**
-   * Envoy retry_on conditions ("5xx", "reset", "unavailable", ...).
-   *
-   * @generated from field: repeated string retry_on = 3;
-   */
-  retryOn: string[];
-};
-
-/**
- * Describes the message backplane.v1.RetryPolicy.
- * Use `create(RetryPolicySchema)` to create a new message.
- */
-export const RetryPolicySchema: GenMessage<RetryPolicy> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 8);
-
-/**
- * @generated from message backplane.v1.Cors
- */
-export type Cors = Message<"backplane.v1.Cors"> & {
-  /**
-   * @generated from field: repeated string origins = 1;
-   */
-  origins: string[];
-
-  /**
-   * @generated from field: repeated string methods = 2;
-   */
-  methods: string[];
-
-  /**
-   * @generated from field: repeated string headers = 3;
-   */
-  headers: string[];
-
-  /**
-   * @generated from field: repeated string expose_headers = 4;
-   */
-  exposeHeaders: string[];
-
-  /**
-   * @generated from field: bool credentials = 5;
-   */
-  credentials: boolean;
-
-  /**
-   * @generated from field: google.protobuf.Duration max_age = 6;
-   */
-  maxAge?: Duration | undefined;
-};
-
-/**
- * Describes the message backplane.v1.Cors.
- * Use `create(CorsSchema)` to create a new message.
- */
-export const CorsSchema: GenMessage<Cors> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 9);
-
-/**
  * @generated from message backplane.v1.Event
  */
 export type Event = Message<"backplane.v1.Event"> & {
@@ -504,7 +384,7 @@ export type Event = Message<"backplane.v1.Event"> & {
  * Use `create(EventSchema)` to create a new message.
  */
 export const EventSchema: GenMessage<Event> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 10);
+  messageDesc(file_backplanepb_v1_manifest, 7);
 
 /**
  * A reactor: a durable consumer of another service's event.
@@ -533,7 +413,7 @@ export type Subscription = Message<"backplane.v1.Subscription"> & {
  * Use `create(SubscriptionSchema)` to create a new message.
  */
 export const SubscriptionSchema: GenMessage<Subscription> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 11);
+  messageDesc(file_backplanepb_v1_manifest, 8);
 
 /**
  * An operation the service calls without implementing it.
@@ -581,7 +461,7 @@ export type Hook = Message<"backplane.v1.Hook"> & {
  * Use `create(HookSchema)` to create a new message.
  */
 export const HookSchema: GenMessage<Hook> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 12);
+  messageDesc(file_backplanepb_v1_manifest, 9);
 
 /**
  * An operation the service implements; a binding step target.
@@ -622,9 +502,9 @@ export type Activity = Message<"backplane.v1.Activity"> & {
   heartbeat?: Duration | undefined;
 
   /**
-   * @generated from field: backplane.v1.RetryPolicy retry = 7;
+   * @generated from field: backplane.v1.ActivityRetry retry = 7;
    */
-  retry?: RetryPolicy | undefined;
+  retry?: ActivityRetry | undefined;
 
   /**
    * @generated from field: string description = 8;
@@ -637,7 +517,31 @@ export type Activity = Message<"backplane.v1.Activity"> & {
  * Use `create(ActivitySchema)` to create a new message.
  */
 export const ActivitySchema: GenMessage<Activity> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 13);
+  messageDesc(file_backplanepb_v1_manifest, 10);
+
+/**
+ * Default retries for a binding step executing this activity or workflow.
+ *
+ * @generated from message backplane.v1.ActivityRetry
+ */
+export type ActivityRetry = Message<"backplane.v1.ActivityRetry"> & {
+  /**
+   * @generated from field: uint32 attempts = 1;
+   */
+  attempts: number;
+
+  /**
+   * @generated from field: google.protobuf.Duration per_try_timeout = 2;
+   */
+  perTryTimeout?: Duration | undefined;
+};
+
+/**
+ * Describes the message backplane.v1.ActivityRetry.
+ * Use `create(ActivityRetrySchema)` to create a new message.
+ */
+export const ActivityRetrySchema: GenMessage<ActivityRetry> = /*@__PURE__*/
+  messageDesc(file_backplanepb_v1_manifest, 11);
 
 /**
  * A workflow of the service the console may start with a form.
@@ -673,7 +577,7 @@ export type Workflow = Message<"backplane.v1.Workflow"> & {
  * Use `create(WorkflowSchema)` to create a new message.
  */
 export const WorkflowSchema: GenMessage<Workflow> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 14);
+  messageDesc(file_backplanepb_v1_manifest, 12);
 
 /**
  * @generated from message backplane.v1.UI
@@ -697,7 +601,7 @@ export type UI = Message<"backplane.v1.UI"> & {
  * Use `create(UISchema)` to create a new message.
  */
 export const UISchema: GenMessage<UI> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 15);
+  messageDesc(file_backplanepb_v1_manifest, 13);
 
 /**
  * A Temporal Schedule the service declares; the SDK reconciles it at start.
@@ -776,7 +680,7 @@ export type Schedule = Message<"backplane.v1.Schedule"> & {
  * Use `create(ScheduleSchema)` to create a new message.
  */
 export const ScheduleSchema: GenMessage<Schedule> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 16);
+  messageDesc(file_backplanepb_v1_manifest, 14);
 
 /**
  * @generated from enum backplane.v1.NodeKind
@@ -836,44 +740,39 @@ export const SchemaFormatSchema: GenEnum<SchemaFormat> = /*@__PURE__*/
   enumDesc(file_backplanepb_v1_manifest, 1);
 
 /**
- * @generated from enum backplane.v1.RouteKind
+ * @generated from enum backplane.v1.ApiKind
  */
-export enum RouteKind {
+export enum ApiKind {
   /**
-   * @generated from enum value: ROUTE_KIND_UNSPECIFIED = 0;
+   * @generated from enum value: API_KIND_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
-   * @generated from enum value: ROUTE_KIND_HTTP = 1;
+   * @generated from enum value: API_KIND_HTTP = 1;
    */
   HTTP = 1,
 
   /**
-   * @generated from enum value: ROUTE_KIND_GRPC = 2;
+   * @generated from enum value: API_KIND_GRPC = 2;
    */
   GRPC = 2,
 
   /**
-   * @generated from enum value: ROUTE_KIND_CONNECT = 3;
-   */
-  CONNECT = 3,
-
-  /**
-   * @generated from enum value: ROUTE_KIND_WS_PROTO = 4;
+   * @generated from enum value: API_KIND_WS_PROTO = 4;
    */
   WS_PROTO = 4,
 
   /**
-   * @generated from enum value: ROUTE_KIND_GRAPHQL = 5;
+   * @generated from enum value: API_KIND_GRAPHQL = 5;
    */
   GRAPHQL = 5,
 }
 
 /**
- * Describes the enum backplane.v1.RouteKind.
+ * Describes the enum backplane.v1.ApiKind.
  */
-export const RouteKindSchema: GenEnum<RouteKind> = /*@__PURE__*/
+export const ApiKindSchema: GenEnum<ApiKind> = /*@__PURE__*/
   enumDesc(file_backplanepb_v1_manifest, 2);
 
 /**

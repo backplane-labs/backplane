@@ -18,7 +18,6 @@ BACKPLANE_CONSUL_ADDR=consul:8500
 BACKPLANE_VALKEY_ADDR=valkey:6379
 BACKPLANE_ADMIN_TOKEN=REPLACE_WITH_OPERATOR_SECRET
 BACKPLANE_INTERNAL_SECRET=REPLACE_WITH_INSTALLATION_SECRET
-BACKPLANE_XDS_ENABLED=false
 ```
 
 Run on a network that resolves those hosts:
@@ -32,7 +31,7 @@ docker run --name backplane --restart unless-stopped \
 
 `platform` must be your existing Docker network. Terminate HTTPS in front of the loopback-published console. Secure cookies are the default. Enable `BACKPLANE_CONSOLE_INSECURE_COOKIE=true` only for deliberate plain-HTTP local development.
 
-The image defaults to `/app/console` and `/backplane`. Platform port 9400 and xDS port 18000 should only be reachable by appropriate internal peers. Add NATS/Temporal/observability variables only for enabled capabilities.
+The image defaults to `/app/console` and `/backplane`. Platform port 9400 should only be reachable by appropriate internal peers. Add NATS/Temporal/observability variables only for enabled capabilities.
 
 ## Binary archive
 

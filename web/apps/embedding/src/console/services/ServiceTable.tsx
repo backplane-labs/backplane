@@ -11,7 +11,7 @@ export function ServiceTable({ items }: { items: ServiceOverview[] }) {
     <TableHeader><TableRow>
       <TableHead>{t('service')}</TableHead><TableHead>{t('health')}</TableHead><TableHead>{t('version')}</TableHead>
       <TableHead className="w-40">{t('instances')}</TableHead>
-      <TableHead className="text-right">{t('routes')}</TableHead><TableHead className="text-right">{t('hooks')}</TableHead>
+      <TableHead className="text-right">{t('apis')}</TableHead><TableHead className="text-right">{t('hooks')}</TableHead>
       <TableHead className="text-right">{t('events')}</TableHead><TableHead className="text-right">{t('workflows')}</TableHead>
       <TableHead>{t('bindings')}</TableHead><TableHead>{t('transports')}</TableHead><TableHead>{t('config')}</TableHead>
       <TableHead>{t('uptime')}</TableHead><TableHead><span className="sr-only">{t('module')}</span></TableHead>
@@ -24,7 +24,7 @@ export function ServiceTable({ items }: { items: ServiceOverview[] }) {
         <TableCell className="font-mono text-xs text-muted-foreground">{summary.latestVersion || '—'}</TableCell>
         <TableCell><div className="flex items-center gap-2"><span className="w-10 font-mono text-xs tabular-nums">{summary.healthy}/{summary.instances}</span>
           <Meter className="w-20" value={summary.healthy} max={summary.instances} tone={tone === 'neutral' ? 'danger' : tone} label={t('instances')} /></div></TableCell>
-        <TableCell className="text-right font-mono tabular-nums">{number(item, item.contract.routes)}</TableCell>
+        <TableCell className="text-right font-mono tabular-nums">{number(item, item.contract.apis)}</TableCell>
         <TableCell className="text-right font-mono tabular-nums">{number(item, item.contract.hooks)}</TableCell>
         <TableCell className="text-right font-mono tabular-nums">{number(item, item.contract.events)}</TableCell>
         <TableCell className="text-right font-mono tabular-nums">{number(item, item.contract.workflows)}</TableCell>

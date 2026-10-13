@@ -6,6 +6,6 @@ COPY linux_${TARGETARCH}/bin/backplane /app/bin/backplane
 COPY linux_${TARGETARCH}/console /app/console
 COPY linux_${TARGETARCH}/LICENSE /app/LICENSE
 ENV BACKPLANE_CONSOLE_ASSETS_DIR=/app/console BACKPLANE_CONSOLE_PREFIX=/backplane
-EXPOSE 8081 9400 18000
+EXPOSE 8081 9400
 USER nonroot:nonroot
 ENTRYPOINT ["/app/bin/backplane"]

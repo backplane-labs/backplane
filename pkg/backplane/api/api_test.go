@@ -1,4 +1,4 @@
-package route_test
+package api_test
 
 import (
 	"bytes"
@@ -8,32 +8,32 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/gopherex/backplane/pkg/backplane/api"
 	"github.com/gopherex/backplane/pkg/backplane/internal/apifiles"
 	"github.com/gopherex/backplane/pkg/backplane/internal/link"
 	"github.com/gopherex/backplane/pkg/backplane/internal/manifest"
-	"github.com/gopherex/backplane/pkg/backplane/route"
 )
 
 func TestLargeAPIStaysOutsideManifest(t *testing.T) {
 	t.Parallel()
 
 	files := fstest.MapFS{"api.yaml": {Data: bytes.Repeat([]byte("x"), manifest.MaxSize+1)}}
-	declaration := route.HTTP("/api/", route.OpenAPIFS(files, "api.yaml"))
+	declaration := api.HTTP("/api/", api.OpenAPIFS(files, "api.yaml"))
 
-	r, err := link.Routes.Decl(declaration)
+	r, err := link.APIs.Decl(declaration)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	builder := manifest.New("hello", "1.0.0")
-	builder.Route(r)
+	builder.API(r)
 
 	m, err := builder.Build()
 	if err != nil || proto.Size(m) > 1024 || r.GetBundle().GetHash() == "" {
 		t.Fatalf("manifest: %v %v", m, err)
 	}
 
-	if link.Routes.Files(declaration) == nil {
+	if link.APIs.Files(declaration) == nil {
 		t.Fatal("file snapshot not attached")
 	}
 }
@@ -41,13 +41,13 @@ func TestLargeAPIStaysOutsideManifest(t *testing.T) {
 func TestAPIFileDeclarationErrors(t *testing.T) {
 	t.Parallel()
 
-	d := route.HTTP("/api/", route.OpenAPIFS(fstest.MapFS{}, "missing.yaml"))
-	if _, err := link.Routes.Decl(d); !errors.Is(err, apifiles.ErrBundle) {
+	d := api.HTTP("/api/", api.OpenAPIFS(fstest.MapFS{}, "missing.yaml"))
+	if _, err := link.APIs.Decl(d); !errors.Is(err, apifiles.ErrBundle) {
 		t.Fatalf("missing entry: %v", err)
 	}
 
-	d = route.HTTP("/api/", route.OpenAPIFS(fstest.MapFS{}, "missing.yaml"), route.OpenAPI([]byte("{}")))
-	if r, err := link.Routes.Decl(d); err != nil || r.GetBundle() != nil || link.Routes.Files(d) != nil {
+	d = api.HTTP("/api/", api.OpenAPIFS(fstest.MapFS{}, "missing.yaml"), api.OpenAPI([]byte("{}")))
+	if r, err := link.APIs.Decl(d); err != nil || r.GetBundle() != nil || link.APIs.Files(d) != nil {
 		t.Fatalf("last option did not replace files: %v %v", r, err)
 	}
 }

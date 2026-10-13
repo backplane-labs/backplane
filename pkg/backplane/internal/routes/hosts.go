@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Hosts serves one path prefix for several hosts, the way Envoy matches
+// Hosts serves one path prefix for several hosts, using HTTP Host matching
 // them: an exact host, then the longest "*.suffix" wildcard, then the route
 // without a host. A request no route matches gets 404.
 type Hosts struct {

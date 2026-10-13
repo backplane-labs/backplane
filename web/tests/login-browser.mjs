@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { chromium, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
-const base = `${process.env.BACKPLANE_DEV_URL ?? 'http://127.0.0.1:10000'}/backplane`;
+const base = `${process.env.BACKPLANE_DEV_URL ?? 'http://127.0.0.1:8081'}/backplane`;
 const browser = await chromium.launch();
 try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 950 } });

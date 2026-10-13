@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { chromium, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
-const base = `${process.env.BACKPLANE_DEV_URL ?? 'http://127.0.0.1:10000'}/backplane`;
+const base = `${process.env.BACKPLANE_DEV_URL ?? 'http://127.0.0.1:8081'}/backplane`;
 const browser = await chromium.launch();
 try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 950 } });
@@ -15,7 +15,7 @@ try {
   await expect(page.getByRole('heading', { name: 'Services', exact: true })).toBeVisible();
   const sidebar = page.getByRole('complementary', { name: 'Main navigation' });
   await expect(sidebar.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
-  assert.deepEqual(await sidebar.getByRole('navigation', { name: 'Platform', exact: true }).getByRole('link').allTextContents(), ['Services', 'Wiring', 'Explore', 'Errors', 'Audit']);
+  assert.deepEqual(await sidebar.getByRole('navigation', { name: 'Platform', exact: true }).getByRole('link').allTextContents(), ['Services', 'Wiring', 'Explore', 'Errors', 'Audit', 'Infrastructure']);
 
   // Services: cards, table and the system map show the same catalog.
   const view = page.getByRole('group', { name: 'View' });

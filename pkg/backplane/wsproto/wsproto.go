@@ -1,5 +1,5 @@
 // Package wsproto serves gRPC services over ws-proto (protobuf RPC over
-// WebSocket) as a managed public route. It takes the same register function
+// WebSocket) as a managed public api. It takes the same register function
 // as Service.GRPC, so one implementation serves both, recovers a panicking
 // call into codes.Internal and traces every call like the gRPC server does.
 package wsproto
@@ -18,10 +18,10 @@ import (
 	"github.com/gopherex/ws-proto/wsrpc"
 
 	"github.com/gopherex/backplane/pkg/backplane"
+	"github.com/gopherex/backplane/pkg/backplane/api"
 	"github.com/gopherex/backplane/pkg/backplane/internal/link"
 	"github.com/gopherex/backplane/pkg/backplane/internal/recovery"
 	"github.com/gopherex/backplane/pkg/backplane/internal/routes"
-	"github.com/gopherex/backplane/pkg/backplane/route"
 )
 
 const instrumentation = "github.com/gopherex/backplane/pkg/backplane/wsproto"
@@ -29,14 +29,14 @@ const instrumentation = "github.com/gopherex/backplane/pkg/backplane/wsproto"
 // Serve mounts a ws-proto endpoint at prefix on a public port of svc and
 // announces it with the registered services' descriptors. origins is the
 // browser origin policy: the zero value admits same-origin browsers and
-// non-browser clients only. route.Interceptors and
-// route.StreamInterceptors wrap this endpoint's calls only;
-// route.Middleware wraps its upgrade handler.
+// non-browser clients only. api.Interceptors and
+// api.StreamInterceptors wrap this endpoint's calls only;
+// api.Middleware wraps its upgrade handler.
 func Serve[St any](
-	svc *backplane.Service[St], prefix string, origins route.Origins,
-	register func(grpc.ServiceRegistrar), opts ...route.WSProtoOption,
+	svc *backplane.Service[St], prefix string, origins api.Origins,
+	register func(grpc.ServiceRegistrar), opts ...api.WSProtoOption,
 ) {
-	spec := link.Routes.WS(opts)
+	spec := link.APIs.WS(opts)
 	srv := wsrpc.NewServer(originOption(origins))
 
 	u := append([]grpc.UnaryServerInterceptor{recovery.Unary(svc.Log(), recovery.WSProto), unary}, spec.Unary...)
@@ -57,7 +57,7 @@ func Serve[St any](
 }
 
 // originOption maps the policy onto wsrpc.
-func originOption(o route.Origins) wsrpc.ServerOption {
+func originOption(o api.Origins) wsrpc.ServerOption {
 	switch {
 	case o.IsAny():
 		return wsrpc.WithInsecureSkipOriginCheck()

@@ -46,7 +46,7 @@ func TestAPIFileProxy(t *testing.T) {
 	hash := strings.Repeat("a", 64)
 	now := time.Now()
 	sessions := &apiSessions{session: Session{ID: uuid.New(), CreatedAt: now, LastSeenAt: now, ExpiresAt: now.Add(time.Hour)}}
-	old := &backplanev1.Manifest{Version: "1.0.0", Routes: []*backplanev1.Route{{Schema: &backplanev1.Route_Bundle{Bundle: &backplanev1.APISchemaBundle{Hash: hash}}}}}
+	old := &backplanev1.Manifest{Version: "1.0.0", Apis: []*backplanev1.API{{Schema: &backplanev1.API_Bundle{Bundle: &backplanev1.APISchemaBundle{Hash: hash}}}}}
 
 	svc := registry.Service{Name: "hello", Manifests: map[string]*backplanev1.Manifest{"1.0.0": old, "2.0.0": {Version: "2.0.0"}}}
 	for _, version := range []string{"1.0.0", "2.0.0"} {

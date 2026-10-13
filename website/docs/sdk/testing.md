@@ -41,7 +41,6 @@ GOWORK=off make test
 # Start infrastructure only for the integration targets you need:
 make up
 make conformance
-make test-envoy
 make test-m1
 make test-m2
 make test-replicas

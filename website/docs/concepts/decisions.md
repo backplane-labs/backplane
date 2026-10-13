@@ -18,7 +18,7 @@ The platform provides generic API, telemetry and UI capabilities. An application
 
 SDK infrastructure integrations are selected through driver options, not hidden global registration. A basic client or service need not import Temporal's SDK. Durable workflow authors use the workflows extension and Temporal types explicitly. Server capabilities report what is enabled; UI controls follow those capabilities.
 
-PostgreSQL, Consul and Valkey remain mandatory for the platform server. Operators can omit Temporal, NATS, Envoy or observability integrations when their capabilities are unnecessary. Unsupported operations fail explicitly instead of pretending to have succeeded.
+PostgreSQL, Consul and Valkey remain mandatory for the platform server. Operators can omit Temporal, NATS or observability integrations when their capabilities are unnecessary. Unsupported operations fail explicitly instead of pretending to have succeeded.
 
 ## Schedules belong to administration
 

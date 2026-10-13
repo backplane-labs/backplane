@@ -21,7 +21,7 @@ export interface ServiceOverview {
   summary: ServiceSummary;
   detail?: GetServiceResponse;
   failed: boolean;
-  contract: { routes: number; hooks: number; activities: number; events: number; subscriptions: number; workflows: number; schedules: number; nodes: number };
+  contract: { apis: number; hooks: number; activities: number; events: number; subscriptions: number; workflows: number; schedules: number; nodes: number };
   transports: TransportHealth[];
   config?: ConfigHealth;
   sdk?: string;
@@ -46,7 +46,7 @@ export function overview(summary: ServiceSummary, detail: GetServiceResponse | u
   return {
     summary, detail, failed,
     contract: {
-      routes: manifest?.routes.length ?? 0, hooks: manifest?.hooks.length ?? 0, activities: manifest?.activities.length ?? 0,
+      apis: manifest?.apis.length ?? 0, hooks: manifest?.hooks.length ?? 0, activities: manifest?.activities.length ?? 0,
       events: manifest?.events.length ?? 0, subscriptions: manifest?.subscriptions.length ?? 0, workflows: manifest?.workflows.length ?? 0,
       schedules: manifest?.schedules.length ?? 0, nodes: manifest?.nodes.length ?? 0,
     },

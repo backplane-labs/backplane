@@ -29,12 +29,11 @@ import (
 )
 
 // M2 end to end (platform-design.md §16.2): the real backplane binary and
-// the real hello, with NATS and Temporal of platform-in-a-box, Envoy in
-// front. The milestone's proof — "binding hello.Greet := hello.Echo, rule
+// the real hello, with NATS and Temporal of platform-in-a-box, direct process listeners. The milestone's proof — "binding hello.Greet := hello.Echo, rule
 // on hello.Greeted := hello.Echo; decoupling end to end, one trace through
 // everything" — driven through the console's /ws as the console drives it.
 //
-// Like M1 it owns :18000 and Envoy's :10000 routes: `make test-m2`.
+// Uses isolated listener ports: `make test-m2`.
 const (
 	m2Backplane = "m2-backplane-1"
 	m2Hello     = "m2-hello-1"
@@ -88,26 +87,27 @@ steps:
 // m2 is the scenario's world.
 type m2 struct {
 	consul    *api.Client
-	cc        *wsrpc.ClientConn // the console through Envoy
+	cc        *wsrpc.ClientConn // the direct console
 	backplane *m1Proc
 	hello     *m1Proc
 	jet       jetstream.JetStream
+	helloURL  string
 	ruleID    string
 	ruleDef   *consolev1.RuleDefinition
 }
 
-// m2Env skips without the stack: Consul, PostgreSQL, Envoy, NATS, Temporal.
-func m2Env(t *testing.T) (string, string, string, string, string) {
+// m2Env skips without the stack: Consul, PostgreSQL, NATS, Temporal.
+func m2Env(t *testing.T) (string, string, string, string) {
 	t.Helper()
 
-	consul, dsn, admin := os.Getenv("BACKPLANE_TEST_CONSUL"), os.Getenv("BACKPLANE_TEST_PG"), os.Getenv("BACKPLANE_TEST_ENVOY")
+	consul, dsn := os.Getenv("BACKPLANE_TEST_CONSUL"), os.Getenv("BACKPLANE_TEST_PG")
 	natsAddr, temporalAddr := os.Getenv("BACKPLANE_TEST_NATS"), os.Getenv("BACKPLANE_TEST_TEMPORAL")
 
-	if consul == "" || dsn == "" || admin == "" || natsAddr == "" || temporalAddr == "" {
-		t.Skip("BACKPLANE_TEST_{CONSUL,PG,ENVOY,NATS,TEMPORAL} not set (make up; make test-m2)")
+	if consul == "" || dsn == "" || natsAddr == "" || temporalAddr == "" {
+		t.Skip("BACKPLANE_TEST_{CONSUL,PG,NATS,TEMPORAL} not set (make up; make test-m2)")
 	}
 
-	return consul, dsn, admin, natsAddr, temporalAddr
+	return consul, dsn, natsAddr, temporalAddr
 }
 
 // m2JetStream is the test's own JetStream client. hello's streams (and
@@ -151,9 +151,9 @@ func m2JetStream(t *testing.T, url string) jetstream.JetStream {
 // TestM2 runs backplane and hello with NATS and Temporal and walks the M2
 // scenario.
 //
-//nolint:paralleltest // owns :18000, Envoy's routes and the hello service
+//nolint:paralleltest // owns the hello service identity
 func TestM2(t *testing.T) {
-	addr, dsn, admin, natsAddr, temporalAddr := m2Env(t)
+	addr, dsn, natsAddr, temporalAddr := m2Env(t)
 	natsURL := "nats://" + natsAddr
 
 	c, err := api.NewClient(&api.Config{Address: addr})
@@ -161,7 +161,7 @@ func TestM2(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m1Until(t, m1EnvoyWait, "no live hello instance on this Consul (stop other hello runs)", func() (bool, string) {
+	m1Until(t, m1Wait, "no live hello instance on this Consul (stop other hello runs)", func() (bool, string) {
 		keys, _, err := c.KV().Keys(m1InstancesPrefix(service), "", nil)
 
 		return err == nil && len(keys) == 0, fmt.Sprint(keys, err)
@@ -182,8 +182,6 @@ func TestM2(t *testing.T) {
 	w := &m2{consul: c, jet: m2JetStream(t, natsURL)}
 	m2CleanEndpoint(t, temporalAddr)
 
-	rejectedBefore := m1Rejected(t, admin)
-
 	host, secret := advertise(t), m1Random(t)
 	session := &m1{token: m1Random(t)}
 
@@ -191,6 +189,9 @@ func TestM2(t *testing.T) {
 	backplaneBin := m1Build(t, dir, "backplane", "../cmd/backplane", m2Version)
 	helloBin := m1Build(t, dir, service, "../examples/hello/cmd/hello", m2HelloVer)
 
+	consolePort, helloPort := freePort(t), freePort(t)
+	w.helloURL = "http://127.0.0.1:" + helloPort
+	session.console = "127.0.0.1:" + consolePort
 	w.backplane = m1Start(t, "backplane", backplaneBin,
 		"BACKPLANE_CONSUL_ADDR="+addr,
 		"BACKPLANE_NATS_URL="+natsURL,
@@ -203,9 +204,7 @@ func TestM2(t *testing.T) {
 		"BACKPLANE_PUBLIC_PORT="+freePort(t),
 		"BACKPLANE_INTERNAL_SECRET="+secret,
 		"BACKPLANE_ADMIN_TOKEN="+session.token,
-		"BACKPLANE_XDS_LISTEN=:18000",
-		"BACKPLANE_XDS_HTTP_PORT=10000",
-		"BACKPLANE_CONSOLE_LISTEN=:"+freePort(t),
+		"BACKPLANE_CONSOLE_LISTEN=:"+consolePort,
 		"BACKPLANE_CONSOLE_PREFIX="+m1Prefix,
 		"BACKPLANE_CONSOLE_INSECURE_COOKIE=true",
 		"BACKPLANE_LIVE_CONFIG_RECONCILE_INTERVAL="+m1Reconcile.String(),
@@ -221,7 +220,7 @@ func TestM2(t *testing.T) {
 		"HELLO_LEGACY_LISTEN=:" + freePort(t),
 		"BACKPLANE_ADVERTISE=" + host,
 		"BACKPLANE_INTERNAL_PORT=" + freePort(t),
-		"BACKPLANE_PUBLIC_PORT=" + freePort(t),
+		"BACKPLANE_PUBLIC_PORT=" + helloPort,
 		"BACKPLANE_INTERNAL_SECRET=" + secret,
 		"BACKPLANE_SHUTDOWN_DRAIN=100ms",
 		"BACKPLANE_CONSUL_CHECK_INTERVAL=2s",
@@ -232,15 +231,15 @@ func TestM2(t *testing.T) {
 		return m1Ready(w.hello, helloEnv)
 	})
 
-	m1Until(t, m1EnvoyWait, "envoy routes to the console", func() (bool, string) {
-		code, body := httpGet("http://" + m1Envoy + m1Prefix + "/auth/session")
+	m1Until(t, m1Wait, "console listening", func() (bool, string) {
+		code, body := httpGet("http://" + session.console + m1Prefix + "/auth/session")
 
 		return code == http.StatusUnauthorized, fmt.Sprintf("%d %q", code, body)
 	})
 
-	w.cc, err = session.dial(t, "http://"+m1Envoy)
+	w.cc, err = session.dial(t, "http://"+session.console)
 	if err != nil {
-		t.Fatalf("console through envoy: %v", err)
+		t.Fatalf("direct console: %v", err)
 	}
 
 	m1Until(t, m1Wait, "CatalogService.ListServices lists hello", func() (bool, string) {
@@ -271,10 +270,6 @@ func TestM2(t *testing.T) {
 
 	// e. TestRule: dry runs of a draft, a test run of the saved rule.
 	w.testsRule(t)
-
-	if after := m1Rejected(t, admin); after != rejectedBefore {
-		t.Errorf("envoy rejected %d xDS updates (backplane logs each NACK)", after-rejectedBefore)
-	}
 }
 
 // ---- helpers ----------------------------------------------------------------
@@ -334,26 +329,26 @@ func m2Get(ctx context.Context, url string, headers map[string]string) (int, str
 	return res.StatusCode, string(body)
 }
 
-// greets waits until GET /hello/?name= through Envoy answers want.
+// greets waits until GET /hello/?name= directly answers want.
 func (w *m2) greets(t *testing.T, name, want string, headers map[string]string) {
 	t.Helper()
 
-	url := "http://" + m1Envoy + "/hello/?name=" + name
+	url := w.helloURL + "/hello/?name=" + name
 
-	m1Until(t, m1EnvoyWait, "GET /hello/?name="+name+" through envoy = "+want, func() (bool, string) {
+	m1Until(t, m1Wait, "GET /hello/?name="+name+" directly = "+want, func() (bool, string) {
 		code, body := m2Get(t.Context(), url, headers)
 
 		return code == http.StatusOK && strings.TrimSpace(body) == want, fmt.Sprintf("%d %q", code, body)
 	})
 }
 
-// greetOnce is one GET /hello/?name= through Envoy that must answer want.
+// greetOnce is one GET /hello/?name= directly that must answer want.
 func (w *m2) greetOnce(t *testing.T, name, want string, headers map[string]string) {
 	t.Helper()
 
-	code, body := m2Get(t.Context(), "http://"+m1Envoy+"/hello/?name="+name, headers)
+	code, body := m2Get(t.Context(), w.helloURL+"/hello/?name="+name, headers)
 	if code != http.StatusOK || strings.TrimSpace(body) != want {
-		t.Fatalf("GET /hello/?name=%s through envoy: %d %q, want %q", name, code, body, want)
+		t.Fatalf("GET /hello/?name=%s directly: %d %q, want %q", name, code, body, want)
 	}
 }
 
@@ -640,7 +635,7 @@ func (w *m2) binds(t *testing.T) {
 		return res.GetError() == "" && jsonField(res.GetOutput(), "text") == "bound probe", res.String()
 	})
 
-	// hello's HTTP handler, through Envoy, answers through the binding.
+	// hello's HTTP handler, directly, answers through the binding.
 	w.greets(t, "x", "bound x", nil)
 
 	// The run of that call: step echo completed with its input and output.

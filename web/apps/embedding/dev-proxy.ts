@@ -1,7 +1,7 @@
 import type { ProxyOptions, ServerOptions } from 'vite';
 
 /** Same-origin browser access to the existing installation, only in Vite serve. */
-export function consoleDevServer(base: string, upstream = 'http://127.0.0.1:10000'): ServerOptions {
+export function consoleDevServer(base: string, upstream = 'http://127.0.0.1:8081'): ServerOptions {
   const target = new URL(upstream);
   if (!['http:', 'https:'].includes(target.protocol) || target.username || target.password || target.pathname !== '/' || target.search || target.hash) {
     throw new Error('BACKPLANE_DEV_TARGET must be an HTTP(S) origin without credentials or a path');

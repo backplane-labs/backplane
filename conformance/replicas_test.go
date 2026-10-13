@@ -41,10 +41,10 @@ type replicaWorld struct {
 
 // TestReplicas runs two real backplanes sharing PostgreSQL, Consul, NATS and
 // Temporal. Independent hello and formatter binaries communicate only through
-// a saved hook binding, an event rule and a reactor. This test owns Envoy and
+// a saved hook binding, an event rule and a reactor. This test uses direct listeners and
 // the named example streams, so run it separately with make test-replicas.
 //
-//nolint:paralleltest // owns shared example names and Envoy's ADS port
+//nolint:paralleltest // owns shared example names and service identities
 func TestReplicas(t *testing.T) {
 	w := newReplicaWorld(t)
 	ctx := t.Context()
@@ -129,7 +129,7 @@ func TestReplicas(t *testing.T) {
 
 func newReplicaWorld(t *testing.T) *replicaWorld {
 	t.Helper()
-	addr, dsn, _, natsURL, temporalAddr := m2Env(t)
+	addr, dsn, natsURL, temporalAddr := m2Env(t)
 
 	c, err := api.NewClient(&api.Config{Address: addr})
 	if err != nil {
@@ -195,16 +195,13 @@ func newReplicaWorld(t *testing.T) *replicaWorld {
 	}
 
 	for i := range 2 {
-		consolePort, xdsPort := freePort(t), freePort(t)
-		if i == 0 {
-			xdsPort = "18000"
-		}
+		consolePort := freePort(t)
 
 		env := append([]string(nil), common...)
 		env = append(env, "BACKPLANE_INSTANCE="+fmt.Sprintf("replica-%d", i+1),
 			"BACKPLANE_INTERNAL_PORT="+freePort(t), "BACKPLANE_PUBLIC_PORT="+freePort(t),
 			"BACKPLANE_PG_DSN="+scratch, "BACKPLANE_VALKEY_ADDR="+testValkey(t), "BACKPLANE_ADMIN_TOKEN="+token,
-			"BACKPLANE_XDS_LISTEN=:"+xdsPort, "BACKPLANE_CONSOLE_LISTEN=:"+consolePort, "BACKPLANE_AUDIT_LISTEN=:"+freePort(t),
+			"BACKPLANE_CONSOLE_LISTEN=:"+consolePort, "BACKPLANE_AUDIT_LISTEN=:"+freePort(t),
 			"BACKPLANE_CONSOLE_PREFIX="+m1Prefix, "BACKPLANE_CONSOLE_INSECURE_COOKIE=true",
 			"BACKPLANE_LIVE_CONFIG_RECONCILE_INTERVAL=200ms", "BACKPLANE_NEXUS_RECONCILE_INTERVAL=200ms",
 			"BACKPLANE_NEXUS_ABSENCE_GRACE=1s", "BACKPLANE_AUDIT_EXPORT_URL="+w.auditSink.url)
@@ -225,7 +222,9 @@ func newReplicaWorld(t *testing.T) *replicaWorld {
 
 	w.backplane = w.peers[0]
 
-	w.helloEnv = append(append([]string(nil), common...), "BACKPLANE_INSTANCE=replicas-hello", "HELLO_LEGACY_LISTEN=:"+freePort(t), "BACKPLANE_INTERNAL_PORT="+freePort(t), "BACKPLANE_PUBLIC_PORT="+freePort(t))
+	helloPort := freePort(t)
+	w.helloURL = "http://127.0.0.1:" + helloPort
+	w.helloEnv = append(append([]string(nil), common...), "BACKPLANE_INSTANCE=replicas-hello", "HELLO_LEGACY_LISTEN=:"+freePort(t), "BACKPLANE_INTERNAL_PORT="+freePort(t), "BACKPLANE_PUBLIC_PORT="+helloPort)
 	w.hello = m1Start(t, "hello", w.helloBin, w.helloEnv...)
 	formatterPort := freePort(t)
 	formatterEnv := append(append([]string(nil), common...), "BACKPLANE_INSTANCE=replicas-formatter", "BACKPLANE_INTERNAL_PORT="+freePort(t), "BACKPLANE_PUBLIC_PORT="+formatterPort)
@@ -297,12 +296,12 @@ func (w *replicaWorld) awaitHook(t *testing.T, want string) {
 func (w *replicaWorld) greeting(t *testing.T, name, want string, count uint64) {
 	t.Helper()
 	// Wait for the route without emitting a greeting.
-	m1Until(t, m1EnvoyWait, "Envoy routes formatter", func() (bool, string) {
-		code, body := httpGet("http://" + m1Envoy + "/formatter/")
+	m1Until(t, m1Wait, "formatter serves HTTP", func() (bool, string) {
+		code, body := httpGet(w.formatterURL)
 		return code == http.StatusOK, body
 	})
-	m1Until(t, m1EnvoyWait, "Envoy routes hello's public port", func() (bool, string) {
-		code, body := httpGet("http://" + m1Envoy + "/ws/")
+	m1Until(t, m1Wait, "hello serves its public port", func() (bool, string) {
+		code, body := httpGet(w.helloURL + "/ws/")
 		return code == http.StatusBadRequest || code == http.StatusUpgradeRequired, fmt.Sprintf("%d %s", code, body)
 	})
 	w.greetOnce(t, name, want, nil)

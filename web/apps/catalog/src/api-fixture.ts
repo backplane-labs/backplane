@@ -1,6 +1,6 @@
 import { create, toBinary } from '@bufbuild/protobuf';
 import { FileDescriptorSetSchema } from '@bufbuild/protobuf/wkt';
-import { SchemaFormat, ManifestSchema, RouteKind } from '@gopherex/backplane-api/backplanepb/v1/manifest_pb';
+import { SchemaFormat, ManifestSchema, ApiKind } from '@gopherex/backplane-api/backplanepb/v1/manifest_pb';
 
 const bytes = (value: unknown) => new TextEncoder().encode(typeof value === 'string' ? value : JSON.stringify(value));
 const bundleFiles: Record<string, unknown> = {
@@ -24,18 +24,18 @@ export const publicDescriptors = toBinary(FileDescriptorSetSchema, create(FileDe
 ] }));
 export const externalAPIManifest = () => create(ManifestSchema, {
   service: 'hello', version: '1.0.0', descriptors: publicDescriptors,
-  routes: [
-    { kind: RouteKind.HTTP, prefix: '/api/', schema: { case: 'openapi', value: bytes({ openapi: '3.0.3', info: { title: 'Visitor API', version: '1.0.0' },
+  apis: [
+    { kind: ApiKind.HTTP, prefix: '/api/', schema: { case: 'openapi', value: bytes({ openapi: '3.0.3', info: { title: 'Visitor API', version: '1.0.0' },
       paths: { '/api/visitors/{id}': { parameters: [{ $ref: '#/components/parameters/ID' }], get: { summary: 'Read a visitor', responses: { '200': { description: 'The visitor', content: { 'application/json': { schema: { $ref: '#/components/schemas/Visitor' } } } } } }, delete: { summary: 'Remove a visitor', responses: { '204': { description: 'Removed' } } } } },
       components: { parameters: { ID: { name: 'id', in: 'path', required: true, schema: { type: 'string' } } }, schemas: { Visitor: { type: 'object', required: ['name'], example: { name: 'Ada', roles: ['reader'], preferences: { timezone: 'UTC' } }, properties: { name: { type: 'string', minLength: 1, description: 'Display name' }, roles: { type: 'array', items: { type: 'string', enum: ['reader', 'editor'] } }, preferences: { type: 'object', properties: { timezone: { type: 'string', default: 'UTC' }, alerts: { type: 'boolean', default: true } } }, friend: { $ref: '#/components/schemas/Visitor' } } } } },
     }) } },
-    { kind: RouteKind.CONNECT, prefix: '/public.v1.Greeter/', services: ['public.v1.Greeter'] },
-    { kind: RouteKind.WS_PROTO, prefix: '/ws/', services: ['public.v1.Greeter'], schema: { case: 'descriptors', value: publicDescriptors } },
-    { kind: RouteKind.GRAPHQL, prefix: '/graphql/', schema: { case: 'graphql', value: bytes({ data: { __schema: { queryType: { name: 'Query' }, types: [
+    { kind: ApiKind.GRPC, prefix: '/public.v1.Greeter/', services: ['public.v1.Greeter'] },
+    { kind: ApiKind.WS_PROTO, prefix: '/ws/', services: ['public.v1.Greeter'], schema: { case: 'descriptors', value: publicDescriptors } },
+    { kind: ApiKind.GRAPHQL, prefix: '/graphql/', schema: { case: 'graphql', value: bytes({ data: { __schema: { queryType: { name: 'Query' }, types: [
       { name: 'Query', kind: 'OBJECT', fields: [{ name: 'greeting', description: 'A personalized greeting', args: [{ name: 'name', type: { kind: 'NON_NULL', ofType: { kind: 'SCALAR', name: 'String' } } }], type: { kind: 'SCALAR', name: 'String' } }] },
     ] } } }) } },
-    { kind: RouteKind.HTTP, prefix: '/legacy/' },
-    { kind: RouteKind.HTTP, prefix: '/broken/', schema: { case: 'openapi', value: bytes('not an API document') } },
-    { kind: RouteKind.HTTP, prefix: '/bundle/', schema: { case: 'bundle', value: { hash: 'a'.repeat(64), entry: 'api.yaml', format: SchemaFormat.OPENAPI } } },
+    { kind: ApiKind.HTTP, prefix: '/legacy/' },
+    { kind: ApiKind.HTTP, prefix: '/broken/', schema: { case: 'openapi', value: bytes('not an API document') } },
+    { kind: ApiKind.HTTP, prefix: '/bundle/', schema: { case: 'bundle', value: { hash: 'a'.repeat(64), entry: 'api.yaml', format: SchemaFormat.OPENAPI } } },
   ],
 });

@@ -91,7 +91,7 @@ func manifests(t *testing.T) bindings.Manifests {
 				Name: "Exec", Kind: backplanev1.ActivityKind_ACTIVITY_KIND_ACTIVITY,
 				Input:        schemaOf[execIn](t, "template", "Exec.input"),
 				Output:       schemaOf[execOut](t, "template", "Exec.output"),
-				StartToClose: durationpb.New(5 * time.Second), Retry: &backplanev1.RetryPolicy{Attempts: 2},
+				StartToClose: durationpb.New(5 * time.Second), Retry: &backplanev1.ActivityRetry{Attempts: 2},
 			}},
 		},
 		{

@@ -2,19 +2,19 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { create, toBinary } from '@bufbuild/protobuf';
 import { FileDescriptorSetSchema } from '@bufbuild/protobuf/wkt';
-import { ManifestSchema, RouteSchema, RouteKind } from '@gopherex/backplane-api/backplanepb/v1/manifest_pb';
+import { ManifestSchema, APISchema, ApiKind } from '@gopherex/backplane-api/backplanepb/v1/manifest_pb';
 import { readAPIDocument, type APIDocument } from '../packages/platform-ui/src/api-document';
 import { externalAPIManifest } from '../apps/catalog/src/api-fixture';
 import { bundleOpenAPI } from '../packages/platform-ui/src/api-bundle';
 
 const manifest = externalAPIManifest();
 function document(index: number): APIDocument {
-  const result = readAPIDocument(manifest.routes[index]!, manifest);
+  const result = readAPIDocument(manifest.apis[index]!, manifest);
   if (!('document' in result)) throw new Error(result.detail ?? result.problem);
   return result.document;
 }
 function openAPI(value: unknown) {
-  const route = create(RouteSchema, { kind: RouteKind.HTTP, schema: { case: 'openapi', value: new TextEncoder().encode(typeof value === 'string' ? value : JSON.stringify(value)) } });
+  const route = create(APISchema, { kind: ApiKind.HTTP, schema: { case: 'openapi', value: new TextEncoder().encode(typeof value === 'string' ? value : JSON.stringify(value)) } });
   return readAPIDocument(route, create(ManifestSchema));
 }
 
@@ -84,7 +84,7 @@ describe('external service API documents', () => {
       { name: 'Request', field: [{ name: 'labels', type: 11, typeName: '.public.Request.LabelsEntry', label: 3 }], nestedType: [{ name: 'LabelsEntry', options: { mapEntry: true }, field: [{ name: 'key', type: 9 }, { name: 'value', type: 11, typeName: '.public.Reply' }] }] },
       { name: 'Reply', field: [{ name: 'status', type: 14, typeName: '.public.Status' }] }, { name: 'AdminSecret' },
     ], enumType: [{ name: 'Status', value: [{ name: 'OK', number: 0 }] }], service: [{ name: 'API', method: [{ name: 'Read', inputType: '.public.Request', outputType: '.public.Reply' }] }] }] }));
-    const result = readAPIDocument(create(RouteSchema, { kind: RouteKind.CONNECT, services: ['public.API'], schema: { case: 'descriptors', value: bytes } }), create(ManifestSchema));
+    const result = readAPIDocument(create(APISchema, { kind: ApiKind.GRPC, services: ['public.API'], schema: { case: 'descriptors', value: bytes } }), create(ManifestSchema));
     expect('document' in result && result.document.schemas.map((schema) => schema.name)).toEqual(['public.Request', 'public.Reply', 'public.Status']);
     expect('document' in result && result.document.schemas[0]?.fields?.[0]?.type).toBe('map<string, public.Reply>');
   });
@@ -114,12 +114,12 @@ describe('external service API documents', () => {
     const doc = document(3);
     expect(doc.operations[0]?.method).toBe('QUERY');
     expect(doc.operations[0]?.sections[0]?.fields).toEqual([{ name: 'name', type: 'String!', required: true, description: '' }]);
-    const route = create(RouteSchema, { kind: RouteKind.GRAPHQL, schema: { case: 'graphql', value: new TextEncoder().encode(JSON.stringify(JSON.parse(doc.source).data)) } });
+    const route = create(APISchema, { kind: ApiKind.GRAPHQL, schema: { case: 'graphql', value: new TextEncoder().encode(JSON.stringify(JSON.parse(doc.source).data)) } });
     expect(readAPIDocument(route, manifest)).toMatchObject({ document: { operations: doc.operations } });
   });
   it('distinguishes missing documents from malformed documents', () => {
-    expect(readAPIDocument(manifest.routes[4]!, manifest)).toEqual({ problem: 'missing' });
-    expect(readAPIDocument(manifest.routes[5]!, manifest)).toMatchObject({ problem: 'invalid' });
+    expect(readAPIDocument(manifest.apis[4]!, manifest)).toEqual({ problem: 'missing' });
+    expect(readAPIDocument(manifest.apis[5]!, manifest)).toMatchObject({ problem: 'invalid' });
     expect(openAPI('openapi: 3.0.3\npaths: [')).toMatchObject({ problem: 'invalid' });
     expect(openAPI('openapi: 3.0.3\npaths: &paths { self: *paths }')).toMatchObject({ problem: 'invalid' });
   });

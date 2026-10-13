@@ -4,7 +4,7 @@ Start with the failing boundary and the exact error. Infrastructure status helps
 
 | Symptom | Check |
 | --- | --- |
-| `ERR_CONNECTION_REFUSED` | Container state, published port and whether you opened gateway port 10000 or direct console 8081 |
+| `ERR_CONNECTION_REFUSED` | Container state, published port and the console listener on 8081 or the service's own API port |
 | Docker permission denied | Access to the active Docker socket/context; this precedes application startup |
 | Login returns 503 | Valkey/database availability and server logs; do not rotate the token as a first response |
 | Login rejected or rate-limited | Correct operator credential, clock/session settings and retry interval |
@@ -26,7 +26,7 @@ docker compose --profile full -f docker-compose.yaml \
 make dev-logs
 ```
 
-Use the same Compose files that started the installation. The base conformance topology and dev overlay point Envoy at different Backplane locations. Stop `make dev` before running conformance processes that own the same ports/service names.
+Use the same Compose files that started the installation. Stop `make dev` before running conformance processes that own the same ports/service names.
 
 ## Authentication versus availability
 

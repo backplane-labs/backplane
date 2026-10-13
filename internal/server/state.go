@@ -23,7 +23,6 @@ import (
 	"github.com/gopherex/backplane/internal/registry"
 	"github.com/gopherex/backplane/internal/rules"
 	"github.com/gopherex/backplane/internal/store"
-	"github.com/gopherex/backplane/internal/xds"
 	"github.com/gopherex/backplane/pkg/backplane"
 	"github.com/gopherex/backplane/pkg/backplane/deps"
 	"github.com/gopherex/backplane/pkg/backplane/infra/valkey"
@@ -53,9 +52,6 @@ type State struct {
 	// versions in PostgreSQL validated against the latest manifests, the
 	// console's BindingService and RuleService.
 	Bindings *bindings.Manager
-	// XDS is the control plane of Envoy: ADS on its own listener, one
-	// snapshot rebuilt from the registry.
-	XDS *xds.Server
 	// Rules consumes events for the rules and starts their runs.
 	Rules *rules.Engine
 	// Ops is the console's operations on NATS and Temporal through the
@@ -85,7 +81,6 @@ type State struct {
 	// Extension points — one field and one constructor line in NewState per
 	// component, in the order they depend on each other:
 	//
-	//	XDS     *xds.Server         // internal/xds: ADS for Envoy
 	//	Console *console.Server     // internal/console: HTTP, ws-proto, relay
 }
 
@@ -170,12 +165,6 @@ func (st *State) Ready(context.Context) error {
 		errs = append(errs, fmt.Errorf("registry: %w", err))
 	}
 
-	if st.XDS != nil {
-		if err := st.XDS.Ready(); err != nil {
-			errs = append(errs, err)
-		}
-	}
-
 	return errors.Join(errs...)
 }
 
@@ -193,10 +182,6 @@ func (st *State) runtime(root backplane.Root[Config],
 	cfg Config,
 	registerErrors func(grpc.ServiceRegistrar),
 ) []console.Option {
-	if cfg.XDS.Enabled {
-		st.XDS = xds.New(root, xdsConfig(cfg, root.Identity().Advertise), st.Registry)
-	}
-
 	registerBindings := func(r grpc.ServiceRegistrar) {
 		consolev1.RegisterBindingServiceServer(r,
 			st.Bindings.BindingAPI())

@@ -16,7 +16,7 @@ service PlatformService {
 message GetCapabilitiesRequest {}
 message Capability {
   // Stable feature key: events, workflows, schedules, bindings, rules,
-  // metrics, logs, traces, telemetry, gateway, audit, audit_export.
+  // metrics, logs, traces, telemetry, audit, audit_export.
   string name = 1;
   bool enabled = 2;
 }

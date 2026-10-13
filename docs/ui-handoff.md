@@ -40,7 +40,7 @@ the SDK compatibility fixture, which alone imports the template's
 ## Run and inspect
 
 At the repository root: `make dev`, then open
-`http://127.0.0.1:10000/backplane/` and log in with the operator token
+`http://127.0.0.1:8081/backplane/` and log in with the operator token
 (`dev-admin-token-change-me` locally, `DEV_ADMIN_TOKEN` overrides it). The token
 is never baked in, prefilled or stored.
 

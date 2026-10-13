@@ -255,10 +255,10 @@ func (e *env) manifest(t *testing.T) {
 		t.Fatalf("identity: %s@%s", m.GetService(), m.GetVersion())
 	}
 
-	kinds := map[backplanev1.RouteKind]bool{}
-	for _, r := range m.GetRoutes() {
+	kinds := map[backplanev1.ApiKind]bool{}
+	for _, r := range m.GetApis() {
 		kinds[r.GetKind()] = true
-		if k := r.GetKind(); k != backplanev1.RouteKind_ROUTE_KIND_HTTP && k != backplanev1.RouteKind_ROUTE_KIND_GRAPHQL &&
+		if k := r.GetKind(); k != backplanev1.ApiKind_API_KIND_HTTP && k != backplanev1.ApiKind_API_KIND_GRAPHQL &&
 			len(r.GetServices()) == 0 {
 			t.Errorf("route %v without services", r)
 		}
@@ -272,9 +272,9 @@ func (e *env) manifest(t *testing.T) {
 		}
 	}
 
-	for _, k := range []backplanev1.RouteKind{
-		backplanev1.RouteKind_ROUTE_KIND_CONNECT, backplanev1.RouteKind_ROUTE_KIND_WS_PROTO,
-		backplanev1.RouteKind_ROUTE_KIND_HTTP, backplanev1.RouteKind_ROUTE_KIND_GRAPHQL,
+	for _, k := range []backplanev1.ApiKind{
+		backplanev1.ApiKind_API_KIND_GRPC, backplanev1.ApiKind_API_KIND_WS_PROTO,
+		backplanev1.ApiKind_API_KIND_HTTP, backplanev1.ApiKind_API_KIND_GRAPHQL,
 	} {
 		if !kinds[k] {
 			t.Errorf("no %v route", k)

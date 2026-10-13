@@ -68,7 +68,7 @@ type Server struct {
 	MaxHeaderBytes    int64         `json:"max_header_bytes"    schemapb:"default=1048576;gte=1"`
 	// gRPC: largest message received.
 	GRPCMaxRecvMsgSize int64 `json:"grpc_max_recv_msg_size" schemapb:"default=4194304;gte=1"`
-	// gRPC: minimum interval of client keepalive pings; Envoy pings more
+	// gRPC: minimum interval of client keepalive pings; some clients ping more
 	// often than grpc-go's 5m default allows.
 	GRPCKeepaliveMinTime time.Duration `json:"grpc_keepalive_min_time" schemapb:"default=30s"`
 	// gRPC: accept keepalive pings on connections without streams.

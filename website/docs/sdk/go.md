@@ -79,4 +79,4 @@ proto/                   public and internal RPC contracts
 ui/                      built module bundle and embedding
 ```
 
-Pass dependencies through constructors. Keep domain components independent of global clients. The complete [hello example](https://github.com/gopherex/backplane/tree/master/examples/hello) includes managed listeners, another listener announced to Envoy, configuration, reactors, hooks, workflows and an embedded module.
+Pass dependencies through constructors. Keep domain components independent of global clients. The complete [hello example](https://github.com/gopherex/backplane/tree/master/examples/hello) includes managed listeners, another independently served listener described in the API catalog, configuration, reactors, hooks, workflows and an embedded module.

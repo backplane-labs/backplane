@@ -55,7 +55,7 @@ type RetryHint struct {
 // Retry sets the default retry of a step calling the activity.
 func Retry(h RetryHint) Option {
 	return optionFunc(func(a *backplanev1.Activity) {
-		a.Retry = &backplanev1.RetryPolicy{Attempts: h.Attempts}
+		a.Retry = &backplanev1.ActivityRetry{Attempts: h.Attempts}
 	})
 }
 

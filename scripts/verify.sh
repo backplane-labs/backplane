@@ -21,7 +21,7 @@ export BACKPLANE_TEST_CONSUL=localhost:8500 BACKPLANE_TEST_NATS=localhost:4222 B
 export BACKPLANE_TEST_VALKEY=localhost:6379 BACKPLANE_TEST_PG='postgres://backplane:backplane@localhost:5433/backplane?sslmode=disable'
 export BACKPLANE_TEST_OTLP=http://127.0.0.1:14318 BACKPLANE_TEST_LOGS_URL=http://127.0.0.1:19428
 export BACKPLANE_TEST_TRACES_URL=http://127.0.0.1:20428 BACKPLANE_TEST_METRICS_URL=http://127.0.0.1:18428
-export BACKPLANE_TEST_ENVOY=localhost:9901 BACKPLANE_TEST_BROWSER=1
+export BACKPLANE_TEST_BROWSER=1
 go vet ./...
 go test -race -count=1 -p 1 -timeout 20m -json ./... | tee bin/verification/go-tests.jsonl
 "${full[@]}" logs --no-color > bin/verification/full-compose.log 2>&1

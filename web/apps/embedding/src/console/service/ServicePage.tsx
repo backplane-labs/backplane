@@ -43,8 +43,8 @@ export function ServicePage({ mode, services, index }: { mode: ThemeMode; servic
       </TabBar>} />
     <div className="console-detail" key={`${service}/${tab}`}>
       {tab === 'overview' && <ServiceInspector service={service} mode={mode} />}
-      {tab === 'api' && <ServiceAPI service={service} mode={mode} state={{ route: Number(search.get('route') ?? 0), operation: search.get('operation') ?? undefined }} onStateChange={(state) => {
-        const next = new URLSearchParams(search); next.set('route', String(state.route));
+      {tab === 'api' && <ServiceAPI service={service} mode={mode} state={{ api: Number(search.get('api') ?? 0), operation: search.get('operation') ?? undefined }} onStateChange={(state) => {
+        const next = new URLSearchParams(search); next.set('api', String(state.api));
         if (state.operation) next.set('operation', state.operation); else next.delete('operation');
         setSearch(next);
       }} />}
