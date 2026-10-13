@@ -303,6 +303,7 @@ test-audit: ## Durable audit: real PostgreSQL transactions, replica leases, outa
 		go test -race -count=1 ./internal/audit ./internal/store
 
 # Development installation with the production console and live example module.
+DEV_VERSION ?= 0.0.0+dev.$(shell date -u +%Y%m%d%H%M%S%N)
 DEV_COMPOSE = docker compose --profile full -f docker-compose.yaml -f docker-compose.observability.yaml -f docker-compose.dev.yaml
 .PHONY: dev dev-down dev-build dev-logs test-dev
 dev-build: ## Build the console, example module and static Go binaries
@@ -310,7 +311,7 @@ dev-build: ## Build the console, example module and static Go binaries
 	yarn install --frozen-lockfile
 	yarn build
 	cd ..
-	CGO_ENABLED=0 GOWORK=off $(MAKE) backplane hello formatter
+	CGO_ENABLED=0 GOWORK=off $(MAKE) VERSION="$(DEV_VERSION)" backplane hello formatter
 	CGO_ENABLED=0 GOWORK=off go build -o "$(BIN)/setup-example" ./examples/demo/cmd/setup
 
 dev: dev-build ## Start the complete live installation with a seeded hello/formatter binding and rule

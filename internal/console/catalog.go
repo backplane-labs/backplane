@@ -104,11 +104,11 @@ func (s catalogService) ListPlugins(
 			continue
 		}
 
-		preferred, fallback := serving(svc, uiHash(ui.GetHash()))
+		preferred, _ := serving(svc, uiHash(ui.GetHash()))
 		res.Plugins = append(res.Plugins, &consolev1.Plugin{
 			Service: name, Hash: ui.GetHash(), SdkMajor: ui.GetSdkMajor(),
 			Path:      s.c.Route() + "plugins/" + name + "/" + ui.GetHash() + "/",
-			Available: len(preferred)+len(fallback) > 0,
+			Available: len(preferred) > 0,
 		})
 	}
 

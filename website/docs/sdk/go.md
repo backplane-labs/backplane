@@ -53,7 +53,7 @@ func main() {
 }
 ```
 
-Build identity is normally set by your build pipeline. The repository demonstrates linker flags for `pkg/backplane/build.Service`, `Version`, `Commit` and `Date`. Use a stable service name and a distinct build version when changing its contracts. See the [configuration reference](../reference/configuration.md) for identity overrides and listener defaults.
+Build identity is normally set by your build pipeline. The repository demonstrates linker flags for `pkg/backplane/build.Service`, `Version`, `Commit` and `Date`. Use a stable service name and a distinct build version when changing its contracts. Every version is immutable, including versions with `+` build metadata. If Consul already holds different declarations for the same service/version, `Run` fails before this process publishes its instance state or registers in the catalog. Replicas with identical declarations may share a version. See the [configuration reference](../reference/configuration.md) for identity overrides and listener defaults.
 
 ## Add infrastructure intentionally
 

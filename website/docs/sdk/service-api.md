@@ -78,3 +78,7 @@ Service files are served on the internal platform listener under their content h
 Document actual status codes, auth requirements, examples, field descriptions and constraints. OpenAPI `examples` and `x-codeSamples` become useful reader-facing content. Protobuf comments and GraphQL descriptions are equally important. Test imported types and recursive references, not only the operations list.
 
 The viewer expands small type sets automatically and provides search/expand controls for larger ones. Missing schemas are shown explicitly. See [detailed API viewer contract](../reference/platform-ui.md#publishing-external-api-documents) and the hello/formatter source examples.
+
+## Internal API ownership
+
+Give each platform service a unique fully qualified protobuf service name. The console relay checks ownership before forwarding a method. If multiple platform services declare the same internal protobuf API, it returns `FailedPrecondition` and lists the conflicting owners; it does not select a service by name or availability. An undeclared API returns `PermissionDenied`, and an unambiguous API with no serving instance returns `Unavailable`.

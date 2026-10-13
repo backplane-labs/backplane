@@ -151,25 +151,36 @@ func (rl *relay) target(method string) (string, error) {
 	}
 
 	cat := rl.src.Current()
+
+	var owners []string
+
 	for _, svcName := range slices.Sorted(maps.Keys(cat.Services)) {
-		svc := cat.Services[svcName]
-		if !slices.Contains(svc.Latest().GetInternalServices(), name) {
-			continue
+		if slices.Contains(cat.Services[svcName].Latest().GetInternalServices(), name) {
+			owners = append(owners, svcName)
 		}
-
-		preferred, fallback := serving(svc, internalService(name))
-		if len(preferred) == 0 {
-			preferred = fallback
-		}
-
-		if len(preferred) == 0 {
-			return "", status.Errorf(codes.Unavailable, "%s: no serving instance of %s", method, svcName)
-		}
-
-		return platformAddr(preferred[rand.IntN(len(preferred))]), nil //nolint:gosec // load spreading
 	}
 
-	return "", status.Errorf(codes.PermissionDenied, "%s is not the internal API of any service", method)
+	if len(owners) == 0 {
+		return "", status.Errorf(codes.PermissionDenied, "%s is not the internal API of any service", method)
+	}
+
+	if len(owners) > 1 {
+		return "", status.Errorf(codes.FailedPrecondition,
+			"%s is declared by multiple services: %s", name, strings.Join(owners, ", "))
+	}
+
+	svc := cat.Services[owners[0]]
+
+	preferred, fallback := serving(svc, internalService(name))
+	if len(preferred) == 0 {
+		preferred = fallback
+	}
+
+	if len(preferred) == 0 {
+		return "", status.Errorf(codes.Unavailable, "%s: no serving instance of %s", method, owners[0])
+	}
+
+	return platformAddr(preferred[rand.IntN(len(preferred))]), nil //nolint:gosec // load spreading
 }
 
 // serviceOf is the full service name of "/pkg.Service/Method".

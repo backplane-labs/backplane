@@ -26,14 +26,10 @@ func TestPlatformModes(t *testing.T) {
 		t.Skip("BACKPLANE_TEST_CONSUL and BACKPLANE_TEST_PG required")
 	}
 
-	bin := m1Build(t, t.TempDir(), "backplane", "../cmd/backplane", "0.0.0-modes")
-
 	consul, err := api.NewClient(&api.Config{Address: consulAddr})
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	t.Cleanup(func() { _, _ = consul.KV().Delete("backplane/services/backplane/manifests/0.0.0-modes", nil) })
 
 	for _, tc := range []struct {
 		name, nats, temporal string
@@ -53,6 +49,11 @@ func TestPlatformModes(t *testing.T) {
 			if (tc.name == "workflows" || tc.name == "full") && tc.temporal == "" {
 				t.Skip("BACKPLANE_TEST_TEMPORAL required")
 			}
+
+			// Each deployment mode declares a different runtime contract.
+			version := "0.0.0-modes-" + tc.name
+			bin := m1Build(t, t.TempDir(), "backplane", "../cmd/backplane", version)
+			t.Cleanup(func() { _, _ = consul.KV().Delete("backplane/services/backplane/manifests/"+version, nil) })
 
 			scratch := m1Database(t, dsn)
 			token := m1Random(t)

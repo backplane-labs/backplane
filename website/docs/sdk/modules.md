@@ -77,6 +77,8 @@ svc.UI(bundle)
 
 Place the plugin build in the embedded directory before compiling the service. Keep the standalone site separate from the embedded remote. The service announces the bundle; Backplane authenticates and proxies it from the console origin.
 
+`svc.UI` snapshots the files when declared. Later changes to an `os.DirFS` directory do not change the running bundle or its hash. The snapshot accepts regular files, requires `plugin.json`, and is bounded to 256 files and 32 MiB in total. Rebuild the module and restart its service under a new build version to publish updated assets. Hashed console URLs are immutable and may be cached for a year. Use the standalone Vite entrypoint for authoring with HMR.
+
 ## Compatibility and trust
 
 The build contract enforces compatible shared runtime packages and `sdk_major`. React, router and provider contexts must be host singletons. Assets use relative paths so a non-root console prefix works. Test lazy chunks, CSS, icons and deep links under the production CSP, not only Vite.

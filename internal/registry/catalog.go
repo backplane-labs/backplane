@@ -67,9 +67,13 @@ type Instance struct {
 // Manifest is the manifest of the instance's version, nil when missing.
 func (s Service) Manifest(version string) *backplanev1.Manifest { return s.Manifests[version] }
 
-// Latest is the manifest of the highest version any live instance runs,
-// falling back to any known manifest; nil when there is none.
+// Latest prefers the highest available version, then a live version, then
+// any known manifest. The fallbacks are for inspection of offline services.
 func (s Service) Latest() *backplanev1.Manifest {
+	if m := s.Available(); m != nil {
+		return m
+	}
+
 	var best *backplanev1.Manifest
 
 	for _, in := range s.Instances {
@@ -93,6 +97,31 @@ func (s Service) Latest() *backplanev1.Manifest {
 	}
 
 	return best
+}
+
+// Available is the highest version with a registered, healthy serving instance.
+// It never falls back to declarations that cannot currently serve traffic.
+func (s Service) Available() *backplanev1.Manifest {
+	var best *backplanev1.Manifest
+
+	for _, in := range s.Instances {
+		if !in.Available() {
+			continue
+		}
+
+		m := s.Manifest(in.State.GetVersion())
+		if m != nil && (best == nil || newer(m.GetVersion(), best.GetVersion())) {
+			best = m
+		}
+	}
+
+	return best
+}
+
+// Available reports whether this instance is registered, healthy and serving.
+func (in Instance) Available() bool {
+	return in.Registered && in.Healthy &&
+		in.State.GetPhase() == backplanev1.InstancePhase_INSTANCE_PHASE_SERVING
 }
 
 // Healthy lists the instances traffic may go to: registered and passing.
@@ -119,11 +148,16 @@ type Source interface {
 }
 
 // newer reports whether version a sorts above b as semver ("1.2.3",
-// "0.0.0+abc"); versions that are not semver compare as strings.
+// "0.0.0+abc"); equal semver precedence and non-semver versions compare
+// as strings, so build metadata does not make selection depend on map order.
 func newer(a, b string) bool {
 	va, vb := "v"+a, "v"+b
 	if semver.IsValid(va) && semver.IsValid(vb) {
-		return semver.Compare(va, vb) > 0
+		if cmp := semver.Compare(va, vb); cmp != 0 {
+			return cmp > 0
+		}
+
+		return a > b
 	}
 
 	return a > b

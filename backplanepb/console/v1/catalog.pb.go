@@ -81,7 +81,8 @@ func (ServiceHealth) EnumDescriptor() ([]byte, []int) {
 type ServiceSummary struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Version of the latest manifest (the highest a live instance runs).
+	// Prefer the highest version with a registered, healthy serving instance.
+	// Without one, fall back to a live version, then a known manifest for inspection.
 	LatestVersion string `protobuf:"bytes,2,opt,name=latest_version,json=latestVersion,proto3" json:"latest_version,omitempty"`
 	// Every version a manifest is known for, highest first.
 	Versions []string `protobuf:"bytes,3,rep,name=versions,proto3" json:"versions,omitempty"`
@@ -631,7 +632,7 @@ type Plugin struct {
 	// Where the console serves the bundle: <console>/plugins/<service>/<hash>/
 	// relative to the console's base.
 	Path string `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`
-	// A live instance serves this bundle: without one the plugin is not in
+	// A registered, healthy serving instance serves this bundle; without one the plugin is not in
 	// the navigation (its service card stays).
 	Available     bool `protobuf:"varint,5,opt,name=available,proto3" json:"available,omitempty"`
 	unknownFields protoimpl.UnknownFields

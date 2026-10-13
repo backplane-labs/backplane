@@ -174,3 +174,7 @@ TSX/CSS hot updates preserve the module draft, session and platform socket.
 files and restoring them; run it without concurrent editing. Cleanup refuses to
 overwrite concurrent changes. Packed-consumer verification needs roughly 1.3 GB
 and 70,000 inodes in `TMPDIR`; use disk-backed temporary storage if necessary.
+
+### Development build identity
+
+`make dev-build` stamps a fresh `0.0.0+dev.<UTC timestamp>` version into the three service binaries. This lets rebuilt declarations and UI assets coexist with previous development manifests without overwriting them. Set `DEV_VERSION` explicitly only when reusing identical declarations. A conflicting service/version stops startup; build metadata does not bypass manifest immutability.

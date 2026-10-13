@@ -4,12 +4,9 @@
 package manifest
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"runtime/debug"
 	"sort"
@@ -25,6 +22,7 @@ import (
 	sp "github.com/gopherex/schemapb/go/schemapb"
 
 	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
+	"github.com/gopherex/backplane/pkg/backplane/internal/apifiles"
 )
 
 const (
@@ -343,32 +341,18 @@ func Descriptors(services []string) ([]byte, error) {
 	return fds, nil
 }
 
-// UIHash is the bundle's ui.hash: sha256 over every file's path and
-// contents in walk order. It is also the ETag the platform port serves the
-// bundle with.
+// UIHash addresses an immutable snapshot of the bundle's paths and bytes.
 func UIHash(bundle fs.FS) (string, error) {
-	h := sha256.New()
+	if files, ok := bundle.(*apifiles.Files); ok {
+		return files.Hash(), nil
+	}
 
-	err := fs.WalkDir(bundle, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
-		}
-
-		data, err := fs.ReadFile(bundle, path)
-		if err != nil {
-			return fmt.Errorf("%s: %w", path, err)
-		}
-
-		_, _ = io.WriteString(h, path+"\x00")
-		_, _ = h.Write(data)
-
-		return nil
-	})
+	files, err := apifiles.Snapshot(bundle, "plugin.json")
 	if err != nil {
 		return "", fmt.Errorf("manifest: ui bundle: %w", err)
 	}
 
-	return hex.EncodeToString(h.Sum(nil)), nil
+	return files.Hash(), nil
 }
 
 func uiOf(bundle fs.FS) (*backplanev1.UI, error) {

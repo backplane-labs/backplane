@@ -224,6 +224,11 @@ func startHello(t *testing.T) *hello {
 		t.Fatalf("build hello: %v\n%s", err, out)
 	}
 
+	uiAssets := t.TempDir()
+	if err := os.WriteFile(filepath.Join(uiAssets, "plugin.json"), []byte(`{"sdk_major":0}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
 	platformPort, publicPort := freePort(t), freePort(t)
 	h := &hello{platform: "127.0.0.1:" + strconv.Itoa(platformPort), port: platformPort}
 
@@ -234,7 +239,7 @@ func startHello(t *testing.T) *hello {
 		"BACKPLANE_CONSUL_ADDR=", "BACKPLANE_NATS_URL=", "BACKPLANE_TEMPORAL_ADDR=",
 		"BACKPLANE_INSTANCE=console-test-hello", "BACKPLANE_ADVERTISE=127.0.0.1",
 		"BACKPLANE_INTERNAL_PORT="+strconv.Itoa(platformPort), "BACKPLANE_PUBLIC_PORT="+strconv.Itoa(publicPort),
-		"HELLO_LEGACY_LISTEN=:"+strconv.Itoa(freePort(t)),
+		"HELLO_LEGACY_LISTEN=:"+strconv.Itoa(freePort(t)), "HELLO_UI_ASSETS="+uiAssets,
 		"BACKPLANE_INTERNAL_SECRET="+helloSecret, "BACKPLANE_SHUTDOWN_DRAIN=100ms",
 	)
 	h.cmd.Stdout, h.cmd.Stderr = logs, logs
@@ -314,7 +319,7 @@ func (h *hello) catalog(t *testing.T) map[string]registry.Service {
 	}
 
 	m := manifest("hello", "1.0.0", "hello.console.v1.AdminService")
-	m.Ui = &backplanev1.UI{Hash: etag[1 : len(etag)-1], SdkMajor: 1}
+	m.Ui = &backplanev1.UI{Hash: etag[1 : len(etag)-1], SdkMajor: 0}
 
 	return map[string]registry.Service{"hello": {
 		Name: "hello", Manifests: map[string]*backplanev1.Manifest{"1.0.0": m},

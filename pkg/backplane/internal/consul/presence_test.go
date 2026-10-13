@@ -168,6 +168,7 @@ type fakeConsul struct {
 	failRegisters int
 	registrations []api.AgentServiceRegistration
 	deregisters   int
+	manifestOnCAS []byte // a competing process wins the next manifest creation
 }
 
 type fakeKV struct {
@@ -219,6 +220,11 @@ func (f *fakeConsul) put(w http.ResponseWriter, r *http.Request) {
 	defer f.mu.Unlock()
 
 	if r.URL.Query().Get("cas") == "0" {
+		if f.manifestOnCAS != nil {
+			f.kv[key] = fakeKV{value: f.manifestOnCAS}
+			f.manifestOnCAS = nil
+		}
+
 		if _, exists := f.kv[key]; exists {
 			reply(w, false)
 
@@ -752,10 +758,10 @@ func TestPresenceLifecycle(t *testing.T) {
 
 	waitKey(t, c, stateKey(id), false)
 
-	services, _, _ := c.Catalog().Service("presence-test", "", nil)
-	if len(services) != 0 {
-		t.Fatalf("still in catalog: %v", services)
-	}
+	eventually(t, "out of catalog", func() bool {
+		services, _, err := c.Catalog().Service("presence-test", "", nil)
+		return err == nil && len(services) == 0
+	})
 }
 
 // A crashed instance leaves its session; the restarted one with the same id

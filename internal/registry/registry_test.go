@@ -103,7 +103,7 @@ func TestSnapshot(t *testing.T) {
 		t.Fatalf("manifests %v", hello.Manifests)
 	}
 
-	if got := hello.Latest().GetVersion(); got != "1.1.0" {
+	if got := hello.Latest().GetVersion(); got != "1.0.0" {
 		t.Fatalf("latest %q", got)
 	}
 

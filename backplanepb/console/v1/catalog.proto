@@ -35,7 +35,8 @@ enum ServiceHealth {
 
 message ServiceSummary {
   string name = 1;
-  // Version of the latest manifest (the highest a live instance runs).
+  // Prefer the highest version with a registered, healthy serving instance.
+  // Without one, fall back to a live version, then a known manifest for inspection.
   string latest_version = 2;
   // Every version a manifest is known for, highest first.
   repeated string versions = 3;
@@ -110,7 +111,7 @@ message Plugin {
   // Where the console serves the bundle: <console>/plugins/<service>/<hash>/
   // relative to the console's base.
   string path = 4;
-  // A live instance serves this bundle: without one the plugin is not in
+  // A registered, healthy serving instance serves this bundle; without one the plugin is not in
   // the navigation (its service card stays).
   bool available = 5;
 }

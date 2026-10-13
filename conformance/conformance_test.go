@@ -111,6 +111,7 @@ func start(t *testing.T) *env {
 	}
 
 	cleanup := func() {
+		_ = c.Agent().ServiceDeregister(instance)
 		_, _ = c.KV().DeleteTree("backplane/services/"+service+"/", nil)
 		_, _ = c.KV().DeleteTree("config/"+service+"/", nil)
 	}
@@ -127,6 +128,11 @@ func start(t *testing.T) *env {
 		t.Fatalf("build hello: %v\n%s", err, out)
 	}
 
+	uiAssets := t.TempDir()
+	if err := os.WriteFile(filepath.Join(uiAssets, "plugin.json"), []byte(`{"sdk_major":0}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
 	platformPort, publicPort, host := freePort(t), freePort(t), advertise(t)
 	e := &env{consul: c, host: host, platform: host + ":" + platformPort, public: host + ":" + publicPort, logs: &bytes.Buffer{}}
 	e.cmd = exec.Command(bin)
@@ -140,7 +146,7 @@ func start(t *testing.T) *env {
 		"BACKPLANE_INTERNAL_SECRET="+secret,
 		"BACKPLANE_SHUTDOWN_DRAIN=100ms",
 		"HELLO_GREETER_SUFFIX=?",
-		"HELLO_LEGACY_LISTEN=:"+freePort(t),
+		"HELLO_LEGACY_LISTEN=:"+freePort(t), "HELLO_UI_ASSETS="+uiAssets,
 	)
 
 	e.cmd.Stdout, e.cmd.Stderr = e.logs, e.logs

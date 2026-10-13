@@ -101,6 +101,27 @@ func TestUIBundleCaching(t *testing.T) {
 		t.Fatalf("missing file: %d %v", res.StatusCode, res.Header)
 	}
 
+	// Neither mutations of existing bytes nor additions/deletions may change
+	// the content already advertised by this running service.
+	copy(bundle["assets/remote.js"].Data, "changed contents")
+	delete(bundle, "assets/nested/a.css")
+	bundle["new.js"] = &fstest.MapFile{Data: []byte("new")}
+
+	res, body := uiGet(t, p, "assets/remote.js", "")
+	if res.StatusCode != http.StatusOK || body != "export default 1" || res.Header.Get("ETag") != etag {
+		t.Fatalf("snapshot changed: %d %q %v", res.StatusCode, body, res.Header)
+	}
+
+	res, body = uiGet(t, p, "assets/nested/a.css", "")
+	if res.StatusCode != http.StatusOK || body != "body{}" {
+		t.Fatalf("snapshot lost file: %d %q", res.StatusCode, body)
+	}
+
+	res, _ = uiGet(t, p, "new.js", "")
+	if res.StatusCode != http.StatusNotFound {
+		t.Fatalf("snapshot exposed new file: %d", res.StatusCode)
+	}
+
 	cancel()
 
 	if err := wait(t, done); err != nil {

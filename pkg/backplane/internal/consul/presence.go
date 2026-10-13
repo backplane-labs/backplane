@@ -20,6 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	retry "github.com/cenkalti/backoff/v5"
 	"github.com/hashicorp/consul/api"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -39,8 +40,11 @@ var (
 	ErrStateHeld = errors.New("consul: instance state held")
 	// ErrDuplicateInstance: another live process runs with this instance id.
 	ErrDuplicateInstance = errors.New("consul: duplicate instance id")
+	// ErrManifestConflict: this version already has different declarations.
+	ErrManifestConflict = errors.New("consul: different manifest already published for this version")
 
-	errSessionLost = errors.New("consul: session expired")
+	errSessionLost     = errors.New("consul: session expired")
+	errManifestMissing = errors.New("consul: manifest disappeared during publication")
 )
 
 const (
@@ -183,7 +187,6 @@ type Presence struct {
 	running   bool
 	stopped   bool
 	connected bool   // a session is established
-	refused   bool   // the manifest overwrite refusal was logged
 	written   []byte // last instance state written
 
 	// writeMu serializes instance state writes: the loop and Deregister.
@@ -245,9 +248,7 @@ func (p *Presence) Start(_ context.Context, g node.Group) error {
 
 		defer close(p.done)
 
-		p.run(ctx)
-
-		return nil
+		return p.run(ctx)
 	})
 
 	return nil
@@ -428,13 +429,22 @@ func (p *Presence) notify() {
 // Only the first establish of the process may evict another incarnation of
 // this instance: that one is a crashed predecessor; later it is a live
 // duplicate.
-func (p *Presence) run(ctx context.Context) {
+func (p *Presence) run(ctx context.Context) error {
 	for first := true; ctx.Err() == nil; first = false {
 		err := backoff.Retry(ctx, p.timing.establish, func(ctx context.Context) error {
-			return p.establish(ctx, first)
+			err := p.establish(ctx, first)
+			if errors.Is(err, ErrManifestConflict) {
+				return retry.Permanent(err)
+			}
+
+			return err
 		}, p.retrying)
+		if ctx.Err() != nil {
+			return nil //nolint:nilerr // cancellation is normal shutdown, not a node failure
+		}
+
 		if err != nil {
-			return // ctx ended
+			return fmt.Errorf("consul presence: %w", err)
 		}
 
 		p.setConnected(ctx, true)
@@ -442,6 +452,8 @@ func (p *Presence) run(ctx context.Context) {
 		p.maintain(ctx)
 		p.setConnected(ctx, false)
 	}
+
+	return nil
 }
 
 func (p *Presence) retrying(err error, in time.Duration) {
@@ -492,10 +504,8 @@ func (p *Presence) establish(ctx context.Context, first bool) error {
 	return nil
 }
 
-// putManifest writes manifests/<version> unless it is there. A different
-// manifest under a released version is kept and reported: a version names
-// one set of declarations, and the console reads it for every instance of
-// that version. A dev version (with +build metadata) is overwritten.
+// putManifest creates an immutable manifest for every version, including
+// versions with build metadata. A conflict prevents publishing instance state.
 func (p *Presence) putManifest(ctx context.Context) error {
 	key := p.key("manifests/" + p.id.Version)
 
@@ -505,35 +515,16 @@ func (p *Presence) putManifest(ctx context.Context) error {
 	}
 
 	if existing != nil {
-		if p.sameManifest(existing.Value) {
-			return nil
-		}
-
-		if !strings.Contains(p.id.Version, "+") {
-			p.refuseManifest(key)
-
-			return nil
-		}
+		return p.checkManifest(key, existing.Value)
 	}
 
-	kv := &api.KVPair{Key: key, Value: p.raw}
-	if existing == nil {
-		// Created only if still absent: a concurrent instance of the same
-		// version may have written it meanwhile.
-		ok, _, err := p.client.KV().CAS(kv, write(ctx))
-		if err != nil {
-			return fmt.Errorf("manifest: %w", err)
-		}
-
-		if !ok {
-			return p.recheckManifest(ctx, key)
-		}
-
-		return nil
-	}
-
-	if _, err := p.client.KV().Put(kv, write(ctx)); err != nil {
+	ok, _, err := p.client.KV().CAS(&api.KVPair{Key: key, Value: p.raw}, write(ctx))
+	if err != nil {
 		return fmt.Errorf("manifest: %w", err)
+	}
+
+	if !ok {
+		return p.recheckManifest(ctx, key)
 	}
 
 	return nil
@@ -545,11 +536,19 @@ func (p *Presence) recheckManifest(ctx context.Context, key string) error {
 		return fmt.Errorf("manifest: %w", err)
 	}
 
-	if existing != nil && !p.sameManifest(existing.Value) {
-		p.refuseManifest(key)
+	if existing == nil {
+		return fmt.Errorf("%w: %s", errManifestMissing, key)
 	}
 
-	return nil
+	return p.checkManifest(key, existing.Value)
+}
+
+func (p *Presence) checkManifest(key string, raw []byte) error {
+	if p.sameManifest(raw) {
+		return nil
+	}
+
+	return fmt.Errorf("%w: %s; publish this build under a new version", ErrManifestConflict, key)
 }
 
 func (p *Presence) sameManifest(raw []byte) bool {
@@ -560,20 +559,6 @@ func (p *Presence) sameManifest(raw []byte) bool {
 	var m backplanev1.Manifest
 
 	return proto.Unmarshal(raw, &m) == nil && proto.Equal(&m, p.manifest)
-}
-
-// refuseManifest reports, once per process, a manifest kept in place.
-func (p *Presence) refuseManifest(key string) {
-	p.mu.Lock()
-	logged := p.refused
-	p.refused = true
-	p.mu.Unlock()
-
-	if !logged {
-		p.log.Error("a different manifest is already published for this version: keeping it; "+
-			"the console shows its declarations, not this build's — release under a new version",
-			xlog.String("key", key), xlog.String("version", p.id.Version))
-	}
 }
 
 // abandon destroys the session of a failed establish so it does not linger

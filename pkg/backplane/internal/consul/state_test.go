@@ -3,6 +3,7 @@ package consul_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"sync"
 	"testing"
@@ -255,46 +256,93 @@ func TestStateCarriesNodesTransportsRevisions(t *testing.T) {
 
 // A released version's manifest is never overwritten with a different one;
 // a dev version's is.
-func TestManifestOverwriteRefused(t *testing.T) {
+type resultGroup struct {
+	ctx    context.Context
+	result chan error
+}
+
+func (g resultGroup) Go(fn func(context.Context) error) {
+	go func() { g.result <- fn(g.ctx) }()
+}
+
+func TestManifestConflictStopsPresence(t *testing.T) {
 	t.Parallel()
 
-	for version, overwrite := range map[string]bool{"1.0.0": false, "0.0.0+abcdef": true} {
-		t.Run(version, func(t *testing.T) {
-			t.Parallel()
+	for _, scenario := range []struct {
+		version string
+		race    bool
+	}{
+		{"1.0.0", false}, {"0.0.0+abcdef", false}, {"1.0.0", true}, {"0.0.0+abcdef", true},
+	} {
+		t.Run(fmt.Sprintf("%s/race=%v", scenario.version, scenario.race), func(t *testing.T) {
+			version := scenario.version
 
+			t.Parallel()
 			f, c := newFake(t)
 			id := testID
 			id.Version = version
 			key := "backplane/services/svc/manifests/" + version
-
 			old, _ := proto.Marshal(&backplanev1.Manifest{Service: "svc", Version: version, SdkVersion: "old"})
 
-			f.with(func(f *fakeConsul) { f.kv[key] = fakeKV{value: old} })
-
-			logs := &logBuf{}
-			p := start(t, consul.Params{
-				Client: c, Identity: id, Log: xlog.NewJSON(xlog.WithWriter(logs)),
-				Manifest: &backplanev1.Manifest{Service: "svc", Version: version, SdkVersion: "new"},
+			f.with(func(f *fakeConsul) {
+				if scenario.race {
+					f.manifestOnCAS = old
+				} else {
+					f.kv[key] = fakeKV{value: old}
+				}
 			})
 
-			eventually(t, "established", established(f, p, stateKey(id)))
+			p, err := consul.New(consul.Params{
+				Client: c, Identity: id, Log: testlog.Discard(), Register: true,
+				Manifest: &backplanev1.Manifest{Service: "svc", Version: version, SdkVersion: "new"},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			p.UseFastTiming()
+
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+
+			result := make(chan error, 1)
+
+			if err := p.Register(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := p.Start(ctx, resultGroup{ctx, result}); err != nil {
+				t.Fatal(err)
+			}
+
+			select {
+			case err := <-result:
+				if !errors.Is(err, consul.ErrManifestConflict) {
+					t.Fatalf("conflict: %v", err)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("conflict did not stop startup")
+			}
+
+			if f.readState(stateKey(id)) != nil || len(f.registered()) != 0 {
+				t.Fatal("conflicting instance published state or registered")
+			}
 
 			var m backplanev1.Manifest
 
 			f.with(func(f *fakeConsul) { _ = proto.Unmarshal(f.kv[key].value, &m) })
 
-			if got := m.GetSdkVersion() == "new"; got != overwrite {
-				t.Fatalf("overwritten=%v, want %v", got, overwrite)
+			if m.GetSdkVersion() != "old" {
+				t.Fatal("conflict overwrote existing manifest")
 			}
 
-			if refused := logs.has("different manifest", `"error"`); refused == overwrite {
-				t.Fatalf("refusal logged=%v", refused)
+			if err := p.Stop(t.Context()); err != nil {
+				t.Fatal(err)
 			}
 		})
 	}
 }
 
-// An absent manifest is created; an identical one is left alone.
 func TestManifestCreatedOnce(t *testing.T) {
 	t.Parallel()
 
@@ -337,11 +385,42 @@ func TestLiveKnobsPhasesManifest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	logs := &logBuf{}
+	conflict, err := consul.New(consul.Params{
+		Client: c, Log: testlog.Discard(), Identity: id, Register: true,
+		Manifest: &backplanev1.Manifest{Service: id.Service, Version: id.Version, SdkVersion: "new"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conflictCtx, stopConflict := context.WithCancel(t.Context())
+	defer stopConflict()
+
+	result := make(chan error, 1)
+	if err := conflict.Start(conflictCtx, resultGroup{conflictCtx, result}); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case err := <-result:
+		if !errors.Is(err, consul.ErrManifestConflict) {
+			t.Fatalf("live conflict: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("live conflict did not stop startup")
+	}
+
+	if kv, _, err := c.KV().Get(key, nil); err != nil || kv != nil {
+		t.Fatalf("conflicting instance published state: %v %v", kv, err)
+	}
+
+	if err := conflict.Stop(t.Context()); err != nil {
+		t.Fatal(err)
+	}
 
 	p, err := consul.New(consul.Params{
-		Client: c, Log: xlog.NewJSON(xlog.WithWriter(logs)), Identity: id, Register: true,
-		Manifest:   &backplanev1.Manifest{Service: id.Service, Version: id.Version, SdkVersion: "new"},
+		Client: c, Log: testlog.Discard(), Identity: id, Register: true,
+		Manifest:   &backplanev1.Manifest{Service: id.Service, Version: id.Version, SdkVersion: "old"},
 		Tags:       []string{"knob"},
 		Check:      consul.Check{Interval: 7 * time.Second, Timeout: 2 * time.Second, DeregisterAfter: 3 * time.Minute},
 		SessionTTL: 15 * time.Second,
@@ -408,10 +487,6 @@ func TestLiveKnobsPhasesManifest(t *testing.T) {
 	kv, _, _ := c.KV().Get(manifestKey, nil)
 	if err := proto.Unmarshal(kv.Value, &m); err != nil || m.GetSdkVersion() != "old" {
 		t.Fatalf("released manifest overwritten: %v %v", &m, err)
-	}
-
-	if !logs.has("different manifest", `"error"`) {
-		t.Fatal("refusal not logged")
 	}
 
 	if err := p.Deregister(ctx); err != nil {

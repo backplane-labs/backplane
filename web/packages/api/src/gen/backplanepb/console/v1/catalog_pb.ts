@@ -26,7 +26,8 @@ export type ServiceSummary = Message<"backplane.console.v1.ServiceSummary"> & {
   name: string;
 
   /**
-   * Version of the latest manifest (the highest a live instance runs).
+   * Prefer the highest version with a registered, healthy serving instance.
+   * Without one, fall back to a live version, then a known manifest for inspection.
    *
    * @generated from field: string latest_version = 2;
    */
@@ -319,7 +320,7 @@ export type Plugin = Message<"backplane.console.v1.Plugin"> & {
   path: string;
 
   /**
-   * A live instance serves this bundle: without one the plugin is not in
+   * A registered, healthy serving instance serves this bundle; without one the plugin is not in
    * the navigation (its service card stays).
    *
    * @generated from field: bool available = 5;

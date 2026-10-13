@@ -16,6 +16,7 @@ import (
 
 	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
 	"github.com/gopherex/backplane/pkg/backplane/api"
+	"github.com/gopherex/backplane/pkg/backplane/internal/apifiles"
 	"github.com/gopherex/backplane/pkg/backplane/internal/health"
 	"github.com/gopherex/backplane/pkg/backplane/internal/link"
 	"github.com/gopherex/backplane/pkg/backplane/internal/manifest"
@@ -192,17 +193,19 @@ func (c *core) Internal(register func(r grpc.ServiceRegistrar)) {
 }
 
 // UI declares the console plugin bundle, served at /_backplane/ui/ behind the
-// internal secret. Every file carries ETag = the bundle's ui.hash and
-// Cache-Control: no-cache, so a cache revalidates and gets 304 until the
-// bundle changes.
+// internal secret. Files are snapshotted at declaration; subsequent changes
+// to the source filesystem do not change the bundle or its hash. Every file
+// carries ETag = ui.hash and Cache-Control: no-cache on the internal listener.
 func (c *core) UI(bundle fs.FS) {
 	c.declare("UI", func() {
-		c.env.Manifest.UI(bundle)
+		files, err := apifiles.Snapshot(bundle, "plugin.json")
+		if err != nil {
+			c.env.Manifest.Fail(fmt.Errorf("ui bundle: %w", err))
+			return
+		}
 
-		// An unreadable bundle is already a declaration error of the
-		// manifest: Run fails before anything listens.
-		hash, _ := manifest.UIHash(bundle)
-		c.platform.Handle(uiPath, http.StripPrefix(uiPath, uiHandler(bundle, hash)))
+		c.env.Manifest.UI(files)
+		c.platform.Handle(uiPath, http.StripPrefix(uiPath, uiHandler(files, files.Hash())))
 	})
 }
 

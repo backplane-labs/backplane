@@ -463,6 +463,105 @@ func TestRelay(t *testing.T) {
 	}
 }
 
+func TestConsoleKeepsAvailableVersionDuringRollout(t *testing.T) {
+	t.Parallel()
+	oldServer, oldPort := platform(t)
+	nextServer, nextPort := platform(t)
+	e := newEnv(t, nil)
+	old := manifest("hello", "1.0.0", "hello.console.v1.AdminService")
+	old.Ui = &backplanev1.UI{Hash: "old", SdkMajor: 0}
+	next := manifest("hello", "2.0.0", "other.console.v1.AdminService")
+	next.Ui = &backplanev1.UI{Hash: "next", SdkMajor: 0}
+	cc := e.mustDial(e.mustLogin())
+
+	for _, phase := range []backplanev1.InstancePhase{
+		backplanev1.InstancePhase_INSTANCE_PHASE_STARTING,
+		backplanev1.InstancePhase_INSTANCE_PHASE_STOPPING,
+		backplanev1.InstancePhase_INSTANCE_PHASE_SERVING,
+	} {
+		candidate := instance("next", "2.0.0", "127.0.0.1", nextPort, phase, false)
+		e.hub.Publish(map[string]registry.Service{"hello": {
+			Name: "hello", Manifests: map[string]*backplanev1.Manifest{"1.0.0": old, "2.0.0": next},
+			Instances: []registry.Instance{instance("old", "1.0.0", "127.0.0.1", oldPort, serving, true), candidate},
+		}})
+
+		var service consolev1.GetServiceResponse
+		if err := call(t.Context(), cc, consolev1.CatalogService_GetService_FullMethodName, &consolev1.GetServiceRequest{Name: "hello"}, &service); err != nil || service.GetLatest().GetVersion() != "1.0.0" {
+			t.Fatalf("rollout catalog: %v %v", &service, err)
+		}
+
+		var plugins consolev1.ListPluginsResponse
+		if err := call(t.Context(), cc, consolev1.CatalogService_ListPlugins_FullMethodName, &consolev1.ListPluginsRequest{}, &plugins); err != nil || len(plugins.GetPlugins()) != 1 || plugins.GetPlugins()[0].GetHash() != "old" || !plugins.GetPlugins()[0].GetAvailable() {
+			t.Fatalf("rollout plugin: %v %v", &plugins, err)
+		}
+
+		if err := call(t.Context(), cc, "/hello.console.v1.AdminService/GetStats", &helloconsolev1.GetStatsRequest{}, &helloconsolev1.GetStatsResponse{}); err != nil {
+			t.Fatalf("old API disappeared during rollout: %v", err)
+		}
+	}
+
+	if oldServer.md.Load() == nil || nextServer.md.Load() != nil {
+		t.Fatal("relay picked unavailable new replica")
+	}
+
+	readyNext := instance("next", "2.0.0", "127.0.0.1", nextPort, serving, true)
+	e.hub.Publish(map[string]registry.Service{"hello": {
+		Name: "hello", Manifests: map[string]*backplanev1.Manifest{"1.0.0": old, "2.0.0": next},
+		Instances: []registry.Instance{readyNext},
+	}})
+
+	var plugins consolev1.ListPluginsResponse
+	if err := call(t.Context(), cc, consolev1.CatalogService_ListPlugins_FullMethodName, &consolev1.ListPluginsRequest{}, &plugins); err != nil || plugins.GetPlugins()[0].GetHash() != "next" {
+		t.Fatalf("ready rollout: %v %v", &plugins, err)
+	}
+
+	readyNext.Healthy = false
+	e.hub.Publish(map[string]registry.Service{"hello": {
+		Name: "hello", Manifests: map[string]*backplanev1.Manifest{"2.0.0": next}, Instances: []registry.Instance{readyNext},
+	}})
+	plugins.Reset()
+
+	if err := call(t.Context(), cc, consolev1.CatalogService_ListPlugins_FullMethodName, &consolev1.ListPluginsRequest{}, &plugins); err != nil || plugins.GetPlugins()[0].GetAvailable() {
+		t.Fatalf("unhealthy plugin reported available: %v %v", &plugins, err)
+	}
+}
+
+func TestRelayRejectsAmbiguousOwnership(t *testing.T) {
+	t.Parallel()
+
+	for _, firstAvailable := range []bool{false, true} {
+		t.Run(strconv.FormatBool(firstAvailable), func(t *testing.T) {
+			t.Parallel()
+			fake, port := platform(t)
+			e := newEnv(t, nil)
+			services := map[string]registry.Service{}
+
+			for _, name := range []string{"alpha", "zeta"} {
+				svc := registry.Service{Name: name, Manifests: map[string]*backplanev1.Manifest{
+					"1.0.0": manifest(name, "1.0.0", "hello.console.v1.AdminService"),
+				}}
+				if name == "zeta" || firstAvailable {
+					svc.Instances = []registry.Instance{instance(name+"-1", "1.0.0", "127.0.0.1", port, serving, true)}
+				}
+
+				services[name] = svc
+			}
+
+			e.hub.Publish(services)
+			cc := e.mustDial(e.mustLogin())
+
+			err := call(t.Context(), cc, "/hello.console.v1.AdminService/GetStats", &helloconsolev1.GetStatsRequest{}, &helloconsolev1.GetStatsResponse{})
+			if code(err) != codes.FailedPrecondition || !strings.Contains(err.Error(), "alpha, zeta") {
+				t.Fatalf("ambiguous owner: %v", err)
+			}
+
+			if fake.md.Load() != nil {
+				t.Fatal("ambiguous call reached an upstream")
+			}
+		})
+	}
+}
+
 // bundle is a fake platform port serving /_backplane/ui/ like the SDK.
 func bundle(t *testing.T, hash string, hits *atomic.Int64) int {
 	t.Helper()
