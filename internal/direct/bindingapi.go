@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -431,6 +432,12 @@ func (a BindingAPI) CancelBindingRun(
 		}
 
 		return a.t.Cancel(ctx, req)
+	}
+
+	// Only a binding's run: direct/binding/<hook>/... or direct/test/<hook>/...
+	if _, _, ok := wire.BindingRunHook(strings.TrimPrefix(req.GetWorkflowId(), wire.DirectRunPrefix)); !ok {
+		return nil, invalid("%q is not a binding run: direct/binding/<hook>/... or direct/test/<hook>/...",
+			req.GetWorkflowId())
 	}
 
 	if err := a.s.CancelRun(req.GetWorkflowId()); err != nil {

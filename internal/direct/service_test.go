@@ -303,6 +303,12 @@ func TestBindingAPI(t *testing.T) {
 		t.Fatalf("cancel: %v", err)
 	}
 
+	// A rule's run is not a binding's to cancel.
+	_, err = api.CancelBindingRun(t.Context(), &consolev1.CancelBindingRunRequest{WorkflowId: "direct/rule/r1/ce-1"})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("cancel a rule run: %v", err)
+	}
+
 	_, err = api.GetBindingRun(t.Context(), &consolev1.GetBindingRunRequest{WorkflowId: "binding/iam.SendEmail/x"})
 	if status.Code(err) != codes.NotFound {
 		t.Fatalf("temporal run without side: %v", err)
