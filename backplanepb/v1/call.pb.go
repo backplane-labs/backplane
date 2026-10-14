@@ -341,6 +341,94 @@ func (x *CallFailure) GetRetryable() bool {
 	return false
 }
 
+type RunRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Call          *ActivityCall          `protobuf:"bytes,1,opt,name=call,proto3" json:"call,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunRequest) Reset() {
+	*x = RunRequest{}
+	mi := &file_backplanepb_v1_call_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunRequest) ProtoMessage() {}
+
+func (x *RunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_backplanepb_v1_call_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunRequest.ProtoReflect.Descriptor instead.
+func (*RunRequest) Descriptor() ([]byte, []int) {
+	return file_backplanepb_v1_call_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *RunRequest) GetCall() *ActivityCall {
+	if x != nil {
+		return x.Call
+	}
+	return nil
+}
+
+type RunResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Result        *ActivityResult        `protobuf:"bytes,1,opt,name=result,proto3" json:"result,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunResponse) Reset() {
+	*x = RunResponse{}
+	mi := &file_backplanepb_v1_call_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunResponse) ProtoMessage() {}
+
+func (x *RunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_backplanepb_v1_call_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunResponse.ProtoReflect.Descriptor instead.
+func (*RunResponse) Descriptor() ([]byte, []int) {
+	return file_backplanepb_v1_call_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *RunResponse) GetResult() *ActivityResult {
+	if x != nil {
+		return x.Result
+	}
+	return nil
+}
+
 var File_backplanepb_v1_call_proto protoreflect.FileDescriptor
 
 const file_backplanepb_v1_call_proto_rawDesc = "" +
@@ -375,9 +463,14 @@ const file_backplanepb_v1_call_proto_rawDesc = "" +
 	"\apayload\x18\x01 \x01(\fR\apayload\"?\n" +
 	"\vCallFailure\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x1c\n" +
-	"\tretryable\x18\x02 \x01(\bR\tretryable2R\n" +
-	"\x0fActivityService\x12?\n" +
-	"\x03Run\x12\x1a.backplane.v1.ActivityCall\x1a\x1c.backplane.v1.ActivityResultB@Z>github.com/backplane-labs/backplane/backplanepb/v1;backplanev1b\x06proto3"
+	"\tretryable\x18\x02 \x01(\bR\tretryable\"<\n" +
+	"\n" +
+	"RunRequest\x12.\n" +
+	"\x04call\x18\x01 \x01(\v2\x1a.backplane.v1.ActivityCallR\x04call\"C\n" +
+	"\vRunResponse\x124\n" +
+	"\x06result\x18\x01 \x01(\v2\x1c.backplane.v1.ActivityResultR\x06result2M\n" +
+	"\x0fActivityService\x12:\n" +
+	"\x03Run\x12\x18.backplane.v1.RunRequest\x1a\x19.backplane.v1.RunResponseB@Z>github.com/backplane-labs/backplane/backplanepb/v1;backplanev1b\x06proto3"
 
 var (
 	file_backplanepb_v1_call_proto_rawDescOnce sync.Once
@@ -391,28 +484,32 @@ func file_backplanepb_v1_call_proto_rawDescGZIP() []byte {
 	return file_backplanepb_v1_call_proto_rawDescData
 }
 
-var file_backplanepb_v1_call_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_backplanepb_v1_call_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_backplanepb_v1_call_proto_goTypes = []any{
 	(*HookCall)(nil),            // 0: backplane.v1.HookCall
 	(*HookResult)(nil),          // 1: backplane.v1.HookResult
 	(*ActivityCall)(nil),        // 2: backplane.v1.ActivityCall
 	(*ActivityResult)(nil),      // 3: backplane.v1.ActivityResult
 	(*CallFailure)(nil),         // 4: backplane.v1.CallFailure
-	nil,                         // 5: backplane.v1.HookCall.TraceEntry
-	nil,                         // 6: backplane.v1.ActivityCall.TraceEntry
-	(*durationpb.Duration)(nil), // 7: google.protobuf.Duration
+	(*RunRequest)(nil),          // 5: backplane.v1.RunRequest
+	(*RunResponse)(nil),         // 6: backplane.v1.RunResponse
+	nil,                         // 7: backplane.v1.HookCall.TraceEntry
+	nil,                         // 8: backplane.v1.ActivityCall.TraceEntry
+	(*durationpb.Duration)(nil), // 9: google.protobuf.Duration
 }
 var file_backplanepb_v1_call_proto_depIdxs = []int32{
-	5, // 0: backplane.v1.HookCall.trace:type_name -> backplane.v1.HookCall.TraceEntry
-	7, // 1: backplane.v1.HookCall.deadline:type_name -> google.protobuf.Duration
-	6, // 2: backplane.v1.ActivityCall.trace:type_name -> backplane.v1.ActivityCall.TraceEntry
-	2, // 3: backplane.v1.ActivityService.Run:input_type -> backplane.v1.ActivityCall
-	3, // 4: backplane.v1.ActivityService.Run:output_type -> backplane.v1.ActivityResult
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	7, // 0: backplane.v1.HookCall.trace:type_name -> backplane.v1.HookCall.TraceEntry
+	9, // 1: backplane.v1.HookCall.deadline:type_name -> google.protobuf.Duration
+	8, // 2: backplane.v1.ActivityCall.trace:type_name -> backplane.v1.ActivityCall.TraceEntry
+	2, // 3: backplane.v1.RunRequest.call:type_name -> backplane.v1.ActivityCall
+	3, // 4: backplane.v1.RunResponse.result:type_name -> backplane.v1.ActivityResult
+	5, // 5: backplane.v1.ActivityService.Run:input_type -> backplane.v1.RunRequest
+	6, // 6: backplane.v1.ActivityService.Run:output_type -> backplane.v1.RunResponse
+	6, // [6:7] is the sub-list for method output_type
+	5, // [5:6] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_backplanepb_v1_call_proto_init() }
@@ -426,7 +523,7 @@ func file_backplanepb_v1_call_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_backplanepb_v1_call_proto_rawDesc), len(file_backplanepb_v1_call_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

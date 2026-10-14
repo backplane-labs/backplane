@@ -135,7 +135,7 @@ func (c *Caller) Call(ctx context.Context, hook string, in []byte) ([]byte, erro
 	for i, addr := range addrs {
 		res, err := c.callOne(ctx, addr, call)
 		if err == nil {
-			return res.GetPayload(), nil
+			return res.GetResult().GetPayload(), nil
 		}
 
 		last = err
@@ -155,13 +155,14 @@ const KeyHeader = "bp-call-key"
 
 func (c *Caller) callOne(
 	ctx context.Context, addr string, call *backplanev1.HookCall,
-) (*backplanev1.HookResult, error) {
+) (*consolev1.RaiseResponse, error) {
 	conn, err := c.conn(addr)
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "dial %s: %v", addr, err)
 	}
 
-	return consolev1.NewHookServiceClient(conn).Call(ctx, call) //nolint:wrapcheck // mapped by Local
+	//nolint:wrapcheck // mapped by Local
+	return consolev1.NewHookServiceClient(conn).Raise(ctx, &consolev1.RaiseRequest{Call: call})
 }
 
 func (c *Caller) conn(addr string) (*grpc.ClientConn, error) {

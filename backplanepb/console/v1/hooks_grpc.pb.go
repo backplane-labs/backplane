@@ -8,7 +8,6 @@ package consolev1
 
 import (
 	context "context"
-	v1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -20,7 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	HookService_Call_FullMethodName = "/backplane.console.v1.HookService/Call"
+	HookService_Raise_FullMethodName = "/backplane.console.v1.HookService/Raise"
 )
 
 // HookServiceClient is the client API for HookService service.
@@ -32,14 +31,14 @@ const (
 // does not carry the call (the SDK's hooks.transport = direct). Backplane
 // runs the hook's binding on the binding's runtime and answers.
 type HookServiceClient interface {
-	// Call runs the binding of a hook and answers its result within
+	// Raise runs the binding of a hook and answers its result within
 	// HookCall.deadline. No binding for a required hook is
 	// FAILED_PRECONDITION with a CallFailure detail of type
 	// backplane.NoBinding; an optional one answers {}. A failed run is
 	// ABORTED with a CallFailure: its type and message are the run's error;
 	// a run past the deadline DEADLINE_EXCEEDED. A binding on the temporal
 	// runtime when this backplane has none is FAILED_PRECONDITION.
-	Call(ctx context.Context, in *v1.HookCall, opts ...grpc.CallOption) (*v1.HookResult, error)
+	Raise(ctx context.Context, in *RaiseRequest, opts ...grpc.CallOption) (*RaiseResponse, error)
 }
 
 type hookServiceClient struct {
@@ -50,10 +49,10 @@ func NewHookServiceClient(cc grpc.ClientConnInterface) HookServiceClient {
 	return &hookServiceClient{cc}
 }
 
-func (c *hookServiceClient) Call(ctx context.Context, in *v1.HookCall, opts ...grpc.CallOption) (*v1.HookResult, error) {
+func (c *hookServiceClient) Raise(ctx context.Context, in *RaiseRequest, opts ...grpc.CallOption) (*RaiseResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(v1.HookResult)
-	err := c.cc.Invoke(ctx, HookService_Call_FullMethodName, in, out, cOpts...)
+	out := new(RaiseResponse)
+	err := c.cc.Invoke(ctx, HookService_Raise_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -69,14 +68,14 @@ func (c *hookServiceClient) Call(ctx context.Context, in *v1.HookCall, opts ...g
 // does not carry the call (the SDK's hooks.transport = direct). Backplane
 // runs the hook's binding on the binding's runtime and answers.
 type HookServiceServer interface {
-	// Call runs the binding of a hook and answers its result within
+	// Raise runs the binding of a hook and answers its result within
 	// HookCall.deadline. No binding for a required hook is
 	// FAILED_PRECONDITION with a CallFailure detail of type
 	// backplane.NoBinding; an optional one answers {}. A failed run is
 	// ABORTED with a CallFailure: its type and message are the run's error;
 	// a run past the deadline DEADLINE_EXCEEDED. A binding on the temporal
 	// runtime when this backplane has none is FAILED_PRECONDITION.
-	Call(context.Context, *v1.HookCall) (*v1.HookResult, error)
+	Raise(context.Context, *RaiseRequest) (*RaiseResponse, error)
 	mustEmbedUnimplementedHookServiceServer()
 }
 
@@ -87,8 +86,8 @@ type HookServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedHookServiceServer struct{}
 
-func (UnimplementedHookServiceServer) Call(context.Context, *v1.HookCall) (*v1.HookResult, error) {
-	return nil, status.Error(codes.Unimplemented, "method Call not implemented")
+func (UnimplementedHookServiceServer) Raise(context.Context, *RaiseRequest) (*RaiseResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Raise not implemented")
 }
 func (UnimplementedHookServiceServer) mustEmbedUnimplementedHookServiceServer() {}
 func (UnimplementedHookServiceServer) testEmbeddedByValue()                     {}
@@ -111,20 +110,20 @@ func RegisterHookServiceServer(s grpc.ServiceRegistrar, srv HookServiceServer) {
 	s.RegisterService(&HookService_ServiceDesc, srv)
 }
 
-func _HookService_Call_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(v1.HookCall)
+func _HookService_Raise_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RaiseRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(HookServiceServer).Call(ctx, in)
+		return srv.(HookServiceServer).Raise(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: HookService_Call_FullMethodName,
+		FullMethod: HookService_Raise_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HookServiceServer).Call(ctx, req.(*v1.HookCall))
+		return srv.(HookServiceServer).Raise(ctx, req.(*RaiseRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -137,8 +136,8 @@ var HookService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*HookServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Call",
-			Handler:    _HookService_Call_Handler,
+			MethodName: "Raise",
+			Handler:    _HookService_Raise_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

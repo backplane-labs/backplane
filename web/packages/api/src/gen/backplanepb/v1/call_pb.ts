@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file backplanepb/v1/call.proto.
  */
 export const file_backplanepb_v1_call: GenFile = /*@__PURE__*/
-  fileDesc("ChliYWNrcGxhbmVwYi92MS9jYWxsLnByb3RvEgxiYWNrcGxhbmUudjEiyAEKCEhvb2tDYWxsEgwKBGhvb2sYASABKAkSEAoIaW5zdGFuY2UYAiABKAkSDwoHcGF5bG9hZBgDIAEoDBIwCgV0cmFjZRgEIAMoCzIhLmJhY2twbGFuZS52MS5Ib29rQ2FsbC5UcmFjZUVudHJ5EisKCGRlYWRsaW5lGAUgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uGiwKClRyYWNlRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASIdCgpIb29rUmVzdWx0Eg8KB3BheWxvYWQYASABKAwi0gEKDEFjdGl2aXR5Q2FsbBIQCghhY3Rpdml0eRgBIAEoCRIPCgdwYXlsb2FkGAIgASgMEjQKBXRyYWNlGAMgAygLMiUuYmFja3BsYW5lLnYxLkFjdGl2aXR5Q2FsbC5UcmFjZUVudHJ5Eg8KB2JpbmRpbmcYBCABKAkSDAoEc3RlcBgFIAEoCRIPCgdhdHRlbXB0GAYgASgFEgsKA2tleRgHIAEoCRosCgpUcmFjZUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiIQoOQWN0aXZpdHlSZXN1bHQSDwoHcGF5bG9hZBgBIAEoDCIuCgtDYWxsRmFpbHVyZRIMCgR0eXBlGAEgASgJEhEKCXJldHJ5YWJsZRgCIAEoCDJSCg9BY3Rpdml0eVNlcnZpY2USPwoDUnVuEhouYmFja3BsYW5lLnYxLkFjdGl2aXR5Q2FsbBocLmJhY2twbGFuZS52MS5BY3Rpdml0eVJlc3VsdEJAWj5naXRodWIuY29tL2JhY2twbGFuZS1sYWJzL2JhY2twbGFuZS9iYWNrcGxhbmVwYi92MTtiYWNrcGxhbmV2MWIGcHJvdG8z", [file_google_protobuf_duration]);
+  fileDesc("ChliYWNrcGxhbmVwYi92MS9jYWxsLnByb3RvEgxiYWNrcGxhbmUudjEiyAEKCEhvb2tDYWxsEgwKBGhvb2sYASABKAkSEAoIaW5zdGFuY2UYAiABKAkSDwoHcGF5bG9hZBgDIAEoDBIwCgV0cmFjZRgEIAMoCzIhLmJhY2twbGFuZS52MS5Ib29rQ2FsbC5UcmFjZUVudHJ5EisKCGRlYWRsaW5lGAUgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uGiwKClRyYWNlRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASIdCgpIb29rUmVzdWx0Eg8KB3BheWxvYWQYASABKAwi0gEKDEFjdGl2aXR5Q2FsbBIQCghhY3Rpdml0eRgBIAEoCRIPCgdwYXlsb2FkGAIgASgMEjQKBXRyYWNlGAMgAygLMiUuYmFja3BsYW5lLnYxLkFjdGl2aXR5Q2FsbC5UcmFjZUVudHJ5Eg8KB2JpbmRpbmcYBCABKAkSDAoEc3RlcBgFIAEoCRIPCgdhdHRlbXB0GAYgASgFEgsKA2tleRgHIAEoCRosCgpUcmFjZUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiIQoOQWN0aXZpdHlSZXN1bHQSDwoHcGF5bG9hZBgBIAEoDCIuCgtDYWxsRmFpbHVyZRIMCgR0eXBlGAEgASgJEhEKCXJldHJ5YWJsZRgCIAEoCCI2CgpSdW5SZXF1ZXN0EigKBGNhbGwYASABKAsyGi5iYWNrcGxhbmUudjEuQWN0aXZpdHlDYWxsIjsKC1J1blJlc3BvbnNlEiwKBnJlc3VsdBgBIAEoCzIcLmJhY2twbGFuZS52MS5BY3Rpdml0eVJlc3VsdDJNCg9BY3Rpdml0eVNlcnZpY2USOgoDUnVuEhguYmFja3BsYW5lLnYxLlJ1blJlcXVlc3QaGS5iYWNrcGxhbmUudjEuUnVuUmVzcG9uc2VCQFo+Z2l0aHViLmNvbS9iYWNrcGxhbmUtbGFicy9iYWNrcGxhbmUvYmFja3BsYW5lcGIvdjE7YmFja3BsYW5ldjFiBnByb3RvMw", [file_google_protobuf_duration]);
 
 /**
  * Input of the Nexus operation a service raises.
@@ -172,6 +172,40 @@ export const CallFailureSchema: GenMessage<CallFailure> = /*@__PURE__*/
   messageDesc(file_backplanepb_v1_call, 4);
 
 /**
+ * @generated from message backplane.v1.RunRequest
+ */
+export type RunRequest = Message<"backplane.v1.RunRequest"> & {
+  /**
+   * @generated from field: backplane.v1.ActivityCall call = 1;
+   */
+  call?: ActivityCall | undefined;
+};
+
+/**
+ * Describes the message backplane.v1.RunRequest.
+ * Use `create(RunRequestSchema)` to create a new message.
+ */
+export const RunRequestSchema: GenMessage<RunRequest> = /*@__PURE__*/
+  messageDesc(file_backplanepb_v1_call, 5);
+
+/**
+ * @generated from message backplane.v1.RunResponse
+ */
+export type RunResponse = Message<"backplane.v1.RunResponse"> & {
+  /**
+   * @generated from field: backplane.v1.ActivityResult result = 1;
+   */
+  result?: ActivityResult | undefined;
+};
+
+/**
+ * Describes the message backplane.v1.RunResponse.
+ * Use `create(RunResponseSchema)` to create a new message.
+ */
+export const RunResponseSchema: GenMessage<RunResponse> = /*@__PURE__*/
+  messageDesc(file_backplanepb_v1_call, 6);
+
+/**
  * ActivityService is served by the SDK on a service's platform port, behind
  * the internal secret: the direct runtime runs the service's activities
  * through it, the handlers activity.Handle registered. Temporal's worker
@@ -190,8 +224,8 @@ export const ActivityService: GenService<{
    */
   run: {
     methodKind: "unary";
-    input: typeof ActivityCallSchema;
-    output: typeof ActivityResultSchema;
+    input: typeof RunRequestSchema;
+    output: typeof RunResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_backplanepb_v1_call, 0);

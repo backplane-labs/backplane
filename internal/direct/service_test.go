@@ -192,8 +192,13 @@ func TestHookService(t *testing.T) {
 	}, fakeB)
 
 	api := s.HookService()
+	raise := func(call *backplanev1.HookCall) error {
+		_, err := api.Raise(t.Context(), &consolev1.RaiseRequest{Call: call})
 
-	_, err := api.Call(t.Context(), &backplanev1.HookCall{Hook: "iam.SendEmail", Payload: []byte(`{"to":"a"}`)})
+		return err
+	}
+
+	err := raise(&backplanev1.HookCall{Hook: "iam.SendEmail", Payload: []byte(`{"to":"a"}`)})
 
 	st, _ := status.FromError(err)
 	if st.Code() != codes.Aborted || st.Message() != "step send: smtp.Send: refused" {
@@ -210,19 +215,18 @@ func TestHookService(t *testing.T) {
 		t.Fatalf("detail %v", detail)
 	}
 
-	_, err = api.Call(t.Context(), &backplanev1.HookCall{
+	err = raise(&backplanev1.HookCall{
 		Hook: "iam.SendEmail", Payload: []byte(`{"to":"slow"}`), Deadline: durationpb.New(50 * time.Millisecond),
 	})
 	if status.Code(err) != codes.DeadlineExceeded {
 		t.Fatalf("deadline: %v", err)
 	}
 
-	_, err = api.Call(t.Context(), &backplanev1.HookCall{Hook: "iam.Nope", Instance: "iam-1"})
-	if status.Code(err) != codes.FailedPrecondition {
+	if err = raise(&backplanev1.HookCall{Hook: "iam.Nope", Instance: "iam-1"}); status.Code(err) != codes.FailedPrecondition {
 		t.Fatalf("no binding: %v", err)
 	}
 
-	if _, err = api.Call(t.Context(), &backplanev1.HookCall{}); status.Code(err) != codes.InvalidArgument {
+	if err = raise(&backplanev1.HookCall{}); status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("empty: %v", err)
 	}
 }

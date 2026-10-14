@@ -3,8 +3,8 @@
 /* eslint-disable */
 
 import { applyUnaryCallbacks, MethodInfo, WsTransport } from "@gopherex/ws-proto-transport";
-import type { ActivityCall, ActivityResult } from "./call_pb.js";
-import { ActivityCallSchema, ActivityResultSchema } from "./call_pb.js";
+import type { RunRequest, RunResponse } from "./call_pb.js";
+import { RunRequestSchema, RunResponseSchema } from "./call_pb.js";
 
 export interface CallOptions {
   /** Request metadata sent as headers on the opening frame. */
@@ -19,12 +19,12 @@ export interface CallOptions {
   onTrailer?: (trailer: Record<string, string>) => void;
 }
 
-const ActivityService_Run: MethodInfo<ActivityCall, ActivityResult> = {
+const ActivityService_Run: MethodInfo<RunRequest, RunResponse> = {
   typeName: "backplane.v1.ActivityService",
   name: "Run",
   kind: "unary",
-  input: ActivityCallSchema,
-  output: ActivityResultSchema,
+  input: RunRequestSchema,
+  output: RunResponseSchema,
 };
 
 /**
@@ -46,7 +46,7 @@ export class ActivityServiceClient {
    *
    * @generated from rpc backplane.v1.ActivityService.Run
    */
-  async run(req: ActivityCall, options?: CallOptions): Promise<ActivityResult> {
+  async run(req: RunRequest, options?: CallOptions): Promise<RunResponse> {
     const res = await this.transport.unary(ActivityService_Run, req, { headers: options?.headers, signal: options?.signal, timeoutMs: options?.timeoutMs });
     return applyUnaryCallbacks(res, options);
   }

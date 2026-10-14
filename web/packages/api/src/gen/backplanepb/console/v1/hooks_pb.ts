@@ -2,16 +2,51 @@
 // @generated from file backplanepb/console/v1/hooks.proto (package backplane.console.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { HookCallSchema, HookResultSchema } from "../../v1/call_pb.js";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { HookCall, HookResult } from "../../v1/call_pb.js";
 import { file_backplanepb_v1_call } from "../../v1/call_pb.js";
+import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file backplanepb/console/v1/hooks.proto.
  */
 export const file_backplanepb_console_v1_hooks: GenFile = /*@__PURE__*/
-  fileDesc("CiJiYWNrcGxhbmVwYi9jb25zb2xlL3YxL2hvb2tzLnByb3RvEhRiYWNrcGxhbmUuY29uc29sZS52MTJHCgtIb29rU2VydmljZRI4CgRDYWxsEhYuYmFja3BsYW5lLnYxLkhvb2tDYWxsGhguYmFja3BsYW5lLnYxLkhvb2tSZXN1bHRCRlpEZ2l0aHViLmNvbS9iYWNrcGxhbmUtbGFicy9iYWNrcGxhbmUvYmFja3BsYW5lcGIvY29uc29sZS92MTtjb25zb2xldjFiBnByb3RvMw", [file_backplanepb_v1_call]);
+  fileDesc("CiJiYWNrcGxhbmVwYi9jb25zb2xlL3YxL2hvb2tzLnByb3RvEhRiYWNrcGxhbmUuY29uc29sZS52MSI0CgxSYWlzZVJlcXVlc3QSJAoEY2FsbBgBIAEoCzIWLmJhY2twbGFuZS52MS5Ib29rQ2FsbCI5Cg1SYWlzZVJlc3BvbnNlEigKBnJlc3VsdBgBIAEoCzIYLmJhY2twbGFuZS52MS5Ib29rUmVzdWx0Ml8KC0hvb2tTZXJ2aWNlElAKBVJhaXNlEiIuYmFja3BsYW5lLmNvbnNvbGUudjEuUmFpc2VSZXF1ZXN0GiMuYmFja3BsYW5lLmNvbnNvbGUudjEuUmFpc2VSZXNwb25zZUJGWkRnaXRodWIuY29tL2JhY2twbGFuZS1sYWJzL2JhY2twbGFuZS9iYWNrcGxhbmVwYi9jb25zb2xlL3YxO2NvbnNvbGV2MWIGcHJvdG8z", [file_backplanepb_v1_call]);
+
+/**
+ * @generated from message backplane.console.v1.RaiseRequest
+ */
+export type RaiseRequest = Message<"backplane.console.v1.RaiseRequest"> & {
+  /**
+   * @generated from field: backplane.v1.HookCall call = 1;
+   */
+  call?: HookCall | undefined;
+};
+
+/**
+ * Describes the message backplane.console.v1.RaiseRequest.
+ * Use `create(RaiseRequestSchema)` to create a new message.
+ */
+export const RaiseRequestSchema: GenMessage<RaiseRequest> = /*@__PURE__*/
+  messageDesc(file_backplanepb_console_v1_hooks, 0);
+
+/**
+ * @generated from message backplane.console.v1.RaiseResponse
+ */
+export type RaiseResponse = Message<"backplane.console.v1.RaiseResponse"> & {
+  /**
+   * @generated from field: backplane.v1.HookResult result = 1;
+   */
+  result?: HookResult | undefined;
+};
+
+/**
+ * Describes the message backplane.console.v1.RaiseResponse.
+ * Use `create(RaiseResponseSchema)` to create a new message.
+ */
+export const RaiseResponseSchema: GenMessage<RaiseResponse> = /*@__PURE__*/
+  messageDesc(file_backplanepb_console_v1_hooks, 1);
 
 /**
  * HookService is backplane's internal API on its platform port, behind
@@ -23,7 +58,7 @@ export const file_backplanepb_console_v1_hooks: GenFile = /*@__PURE__*/
  */
 export const HookService: GenService<{
   /**
-   * Call runs the binding of a hook and answers its result within
+   * Raise runs the binding of a hook and answers its result within
    * HookCall.deadline. No binding for a required hook is
    * FAILED_PRECONDITION with a CallFailure detail of type
    * backplane.NoBinding; an optional one answers {}. A failed run is
@@ -31,12 +66,12 @@ export const HookService: GenService<{
    * a run past the deadline DEADLINE_EXCEEDED. A binding on the temporal
    * runtime when this backplane has none is FAILED_PRECONDITION.
    *
-   * @generated from rpc backplane.console.v1.HookService.Call
+   * @generated from rpc backplane.console.v1.HookService.Raise
    */
-  call: {
+  raise: {
     methodKind: "unary";
-    input: typeof HookCallSchema;
-    output: typeof HookResultSchema;
+    input: typeof RaiseRequestSchema;
+    output: typeof RaiseResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_backplanepb_console_v1_hooks, 0);

@@ -103,7 +103,12 @@ func (a *Activities) callOne(
 		return nil, status.Errorf(codes.Unavailable, "dial %s: %v", addr, err)
 	}
 
-	return backplanev1.NewActivityServiceClient(conn).Run(ctx, call) //nolint:wrapcheck // read by callFailure
+	res, err := backplanev1.NewActivityServiceClient(conn).Run(ctx, &backplanev1.RunRequest{Call: call})
+	if err != nil {
+		return nil, err //nolint:wrapcheck // read by callFailure
+	}
+
+	return res.GetResult(), nil
 }
 
 // targets are the platform addresses of the instances that run the

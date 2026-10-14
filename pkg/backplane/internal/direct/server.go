@@ -53,7 +53,8 @@ func NewServer(service string, e *env.Env, log *xlog.Logger) *Server {
 }
 
 // Run implements ActivityService.
-func (s *Server) Run(ctx context.Context, call *backplanev1.ActivityCall) (*backplanev1.ActivityResult, error) {
+func (s *Server) Run(ctx context.Context, req *backplanev1.RunRequest) (*backplanev1.RunResponse, error) {
+	call := req.GetCall()
 	full := call.GetActivity()
 
 	name, ok := cutService(full, s.service)
@@ -84,7 +85,7 @@ func (s *Server) Run(ctx context.Context, call *backplanev1.ActivityCall) (*back
 		return nil, Status(err)
 	}
 
-	return &backplanev1.ActivityResult{Payload: out}, nil
+	return &backplanev1.RunResponse{Result: &backplanev1.ActivityResult{Payload: out}}, nil
 }
 
 // handle runs h; its error, or a panic, is the call's.

@@ -11,12 +11,20 @@ option go_package = "github.com/backplane-labs/backplane/backplanepb/console/v1;
 // does not carry the call (the SDK's hooks.transport = direct). Backplane
 // runs the hook's binding on the binding's runtime and answers.
 service HookService {
-  // Call runs the binding of a hook and answers its result within
+  // Raise runs the binding of a hook and answers its result within
   // HookCall.deadline. No binding for a required hook is
   // FAILED_PRECONDITION with a CallFailure detail of type
   // backplane.NoBinding; an optional one answers {}. A failed run is
   // ABORTED with a CallFailure: its type and message are the run's error;
   // a run past the deadline DEADLINE_EXCEEDED. A binding on the temporal
   // runtime when this backplane has none is FAILED_PRECONDITION.
-  rpc Call(backplane.v1.HookCall) returns (backplane.v1.HookResult);
+  rpc Raise(RaiseRequest) returns (RaiseResponse);
+}
+
+message RaiseRequest {
+  backplane.v1.HookCall call = 1;
+}
+
+message RaiseResponse {
+  backplane.v1.HookResult result = 1;
 }

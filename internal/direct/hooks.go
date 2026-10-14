@@ -11,7 +11,6 @@ import (
 	"github.com/gopherex/xlog"
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
-	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 )
 
 // HookAPI serves backplane.v1.HookService on backplane's platform port:
@@ -30,8 +29,9 @@ func (s *Service) Register(r grpc.ServiceRegistrar) {
 	consolev1.RegisterHookServiceServer(r, s.HookService())
 }
 
-// Call implements HookService.
-func (a HookAPI) Call(ctx context.Context, call *backplanev1.HookCall) (*backplanev1.HookResult, error) {
+// Raise implements HookService.
+func (a HookAPI) Raise(ctx context.Context, req *consolev1.RaiseRequest) (*consolev1.RaiseResponse, error) {
+	call := req.GetCall()
 	if call.GetHook() == "" {
 		return nil, status.Error(codes.InvalidArgument, "hook is required") //nolint:wrapcheck // a gRPC status
 	}
@@ -40,7 +40,7 @@ func (a HookAPI) Call(ctx context.Context, call *backplanev1.HookCall) (*backpla
 
 	switch {
 	case err == nil:
-		return res, nil
+		return &consolev1.RaiseResponse{Result: res}, nil
 	case errors.Is(err, ErrTemporalRuntime), errors.Is(err, ErrNotSynced):
 		return nil, status.Error(codes.FailedPrecondition, err.Error()) //nolint:wrapcheck // a gRPC status
 	case ctx.Err() == nil && !isFailure(err):

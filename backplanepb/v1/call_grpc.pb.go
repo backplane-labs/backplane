@@ -35,7 +35,7 @@ type ActivityServiceClient interface {
 	// error is a status with a CallFailure detail: FAILED_PRECONDITION when
 	// not retryable, UNAVAILABLE when it is; an unknown activity is
 	// NOT_FOUND.
-	Run(ctx context.Context, in *ActivityCall, opts ...grpc.CallOption) (*ActivityResult, error)
+	Run(ctx context.Context, in *RunRequest, opts ...grpc.CallOption) (*RunResponse, error)
 }
 
 type activityServiceClient struct {
@@ -46,9 +46,9 @@ func NewActivityServiceClient(cc grpc.ClientConnInterface) ActivityServiceClient
 	return &activityServiceClient{cc}
 }
 
-func (c *activityServiceClient) Run(ctx context.Context, in *ActivityCall, opts ...grpc.CallOption) (*ActivityResult, error) {
+func (c *activityServiceClient) Run(ctx context.Context, in *RunRequest, opts ...grpc.CallOption) (*RunResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ActivityResult)
+	out := new(RunResponse)
 	err := c.cc.Invoke(ctx, ActivityService_Run_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ type ActivityServiceServer interface {
 	// error is a status with a CallFailure detail: FAILED_PRECONDITION when
 	// not retryable, UNAVAILABLE when it is; an unknown activity is
 	// NOT_FOUND.
-	Run(context.Context, *ActivityCall) (*ActivityResult, error)
+	Run(context.Context, *RunRequest) (*RunResponse, error)
 	mustEmbedUnimplementedActivityServiceServer()
 }
 
@@ -80,7 +80,7 @@ type ActivityServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedActivityServiceServer struct{}
 
-func (UnimplementedActivityServiceServer) Run(context.Context, *ActivityCall) (*ActivityResult, error) {
+func (UnimplementedActivityServiceServer) Run(context.Context, *RunRequest) (*RunResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Run not implemented")
 }
 func (UnimplementedActivityServiceServer) mustEmbedUnimplementedActivityServiceServer() {}
@@ -105,7 +105,7 @@ func RegisterActivityServiceServer(s grpc.ServiceRegistrar, srv ActivityServiceS
 }
 
 func _ActivityService_Run_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ActivityCall)
+	in := new(RunRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func _ActivityService_Run_Handler(srv interface{}, ctx context.Context, dec func
 		FullMethod: ActivityService_Run_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ActivityServiceServer).Run(ctx, req.(*ActivityCall))
+		return srv.(ActivityServiceServer).Run(ctx, req.(*RunRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }

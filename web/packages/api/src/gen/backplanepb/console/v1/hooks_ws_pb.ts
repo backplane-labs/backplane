@@ -3,8 +3,8 @@
 /* eslint-disable */
 
 import { applyUnaryCallbacks, MethodInfo, WsTransport } from "@gopherex/ws-proto-transport";
-import type { HookCall, HookResult } from "../../v1/call_pb.js";
-import { HookCallSchema, HookResultSchema } from "../../v1/call_pb.js";
+import type { RaiseRequest, RaiseResponse } from "./hooks_pb.js";
+import { RaiseRequestSchema, RaiseResponseSchema } from "./hooks_pb.js";
 
 export interface CallOptions {
   /** Request metadata sent as headers on the opening frame. */
@@ -19,12 +19,12 @@ export interface CallOptions {
   onTrailer?: (trailer: Record<string, string>) => void;
 }
 
-const HookService_Call: MethodInfo<HookCall, HookResult> = {
+const HookService_Raise: MethodInfo<RaiseRequest, RaiseResponse> = {
   typeName: "backplane.console.v1.HookService",
-  name: "Call",
+  name: "Raise",
   kind: "unary",
-  input: HookCallSchema,
-  output: HookResultSchema,
+  input: RaiseRequestSchema,
+  output: RaiseResponseSchema,
 };
 
 /**
@@ -39,7 +39,7 @@ export class HookServiceClient {
   constructor(private readonly transport: WsTransport) {}
 
   /**
-   * Call runs the binding of a hook and answers its result within
+   * Raise runs the binding of a hook and answers its result within
    * HookCall.deadline. No binding for a required hook is
    * FAILED_PRECONDITION with a CallFailure detail of type
    * backplane.NoBinding; an optional one answers {}. A failed run is
@@ -47,10 +47,10 @@ export class HookServiceClient {
    * a run past the deadline DEADLINE_EXCEEDED. A binding on the temporal
    * runtime when this backplane has none is FAILED_PRECONDITION.
    *
-   * @generated from rpc backplane.console.v1.HookService.Call
+   * @generated from rpc backplane.console.v1.HookService.Raise
    */
-  async call(req: HookCall, options?: CallOptions): Promise<HookResult> {
-    const res = await this.transport.unary(HookService_Call, req, { headers: options?.headers, signal: options?.signal, timeoutMs: options?.timeoutMs });
+  async raise(req: RaiseRequest, options?: CallOptions): Promise<RaiseResponse> {
+    const res = await this.transport.unary(HookService_Raise, req, { headers: options?.headers, signal: options?.signal, timeoutMs: options?.timeoutMs });
     return applyUnaryCallbacks(res, options);
   }
 

@@ -120,6 +120,9 @@ export function EventService_RedriveDeadLetters(client: API.EventServiceClient, 
 export function EventService_PurgeDeadLetters(client: API.EventServiceClient, request: API.PurgeDeadLettersRequest, signal: AbortSignal) {
   return client.purgeDeadLetters(request, { signal });
 }
+export function HookService_Raise(client: API.HookServiceClient, request: API.RaiseRequest, signal: AbortSignal) {
+  return client.raise(request, { signal });
+}
 export function ObsService_GetObsCapabilities(client: API.ObsServiceClient, request: API.GetObsCapabilitiesRequest, signal: AbortSignal) {
   return client.getObsCapabilities(request, { signal });
 }

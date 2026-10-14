@@ -75,12 +75,12 @@ func TestServer(t *testing.T) {
 
 	client := backplanev1.NewActivityServiceClient(conn)
 
-	res, err := client.Run(t.Context(), &backplanev1.ActivityCall{
+	res, err := client.Run(t.Context(), &backplanev1.RunRequest{Call: &backplanev1.ActivityCall{
 		Activity: "smtp.Send", Payload: []byte(`{"to":"a"}`), Binding: "iam.SendEmail@3", Step: "send", Attempt: 2,
 		Key: "run-1/send",
-	})
-	if err != nil || string(res.GetPayload()) != `{"got":{"to":"a"}}` {
-		t.Fatalf("%s %v", res.GetPayload(), err)
+	}})
+	if err != nil || string(res.GetResult().GetPayload()) != `{"got":{"to":"a"}}` {
+		t.Fatalf("%s %v", res.GetResult().GetPayload(), err)
 	}
 
 	if info.Attempt != 2 || info.Binding != "iam.SendEmail@3" || info.Step != "send" || info.Key != "run-1/send" {
@@ -97,7 +97,9 @@ func TestServer(t *testing.T) {
 		{"smtp.Busy", codes.Unavailable, "", true},
 		{"smtp.Boom", codes.Unavailable, direct.PanicType, true},
 	} {
-		_, err := client.Run(t.Context(), &backplanev1.ActivityCall{Activity: tc.activity, Payload: []byte(`{}`)})
+		_, err := client.Run(t.Context(), &backplanev1.RunRequest{
+			Call: &backplanev1.ActivityCall{Activity: tc.activity, Payload: []byte(`{}`)},
+		})
 		if status.Code(err) != tc.code {
 			t.Errorf("%s: %v", tc.activity, err)
 		}
@@ -108,7 +110,7 @@ func TestServer(t *testing.T) {
 	}
 
 	for _, activity := range []string{"smtp.Nope", "other.Send", "Send"} {
-		_, err := client.Run(t.Context(), &backplanev1.ActivityCall{Activity: activity})
+		_, err := client.Run(t.Context(), &backplanev1.RunRequest{Call: &backplanev1.ActivityCall{Activity: activity}})
 		if status.Code(err) != codes.NotFound {
 			t.Errorf("%s: %v", activity, err)
 		}
@@ -126,8 +128,10 @@ type hookServer struct {
 	key    atomic.Pointer[string]
 }
 
-func (s *hookServer) Call(ctx context.Context, call *backplanev1.HookCall) (*backplanev1.HookResult, error) {
+func (s *hookServer) Raise(ctx context.Context, req *consolev1.RaiseRequest) (*consolev1.RaiseResponse, error) {
 	s.calls.Add(1)
+
+	call := req.GetCall()
 
 	if s.down.Load() {
 		return nil, status.Error(codes.Unavailable, "down")
@@ -144,7 +148,9 @@ func (s *hookServer) Call(ctx context.Context, call *backplanev1.HookCall) (*bac
 
 	switch call.GetHook() {
 	case "iam.SendEmail":
-		return &backplanev1.HookResult{Payload: []byte(`{"id":"m-1","deadline":` + call.GetDeadline().AsDuration().String() + `}`)}, nil
+		return &consolev1.RaiseResponse{Result: &backplanev1.HookResult{
+			Payload: []byte(`{"id":"m-1","deadline":"` + call.GetDeadline().AsDuration().String() + `"}`),
+		}}, nil
 	case "iam.Missing":
 		st, _ := status.New(codes.FailedPrecondition, "no binding for iam.Missing").WithDetails(
 			&backplanev1.CallFailure{Type: direct.NoBindingType})

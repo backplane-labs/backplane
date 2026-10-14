@@ -60,5 +60,13 @@ service ActivityService {
   // error is a status with a CallFailure detail: FAILED_PRECONDITION when
   // not retryable, UNAVAILABLE when it is; an unknown activity is
   // NOT_FOUND.
-  rpc Run(ActivityCall) returns (ActivityResult);
+  rpc Run(RunRequest) returns (RunResponse);
+}
+
+message RunRequest {
+  ActivityCall call = 1;
+}
+
+message RunResponse {
+  ActivityResult result = 1;
 }

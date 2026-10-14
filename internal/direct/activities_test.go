@@ -30,7 +30,9 @@ type activityServer struct {
 	calls  atomic.Int32
 }
 
-func (s *activityServer) Run(ctx context.Context, call *backplanev1.ActivityCall) (*backplanev1.ActivityResult, error) {
+func (s *activityServer) Run(
+	ctx context.Context, req *backplanev1.RunRequest,
+) (*backplanev1.RunResponse, error) {
 	s.calls.Add(1)
 
 	md, _ := metadata.FromIncomingContext(ctx)
@@ -38,7 +40,12 @@ func (s *activityServer) Run(ctx context.Context, call *backplanev1.ActivityCall
 		s.secret.Store(&v[0])
 	}
 
-	return s.fn(call)
+	res, err := s.fn(req.GetCall())
+	if err != nil {
+		return nil, err
+	}
+
+	return &backplanev1.RunResponse{Result: res}, nil
 }
 
 // serve starts an ActivityService and is its host and port.

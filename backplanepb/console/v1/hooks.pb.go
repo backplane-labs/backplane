@@ -11,6 +11,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
+	sync "sync"
 	unsafe "unsafe"
 )
 
@@ -21,26 +22,135 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type RaiseRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Call          *v1.HookCall           `protobuf:"bytes,1,opt,name=call,proto3" json:"call,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RaiseRequest) Reset() {
+	*x = RaiseRequest{}
+	mi := &file_backplanepb_console_v1_hooks_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RaiseRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RaiseRequest) ProtoMessage() {}
+
+func (x *RaiseRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_backplanepb_console_v1_hooks_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RaiseRequest.ProtoReflect.Descriptor instead.
+func (*RaiseRequest) Descriptor() ([]byte, []int) {
+	return file_backplanepb_console_v1_hooks_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *RaiseRequest) GetCall() *v1.HookCall {
+	if x != nil {
+		return x.Call
+	}
+	return nil
+}
+
+type RaiseResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Result        *v1.HookResult         `protobuf:"bytes,1,opt,name=result,proto3" json:"result,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RaiseResponse) Reset() {
+	*x = RaiseResponse{}
+	mi := &file_backplanepb_console_v1_hooks_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RaiseResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RaiseResponse) ProtoMessage() {}
+
+func (x *RaiseResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_backplanepb_console_v1_hooks_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RaiseResponse.ProtoReflect.Descriptor instead.
+func (*RaiseResponse) Descriptor() ([]byte, []int) {
+	return file_backplanepb_console_v1_hooks_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RaiseResponse) GetResult() *v1.HookResult {
+	if x != nil {
+		return x.Result
+	}
+	return nil
+}
+
 var File_backplanepb_console_v1_hooks_proto protoreflect.FileDescriptor
 
 const file_backplanepb_console_v1_hooks_proto_rawDesc = "" +
 	"\n" +
-	"\"backplanepb/console/v1/hooks.proto\x12\x14backplane.console.v1\x1a\x19backplanepb/v1/call.proto2G\n" +
-	"\vHookService\x128\n" +
-	"\x04Call\x12\x16.backplane.v1.HookCall\x1a\x18.backplane.v1.HookResultBFZDgithub.com/backplane-labs/backplane/backplanepb/console/v1;consolev1b\x06proto3"
+	"\"backplanepb/console/v1/hooks.proto\x12\x14backplane.console.v1\x1a\x19backplanepb/v1/call.proto\":\n" +
+	"\fRaiseRequest\x12*\n" +
+	"\x04call\x18\x01 \x01(\v2\x16.backplane.v1.HookCallR\x04call\"A\n" +
+	"\rRaiseResponse\x120\n" +
+	"\x06result\x18\x01 \x01(\v2\x18.backplane.v1.HookResultR\x06result2_\n" +
+	"\vHookService\x12P\n" +
+	"\x05Raise\x12\".backplane.console.v1.RaiseRequest\x1a#.backplane.console.v1.RaiseResponseBFZDgithub.com/backplane-labs/backplane/backplanepb/console/v1;consolev1b\x06proto3"
 
+var (
+	file_backplanepb_console_v1_hooks_proto_rawDescOnce sync.Once
+	file_backplanepb_console_v1_hooks_proto_rawDescData []byte
+)
+
+func file_backplanepb_console_v1_hooks_proto_rawDescGZIP() []byte {
+	file_backplanepb_console_v1_hooks_proto_rawDescOnce.Do(func() {
+		file_backplanepb_console_v1_hooks_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_backplanepb_console_v1_hooks_proto_rawDesc), len(file_backplanepb_console_v1_hooks_proto_rawDesc)))
+	})
+	return file_backplanepb_console_v1_hooks_proto_rawDescData
+}
+
+var file_backplanepb_console_v1_hooks_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_backplanepb_console_v1_hooks_proto_goTypes = []any{
-	(*v1.HookCall)(nil),   // 0: backplane.v1.HookCall
-	(*v1.HookResult)(nil), // 1: backplane.v1.HookResult
+	(*RaiseRequest)(nil),  // 0: backplane.console.v1.RaiseRequest
+	(*RaiseResponse)(nil), // 1: backplane.console.v1.RaiseResponse
+	(*v1.HookCall)(nil),   // 2: backplane.v1.HookCall
+	(*v1.HookResult)(nil), // 3: backplane.v1.HookResult
 }
 var file_backplanepb_console_v1_hooks_proto_depIdxs = []int32{
-	0, // 0: backplane.console.v1.HookService.Call:input_type -> backplane.v1.HookCall
-	1, // 1: backplane.console.v1.HookService.Call:output_type -> backplane.v1.HookResult
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	2, // 0: backplane.console.v1.RaiseRequest.call:type_name -> backplane.v1.HookCall
+	3, // 1: backplane.console.v1.RaiseResponse.result:type_name -> backplane.v1.HookResult
+	0, // 2: backplane.console.v1.HookService.Raise:input_type -> backplane.console.v1.RaiseRequest
+	1, // 3: backplane.console.v1.HookService.Raise:output_type -> backplane.console.v1.RaiseResponse
+	3, // [3:4] is the sub-list for method output_type
+	2, // [2:3] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_backplanepb_console_v1_hooks_proto_init() }
@@ -54,12 +164,13 @@ func file_backplanepb_console_v1_hooks_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_backplanepb_console_v1_hooks_proto_rawDesc), len(file_backplanepb_console_v1_hooks_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   0,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_backplanepb_console_v1_hooks_proto_goTypes,
 		DependencyIndexes: file_backplanepb_console_v1_hooks_proto_depIdxs,
+		MessageInfos:      file_backplanepb_console_v1_hooks_proto_msgTypes,
 	}.Build()
 	File_backplanepb_console_v1_hooks_proto = out.File
 	file_backplanepb_console_v1_hooks_proto_goTypes = nil
