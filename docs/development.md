@@ -102,7 +102,7 @@ See the [frontend contract](frontend-contract.md), [API reference](api-reference
 and [English handbook](../website/docs/intro.md) for current integration boundaries.
 
 For the console without optional infrastructure, use `make dev-minimal`.
-PostgreSQL, Consul and Valkey remain required. The **Infrastructure** page shows
+PostgreSQL and Consul remain required. The **Infrastructure** page shows
 configured dependencies as OK/NO/Stale and separately lists deployment capabilities.
 See [deployment modes](../deployments/README.md#server-capabilities-and-infrastructure-health) for
 Compose profiles and endpoints. Service **Workflows** includes administrative

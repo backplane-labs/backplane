@@ -6,7 +6,7 @@ Start with the failing boundary and the exact error. Infrastructure status helps
 | --- | --- |
 | `ERR_CONNECTION_REFUSED` | Container state, published port and the console listener on 8081 or the service's own API port |
 | Docker permission denied | Access to the active Docker socket/context; this precedes application startup |
-| Login returns 503 | Valkey/database availability and server logs; do not rotate the token as a first response |
+| Login returns 503 | PostgreSQL availability and server logs; do not rotate the token as a first response |
 | Login rejected or rate-limited | Correct operator credential, clock/session settings and retry interval |
 | Login works but WebSocket fails | Same-origin proxy, upgrade headers, configured prefix and origin policy |
 | Assets return HTML or 404 | Console build base matches backend prefix; proxy preserves assets and plugin paths |

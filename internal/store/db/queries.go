@@ -1073,6 +1073,133 @@ func (q *Queries) GetInstallation(ctx context.Context) (GetInstallationRow, erro
 	return i, err
 }
 
+const createLoginStateSQL = `INSERT INTO backplane.console_login_state (singleton) VALUES (true)
+ON CONFLICT (singleton) DO NOTHING;`
+
+func (q *Queries) CreateLoginState(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, createLoginStateSQL)
+	return err
+}
+
+const loginNowSQL = `SELECT COALESCE(clock_timestamp(), 'epoch'::timestamptz) AS now;`
+
+type LoginNowRow struct {
+	Now time.Time
+}
+
+func (q *Queries) LoginNow(ctx context.Context) (LoginNowRow, error) {
+	row := q.db.QueryRow(ctx, loginNowSQL)
+	var i LoginNowRow
+	err := row.Scan(&i.Now)
+	return i, err
+}
+
+const getLoginStateSQL = `SELECT failures, forget_at, blocked_until FROM backplane.console_login_state WHERE singleton;`
+
+type GetLoginStateRow struct {
+	Failures     int64
+	ForgetAt     time.Time
+	BlockedUntil time.Time
+}
+
+func (q *Queries) GetLoginState(ctx context.Context) (GetLoginStateRow, error) {
+	row := q.db.QueryRow(ctx, getLoginStateSQL)
+	var i GetLoginStateRow
+	err := row.Scan(&i.Failures, &i.ForgetAt, &i.BlockedUntil)
+	return i, err
+}
+
+const lockLoginStateSQL = `SELECT failures, forget_at, blocked_until FROM backplane.console_login_state WHERE singleton FOR UPDATE;`
+
+type LockLoginStateRow struct {
+	Failures     int64
+	ForgetAt     time.Time
+	BlockedUntil time.Time
+}
+
+func (q *Queries) LockLoginState(ctx context.Context) (LockLoginStateRow, error) {
+	row := q.db.QueryRow(ctx, lockLoginStateSQL)
+	var i LockLoginStateRow
+	err := row.Scan(&i.Failures, &i.ForgetAt, &i.BlockedUntil)
+	return i, err
+}
+
+const setLoginFailureSQL = `UPDATE backplane.console_login_state
+SET failures = $1, forget_at = $2, blocked_until = $3
+WHERE singleton;`
+
+type SetLoginFailureParams struct {
+	Failures     int64
+	ForgetAt     time.Time
+	BlockedUntil time.Time
+}
+
+func (q *Queries) SetLoginFailure(ctx context.Context, arg SetLoginFailureParams) error {
+	_, err := q.db.Exec(ctx, setLoginFailureSQL, arg.Failures, arg.ForgetAt, arg.BlockedUntil)
+	return err
+}
+
+const resetLoginFailuresSQL = `UPDATE backplane.console_login_state SET failures = 0, forget_at = 'epoch' WHERE singleton;`
+
+func (q *Queries) ResetLoginFailures(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, resetLoginFailuresSQL)
+	return err
+}
+
+const takeLoginAttemptSQL = `INSERT INTO backplane.console_login_attempt (address, attempts, expires_at)
+VALUES ($1, 1, $2)
+ON CONFLICT (address) DO UPDATE SET
+  attempts = CASE WHEN backplane.console_login_attempt.expires_at <= $3
+                  THEN 1 ELSE backplane.console_login_attempt.attempts + 1 END,
+  expires_at = CASE WHEN backplane.console_login_attempt.expires_at <= $3
+                    THEN $2 ELSE backplane.console_login_attempt.expires_at END
+WHERE backplane.console_login_attempt.expires_at <= $3
+   OR backplane.console_login_attempt.attempts < $4::bigint
+RETURNING attempts, expires_at;`
+
+type TakeLoginAttemptParams struct {
+	Address   string
+	ExpiresAt time.Time
+	Now       time.Time
+	Burst     int64
+}
+
+type TakeLoginAttemptRow struct {
+	Attempts  int32
+	ExpiresAt time.Time
+}
+
+func (q *Queries) TakeLoginAttempt(ctx context.Context, arg TakeLoginAttemptParams) (TakeLoginAttemptRow, error) {
+	row := q.db.QueryRow(ctx, takeLoginAttemptSQL, arg.Address, arg.ExpiresAt, arg.Now, arg.Burst)
+	var i TakeLoginAttemptRow
+	err := row.Scan(&i.Attempts, &i.ExpiresAt)
+	return i, err
+}
+
+const getLoginAttemptSQL = `SELECT attempts, expires_at FROM backplane.console_login_attempt WHERE address = $1;`
+
+type GetLoginAttemptRow struct {
+	Attempts  int32
+	ExpiresAt time.Time
+}
+
+func (q *Queries) GetLoginAttempt(ctx context.Context, address string) (GetLoginAttemptRow, error) {
+	row := q.db.QueryRow(ctx, getLoginAttemptSQL, address)
+	var i GetLoginAttemptRow
+	err := row.Scan(&i.Attempts, &i.ExpiresAt)
+	return i, err
+}
+
+const deleteExpiredLoginAttemptsSQL = `DELETE FROM backplane.console_login_attempt WHERE address IN (
+  SELECT address FROM backplane.console_login_attempt WHERE expires_at <= clock_timestamp()
+  ORDER BY expires_at LIMIT 1000 FOR UPDATE SKIP LOCKED
+);`
+
+func (q *Queries) DeleteExpiredLoginAttempts(ctx context.Context) (int64, error) {
+	tag, err := q.db.Exec(ctx, deleteExpiredLoginAttemptsSQL)
+	return tag.RowsAffected(), err
+}
+
 type SearchAuditParams struct {
 	StartAt        *time.Time
 	EndAt          *time.Time

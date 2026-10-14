@@ -12,7 +12,6 @@ services:
     environment:
       BACKPLANE_CONSUL_ADDR: consul:8500
       BACKPLANE_PG_DSN: postgres://backplane:backplane@postgres:5432/backplane?sslmode=disable
-      BACKPLANE_VALKEY_ADDR: valkey:6379
       BACKPLANE_ADMIN_TOKEN: ${DEV_ADMIN_TOKEN:-dev-admin-token-change-me}
       BACKPLANE_CONSOLE_PREFIX: /backplane
       BACKPLANE_CONSOLE_INSECURE_COOKIE: "true"
@@ -20,4 +19,4 @@ services:
       # When using profiles, opt in explicitly to the corresponding endpoints.
       BACKPLANE_NATS_URL: ${BACKPLANE_NATS_URL:-}
       BACKPLANE_TEMPORAL_ADDR: ${BACKPLANE_TEMPORAL_ADDR:-}
-    depends_on: [consul, postgres, valkey]
+    depends_on: [consul, postgres]

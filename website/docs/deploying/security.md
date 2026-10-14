@@ -15,7 +15,7 @@ Different credentials serve different interfaces. Do not reuse an operator token
 
 Use HTTPS. Keep the Secure cookie default and preserve WebSocket upgrades through the reverse proxy. Same-origin checks protect browser entrypoints. Configure a console host or prefix consistently with the compiled asset base.
 
-Valkey-backed login protection coordinates attempts across replicas. An unavailable protection backend must not turn into unrestricted login. Operators can inspect/revoke sessions; changing connection state must clear data from a replaced session in the UI.
+PostgreSQL-backed login protection coordinates attempts across replicas. An unavailable protection backend must not turn into unrestricted login. Operators can inspect/revoke sessions; changing connection state must clear data from a replaced session in the UI.
 
 ## Internal services
 

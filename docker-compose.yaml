@@ -1,5 +1,5 @@
 # platform-in-a-box: the stack backplane and services run against.
-# Base: PostgreSQL, Consul, Valkey. Optional profiles: events, workflows, full.
+# Base: PostgreSQL, Consul. Optional profiles: events, workflows, full, cache.
 # `make up` starts the full test stack; plain compose starts only the base. Ports are published on localhost for development.
 services:
   consul:
@@ -16,8 +16,9 @@ services:
     ports: ["5433:5432"]
     volumes: ["pg:/var/lib/postgresql/data"]
 
-  # Shared short-lived state of backplane replicas (login attempts).
+  # Optional SDK integration for author services; the platform does not use it.
   valkey:
+    profiles: [cache]
     image: valkey/valkey:8-alpine
     ports: ["6379:6379"]
 

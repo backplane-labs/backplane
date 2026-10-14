@@ -4,9 +4,8 @@ Distinguish a **service using the Go SDK** from the **Backplane server**. A stan
 
 | Dependency | Platform server | Enables |
 | --- | --- | --- |
-| PostgreSQL | Required | Configuration and wiring revisions, durable audit, sessions and control state |
+| PostgreSQL | Required | Configuration and wiring revisions, durable audit, sessions, shared login protection and control state |
 | Consul | Required | Service discovery, health, manifests and configuration distribution |
-| Valkey | Required | Shared login protection state |
 | Temporal | Optional | Hooks/bindings, durable runs, workflow-backed activities and administrative schedules |
 | NATS JetStream | Optional | Events, reactors and dead-letter operations |
 | NATS + Temporal | Both needed for rules | Event-triggered durable wiring execution |
@@ -27,10 +26,12 @@ The console shows unavailable capabilities explicitly. It does not offer deploym
 
 ## Choosing a mode
 
-- Start with PostgreSQL, Consul and Valkey when you need catalog, configuration, module hosting and audit.
+- Start with PostgreSQL and Consul when you need catalog, configuration, module hosting and audit.
 - Add NATS for asynchronous events and reactors.
 - Add Temporal for durable workflows and hook bindings.
 - Add both for event rules.
 - Add telemetry backends by signal as needed; absent telemetry does not prevent platform startup.
 
 See [deployment configuration](../reference/configuration.md) for exact environment variables and Compose profiles, and [availability](../deploying/availability.md) for failure behavior.
+
+Valkey remains an optional SDK integration for author services. It is not used by the platform server. The Compose `cache` profile is available for testing or services that explicitly need it.

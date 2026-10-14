@@ -200,7 +200,7 @@ func newReplicaWorld(t *testing.T) *replicaWorld {
 		env := append([]string(nil), common...)
 		env = append(env, "BACKPLANE_INSTANCE="+fmt.Sprintf("replica-%d", i+1),
 			"BACKPLANE_INTERNAL_PORT="+freePort(t), "BACKPLANE_PUBLIC_PORT="+freePort(t),
-			"BACKPLANE_PG_DSN="+scratch, "BACKPLANE_VALKEY_ADDR="+testValkey(t), "BACKPLANE_ADMIN_TOKEN="+token,
+			"BACKPLANE_PG_DSN="+scratch, "BACKPLANE_ADMIN_TOKEN="+token,
 			"BACKPLANE_CONSOLE_LISTEN=:"+consolePort, "BACKPLANE_AUDIT_LISTEN=:"+freePort(t),
 			"BACKPLANE_CONSOLE_PREFIX="+m1Prefix, "BACKPLANE_CONSOLE_INSECURE_COOKIE=true",
 			"BACKPLANE_LIVE_CONFIG_RECONCILE_INTERVAL=200ms", "BACKPLANE_NEXUS_RECONCILE_INTERVAL=200ms",

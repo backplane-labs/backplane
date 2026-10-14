@@ -4,20 +4,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
-	valkeygo "github.com/valkey-io/valkey-go"
+	"github.com/jackc/pgx/v5"
 
+	"github.com/gopherex/pgtx/pkg/tx"
+
+	"github.com/gopherex/backplane/internal/store"
+	"github.com/gopherex/backplane/internal/store/db"
 	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/infra/valkey"
 )
 
 // ErrAttempts: the login attempts cannot be counted; the login is refused.
 var ErrAttempts = errors.New("console: login attempts unavailable")
 
 // Attempts counts login attempts for brute force protection (§11.3), shared
-// by every replica: Valkey in the server, memory in tests. When they cannot
+// by every replica: PostgreSQL in the server, memory in tests. When they cannot
 // be counted the login is refused.
 type Attempts interface {
 	// Allow takes one attempt from addr; refused, it is how long to wait.
@@ -28,7 +30,7 @@ type Attempts interface {
 	Succeeded(ctx context.Context) error
 }
 
-// LoginLimits of Valkey attempts.
+// LoginLimits of shared login attempts.
 type LoginLimits struct {
 	// Every address has Burst attempts per Window.
 	Burst  int
@@ -55,73 +57,137 @@ func DefaultLoginLimits() LoginLimits {
 	}
 }
 
-// Keys share one hash slot ({login}), so a script touches them on one
-// cluster node.
+// PGAttempts counts attempts in the platform's PostgreSQL schema.
+// A database outage refuses logins; there is no per-replica fallback.
+type PGAttempts struct {
+	st     deps.Dependency[*store.Store]
+	limits LoginLimits
+}
+
+var _ Attempts = PGAttempts{}
+
 const (
-	keyBlocked  = "backplane:{login}:blocked"
-	keyFailures = "backplane:{login}:failures"
-	keyAddr     = "backplane:{login}:addr:"
+	loginOperationTimeout = 3 * time.Second
+	maxLoginBackoffShift  = 16
+	loginCleanupBatchSize = 1000
+	loginCleanupBatches   = 10
 )
 
-// allowScript: the remaining global backoff, else one attempt of the
-// address's window — 0 allowed, otherwise milliseconds to wait.
-const allowScript = `
-local blocked = redis.call('PTTL', KEYS[1])
-if blocked > 0 then return blocked end
-local n = redis.call('INCR', KEYS[2])
-if n == 1 or redis.call('PTTL', KEYS[2]) < 0 then redis.call('PEXPIRE', KEYS[2], ARGV[2]) end
-if n <= tonumber(ARGV[1]) then return 0 end
-local ttl = redis.call('PTTL', KEYS[2])
-if ttl < 1 then return 1 end
-return ttl
-`
-
-// failedScript: one more failure; from the threshold on, the backoff.
-const failedScript = `
-local n = redis.call('INCR', KEYS[1])
-redis.call('PEXPIRE', KEYS[1], ARGV[4])
-local over = n - tonumber(ARGV[1])
-if over < 0 then return n end
-local wait = tonumber(ARGV[2]) * 2 ^ math.min(over, 16)
-if wait > tonumber(ARGV[3]) then wait = tonumber(ARGV[3]) end
-redis.call('SET', KEYS[2], n, 'PX', math.floor(wait))
-return n
-`
-
-// Valkey counts attempts in Valkey.
-type Valkey struct {
-	client        deps.Dependency[valkey.Client]
-	limits        LoginLimits
-	allow, failed *valkeygo.Lua
+type attemptsPruner interface {
+	Prune(ctx context.Context) error
 }
 
-var _ Attempts = Valkey{}
+func NewPGAttempts(st deps.Dependency[*store.Store], limits LoginLimits) PGAttempts {
+	return PGAttempts{st: st, limits: limits}
+}
 
-// NewValkey counts attempts in Valkey with limits; the client is read once
-// it is provided (from the console's start on).
-func NewValkey(client deps.Dependency[valkey.Client], limits LoginLimits) Valkey {
-	return Valkey{
-		client: client, limits: limits,
-		allow: valkeygo.NewLuaScript(allowScript), failed: valkeygo.NewLuaScript(failedScript),
+func (p PGAttempts) store() (*store.Store, error) {
+	if !p.st.Ready() {
+		return nil, ErrAttempts
 	}
+
+	return p.st.Get(), nil
 }
 
-// Allow implements Attempts.
-func (v Valkey) Allow(ctx context.Context, addr string) (time.Duration, error) {
-	wait, err := v.allow.Exec(ctx, v.client.Get(), []string{keyBlocked, keyAddr + addr},
-		[]string{strconv.Itoa(v.limits.Burst), millis(v.limits.Window)}).AsInt64()
+func (p PGAttempts) Allow(ctx context.Context, address string) (time.Duration, error) {
+	ctx, cancel := context.WithTimeout(ctx, loginOperationTimeout)
+	defer cancel()
+
+	st, err := p.store()
+	if err != nil {
+		return 0, err
+	}
+
+	var wait time.Duration
+
+	err = tx.DoReadCommitted(ctx, st.Trm, func(ctx context.Context) error {
+		wait = 0 // transaction-local result
+
+		state, err := st.Q.GetLoginState(ctx)
+		if err != nil {
+			return fmt.Errorf("login state: %w", err)
+		}
+
+		clock, err := st.Q.LoginNow(ctx)
+		if err != nil {
+			return fmt.Errorf("login state: %w", err)
+		}
+
+		if state.BlockedUntil.After(clock.Now) {
+			wait = state.BlockedUntil.Sub(clock.Now)
+			return nil
+		}
+
+		_, err = st.Q.TakeLoginAttempt(ctx, db.TakeLoginAttemptParams{
+			Address: address, ExpiresAt: clock.Now.Add(p.limits.Window), Now: clock.Now, Burst: int64(p.limits.Burst),
+		})
+		if err == nil {
+			return nil
+		}
+
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("take login attempt: %w", err)
+		}
+
+		row, err := st.Q.GetLoginAttempt(ctx, address)
+		if err != nil {
+			return fmt.Errorf("login state: %w", err)
+		}
+
+		wait = max(row.ExpiresAt.Sub(clock.Now), time.Millisecond)
+
+		return nil
+	})
 	if err != nil {
 		return 0, fmt.Errorf("%w: %w", ErrAttempts, err)
 	}
 
-	return time.Duration(wait) * time.Millisecond, nil
+	return wait, nil
 }
 
-// Failed implements Attempts.
-func (v Valkey) Failed(ctx context.Context) error {
-	err := v.failed.Exec(ctx, v.client.Get(), []string{keyFailures, keyBlocked}, []string{
-		strconv.Itoa(v.limits.Threshold), millis(v.limits.Base), millis(v.limits.Max), millis(v.limits.Forget),
-	}).Error()
+func (p PGAttempts) Failed(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, loginOperationTimeout)
+	defer cancel()
+
+	st, err := p.store()
+	if err != nil {
+		return err
+	}
+
+	err = tx.DoReadCommitted(ctx, st.Trm, func(ctx context.Context) error {
+		state, err := st.Q.LockLoginState(ctx)
+		if err != nil {
+			return fmt.Errorf("login state: %w", err)
+		}
+
+		clock, err := st.Q.LoginNow(ctx)
+		if err != nil {
+			return fmt.Errorf("login state: %w", err)
+		}
+
+		failures := state.Failures
+		if !state.ForgetAt.After(clock.Now) {
+			failures = 0
+		}
+		// More failures cannot increase the capped delay further.
+		failures = min(failures+1, int64(p.limits.Threshold)+maxLoginBackoffShift)
+		blocked := state.BlockedUntil
+
+		if over := failures - int64(p.limits.Threshold); over >= 0 {
+			factor := int64(1) << uint(min(over, maxLoginBackoffShift))
+
+			delay := p.limits.Max
+			if int64(p.limits.Base) <= int64(p.limits.Max)/factor {
+				delay = time.Duration(int64(p.limits.Base) * factor)
+			}
+
+			blocked = clock.Now.Add(delay)
+		}
+
+		return st.Q.SetLoginFailure(ctx, db.SetLoginFailureParams{
+			Failures: failures, ForgetAt: clock.Now.Add(p.limits.Forget), BlockedUntil: blocked,
+		})
+	})
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrAttempts, err)
 	}
@@ -129,14 +195,43 @@ func (v Valkey) Failed(ctx context.Context) error {
 	return nil
 }
 
-// Succeeded implements Attempts.
-func (v Valkey) Succeeded(ctx context.Context) error {
-	c := v.client.Get()
-	if err := c.Do(ctx, c.B().Del().Key(keyFailures).Build()).Error(); err != nil {
+func (p PGAttempts) Succeeded(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, loginOperationTimeout)
+	defer cancel()
+
+	st, err := p.store()
+	if err != nil {
+		return err
+	}
+
+	if err := st.Q.ResetLoginFailures(ctx); err != nil {
 		return fmt.Errorf("%w: %w", ErrAttempts, err)
 	}
 
 	return nil
 }
 
-func millis(d time.Duration) string { return strconv.FormatInt(max(d.Milliseconds(), 1), 10) }
+// Prune removes expired IP counters in bounded batches, skipping rows used
+// by concurrent logins. Every replica may run it safely.
+func (p PGAttempts) Prune(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, loginOperationTimeout)
+	defer cancel()
+
+	st, err := p.store()
+	if err != nil {
+		return err
+	}
+
+	for range loginCleanupBatches {
+		n, err := st.Q.DeleteExpiredLoginAttempts(ctx)
+		if err != nil {
+			return fmt.Errorf("%w: prune: %w", ErrAttempts, err)
+		}
+
+		if n < loginCleanupBatchSize {
+			return nil
+		}
+	}
+
+	return nil
+}

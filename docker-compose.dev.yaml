@@ -15,7 +15,7 @@ x-runtime: &runtime
     OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4318
     OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
     OTEL_METRIC_EXPORT_INTERVAL: "5000"
-  depends_on: [consul, postgres, valkey, nats, temporal, collector]
+  depends_on: [consul, postgres, nats, temporal, collector]
 services:
   backplane:
     <<: *runtime
@@ -28,7 +28,6 @@ services:
       BACKPLANE_PUBLIC_PORT: "8090"
       BACKPLANE_ADMIN_TOKEN: ${DEV_ADMIN_TOKEN:-dev-admin-token-change-me}
       BACKPLANE_PG_DSN: postgres://backplane:backplane@postgres:5432/backplane?sslmode=disable
-      BACKPLANE_VALKEY_ADDR: valkey:6379
       BACKPLANE_CONSOLE_PREFIX: /backplane
       BACKPLANE_CONSOLE_INSECURE_COOKIE: "true"
       BACKPLANE_CONSOLE_ASSETS_DIR: /app/web/apps/console/dist

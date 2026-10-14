@@ -37,6 +37,16 @@ import (
 // other session must not touch a database someone uses.
 func pgSessions(t *testing.T) console.PG {
 	t.Helper()
+	return console.NewPG(pgStore(t))
+}
+
+func pgStore(t *testing.T) deps.Dependency[*store.Store] {
+	t.Helper()
+	return pgStoreWithSetup(t, nil)
+}
+
+func pgStoreWithSetup(t *testing.T, setup func(context.Context, *pgx.Conn)) deps.Dependency[*store.Store] {
+	t.Helper()
 
 	dsn := os.Getenv("BACKPLANE_TEST_PG")
 	if dsn == "" {
@@ -67,6 +77,19 @@ func pgSessions(t *testing.T) console.PG {
 
 	scratch.Path = "/" + name
 
+	if setup != nil {
+		conn, err := pgx.Connect(t.Context(), scratch.String())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		setup(t.Context(), conn)
+
+		if err := conn.Close(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	h := backplanetest.New(t, backplanetest.Name("backplane"))
 	st := deps.NewDependency(h.Root(), store.New(postgres.Config{DSN: config.Secret(scratch.String())}))
 	h.Start()
@@ -75,7 +98,7 @@ func pgSessions(t *testing.T) console.PG {
 		t.Fatal(err)
 	}
 
-	return console.NewPG(st)
+	return st
 }
 
 // The PostgreSQL store and the memory fake behave alike.

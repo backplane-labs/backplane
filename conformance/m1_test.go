@@ -271,7 +271,6 @@ func TestM1(t *testing.T) {
 	m1Start(t, "backplane", backplaneBin,
 		"BACKPLANE_CONSUL_ADDR="+addr,
 		"BACKPLANE_PG_DSN="+scratch,
-		"BACKPLANE_VALKEY_ADDR="+testValkey(t),
 		"BACKPLANE_INSTANCE="+m1Backplane,
 		"BACKPLANE_ADVERTISE="+w.host,
 		"BACKPLANE_INTERNAL_PORT="+freePort(t),
@@ -818,17 +817,4 @@ func (w *m1) restarts(t *testing.T) {
 
 		return st.GetConfigRevision() == 3, fmt.Sprint("revision ", st.GetConfigRevision())
 	})
-}
-
-// testValkey is BACKPLANE_TEST_VALKEY (make up: localhost:6379), which the
-// built backplane needs for login attempts; skipped without.
-func testValkey(t *testing.T) string {
-	t.Helper()
-
-	addr := os.Getenv("BACKPLANE_TEST_VALKEY")
-	if addr == "" {
-		t.Skip("BACKPLANE_TEST_VALKEY not set (make up)")
-	}
-
-	return addr
 }

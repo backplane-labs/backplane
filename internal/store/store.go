@@ -135,6 +135,10 @@ func open(ctx context.Context, pg *postgres.DB) (*Store, error) {
 		return nil, fmt.Errorf("store: audit clock: %w", err)
 	}
 
+	if err := st.Q.CreateLoginState(ctx); err != nil {
+		return nil, fmt.Errorf("store: login state: %w", err)
+	}
+
 	return st, nil
 }
 

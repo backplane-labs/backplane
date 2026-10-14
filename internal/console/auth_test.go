@@ -191,7 +191,7 @@ func TestLoginAttempts(t *testing.T) {
 	}
 
 	// Attempts that cannot be counted refuse the login.
-	e.attempts.set(0, errors.New("valkey down"))
+	e.attempts.set(0, errors.New("login attempt store down"))
 
 	if res := from("198.51.100.1", adminToken); res.StatusCode != http.StatusServiceUnavailable {
 		t.Fatalf("attempts unavailable: %s", res.Status)

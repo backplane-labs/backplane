@@ -79,7 +79,7 @@ leaves empty; only `BACKPLANE_CONSUL_ADDR` turns Consul on.
 
 ## Platform-in-a-box
 
-PostgreSQL, Consul and Valkey are the required server dependencies. NATS and Temporal
+PostgreSQL and Consul are the required server dependencies. NATS and Temporal
 are optional; observability has a separate overlay. `make up` starts infrastructure
 for host processes. `make dev` starts infrastructure, Backplane, hello, formatter
 and a seed that configures a cross-service binding and event rule.
@@ -88,7 +88,6 @@ and a seed that configures a cross-service binding and event rule.
 |---|---|---|
 | PostgreSQL | 5433 | Durable platform state |
 | Consul | 8500 | Catalog, health, manifests and live configuration |
-| Valkey | 6379 | Shared login attempt counters |
 | NATS | 4222 | Optional event transport |
 | Temporal | 7233 | Optional workflows and hook execution |
 | Console | 8081 | `make dev`: `/backplane/` |
@@ -107,7 +106,6 @@ control-plane listener. Production exposure and upstream discovery belong to the
 | `BACKPLANE_PG_QUERY_LOG` | `warn` | lowest level of the per-query log (`trace`…`error`, `none`); arguments are never logged |
 | `BACKPLANE_PG_POOL_MAX_CONNS`, `_MIN_CONNS`, `_MAX_CONN_LIFETIME`, `_MAX_CONN_IDLE_TIME` | `0` (pgx's default) | pool bounds; set `MAX_CONNS` explicitly in production — pgx's default follows the node's CPUs |
 | `BACKPLANE_CONSUL_ADDR` | — | **required** for backplane (optional for services): the registry follows the catalog and `backplane/services/` |
-| `BACKPLANE_VALKEY_ADDR` | — | **required**: Valkey `host:port` (a cluster is discovered from it); `_USERNAME`, `_PASSWORD` (secret), `_DB` (`0`), `_TLS_*` like the SDK block's. Holds the console's login attempts for every replica; while it is down, logins are refused with `503` |
 | `BACKPLANE_CONSOLE_LISTEN` | `:8081` | console HTTP (`/`, `/ws`, `/auth`, `/plugins`), directly or behind a deployment-owned proxy |
 | `BACKPLANE_CONSOLE_ORIGINS` | the request's own host | origins (`scheme://host[:port]`, exact) allowed to open `/ws` and to log in, JSON list |
 | `BACKPLANE_CONSOLE_TRUSTED_PROXIES` | — | addresses/CIDRs whose `X-Forwarded-For` is trusted (trusted proxy addresses), JSON list |
@@ -117,7 +115,7 @@ control-plane listener. Production exposure and upstream discovery belong to the
 
 Listen ports must differ from each other and from the platform and public
 ports. Readiness (`/healthz/readiness` on the platform port) waits for
-PostgreSQL (migrated, pinging), Valkey (pinging) and the first registry snapshot from Consul;
+PostgreSQL (migrated, pinging) and the first registry snapshot from Consul;
 later Consul outages keep the last snapshot and readiness.
 
 Locally, against platform-in-a-box, next to services on their default
@@ -125,7 +123,7 @@ ports:
 
 ```sh
 make up
-make run-backplane   # bin/backplane: Consul localhost:8500, PostgreSQL localhost:5433, Valkey localhost:6379,
+make run-backplane   # bin/backplane: Consul localhost:8500, PostgreSQL localhost:5433,
                      # platform port 9410, public port 8090, console admin token
                      # dev-admin-token-change-me (DEV_ADMIN_TOKEN=... to override)
 make run-hello       # another terminal: the registry logs hello's manifest and instance
@@ -140,7 +138,7 @@ The shell, `/auth/*`, `/ws`, `/plugins/*`, `/schemas/*` and optional telemetry a
 use this listener. Module RPCs and files are fetched directly from service platform ports.
 
 Set `BACKPLANE_ADMIN_TOKEN` to a secret of at least 16 characters. Sessions are stored
-in PostgreSQL; brute-force counters are shared in Valkey. For local plain HTTP only,
+in PostgreSQL; brute-force counters are shared in PostgreSQL. For local plain HTTP only,
 set `BACKPLANE_CONSOLE_INSECURE_COOKIE=true`. HTTPS deployments keep secure cookies
 and terminate TLS before the application's listener.
 
@@ -166,7 +164,7 @@ frontend fixtures. For console HMR use `cd web && yarn dev:console`; the default
 upstream is the direct console on `8081`. `BACKPLANE_DEV_TARGET` overrides that console
 upstream, and `BACKPLANE_HELLO_URL` overrides the public hello address in browser acceptance.
 
-`make dev-minimal` starts Backplane with PostgreSQL, Consul and Valkey only. Disabled
+`make dev-minimal` starts Backplane with PostgreSQL and Consul only. Disabled
 capabilities return explicit unavailable errors and the UI reflects their status.
 
 ## Conformance and multiple replicas
@@ -209,3 +207,20 @@ and [observability](../docs/obs-api.md) for their configuration and API contract
 - `otel-collector.yaml` and `otel-collector.audit.yaml`: independent telemetry pipelines.
 - The root Compose files: base infrastructure, full development and minimal installation.
 - [Release image instructions](README.release.md).
+
+## Sharing a PostgreSQL database
+
+Backplane owns the fixed `backplane` schema. All application tables and queries
+are schema-qualified, every platform connection uses `search_path=backplane`,
+and the migration ledger is `backplane.sqld_migrations`. A service can use
+`public` or its own schema in the same database without sharing migration state.
+Use separate roles and grant the platform access only to its schema where
+appropriate. Backplane creates its schema on first startup and applies pending
+migrations automatically; it does not create its database or move service data.
+
+Login attempt windows and the shared failure backoff also live in this schema.
+The default is five attempts per minute per IP; after ten failed token checks,
+all replicas apply a shared exponential delay from one second up to one minute.
+A successful login resets the failure count. PostgreSQL time controls expiry.
+Expired IP counters are cleaned in bounded batches every minute. If the store
+cannot check the protection state, login returns `503` rather than bypassing it.

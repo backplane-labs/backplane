@@ -54,7 +54,7 @@ token **`dev-admin-token-change-me`**. The installation includes backplane, hell
 and formatter, with a working hook binding and event rule. Infrastructure,
 including Temporal, runs in containers.
 
-For the console with only PostgreSQL, Consul and Valkey:
+For the console with only PostgreSQL and Consul:
 
 ```sh
 make dev-minimal
@@ -110,7 +110,7 @@ frontend package tarballs. Frontend packages publish to **GitHub Packages**.
 docker pull ghcr.io/gopherex/backplane:0.1.1
 ```
 
-The image runs as a non-root user. Supply PostgreSQL, Consul, Valkey and an
+The image runs as a non-root user. Supply PostgreSQL, Consul and an
 operator token through deployment configuration; optional infrastructure is
 enabled by its configured endpoints. See [release packaging](docs/releases.md)
 and [configuration](deployments/README.md). The publishing workflow runs on

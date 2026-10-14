@@ -35,3 +35,21 @@ func TestSDKDependencyBoundary(t *testing.T) {
 		}
 	}
 }
+
+func TestPlatformDoesNotImportRedis(t *testing.T) {
+	t.Parallel()
+	cmd := exec.CommandContext(t.Context(), "go", "list", "-deps", "../cmd/backplane")
+
+	cmd.Env = append(os.Environ(), "GOWORK=off")
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("platform imports: %v\n%s", err, out)
+	}
+
+	for _, pkg := range strings.Fields(string(out)) {
+		if strings.HasPrefix(pkg, "github.com/valkey-io/") || strings.HasPrefix(pkg, "github.com/redis/") {
+			t.Errorf("platform imports Redis client %s", pkg)
+		}
+	}
+}

@@ -23,7 +23,6 @@ import (
 	"github.com/gopherex/backplane/internal/otlp"
 	"github.com/gopherex/backplane/pkg/backplane/config"
 	"github.com/gopherex/backplane/pkg/backplane/infra/postgres"
-	"github.com/gopherex/backplane/pkg/backplane/infra/valkey"
 )
 
 // Name of the service.
@@ -34,10 +33,8 @@ type Config struct {
 	config.Backplane `json:"backplane"`
 
 	// PostgreSQL, schema `backplane`: BACKPLANE_PG_DSN, _QUERY_LOG, _POOL_*.
-	PG postgres.Config `json:"pg"`
-	// Valkey keeps what every replica shares briefly: login attempts.
-	Valkey         valkey.Config  `json:"valkey"`
-	Infrastructure Infrastructure `json:"infrastructure"`
+	PG             postgres.Config `json:"pg"`
+	Infrastructure Infrastructure  `json:"infrastructure"`
 	// Console HTTP: `/`, `/ws`, `/auth`, `/plugins`, served directly or behind a deployment-owned proxy.
 	Console Console `json:"console"`
 	// Admin token of the console (§11.3): the secret /auth/login accepts,
@@ -87,7 +84,6 @@ func (c Config) consoleSettings() console.Settings {
 var (
 	ErrNoPG         = errors.New("pg.dsn is required (BACKPLANE_PG_DSN)")
 	ErrNoConsul     = errors.New("backplane.consul.addr is required (BACKPLANE_CONSUL_ADDR)")
-	ErrNoValkey     = errors.New("valkey.addr is required (BACKPLANE_VALKEY_ADDR)")
 	ErrAddr         = errors.New("want host:port with a port in 1..65535")
 	ErrPortTaken    = errors.New("port is used twice")
 	ErrPrefix       = errors.New("console.prefix: want /path without a trailing slash")
@@ -112,12 +108,6 @@ func (c Config) Validate() error {
 
 	if !c.Consul.Enabled() {
 		errs = append(errs, ErrNoConsul)
-	}
-
-	if !c.Valkey.Enabled() {
-		errs = append(errs, ErrNoValkey)
-	} else if err := c.Valkey.Validate(); err != nil {
-		errs = append(errs, err)
 	}
 
 	if err := c.adminToken(); err != nil {

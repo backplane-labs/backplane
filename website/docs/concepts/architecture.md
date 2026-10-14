@@ -5,8 +5,7 @@ Backplane has three cooperating surfaces: a service SDK, an installation control
 ```mermaid
 flowchart TB
   Browser[Console and module pages] -->|Cookie and ws-proto| BP[Backplane replicas]
-  BP --> PG[(PostgreSQL)]
-  BP --> VK[(Valkey login limits)]
+  BP --> PG[(PostgreSQL state and login limits)]
   BP <--> Consul[Consul catalog and live configuration]
   Service[Go services] <--> Consul
   BP -->|Optional| Temporal[Temporal workflows and Nexus]

@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export GOWORK=off
 mkdir -p bin/verification
-full=(docker compose --profile full -p backplane-verify -f docker-compose.yaml -f docker-compose.observability.yaml)
+full=(docker compose --profile full --profile cache -p backplane-verify -f docker-compose.yaml -f docker-compose.observability.yaml)
 minimal=(docker compose -p backplane-verify -f docker-compose.yaml -f docker-compose.minimal.yaml)
 cleanup() {
   "${full[@]}" logs --no-color >> bin/verification/full-compose.log 2>&1 || true

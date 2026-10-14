@@ -197,7 +197,6 @@ func TestM2(t *testing.T) {
 		"BACKPLANE_NATS_URL="+natsURL,
 		"BACKPLANE_TEMPORAL_ADDR="+temporalAddr,
 		"BACKPLANE_PG_DSN="+scratch,
-		"BACKPLANE_VALKEY_ADDR="+testValkey(t),
 		"BACKPLANE_INSTANCE="+m2Backplane,
 		"BACKPLANE_ADVERTISE="+host,
 		"BACKPLANE_INTERNAL_PORT="+freePort(t),

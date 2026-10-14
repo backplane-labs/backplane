@@ -85,15 +85,6 @@ func (st *State) probes(root backplane.Root[Config], cfg Config) []platform.Prob
 			return st.Store.Get().Pool.Ping(ctx)
 		}},
 		{Name: "consul", Required: true},
-		{Name: "valkey", Required: true, Run: func(ctx context.Context) error {
-			if !st.Valkey.Ready() {
-				return deps.ErrNotReady
-			}
-
-			v := st.Valkey.Get()
-
-			return v.Do(ctx, v.B().Ping().Build()).Error()
-		}},
 	}
 	// A KV read also checks that the configured Consul token works.
 	probes[1].Run = func(ctx context.Context) error {

@@ -4,7 +4,7 @@ Backplane runs as an ordinary server process or container. It discovers services
 
 ## Minimal and full modes
 
-The minimal server needs PostgreSQL, Consul and Valkey. It provides catalog, configuration, console/module hosting and durable audit. Add optional endpoints to enable events, workflows, routing and observability. The [dependency matrix](../concepts/dependencies.md) maps each capability to its runtime.
+The minimal server needs PostgreSQL and Consul. It provides catalog, configuration, console/module hosting and durable audit. Add optional endpoints to enable events, workflows, routing and observability. The [dependency matrix](../concepts/dependencies.md) maps each capability to its runtime.
 
 The repository includes:
 
@@ -20,7 +20,7 @@ These are development/reference configurations. Replace local passwords, unsecur
 
 ## Deployment sequence
 
-1. Provision persistent PostgreSQL, Consul and Valkey with backups and appropriate access controls.
+1. Provision persistent PostgreSQL and Consul with backups and appropriate access controls.
 2. Choose optional runtimes and create their deployment resources.
 3. Configure Backplane identity, endpoints, operator credential and internal secret.
 4. Mount the matching console assets, or use the release image that includes them.

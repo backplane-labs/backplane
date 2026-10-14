@@ -1,6 +1,6 @@
 # Replicas, outages and retirement
 
-Backplane replicas share PostgreSQL, Consul and Valkey. Optional runtimes must address the same intended installation resources. Keep configuration and secrets consistent across replicas and advertise reachable service addresses.
+Backplane replicas share PostgreSQL and Consul. Optional runtimes must address the same intended installation resources. Keep configuration and secrets consistent across replicas and advertise reachable service addresses.
 
 ## Concurrent control work
 
@@ -14,7 +14,6 @@ Rules share durable delivery/execution identities. A duplicate event or replica 
 | --- | --- |
 | PostgreSQL | Control persistence and audit unavailable; mutations cannot safely proceed |
 | Consul | Discovery/configuration reconciliation impaired; do not infer service absence from a failed read |
-| Valkey | Login protection unavailable; login refuses rather than bypassing it |
 | Temporal | Durable workflow/hook/schedule operations fail; core capabilities remain independently configured |
 | NATS | Event delivery/operations impaired; no implication that a prior publish was rolled back |
 | Victoria store | Queries for that signal fail; platform startup does not depend on contacting it |

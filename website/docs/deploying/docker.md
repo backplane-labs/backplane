@@ -15,7 +15,6 @@ Create a deployment-owned environment file, with restricted permissions, replaci
 ```ini
 BACKPLANE_PG_DSN=postgres://backplane:REPLACE@postgres:5432/backplane?sslmode=require
 BACKPLANE_CONSUL_ADDR=consul:8500
-BACKPLANE_VALKEY_ADDR=valkey:6379
 BACKPLANE_ADMIN_TOKEN=REPLACE_WITH_OPERATOR_SECRET
 BACKPLANE_INTERNAL_SECRET=REPLACE_WITH_INSTALLATION_SECRET
 ```

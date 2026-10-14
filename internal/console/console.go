@@ -53,7 +53,8 @@ const (
 	// closes once it is revoked (on another replica), expired or idle.
 	recheckEvery = 30 * time.Second
 	// cleanupEvery deletes stale sessions from the store.
-	cleanupEvery = 10 * time.Minute
+	cleanupEvery        = 10 * time.Minute
+	attemptCleanupEvery = time.Minute
 	// Limits of the console's HTTP server.
 	readHeaderTimeout = 10 * time.Second
 	serverIdleTimeout = 2 * time.Minute
@@ -287,6 +288,9 @@ func (c *Console) housekeeping(ctx context.Context) error {
 	changes := c.src.Changes(ctx)
 	cleanup := time.NewTicker(cleanupEvery)
 
+	attemptCleanup := time.NewTicker(attemptCleanupEvery)
+	defer attemptCleanup.Stop()
+
 	defer cleanup.Stop()
 
 	for {
@@ -299,6 +303,12 @@ func (c *Console) housekeeping(ctx context.Context) error {
 			}
 
 			c.relay.prune(c.src.Current())
+		case <-attemptCleanup.C:
+			if cleaner, ok := c.attempts.(attemptsPruner); ok {
+				if err := cleaner.Prune(ctx); err != nil && ctx.Err() == nil {
+					c.Log().Warn("console: delete expired login attempts", xlog.Err(err))
+				}
+			}
 		case <-cleanup.C:
 			now := c.now()
 			if _, err := c.sessions.DeleteStale(ctx, now, now.Add(-IdleTimeout)); err != nil && ctx.Err() == nil {

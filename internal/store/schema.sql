@@ -53,6 +53,23 @@ CREATE TABLE backplane.console_session (
 
 CREATE INDEX console_session_expires_at_idx ON backplane.console_session (expires_at);
 
+-- Shared login protection for every platform replica. Expired address rows
+-- are deleted in bounded batches; timestamps come from PostgreSQL.
+CREATE TABLE backplane.console_login_state (
+  singleton     boolean PRIMARY KEY DEFAULT true CHECK (singleton),
+  failures      bigint NOT NULL DEFAULT 0 CHECK (failures >= 0),
+  forget_at     timestamptz NOT NULL DEFAULT 'epoch',
+  blocked_until timestamptz NOT NULL DEFAULT 'epoch'
+);
+
+CREATE TABLE backplane.console_login_attempt (
+  address    text PRIMARY KEY,
+  attempts   integer NOT NULL CHECK (attempts > 0),
+  expires_at timestamptz NOT NULL
+);
+
+CREATE INDEX console_login_attempt_expires_at_idx ON backplane.console_login_attempt (expires_at);
+
 -- Bindings (§7.1): versions of the binding of each hook ("<service>.<Hook>"),
 -- append-only; versions count from 1 per hook, a rollback is a new version
 -- copying an older one's definition (rollback_of), a delete is a tombstone

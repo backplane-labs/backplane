@@ -22,7 +22,6 @@ func TestConfigFromEnv(t *testing.T) {
 	t.Setenv("BACKPLANE_PG_DSN", "postgres://pg/backplane")
 	t.Setenv("BACKPLANE_CONSUL_ADDR", "consul:8500")
 	t.Setenv("BACKPLANE_ADMIN_TOKEN", "admin-token-0123456789")
-	t.Setenv("BACKPLANE_VALKEY_ADDR", "valkey:6379")
 	t.Setenv("BACKPLANE_CONSOLE_ORIGINS", `["https://console.example.com"]`)
 	t.Setenv("BACKPLANE_CONSOLE_TRUSTED_PROXIES", `["10.0.0.0/8","192.168.1.1"]`)
 	t.Setenv("BACKPLANE_OBS_METRICS_URL", "http://grafana:3000")
@@ -37,7 +36,7 @@ func TestConfigFromEnv(t *testing.T) {
 	if cfg.PG.DSN.Reveal() != "postgres://pg/backplane" || cfg.Consul.Addr != "consul:8500" ||
 		cfg.AdminToken.Reveal() != "admin-token-0123456789" ||
 		len(cfg.Console.Origins) != 1 || len(cfg.Console.TrustedProxies) != 2 ||
-		cfg.Obs.MetricsURL != "http://grafana:3000" || cfg.Valkey.Addr != "valkey:6379" {
+		cfg.Obs.MetricsURL != "http://grafana:3000" {
 		t.Fatalf("env: %+v", cfg)
 	}
 
@@ -79,7 +78,6 @@ func TestValidate(t *testing.T) {
 
 		c.PG.DSN = "postgres://pg/backplane"
 		c.Consul.Addr = "consul:8500"
-		c.Valkey.Addr = "valkey:6379"
 		c.AdminToken = "admin-token-0123456789"
 		c.InternalPort, c.PublicPort = 9400, 8080
 		c.Console.Listen, c.Audit.Listen = ":8081", ":4317"
@@ -97,8 +95,6 @@ func TestValidate(t *testing.T) {
 	}{
 		"no dsn":            {func(c *server.Config) { c.PG.DSN = "" }, server.ErrNoPG},
 		"no consul":         {func(c *server.Config) { c.Consul.Addr = "" }, server.ErrNoConsul},
-		"no valkey":         {func(c *server.Config) { c.Valkey.Addr = "" }, server.ErrNoValkey},
-		"valkey tls":        {func(c *server.Config) { c.Valkey.TLS.Enabled, c.Valkey.TLS.CA = true, "junk" }, config.ErrTLSCA},
 		"no admin token":    {func(c *server.Config) { c.AdminToken = "" }, server.ErrNoAdminToken},
 		"short admin token": {func(c *server.Config) { c.AdminToken = "short" }, server.ErrShortAdminToken},
 		"bad listen":        {func(c *server.Config) { c.Console.Listen = "8081" }, server.ErrAddr},

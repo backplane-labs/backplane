@@ -70,7 +70,7 @@ func TestPlatformModes(t *testing.T) {
 			defer health.Close()
 
 			env := []string{
-				"BACKPLANE_CONSUL_ADDR=" + consulAddr, "BACKPLANE_PG_DSN=" + scratch, "BACKPLANE_VALKEY_ADDR=" + testValkey(t),
+				"BACKPLANE_CONSUL_ADDR=" + consulAddr, "BACKPLANE_PG_DSN=" + scratch,
 				"BACKPLANE_INSTANCE=modes-" + tc.name, "BACKPLANE_ADMIN_TOKEN=" + token, "BACKPLANE_ADVERTISE=" + advertise(t),
 				"BACKPLANE_INTERNAL_PORT=" + freePort(t), "BACKPLANE_PUBLIC_PORT=" + freePort(t), "BACKPLANE_CONSOLE_LISTEN=:" + port,
 				"BACKPLANE_AUDIT_LISTEN=:" + freePort(t), "BACKPLANE_CONSOLE_INSECURE_COOKIE=true",
@@ -127,7 +127,7 @@ func TestPlatformModes(t *testing.T) {
 						}
 					}
 
-					return seen["postgres"] && seen["consul"] && seen["valkey"] && seen["collector"] && seen["nats"] == (tc.nats != "") && seen["temporal"] == (tc.temporal != ""), fmt.Sprint(seen)
+					return seen["postgres"] && seen["consul"] && seen["collector"] && seen["nats"] == (tc.nats != "") && seen["temporal"] == (tc.temporal != ""), fmt.Sprint(seen)
 				})
 			}
 			check(true)

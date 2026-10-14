@@ -41,6 +41,19 @@ type BackplaneConsoleSession struct {
 	UserAgent  string
 }
 
+type BackplaneConsoleLoginState struct {
+	Singleton    bool
+	Failures     int64
+	ForgetAt     time.Time
+	BlockedUntil time.Time
+}
+
+type BackplaneConsoleLoginAttempt struct {
+	Address   string
+	Attempts  int32
+	ExpiresAt time.Time
+}
+
 type BackplaneBindingVersion struct {
 	Hook       string
 	Version    int64
