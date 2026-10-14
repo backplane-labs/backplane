@@ -10,12 +10,13 @@ import (
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/redact"
 )
 
 // Internals under test.
 var (
-	MessagePB      = messagePB
-	DeadLetterPB   = deadLetterPB
+	MessagePB      = func(m *jetstream.RawStreamMsg) *consolev1.EventMessage { return messagePB(m, nil) }
+	DeadLetterPB   = func(m *jetstream.RawStreamMsg) *consolev1.DeadLetter { return deadLetterPB(m, nil) }
 	EventFilter    = eventFilter
 	ConsumerOfDead = consumerOfDead
 	CallHook       = callHook
@@ -27,6 +28,25 @@ func PayloadJSON(p *commonpb.Payload) string { return payloadJSON(p) }
 
 // HistoryPB exposes historyPB.
 func HistoryPB(e *historypb.HistoryEvent) *consolev1.HistoryEvent { return historyPB(e) }
+
+// MaskedHistory exposes historyPB with the masks of outcome and maskEvent
+// over a run's events: the events and the response's input and result.
+func MaskedHistory(
+	events []*historypb.HistoryEvent, red *redact.History,
+) ([]*consolev1.HistoryEvent, *consolev1.GetRunResponse) {
+	out := &consolev1.GetRunResponse{}
+
+	evs := make([]*consolev1.HistoryEvent, 0, len(events))
+
+	for _, e := range events {
+		ev := historyPB(e)
+		outcome(out, e, red)
+		maskEvent(ev, e, red)
+		evs = append(evs, ev)
+	}
+
+	return evs, out
+}
 
 // RedriveMsg exposes redriveMsg for subscriber's reactor consumer of an
 // event of source.

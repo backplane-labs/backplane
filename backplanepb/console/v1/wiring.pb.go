@@ -373,7 +373,12 @@ type Analysis struct {
 	// The CEL type of every value node that compiled, by path.
 	Types []*ValueType `protobuf:"bytes,3,rep,name=types,proto3" json:"types,omitempty"`
 	// Every variable an expression reads, by path, then position.
-	References    []*Reference `protobuf:"bytes,4,rep,name=references,proto3" json:"references,omitempty"`
+	References []*Reference `protobuf:"bytes,4,rep,name=references,proto3" json:"references,omitempty"`
+	// JSON Pointers of the value nodes that carry secrets: their expression
+	// reads a field a schema marks secret, or computes from one. The
+	// console masks these values in runs. Empty until the definition is
+	// valid.
+	Secrets       []string `protobuf:"bytes,5,rep,name=secrets,proto3" json:"secrets,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -432,6 +437,13 @@ func (x *Analysis) GetTypes() []*ValueType {
 func (x *Analysis) GetReferences() []*Reference {
 	if x != nil {
 		return x.References
+	}
+	return nil
+}
+
+func (x *Analysis) GetSecrets() []string {
+	if x != nil {
+		return x.Secrets
 	}
 	return nil
 }
@@ -903,7 +915,7 @@ const file_backplanepb_console_v1_wiring_proto_rawDesc = "" +
 	"definition\x18\x01 \x01(\v2$.backplane.console.v1.RuleDefinitionR\n" +
 	"definition\"Q\n" +
 	"\x13AnalyzeRuleResponse\x12:\n" +
-	"\banalysis\x18\x01 \x01(\v2\x1e.backplane.console.v1.AnalysisR\banalysis\"\xfd\x01\n" +
+	"\banalysis\x18\x01 \x01(\v2\x1e.backplane.console.v1.AnalysisR\banalysis\"\x97\x02\n" +
 	"\bAnalysis\x12?\n" +
 	"\n" +
 	"violations\x18\x01 \x03(\v2\x1f.backplane.console.v1.ViolationR\n" +
@@ -912,7 +924,8 @@ const file_backplanepb_console_v1_wiring_proto_rawDesc = "" +
 	"\x05types\x18\x03 \x03(\v2\x1f.backplane.console.v1.ValueTypeR\x05types\x12?\n" +
 	"\n" +
 	"references\x18\x04 \x03(\v2\x1f.backplane.console.v1.ReferenceR\n" +
-	"references\"\xbf\x01\n" +
+	"references\x12\x18\n" +
+	"\asecrets\x18\x05 \x03(\tR\asecrets\"\xbf\x01\n" +
 	"\fStepAnalysis\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05level\x18\x02 \x01(\x05R\x05level\x12\x12\n" +

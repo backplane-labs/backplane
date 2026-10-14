@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	"github.com/backplane-labs/backplane/internal/redact"
 	"github.com/backplane-labs/backplane/internal/wire"
 )
 
@@ -100,8 +101,9 @@ func filters(cfg jetstream.ConsumerConfig) []string {
 	return cfg.FilterSubjects
 }
 
-// messagePB is one stored message as the console shows it.
-func messagePB(m *jetstream.RawStreamMsg) *consolev1.EventMessage {
+// messagePB is one stored message as the console shows it, its payload
+// masked by the event's schema in cat.
+func messagePB(m *jetstream.RawStreamMsg, cat redact.Catalog) *consolev1.EventMessage {
 	out := &consolev1.EventMessage{
 		Seq: m.Sequence, Subject: m.Subject, StoredAt: stamp(m.Time),
 		Headers: firstValues(m.Header), CloudEvent: cloudEventPB(m.Header),
@@ -115,7 +117,7 @@ func messagePB(m *jetstream.RawStreamMsg) *consolev1.EventMessage {
 	}
 
 	if json.Valid(m.Data) {
-		out.Data = string(m.Data)
+		out.Data = string(redact.Mask(redact.EventSchema(cat, out.GetEvent()), m.Data))
 	} else {
 		out.Raw = m.Data
 	}
@@ -182,10 +184,10 @@ func cloudEventPB(h nats.Header) *consolev1.CloudEvent {
 }
 
 // deadLetterPB is a dead letter with the reasons its headers carry.
-func deadLetterPB(m *jetstream.RawStreamMsg) *consolev1.DeadLetter {
+func deadLetterPB(m *jetstream.RawStreamMsg, cat redact.Catalog) *consolev1.DeadLetter {
 	delivered, _ := strconv.ParseUint(m.Header.Get(wire.HeaderDelivered), 10, 32)
 	out := &consolev1.DeadLetter{
-		Message: messagePB(m), Consumer: m.Header.Get(wire.HeaderConsumer), Error: m.Header.Get(wire.HeaderError),
+		Message: messagePB(m, cat), Consumer: m.Header.Get(wire.HeaderConsumer), Error: m.Header.Get(wire.HeaderError),
 		Delivered: uint32(delivered),
 	}
 

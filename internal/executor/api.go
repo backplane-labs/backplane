@@ -22,6 +22,7 @@ import (
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/redact"
 	"github.com/backplane-labs/backplane/internal/wire"
 )
 
@@ -155,6 +156,8 @@ func (a BindingAPI) TestBinding(
 		return nil, x.status(ctx, err)
 	}
 
+	maskResult(res, redact.ParseProgram(in.Program))
+
 	x.audit(ctx, "binding.test", b.Hook, xlog.String("workflow_id", res.GetWorkflowId()),
 		xlog.Int64("version", version), xlog.String("error", res.GetError()))
 
@@ -245,6 +248,13 @@ func (x *Executor) execute(
 	}
 
 	return out, nil
+}
+
+// maskResult hides the secrets of a test run's answer by its program.
+func maskResult(res *consolev1.CallResult, prog *redact.Program) {
+	if res.GetOutput() != "" {
+		res.Output = string(prog.MaskResult([]byte(res.GetOutput())))
+	}
 }
 
 // runsAPI is the runs service or UNAVAILABLE.
@@ -357,7 +367,7 @@ func Timeline(
 		return nil, in.Identity, err
 	}
 
-	return timeline(programSteps(in.Program), events, run.GetPendingActivities()), in.Identity, nil
+	return timeline(in.Program, events, run.GetPendingActivities()), in.Identity, nil
 }
 
 // history is a run's events, at most maxEvents.

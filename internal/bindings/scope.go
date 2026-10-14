@@ -183,7 +183,8 @@ func (c *compiler) inputs(d *draft, f *frame) {
 			in = c.shapes.of(d.act.GetInput(), "bp.in"+suffix)
 		}
 
-		d.data = append(d.data, c.stepReads(d, c.value(d.path+"/input", d.Input, in), f)...)
+		d.inputReads = c.value(d.path+"/input", d.Input, in)
+		d.data = append(d.data, c.stepReads(d, d.inputReads, f)...)
 	}
 
 	if d.Undo != "" && !d.UndoInput.IsZero() {
@@ -192,7 +193,8 @@ func (c *compiler) inputs(d *draft, f *frame) {
 			undoIn = c.shapes.of(d.undo.GetInput(), "bp.undo"+suffix)
 		}
 
-		d.undoRefs = stepNames(c.value(d.path+"/undoInput", d.UndoInput, undoIn), f.names)
+		d.undoReads = c.value(d.path+"/undoInput", d.UndoInput, undoIn)
+		d.undoRefs = stepNames(d.undoReads, f.names)
 	}
 }
 
@@ -221,6 +223,7 @@ func (c *compiler) itemType(d *draft, t *types.Type, ok bool) *types.Type {
 // anywhere in the body are the step's data dependencies.
 func (c *compiler) forEach(d *draft, f *frame) (*frame, error) {
 	t, rs, ok := c.expr(d.path+"/forEach", d.ForEach)
+	d.forEachReads = rs
 	d.data = append(d.data, c.stepReads(d, rs, f)...)
 	item := c.itemType(d, t, ok)
 	d.itemType = typeName(item)
@@ -258,7 +261,7 @@ func (c *compiler) forEach(d *draft, f *frame) (*frame, error) {
 	}
 
 	c.env = body.env
-	c.value(d.path+"/result", d.Result, nil)
+	d.resultReads = c.value(d.path+"/result", d.Result, nil)
 
 	d.bodyGroups = c.order(d.body)
 	c.undoRefs(d.body)

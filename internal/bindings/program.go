@@ -85,6 +85,11 @@ type spec struct {
 	Result json.RawMessage `json:"result,omitempty"`
 	// Input is the schema of `req` or `event` (protobuf binary).
 	Input []byte `json:"input,omitempty"`
+	// ResultSchema marks what of the result carries secrets (protobuf
+	// binary; nil: nothing); ResultSecret: the whole result does. The
+	// console masks the hook's answer by them.
+	ResultSchema []byte `json:"result_schema,omitempty"`
+	ResultSecret bool   `json:"result_secret,omitempty"`
 }
 
 type specStep struct {
@@ -97,6 +102,14 @@ type specStep struct {
 	UndoInput   json.RawMessage `json:"undo_input,omitempty"`
 	// Output is the schema of the activity's output (protobuf binary).
 	Output []byte `json:"output,omitempty"`
+	// InputSchema is the activity's input schema with the fields that
+	// carry secrets marked (protobuf binary; nil: nothing to hide);
+	// InputSecret: the whole input is secret. UndoSchema and UndoSecret
+	// the same for the undo input. The console masks the calls by them.
+	InputSchema []byte `json:"input_schema,omitempty"`
+	InputSecret bool   `json:"input_secret,omitempty"`
+	UndoSchema  []byte `json:"undo_schema,omitempty"`
+	UndoSecret  bool   `json:"undo_secret,omitempty"`
 }
 
 // specBody is a for-each step's sub-flow.

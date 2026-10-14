@@ -58,8 +58,10 @@ func (a EventAPI) ListDeadLetters(
 
 	out.NextSeq = next
 
+	cat := a.o.redactor()
+
 	for _, m := range msgs {
-		out.DeadLetters = append(out.DeadLetters, deadLetterPB(m))
+		out.DeadLetters = append(out.DeadLetters, deadLetterPB(m, cat))
 	}
 
 	return out, nil

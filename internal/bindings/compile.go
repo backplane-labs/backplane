@@ -57,6 +57,10 @@ type Analysis struct {
 	Types []ValueType
 	// References by path, then position.
 	References []Reference
+	// Secrets are the paths of the value nodes that carry secrets: fields
+	// marked secret by a schema, or computed from one. Empty until the
+	// definition is valid.
+	Secrets []string
 }
 
 // StepAnalysis is where a step stands in the order of execution.
@@ -172,6 +176,7 @@ func compileBinding(b Binding, cat Catalog) (*Program, Analysis, error) {
 
 	c.input = c.shapes.of(in, "bp.req")
 	resultShape := c.shapes.of(out, "bp.result")
+	c.resultShape, c.resultDeclared = resultShape, out
 
 	return c.compile(source{kind: KindBinding, name: b.Hook, result: b.Result}, b.Steps, in, resultShape)
 }
@@ -217,6 +222,12 @@ type compiler struct {
 	input    *shape
 	env      *cel.Env
 	analysis Analysis
+	// resultShape and resultDeclared are a binding's result shape and the
+	// hook's output schema it was built from, for the secrets pass.
+	resultShape    *shape
+	resultDeclared *sp.Schema
+	// taints memoizes tainted.
+	taints map[*shape]bool
 }
 
 func newCompiler(kind Kind, cat Catalog) *compiler {
@@ -255,6 +266,13 @@ type draft struct {
 	// body and bodyGroups are a for-each step's sub-flow.
 	body       []*draft
 	bodyGroups [][]string
+	// What the step's expressions read, for the secrets pass.
+	inputReads, undoReads, forEachReads, resultReads []read
+	// Effective schemas of the input and undo input: the activity's with
+	// the fields that carry secrets marked (nil: nothing to hide); secret
+	// when the whole value is.
+	inputSchema, undoSchema []byte
+	inputSecret, undoSecret bool
 }
 
 func (c *compiler) compile(src source, steps []Step, in *sp.Schema, result *shape) (*Program, Analysis, error) {
@@ -278,8 +296,9 @@ func (c *compiler) compile(src source, steps []Step, in *sp.Schema, result *shap
 		c.ruleWhen(src.when, top.names)
 	}
 
+	var resultReads []read
 	if src.kind == KindBinding {
-		c.value(pathResult, src.result, result)
+		resultReads = c.value(pathResult, src.result, result)
 	}
 
 	groups := c.order(drafts)
@@ -292,8 +311,9 @@ func (c *compiler) compile(src source, steps []Step, in *sp.Schema, result *shap
 
 	s := spec{
 		Kind: src.kind, Source: src.name, When: src.when, Result: src.result.JSON(), Input: schemaBytes(in),
-		Steps: c.specSteps(drafts, groups),
 	}
+	s.ResultSchema, s.ResultSecret = c.secrets(drafts, groups, src, resultReads, result)
+	s.Steps = c.specSteps(drafts, groups)
 
 	p, err := newProgram(s)
 	if err != nil {
@@ -311,6 +331,7 @@ func (c *compiler) specSteps(drafts []*draft, groups [][]string) []specStep {
 		st := specStep{
 			StepPlan: c.plan(d, groups), When: d.When, ForEachExpr: d.ForEach, Input: d.Input.JSON(),
 			UndoInput: d.UndoInput.JSON(), Output: schemaBytes(d.out),
+			InputSchema: d.inputSchema, InputSecret: d.inputSecret, UndoSchema: d.undoSchema, UndoSecret: d.undoSecret,
 		}
 		if d.body != nil {
 			st.Body = &specBody{Steps: c.specSteps(d.body, d.bodyGroups), Result: d.Result.JSON()}
@@ -689,6 +710,10 @@ func (c *compiler) expr(path, src string) (*types.Type, []read, bool) {
 		reads[i].path = path
 	}
 
+	if len(reads) == 1 {
+		reads[0].bare = isWhole(src, reads[0].whole)
+	}
+
 	for _, r := range reads {
 		c.analysis.References = append(c.analysis.References, Reference{
 			Path: path, Variable: r.variable, Fields: slices.Clone(r.fields), Expr: r.whole,
@@ -712,6 +737,16 @@ func (c *compiler) expr(path, src string) (*types.Type, []read, bool) {
 	c.typed(path, typeName(checked.OutputType()))
 
 	return checked.OutputType(), reads, true
+}
+
+// isWhole reports whether r spans all of src but surrounding space.
+func isWhole(src string, r Range) bool {
+	runes := []rune(src)
+	if r.Start < 0 || r.End > len(runes) || r.Start >= r.End {
+		return false
+	}
+
+	return strings.TrimSpace(src) == string(runes[r.Start:r.End])
 }
 
 func costText(n uint64) string {

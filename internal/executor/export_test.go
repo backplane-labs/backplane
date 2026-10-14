@@ -37,5 +37,5 @@ func Hooks(cat registry.Catalog) map[string][]string { return hooksOf(cat) }
 func TimelineOf(
 	program []byte, events []*historypb.HistoryEvent, pending []*consolev1.PendingActivity,
 ) []*consolev1.StepRun {
-	return timeline(programSteps(program), events, pending)
+	return timeline(program, events, pending)
 }

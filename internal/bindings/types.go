@@ -45,6 +45,9 @@ type shape struct {
 	fields   map[string]*shape
 	required []string // sorted
 	elem     *shape   // list, map
+	// secret: the schema marks the field secret; the value is hidden whole
+	// and anything computed from it is secret.
+	secret bool
 }
 
 //nolint:gochecknoglobals // immutable
@@ -89,7 +92,21 @@ func (b *shapes) object(s *sp.Schema, name string, d *defs) *shape {
 	return out
 }
 
+// field is the shape of a field; a secret field's shape is a copy marked
+// secret, so a shared def stays clean for the fields that are not.
 func (b *shapes) field(f *sp.Schema_Field, name string, d *defs) *shape {
+	s := b.fieldKind(f, name, d)
+	if !f.GetSecret() {
+		return s
+	}
+
+	marked := *s
+	marked.secret = true
+
+	return &marked
+}
+
+func (b *shapes) fieldKind(f *sp.Schema_Field, name string, d *defs) *shape {
 	switch {
 	case f.GetFloat() != nil, f.GetDouble() != nil:
 		return &shape{kind: kindDouble}

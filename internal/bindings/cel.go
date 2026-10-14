@@ -309,6 +309,9 @@ type read struct {
 	fieldAt []Range
 	// whole is the variable with its selections.
 	whole Range
+	// bare: the read is the whole expression ("req.otp", not
+	// "req.otp + 'x'"): its value is exactly what it reads.
+	bare bool
 }
 
 // reader collects the reads of one parsed expression.

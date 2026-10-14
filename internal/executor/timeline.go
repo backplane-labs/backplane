@@ -16,37 +16,19 @@ import (
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/redact"
 )
-
-// programStep is what the timeline needs of a program's step.
-type programStep struct {
-	Name     string                   `json:"name"`
-	Activity string                   `json:"activity"`
-	Kind     backplanev1.ActivityKind `json:"kind"`
-}
-
-// programSteps are the steps of a marshaled program, by name
-// (nil when it does not read).
-func programSteps(program json.RawMessage) []programStep {
-	var p struct {
-		Steps []programStep `json:"steps"`
-	}
-
-	_ = json.Unmarshal(program, &p)
-
-	return p.Steps
-}
 
 // timeline is the steps of a run from its history: every program step by
 // name — its call, or NOT_RUN — then every compensation in
 // the order it was scheduled. A step's first call is the step; a second
 // one (only undo schedules a step again: retries are attempts of one
 // call) is its undo. pending adds the attempt and last failure of calls
-// in flight.
+// in flight. Inputs and outputs are masked by the program's schemas.
 func timeline(
-	steps []programStep, events []*historypb.HistoryEvent, pending []*consolev1.PendingActivity,
+	program json.RawMessage, events []*historypb.HistoryEvent, pending []*consolev1.PendingActivity,
 ) []*consolev1.StepRun {
-	builder := newTimelineBuilder()
+	builder := newTimelineBuilder(redact.ParseProgram(program))
 
 	for _, e := range events {
 		builder.event(e)
@@ -54,23 +36,28 @@ func timeline(
 
 	builder.pending(pending)
 
-	return builder.runs(steps, events)
+	return builder.runs()
 }
 
 // timelineBuilder collects the calls of a run while its history is read.
 type timelineBuilder struct {
+	prog  *redact.Program
 	calls map[int64]*consolev1.StepRun  // by scheduled / initiated event id
 	byAct map[string]*consolev1.StepRun // by activity id
 	first map[string]*consolev1.StepRun // a call's first run, by call label
 	order []*consolev1.StepRun          // first runs in scheduling order
 	undos []*consolev1.StepRun
+	// masks are what each call's output is masked by.
+	masks map[*consolev1.StepRun]func([]byte) []byte
 }
 
-func newTimelineBuilder() *timelineBuilder {
+func newTimelineBuilder(prog *redact.Program) *timelineBuilder {
 	return &timelineBuilder{
+		prog:  prog,
 		calls: map[int64]*consolev1.StepRun{},
 		byAct: map[string]*consolev1.StepRun{},
 		first: map[string]*consolev1.StepRun{},
+		masks: map[*consolev1.StepRun]func([]byte) []byte{},
 	}
 }
 
@@ -89,7 +76,6 @@ func (tl *timelineBuilder) schedule(
 	run := &consolev1.StepRun{
 		Step: label.Step, Parent: label.Parent, Activity: call.GetActivity(), Workflow: workflow,
 		Status: consolev1.StepRunStatus_STEP_RUN_STATUS_SCHEDULED, ScheduledTime: e.GetEventTime(),
-		Input: jsonText(call.GetPayload()),
 	}
 
 	if label.Item >= 0 {
@@ -98,7 +84,8 @@ func (tl *timelineBuilder) schedule(
 
 	// A call label scheduled again is the call's compensation: retries are
 	// attempts of one call.
-	if _, seen := tl.first[call.GetStep()]; seen {
+	_, undo := tl.first[call.GetStep()]
+	if undo {
 		run.Undo = true
 		tl.undos = append(tl.undos, run)
 	} else {
@@ -106,6 +93,19 @@ func (tl *timelineBuilder) schedule(
 		tl.order = append(tl.order, run)
 	}
 
+	payload := call.GetPayload()
+
+	if st, ok := tl.prog.Step(call.GetStep()); ok {
+		tl.masks[run] = st.MaskOutput
+
+		if undo {
+			payload = st.MaskUndo(payload)
+		} else {
+			payload = st.MaskInput(payload)
+		}
+	}
+
+	run.Input = jsonText(payload)
 	tl.calls[e.GetEventId()] = run
 
 	return run
@@ -129,7 +129,7 @@ func (tl *timelineBuilder) activityEvent(e *historypb.HistoryEvent) bool {
 		started(tl.calls[at.GetScheduledEventId()], e.GetEventTime(), at.GetAttempt())
 	case e.GetActivityTaskCompletedEventAttributes() != nil:
 		at := e.GetActivityTaskCompletedEventAttributes()
-		completed(tl.calls[at.GetScheduledEventId()], e.GetEventTime(), at.GetResult())
+		tl.completed(tl.calls[at.GetScheduledEventId()], e.GetEventTime(), at.GetResult())
 	case e.GetActivityTaskFailedEventAttributes() != nil:
 		at := e.GetActivityTaskFailedEventAttributes()
 		failed(tl.calls[at.GetScheduledEventId()], e.GetEventTime(), consolev1.StepRunStatus_STEP_RUN_STATUS_FAILED,
@@ -165,7 +165,7 @@ func (tl *timelineBuilder) childEvent(e *historypb.HistoryEvent) {
 		started(tl.calls[at.GetInitiatedEventId()], e.GetEventTime(), 1)
 	case e.GetChildWorkflowExecutionCompletedEventAttributes() != nil:
 		at := e.GetChildWorkflowExecutionCompletedEventAttributes()
-		completed(tl.calls[at.GetInitiatedEventId()], e.GetEventTime(), at.GetResult())
+		tl.completed(tl.calls[at.GetInitiatedEventId()], e.GetEventTime(), at.GetResult())
 	case e.GetChildWorkflowExecutionFailedEventAttributes() != nil:
 		at := e.GetChildWorkflowExecutionFailedEventAttributes()
 		failed(tl.calls[at.GetInitiatedEventId()], e.GetEventTime(), consolev1.StepRunStatus_STEP_RUN_STATUS_FAILED,
@@ -207,7 +207,8 @@ func (tl *timelineBuilder) pending(pending []*consolev1.PendingActivity) {
 // step's items and body calls in scheduling order; NOT_RUN when none),
 // then calls of steps the program does not name (a history of another
 // program version), then undos.
-func (tl *timelineBuilder) runs(steps []programStep, _ []*historypb.HistoryEvent) []*consolev1.StepRun {
+func (tl *timelineBuilder) runs() []*consolev1.StepRun {
+	steps := tl.prog.Steps()
 	out := make([]*consolev1.StepRun, 0, len(steps)+len(tl.order)+len(tl.undos))
 	used := map[*consolev1.StepRun]bool{}
 
@@ -245,7 +246,7 @@ func started(run *consolev1.StepRun, at *timestamppb.Timestamp, attempt int32) {
 	run.Status, run.StartedTime, run.Attempt = consolev1.StepRunStatus_STEP_RUN_STATUS_STARTED, at, attempt
 }
 
-func completed(run *consolev1.StepRun, at *timestamppb.Timestamp, result *commonpb.Payloads) {
+func (tl *timelineBuilder) completed(run *consolev1.StepRun, at *timestamppb.Timestamp, result *commonpb.Payloads) {
 	if run == nil {
 		return
 	}
@@ -254,7 +255,12 @@ func completed(run *consolev1.StepRun, at *timestamppb.Timestamp, result *common
 
 	var res backplanev1.ActivityResult
 	if ps := result.GetPayloads(); len(ps) > 0 && converter.GetDefaultDataConverter().FromPayload(ps[0], &res) == nil {
-		run.Output = jsonText(res.GetPayload())
+		output := res.GetPayload()
+		if m := tl.masks[run]; m != nil {
+			output = m(output)
+		}
+
+		run.Output = jsonText(output)
 	}
 }
 

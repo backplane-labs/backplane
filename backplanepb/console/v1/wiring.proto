@@ -78,6 +78,11 @@ message Analysis {
   repeated ValueType types = 3;
   // Every variable an expression reads, by path, then position.
   repeated Reference references = 4;
+  // JSON Pointers of the value nodes that carry secrets: their expression
+  // reads a field a schema marks secret, or computes from one. The
+  // console masks these values in runs. Empty until the definition is
+  // valid.
+  repeated string secrets = 5;
 }
 
 // StepAnalysis is where a step stands in the order of execution.

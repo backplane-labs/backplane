@@ -103,7 +103,7 @@ func (a WiringAPI) RenameStep(
 
 // PB is the analysis as a message.
 func (a Analysis) PB() *consolev1.Analysis {
-	out := &consolev1.Analysis{Violations: ViolationsPB(a.Violations)}
+	out := &consolev1.Analysis{Violations: ViolationsPB(a.Violations), Secrets: a.Secrets}
 
 	for i := range a.Steps {
 		s := &a.Steps[i]

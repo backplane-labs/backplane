@@ -41,6 +41,7 @@ import (
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/redact"
 	"github.com/backplane-labs/backplane/internal/registry"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 	natsdriver "github.com/backplane-labs/backplane/pkg/backplane/drivers/nats"
@@ -265,6 +266,16 @@ func (o *Ops) manifests(service string) ([]*backplanev1.Manifest, error) {
 }
 
 // latest is service's latest manifest.
+// redactor resolves declarations for masking payloads: the latest
+// manifests; a service without one masks nothing.
+func (o *Ops) redactor() redact.Manifests {
+	return redact.Manifests(func(service string) *backplanev1.Manifest {
+		m, _ := o.latest(service)
+
+		return m
+	})
+}
+
 func (o *Ops) latest(service string) (*backplanev1.Manifest, error) {
 	manifests, err := o.manifests(service)
 	if err != nil {

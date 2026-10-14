@@ -27,6 +27,7 @@ import (
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/redact"
 	"github.com/backplane-labs/backplane/internal/wire"
 )
 
@@ -259,7 +260,8 @@ func (a CallAPI) CallHook(ctx context.Context, req *consolev1.CallHookRequest) (
 	}
 
 	if out.GetError() == "" {
-		setOutput(out, res.GetPayload())
+		h, _ := a.o.redactor().Hook(req.GetHook())
+		setOutput(out, redact.Mask(h.GetOutput(), res.GetPayload()))
 	}
 
 	a.o.audit(ctx, "hook.call", req.GetHook(), xlog.String("workflow_id", out.GetWorkflowId()),
@@ -368,7 +370,8 @@ func (a CallAPI) RunActivity(
 	}
 
 	if out.GetError() == "" {
-		setOutput(out, res.GetPayload())
+		act, _ := a.o.redactor().Activity(req.GetActivity())
+		setOutput(out, redact.Mask(act.GetOutput(), res.GetPayload()))
 	}
 
 	a.o.audit(ctx, "activity.run", req.GetActivity(), xlog.String("workflow_id", out.GetWorkflowId()),

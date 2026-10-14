@@ -468,8 +468,10 @@ func (a EventAPI) PeekMessages(
 		return nil, a.o.status(ctx, err)
 	}
 
+	cat := a.o.redactor()
+
 	for _, m := range msgs {
-		out.Messages = append(out.Messages, messagePB(m))
+		out.Messages = append(out.Messages, messagePB(m, cat))
 	}
 
 	return out, nil

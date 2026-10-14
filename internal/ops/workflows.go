@@ -24,6 +24,7 @@ import (
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/redact"
 	"github.com/backplane-labs/backplane/internal/wire"
 )
 
@@ -486,7 +487,9 @@ func (a WorkflowAPI) GetRun(ctx context.Context, req *consolev1.GetRunRequest) (
 		out.PendingActivities = append(out.PendingActivities, pendingPB(p))
 	}
 
-	closed, err := history(ctx, c, out, runID)
+	red := redact.NewHistory(a.o.redactor())
+
+	closed, err := history(ctx, c, out, runID, red)
 	if err != nil {
 		return nil, a.o.status(ctx, err)
 	}
@@ -501,7 +504,7 @@ func (a WorkflowAPI) GetRun(ctx context.Context, req *consolev1.GetRunRequest) (
 				return nil, a.o.status(ctx, err)
 			}
 
-			outcome(out, e)
+			outcome(out, e, red)
 		}
 	}
 
@@ -509,8 +512,11 @@ func (a WorkflowAPI) GetRun(ctx context.Context, req *consolev1.GetRunRequest) (
 }
 
 // history adds the first maxHistory events of run runID to out, with the
-// outcomes they carry; true when the closing event was among them.
-func history(ctx context.Context, c client.Client, out *consolev1.GetRunResponse, runID string) (bool, error) {
+// outcomes they carry, payloads masked by red; true when the closing event
+// was among them.
+func history(
+	ctx context.Context, c client.Client, out *consolev1.GetRunResponse, runID string, red *redact.History,
+) (bool, error) {
 	workflowID := out.GetRun().GetWorkflowId()
 	iter := c.GetWorkflowHistory(ctx, workflowID, runID, false, enumspb.HISTORY_EVENT_FILTER_TYPE_ALL_EVENT)
 
@@ -528,25 +534,57 @@ func history(ctx context.Context, c client.Client, out *consolev1.GetRunResponse
 			break
 		}
 
-		ev := historyPB(e)
-		if ev.GetRunId() != "" && ev.GetWorkflowId() == "" {
-			ev.WorkflowId = workflowID
+		event := historyPB(e)
+		if event.GetRunId() != "" && event.GetWorkflowId() == "" {
+			event.WorkflowId = workflowID
 		}
 
-		out.History = append(out.History, ev)
-		closed = closed || outcome(out, e)
+		closed = closed || outcome(out, e, red)
+		maskEvent(event, e, red)
+		out.History = append(out.History, event)
 	}
 
 	return closed, nil
 }
 
-// outcome records the run's input or end from e; true for an end.
-func outcome(out *consolev1.GetRunResponse, e *historypb.HistoryEvent) bool {
+// maskEvent masks the payload of event, the console's view of e, by what red
+// knows of the run: the start says what it is, each scheduled call what
+// masks its result.
+func maskEvent(event *consolev1.HistoryEvent, e *historypb.HistoryEvent, red *redact.History) {
+	if event.GetPayload() == "" {
+		return
+	}
+
+	switch {
+	case e.GetWorkflowExecutionStartedEventAttributes() != nil:
+		at := e.GetWorkflowExecutionStartedEventAttributes()
+		event.Payload = red.Started(at.GetWorkflowType().GetName(), at.GetTaskQueue().GetName(), event.GetPayload())
+	case e.GetWorkflowExecutionCompletedEventAttributes() != nil:
+		event.Payload = red.Result(event.GetPayload())
+	case e.GetActivityTaskScheduledEventAttributes() != nil,
+		e.GetStartChildWorkflowExecutionInitiatedEventAttributes() != nil:
+		event.Payload = red.Scheduled(e.GetEventId(), event.GetPayload())
+	case e.GetActivityTaskCompletedEventAttributes() != nil:
+		event.Payload = red.Completed(e.GetActivityTaskCompletedEventAttributes().GetScheduledEventId(), event.GetPayload())
+	case e.GetChildWorkflowExecutionCompletedEventAttributes() != nil:
+		initiated := e.GetChildWorkflowExecutionCompletedEventAttributes().GetInitiatedEventId()
+		event.Payload = red.Completed(initiated, event.GetPayload())
+	case e.GetNexusOperationScheduledEventAttributes() != nil:
+		event.Payload = red.Nexus(e.GetEventId(), event.GetPayload())
+	case e.GetNexusOperationCompletedEventAttributes() != nil:
+		event.Payload = red.Completed(e.GetNexusOperationCompletedEventAttributes().GetScheduledEventId(), event.GetPayload())
+	}
+}
+
+// outcome records the run's input or end from e, masked by red; true for
+// an end.
+func outcome(out *consolev1.GetRunResponse, e *historypb.HistoryEvent, red *redact.History) bool {
 	switch e.GetEventType() {
 	case enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED:
-		out.Input = payloadsJSON(e.GetWorkflowExecutionStartedEventAttributes().GetInput())
+		at := e.GetWorkflowExecutionStartedEventAttributes()
+		out.Input = red.Started(at.GetWorkflowType().GetName(), at.GetTaskQueue().GetName(), payloadsJSON(at.GetInput()))
 	case enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED:
-		out.Result = payloadsJSON(e.GetWorkflowExecutionCompletedEventAttributes().GetResult())
+		out.Result = red.Result(payloadsJSON(e.GetWorkflowExecutionCompletedEventAttributes().GetResult()))
 	case enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
 		out.Failure, out.FailureType = failureOf(e.GetWorkflowExecutionFailedEventAttributes().GetFailure())
 	case enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
