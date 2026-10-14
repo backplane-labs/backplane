@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/nexus-rpc/sdk-go/nexus"
 	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/propagation"
@@ -19,8 +20,10 @@ import (
 
 	"github.com/gopherex/xlog"
 
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/direct"
 	"github.com/backplane-labs/backplane/internal/registry"
 	"github.com/backplane-labs/backplane/internal/wire"
 )
@@ -172,7 +175,7 @@ func (x *Executor) startHook(
 ) (hookOp, error) {
 	ctx = continueTrace(ctx, call.GetTrace())
 
-	in, err := x.prepare(ctx, hook, call)
+	in, prog, err := x.prepare(ctx, hook, call)
 
 	switch {
 	case errors.Is(err, errDefault):
@@ -188,6 +191,21 @@ func (x *Executor) startHook(
 		x.metrics.call(ctx, hook, outcome)
 
 		return hookOp{}, err
+	}
+
+	// A direct-runtime binding runs here and now; the operation is
+	// synchronous: its answer within the Nexus request.
+	if prog.Runtime() == consolev1.Runtime_RUNTIME_DIRECT && x.direct != nil {
+		res, err := x.runDirect(ctx, hook, prog, in, call)
+		if err != nil {
+			x.metrics.call(ctx, hook, outcomeError)
+
+			return hookOp{}, err
+		}
+
+		x.metrics.call(ctx, hook, outcomeRun)
+
+		return temporalnexus.NewSyncResult(res), nil
 	}
 
 	opts := client.StartWorkflowOptions{
@@ -210,6 +228,45 @@ func (x *Executor) startHook(
 	return res, nil
 }
 
+// runDirect runs a direct-runtime binding for a Nexus call: a failed run
+// is a non-retryable application error of the run's type (a retryable
+// one a handler error, so Temporal retries the operation).
+func (x *Executor) runDirect(
+	ctx context.Context, hook string, prog *bindings.Program, in Input, call *backplanev1.HookCall,
+) (*backplanev1.HookResult, error) {
+	if d := call.GetDeadline().AsDuration(); d > 0 {
+		var cancel context.CancelFunc
+
+		ctx, cancel = context.WithTimeout(ctx, d)
+		defer cancel()
+	}
+
+	id := wire.DirectRunID(hook, uuid.NewString())
+	payload := []byte(in.Payload)
+
+	out, err := x.direct.Execute(ctx, direct.Start{
+		ID: id, Kind: direct.KindBinding, Source: hook, Version: in.Identity.Version, Caller: call.GetInstance(),
+		Input: payload,
+	}, direct.Run{
+		ID: id, Kind: direct.KindBinding, Program: prog, Payload: payload, Identity: in.Identity.String(),
+		Trace: call.GetTrace(),
+	}, false)
+	if err != nil {
+		msg, typ := direct.Readable(err)
+		if typ == "" {
+			typ = wire.HookFailedType
+		}
+
+		if direct.Retryable(err) && ctx.Err() == nil {
+			return nil, unavailable("binding run of "+hook, err)
+		}
+
+		return nil, failure(msg, typ)
+	}
+
+	return &backplanev1.HookResult{Payload: out}, nil
+}
+
 // errDefault: an optional hook without a binding answers {}.
 var errDefault = errors.New("executor: default answer")
 
@@ -223,10 +280,12 @@ func isNoBinding(err error) bool {
 // failure (no binding for a required hook, a binding that does not compile
 // any more, an input that is not JSON), or a retryable Nexus handler error
 // (the store or the registry not ready).
-func (x *Executor) prepare(ctx context.Context, hook string, call *backplanev1.HookCall) (Input, error) {
+func (x *Executor) prepare(
+	ctx context.Context, hook string, call *backplanev1.HookCall,
+) (Input, *bindings.Program, error) {
 	payload := call.GetPayload()
 	if len(payload) > 0 && !json.Valid(payload) {
-		return Input{}, failure("input of "+hook+" is not JSON", wire.HookFailedType)
+		return Input{}, nil, failure("input of "+hook+" is not JSON", wire.HookFailedType)
 	}
 
 	b, version, err := x.bindings.Active(ctx, hook)
@@ -234,31 +293,31 @@ func (x *Executor) prepare(ctx context.Context, hook string, call *backplanev1.H
 	switch {
 	case errors.Is(err, bindings.ErrNoBinding):
 		if x.required(hook, call.GetInstance()) {
-			return Input{}, failure("no binding for "+hook, wire.NoBindingType)
+			return Input{}, nil, failure("no binding for "+hook, wire.NoBindingType)
 		}
 
-		return Input{}, errDefault
+		return Input{}, nil, errDefault
 	case err != nil:
-		return Input{}, unavailable("binding of "+hook, err)
+		return Input{}, nil, unavailable("binding of "+hook, err)
 	}
 
 	prog, err := x.program(hook, b, version)
 	if err != nil {
 		var invalid *bindings.InvalidError
 		if errors.As(err, &invalid) {
-			return Input{}, failure("binding "+hook+"@"+strconv.FormatInt(version, 10)+
+			return Input{}, nil, failure("binding "+hook+"@"+strconv.FormatInt(version, 10)+
 				" does not compile against the current manifests: "+err.Error(), wire.HookFailedType)
 		}
 
-		return Input{}, unavailable("binding of "+hook, err)
+		return Input{}, nil, unavailable("binding of "+hook, err)
 	}
 
 	in, err := BindingInput(prog, Identity{Hook: hook, Version: version}, payload, call.GetTrace())
 	if err != nil {
-		return Input{}, failure(err.Error(), wire.HookFailedType)
+		return Input{}, nil, failure(err.Error(), wire.HookFailedType)
 	}
 
-	return in, nil
+	return in, prog, nil
 }
 
 // unavailable is a retryable Nexus handler error: Temporal retries the
@@ -333,7 +392,12 @@ func (x *Executor) program(hook string, b bindings.Binding, version int64) (*bin
 		return c.prog, nil
 	}
 
-	prog, err := bindings.CompileBinding(b, bindings.FromRegistry(cat))
+	full := bindings.FromRegistry(cat)
+	if d, hasDefaults := x.bindings.(interface{ Defaults() bindings.Defaults }); hasDefaults {
+		full = bindings.WithDefaults(full, d.Defaults())
+	}
+
+	prog, err := bindings.CompileBinding(b, full)
 	if err != nil {
 		return nil, err //nolint:wrapcheck // bindings' error says it
 	}

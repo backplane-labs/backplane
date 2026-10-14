@@ -9,6 +9,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/configrt"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/direct"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 )
@@ -70,6 +71,19 @@ type Presence interface {
 	Stop(ctx context.Context) error
 	Register(ctx context.Context) error
 	Deregister(ctx context.Context) error
+}
+
+// HookDiscovery finds the platform addresses of backplane's replicas for
+// the direct hook transport.
+type HookDiscovery = direct.Discovery
+
+// HookDiscoveryFactory builds the discovery from the configuration.
+type HookDiscoveryFactory func(cfg config.Backplane, log *xlog.Logger) (HookDiscovery, error)
+
+// WithHookDiscovery installs how the direct hook transport finds backplane
+// (the Consul driver installs one over the catalog's instance states).
+func WithHookDiscovery(factory HookDiscoveryFactory) Option {
+	return func(o *options) { o.discovery = factory }
 }
 
 // PresenceParams provides a discovery driver with the service's sealed contract.

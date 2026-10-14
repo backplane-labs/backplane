@@ -79,6 +79,8 @@ message BindingDefinition {
   google.protobuf.Value result = 3;
   // Free text for people; not executed.
   string description = 4;
+  // What runs the binding; unspecified: the installation's default.
+  Runtime runtime = 5;
   // The graph editor's layout; ignored by compile and execution.
   EditorLayout editor = 15;
 }

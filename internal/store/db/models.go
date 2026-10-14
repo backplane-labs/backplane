@@ -139,3 +139,38 @@ type BackplaneAppAudit struct {
 	TraceID    string
 	SpanID     string
 }
+
+type BackplaneDirectRun struct {
+	ID        string
+	Kind      string
+	Source    string
+	Version   int64
+	Test      bool
+	Caller    string
+	Status    string
+	Attempt   int32
+	Input     json.RawMessage
+	Result    json.RawMessage
+	Error     string
+	ErrorType string
+	Program   json.RawMessage
+	StartedAt time.Time
+	ClosedAt  *time.Time
+}
+
+type BackplaneDirectRunStep struct {
+	RunID       string
+	Label       string
+	Seq         int32
+	Step        string
+	Parent      string
+	Item        *int32
+	Activity    string
+	Status      string
+	Input       json.RawMessage
+	Output      json.RawMessage
+	Error       string
+	ErrorType   string
+	ScheduledAt time.Time
+	ClosedAt    *time.Time
+}

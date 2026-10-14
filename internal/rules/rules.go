@@ -43,6 +43,7 @@ import (
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	"github.com/backplane-labs/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/direct"
 	"github.com/backplane-labs/backplane/internal/registry"
 	"github.com/backplane-labs/backplane/internal/wire"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
@@ -65,6 +66,8 @@ const (
 	// ackWait: an event whose delivery was not settled comes back after
 	// this (the replica died mid-start).
 	ackWait = time.Minute
+	// ackSlack past a direct run's timeout before its event comes back.
+	ackSlack = 30 * time.Second
 	// opTimeout bounds one NATS call of reconciliation.
 	opTimeout = 10 * time.Second
 )
@@ -123,6 +126,14 @@ func WithStarter(s Starter) Option { return func(e *Engine) { e.starter = s } }
 // (ops.WorkflowAPI); without it they are UNAVAILABLE.
 func WithRuns(r Runs) Option { return func(e *Engine) { e.runs = r } }
 
+// WithDirect installs the direct runtime: rules compiled for it run
+// there, inline in the delivery; their runs are listed first.
+func WithDirect(d *direct.Service) Option { return func(e *Engine) { e.direct = d } }
+
+// TemporalEnabled says whether the installation has Temporal (default
+// true); without it rules on the temporal runtime do not run and say so.
+func TemporalEnabled(enabled bool) Option { return func(e *Engine) { e.temporalEnabled = enabled } }
+
 // WithQueue is the task queue runs start on and are listed by; default:
 // backplane's own (workflows.Queue).
 func WithQueue(q string) Option { return func(e *Engine) { e.queue = q } }
@@ -156,19 +167,23 @@ func Resync(d time.Duration) Option {
 type Engine struct {
 	deps.Component
 
-	src          Source
-	reg          registry.Source
-	jet          JetStreamFunc
-	temporal     TemporalFunc
-	starter      Starter
-	runs         Runs
-	queue        string
-	workflow     string
-	concurrency  int
-	resync       time.Duration
-	retry        time.Duration
-	startTimeout time.Duration
-	metrics      metrics
+	src      Source
+	reg      registry.Source
+	jet      JetStreamFunc
+	temporal TemporalFunc
+	starter  Starter
+	direct   *direct.Service
+	// temporalEnabled: the installation has Temporal; false marks rules on
+	// that runtime broken instead of starting runs that cannot start.
+	temporalEnabled bool
+	runs            Runs
+	queue           string
+	workflow        string
+	concurrency     int
+	resync          time.Duration
+	retry           time.Duration
+	startTimeout    time.Duration
+	metrics         metrics
 
 	kick chan struct{}
 
@@ -214,6 +229,7 @@ func (e *Engine) init(src Source, reg registry.Source, opts []Option) {
 	e.src, e.reg = src, reg
 	e.concurrency, e.resync, e.retry, e.startTimeout = defaultConcurrency, defaultResync, defaultRetry, defaultStartTimeout
 	e.workflow = Workflow
+	e.temporalEnabled = true
 	e.kick = make(chan struct{}, 1)
 	e.consumers = map[uuid.UUID]*consumer{}
 	e.broken = map[uuid.UUID]string{}
@@ -322,7 +338,7 @@ func (e *Engine) reconcile(ctx context.Context, sweep bool) error {
 
 	e.checkLost(ctx, jet)
 
-	want := plan(entries, cat)
+	want := plan(entries, cat, e.temporalEnabled)
 	e.report(want)
 
 	var errs []error
@@ -353,10 +369,14 @@ func (e *Engine) ready() (jetstream.JetStream, error) {
 		return nil, fmt.Errorf("%w: nats: %w", errWaiting, err)
 	}
 
-	if _, err := e.temporal(); err != nil {
-		e.wait(fmt.Sprintf("temporal: %v", err))
+	// Temporal is needed only by rules on its runtime; without it in the
+	// installation the direct runtime runs the rest.
+	if e.temporalEnabled {
+		if _, err := e.temporal(); err != nil {
+			e.wait(fmt.Sprintf("temporal: %v", err))
 
-		return nil, fmt.Errorf("%w: temporal: %w", errWaiting, err)
+			return nil, fmt.Errorf("%w: temporal: %w", errWaiting, err)
+		}
 	}
 
 	return jet, nil
@@ -480,7 +500,7 @@ func (e *Engine) start(work, ctx context.Context, jet jetstream.JetStream, d des
 		return err
 	}
 
-	cons, err := ensureConsumer(ctx, jet, d)
+	cons, err := e.ensureConsumer(ctx, jet, d)
 	if err != nil {
 		return err
 	}
@@ -532,7 +552,7 @@ func (e *Engine) update(ctx context.Context, jet jetstream.JetStream, d desired)
 	// reconciliation (the state still differs).
 	c.prog.Store(&program{prog: d.prog, version: d.version})
 
-	if _, err := ensureConsumer(ctx, jet, d); err != nil {
+	if _, err := e.ensureConsumer(ctx, jet, d); err != nil {
 		return err
 	}
 
@@ -696,14 +716,21 @@ func ensureStream(ctx context.Context, jet jetstream.JetStream, service string) 
 // consumerConfig of the rule's consumer. Explicit acks; deliveries are
 // not bounded (a run that cannot start waits for Temporal, the engine
 // naks with its own delay); a new consumer starts at new events.
-func consumerConfig(d desired) jetstream.ConsumerConfig {
+func (e *Engine) consumerConfig(d desired) jetstream.ConsumerConfig {
+	wait := ackWait
+	if e.direct != nil && d.prog != nil && d.prog.Runtime() == consolev1.Runtime_RUNTIME_DIRECT {
+		// A direct run completes within the delivery: the event comes back
+		// only after the run's own timeout, with slack.
+		wait = max(wait, e.direct.RunTimeout()+ackSlack)
+	}
+
 	return jetstream.ConsumerConfig{
 		Durable:       d.durable,
 		Description:   "backplane rule " + d.id.String() + " on " + d.event,
 		FilterSubject: d.subject,
 		DeliverPolicy: jetstream.DeliverNewPolicy,
 		AckPolicy:     jetstream.AckExplicitPolicy,
-		AckWait:       ackWait,
+		AckWait:       wait,
 		MaxDeliver:    -1,
 		Metadata: map[string]string{
 			wire.MetaService: Subscriber, wire.MetaConsumer: ConsumerName(d.id), wire.MetaEvent: d.event,
@@ -715,8 +742,8 @@ func consumerConfig(d desired) jetstream.ConsumerConfig {
 // ensureConsumer creates or updates the rule's consumer. The server does
 // not let a consumer's start change, so an existing one keeps its own —
 // and its position.
-func ensureConsumer(ctx context.Context, jet jetstream.JetStream, d desired) (jetstream.Consumer, error) {
-	cfg := consumerConfig(d)
+func (e *Engine) ensureConsumer(ctx context.Context, jet jetstream.JetStream, d desired) (jetstream.Consumer, error) {
+	cfg := e.consumerConfig(d)
 
 	have, err := jet.Consumer(ctx, d.stream, d.durable)
 

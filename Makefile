@@ -122,6 +122,12 @@ test-m2: ## M2 end to end: bin backplane + hello with NATS and Temporal on direc
 	BACKPLANE_TEST_PG="postgres://backplane:backplane@localhost:5433/backplane?sslmode=disable" \
 		GOWORK=off go test -race -count=1 -timeout 20m -run '^TestM2$$' -v ./conformance/
 
+.PHONY: test-direct
+test-direct: ## Direct runtime end to end: bin backplane + hello with NATS and no Temporal — hooks over gRPC, bindings and rules in-process, recorded runs (make up)
+	BACKPLANE_TEST_CONSUL=localhost:8500 BACKPLANE_TEST_NATS=localhost:4222 \
+	BACKPLANE_TEST_PG="postgres://backplane:backplane@localhost:5433/backplane?sslmode=disable" \
+		GOWORK=off go test -race -count=1 -timeout 20m -run '^TestDirect$$' -v ./conformance/
+
 .PHONY: up down
 up: ## Start platform-in-a-box (docker compose)
 	docker compose --profile full up -d --wait

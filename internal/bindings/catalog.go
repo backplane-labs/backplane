@@ -1,6 +1,7 @@
 package bindings
 
 import (
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/internal/registry"
 )
@@ -11,6 +12,38 @@ type Catalog interface {
 	Hook(name string) (*backplanev1.Hook, bool)
 	Event(name string) (*backplanev1.Event, bool)
 	Activity(name string) (*backplanev1.Activity, bool)
+}
+
+// Defaults are what a definition leaves to the installation.
+type Defaults struct {
+	// Runtime of a definition that names none; unspecified: Temporal.
+	Runtime consolev1.Runtime
+}
+
+// Defaulter is a Catalog that also carries the installation's defaults;
+// compile reads them when it has them.
+type Defaulter interface {
+	Defaults() Defaults
+}
+
+// WithDefaults is cat with the installation's defaults.
+func WithDefaults(cat Catalog, d Defaults) Catalog { return defaulted{Catalog: cat, d: d} }
+
+type defaulted struct {
+	Catalog
+
+	d Defaults
+}
+
+func (c defaulted) Defaults() Defaults { return c.d }
+
+// DefaultsOf are cat's defaults, zero when it carries none.
+func DefaultsOf(cat Catalog) Defaults {
+	if d, ok := cat.(Defaulter); ok {
+		return d.Defaults()
+	}
+
+	return Defaults{}
 }
 
 // FromRegistry is the catalog of the latest manifest of every service in

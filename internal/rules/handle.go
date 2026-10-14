@@ -12,6 +12,7 @@ import (
 
 	"github.com/gopherex/xlog"
 
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	"github.com/backplane-labs/backplane/internal/bindings"
 )
 
@@ -165,12 +166,14 @@ func (e *Engine) decide(
 		return outcomeSkipped, meta, nil
 	}
 
-	sctx, cancel := context.WithTimeout(ctx, e.startTimeout)
+	starter, timeout := e.starterOf(p.prog)
+
+	sctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	rule := id.String()
 
-	err = e.starter.StartRule(sctx, rule, p.version, p.prog, data, meta, TraceOf(h), RunID(rule, meta.ID))
+	err = starter.StartRule(sctx, rule, p.version, p.prog, data, meta, TraceOf(h), RunID(rule, meta.ID))
 
 	switch {
 	case alreadyStarted(err):
@@ -180,6 +183,17 @@ func (e *Engine) decide(
 	}
 
 	return outcomeStarted, meta, nil
+}
+
+// starterOf is the starter of a program's runtime and how long a start is
+// given: Temporal's returns once the run is started, the direct one once
+// it is over.
+func (e *Engine) starterOf(p *bindings.Program) (Starter, time.Duration) { //nolint:ireturn // one of two
+	if e.direct != nil && p.Runtime() == consolev1.Runtime_RUNTIME_DIRECT {
+		return e.direct.Rules(), e.direct.RunTimeout() + ackSlack
+	}
+
+	return e.starter, e.startTimeout
 }
 
 // nakDelay after the n-th failed delivery: nakFirst doubling up to nakMax.

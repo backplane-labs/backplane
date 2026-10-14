@@ -69,7 +69,7 @@ func (e *Engine) status(ctx context.Context, err error) error {
 		code = codes.Unavailable
 	case errors.Is(err, bindings.ErrNoRule), errors.Is(err, bindings.ErrNoVersion), errors.Is(err, errNotRuleRun):
 		code = codes.NotFound
-	case errors.Is(err, bindings.ErrDeleted):
+	case errors.Is(err, bindings.ErrDeleted), errors.Is(err, errNoTemporal):
 		code = codes.FailedPrecondition
 	case errors.Is(err, bindings.ErrConflict):
 		code = codes.Aborted
@@ -158,9 +158,44 @@ func (e *Engine) Test(ctx context.Context, req *consolev1.TestRuleRequest) (*con
 		return out, nil
 	}
 
+	if e.direct != nil && prog.Runtime() == consolev1.Runtime_RUNTIME_DIRECT {
+		out.Result, err = e.testDirect(ctx, id, version, prog, payload, meta, req.GetTimeout())
+
+		return out, err
+	}
+
+	if !e.temporalEnabled {
+		return nil, errNoTemporal
+	}
+
 	out.Result, err = e.testRun(ctx, id, version, prog, payload, meta, req.GetTimeout())
 
 	return out, err
+}
+
+// testDirect runs a test on the direct runtime, inline.
+func (e *Engine) testDirect(
+	ctx context.Context, id string, version int64, prog *bindings.Program, payload []byte, meta bindings.Meta,
+	timeout *durationpb.Duration,
+) (*consolev1.CallResult, error) {
+	wait := defaultTestWait
+	if d := timeout.AsDuration(); timeout != nil && d > 0 {
+		wait = min(d, maxTestWait)
+	}
+
+	trace := propagation.MapCarrier{}
+	otel.GetTextMapPropagator().Inject(ctx, trace)
+
+	wid := TestRunID(id, uuid.NewString())
+
+	res, err := e.direct.Rules().Test(ctx, id, version, prog, payload, meta, map[string]string(trace), wid, wait)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // the runtime wraps
+	}
+
+	e.Log().Ctx().Info(ctx, "rule test run", xlog.String("rule", id), xlog.String("workflow_id", res.GetWorkflowId()))
+
+	return res, nil
 }
 
 // match evaluates the rule's filter on the event: whether it matches, or
@@ -338,7 +373,7 @@ func (a API) ListRuleRuns(
 		return nil, a.e.status(ctx, err)
 	}
 
-	if a.e.runs == nil {
+	if a.e.runs == nil && a.e.direct == nil {
 		return nil, a.e.status(ctx, errNoRuns)
 	}
 
@@ -347,23 +382,55 @@ func (a API) ListRuleRuns(
 		prefix = testPrefix(id.String())
 	}
 
-	res, err := a.e.runs.ListRuns(ctx, &consolev1.ListRunsRequest{
-		Service: a.e.queue, Status: req.GetStatus(), WorkflowIdPrefix: prefix,
-		PageSize: req.GetPageSize(), PageToken: req.GetPageToken(),
-	})
+	var viaTemporal func(token []byte) ([]*consolev1.Run, []byte, string, error)
+	if a.e.runs != nil && a.e.temporalEnabled {
+		viaTemporal = func(token []byte) ([]*consolev1.Run, []byte, string, error) {
+			res, err := a.e.runs.ListRuns(ctx, &consolev1.ListRunsRequest{
+				Service: a.e.queue, Status: req.GetStatus(), WorkflowIdPrefix: prefix,
+				PageSize: req.GetPageSize(), PageToken: token,
+			})
+			if err != nil {
+				return nil, nil, "", err //nolint:wrapcheck // a gRPC status from ops
+			}
+
+			return res.GetRuns(), res.GetNextPageToken(), res.GetQuery(), nil
+		}
+	}
+
+	if a.e.direct == nil {
+		runs, token, query, err := viaTemporal(req.GetPageToken())
+		if err != nil {
+			return nil, a.e.status(ctx, err)
+		}
+
+		return &consolev1.ListRuleRunsResponse{Runs: runs, NextPageToken: token, Query: query}, nil
+	}
+
+	runs, token, query, err := a.e.direct.ListRuleRuns(ctx, id.String(), req.GetTests(), req.GetStatus(),
+		req.GetPageSize(), req.GetPageToken(), viaTemporal)
 	if err != nil {
 		return nil, a.e.status(ctx, err)
 	}
 
-	return &consolev1.ListRuleRunsResponse{
-		Runs: res.GetRuns(), NextPageToken: res.GetNextPageToken(), Query: res.GetQuery(),
-	}, nil
+	return &consolev1.ListRuleRunsResponse{Runs: runs, NextPageToken: token, Query: query}, nil
 }
 
 // GetRuleRun implements RuleService.
 func (a API) GetRuleRun(ctx context.Context, req *consolev1.GetRuleRunRequest) (*consolev1.GetRuleRunResponse, error) {
-	if err := a.e.ownRun(req.GetId(), req.GetWorkflowId()); err != nil {
+	if err := a.e.ownRun(req.GetId(), strings.TrimPrefix(req.GetWorkflowId(), wire.DirectRunPrefix)); err != nil {
 		return nil, a.e.status(ctx, err)
+	}
+
+	if wire.IsDirectRun(req.GetWorkflowId()) {
+		if a.e.direct == nil {
+			return nil, a.e.status(ctx, errNoRuns)
+		}
+
+		return a.e.direct.GetRuleRun(ctx, req.GetWorkflowId()) //nolint:wrapcheck // a gRPC status
+	}
+
+	if a.e.runs == nil {
+		return nil, a.e.status(ctx, errNoRuns)
 	}
 
 	res, err := a.e.runs.GetRun(ctx, &consolev1.GetRunRequest{WorkflowId: req.GetWorkflowId(), RunId: req.GetRunId()})
@@ -391,8 +458,24 @@ func (a API) GetRuleRun(ctx context.Context, req *consolev1.GetRuleRunRequest) (
 func (a API) CancelRuleRun(
 	ctx context.Context, req *consolev1.CancelRuleRunRequest,
 ) (*consolev1.CancelRuleRunResponse, error) {
-	if err := a.e.ownRun(req.GetId(), req.GetWorkflowId()); err != nil {
+	if err := a.e.ownRun(req.GetId(), strings.TrimPrefix(req.GetWorkflowId(), wire.DirectRunPrefix)); err != nil {
 		return nil, a.e.status(ctx, err)
+	}
+
+	if wire.IsDirectRun(req.GetWorkflowId()) {
+		if a.e.direct == nil {
+			return nil, a.e.status(ctx, errNoRuns)
+		}
+
+		if err := a.e.direct.CancelRun(req.GetWorkflowId()); err != nil {
+			return nil, err //nolint:wrapcheck // a gRPC status
+		}
+
+		return &consolev1.CancelRuleRunResponse{}, nil
+	}
+
+	if a.e.runs == nil {
+		return nil, a.e.status(ctx, errNoRuns)
 	}
 
 	if _, err := a.e.runs.CancelRun(ctx, &consolev1.CancelRunRequest{
@@ -408,7 +491,7 @@ func (a API) CancelRuleRun(
 // an empty id, a test run of an unsaved definition — and that runs are
 // served.
 func (e *Engine) ownRun(rule, workflowID string) error {
-	if e.runs == nil {
+	if e.runs == nil && e.direct == nil {
 		return errNoRuns
 	}
 

@@ -16,6 +16,7 @@ import (
 
 	sp "github.com/gopherex/schemapb/go/schemapb"
 
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 )
 
@@ -61,6 +62,9 @@ type Analysis struct {
 	// marked secret by a schema, or computed from one. Empty until the
 	// definition is valid.
 	Secrets []string
+	// Runtime the definition compiled for: its own, else the catalog's
+	// default, else Temporal.
+	Runtime consolev1.Runtime
 }
 
 // StepAnalysis is where a step stands in the order of execution.
@@ -162,6 +166,7 @@ const (
 
 func compileBinding(b Binding, cat Catalog) (*Program, Analysis, error) {
 	c := newCompiler(KindBinding, cat)
+	c.runtime(b.Runtime)
 
 	var in, out *sp.Schema
 
@@ -183,6 +188,7 @@ func compileBinding(b Binding, cat Catalog) (*Program, Analysis, error) {
 
 func compileRule(r Rule, cat Catalog) (*Program, Analysis, error) {
 	c := newCompiler(KindRule, cat)
+	c.runtime(r.Runtime)
 
 	var in *sp.Schema
 
@@ -228,6 +234,51 @@ type compiler struct {
 	resultDeclared *sp.Schema
 	// taints memoizes tainted.
 	taints map[*shape]bool
+	// rt is the runtime the definition compiles for.
+	rt consolev1.Runtime
+}
+
+// runtime resolves the definition's runtime: its own, the catalog's
+// default, else Temporal.
+func (c *compiler) runtime(own consolev1.Runtime) {
+	c.rt = own
+	if c.rt == consolev1.Runtime_RUNTIME_UNSPECIFIED {
+		c.rt = DefaultsOf(c.cat).Runtime
+	}
+
+	if c.rt == consolev1.Runtime_RUNTIME_UNSPECIFIED {
+		c.rt = consolev1.Runtime_RUNTIME_TEMPORAL
+	}
+
+	c.analysis.Runtime = c.rt
+}
+
+// runtimeChecks reports what the step uses that the runtime does not run:
+// on direct, no undo, retry options, heartbeat or child workflow.
+func (c *compiler) runtimeChecks(d *draft) {
+	if c.rt != consolev1.Runtime_RUNTIME_DIRECT {
+		return
+	}
+
+	const msg = "the direct runtime does not run "
+
+	if d.Undo != "" {
+		c.violate(d.path+"/undo", CodeRuntimeUnsupported, msg+"undo: choose the temporal runtime")
+	}
+
+	if !d.Retry.IsZero() {
+		c.violate(d.path+"/retry", CodeRuntimeUnsupported,
+			msg+"retries of a step: the run as a whole is retried by its caller or by event redelivery")
+	}
+
+	if d.Heartbeat != 0 {
+		c.violate(d.path+"/heartbeat", CodeRuntimeUnsupported, msg+"heartbeats: start_to_close bounds the call")
+	}
+
+	if d.act != nil && d.act.GetKind() == backplanev1.ActivityKind_ACTIVITY_KIND_WORKFLOW {
+		c.violate(d.path+"/activity", CodeRuntimeUnsupported,
+			msg+"workflows as steps: "+d.Activity+" is a workflow; choose the temporal runtime")
+	}
 }
 
 func newCompiler(kind Kind, cat Catalog) *compiler {
@@ -311,6 +362,7 @@ func (c *compiler) compile(src source, steps []Step, in *sp.Schema, result *shap
 
 	s := spec{
 		Kind: src.kind, Source: src.name, When: src.when, Result: src.result.JSON(), Input: schemaBytes(in),
+		Runtime: c.rt,
 	}
 	s.ResultSchema, s.ResultSecret = c.secrets(drafts, groups, src, resultReads, result)
 	s.Steps = c.specSteps(drafts, groups)
@@ -396,6 +448,7 @@ func (c *compiler) steps(prefix string, steps []Step) []*draft {
 
 		c.options(d)
 		c.forEachOptions(d)
+		c.runtimeChecks(d)
 	}
 
 	return out

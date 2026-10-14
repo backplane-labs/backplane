@@ -6,8 +6,8 @@ import "google/protobuf/duration.proto";
 
 option go_package = "github.com/backplane-labs/backplane/backplanepb/v1;backplanev1";
 
-// Envelopes carried through Temporal. The envelope is ours; `payload` is
-// the author's data as JSON, opaque to the platform.
+// Envelopes carried through Temporal and the direct runtime. The envelope
+// is ours; `payload` is the author's data as JSON, opaque to the platform.
 
 // Input of the Nexus operation a service raises.
 message HookCall {
@@ -32,8 +32,33 @@ message ActivityCall {
   // For diagnostics: which binding or rule and which step.
   string binding = 4;
   string step = 5;
+  // Direct runtime: the attempt (1 for the first) and the key of the step
+  // execution — the same for every attempt — as activity.Info shows them;
+  // Temporal supplies its own.
+  int32 attempt = 6;
+  string key = 7;
 }
 
 message ActivityResult {
   bytes payload = 1;
+}
+
+// CallFailure is the detail of a failed direct call (a gRPC status
+// detail): the type the binding knows (backplane.NonRetryable, ...) and
+// whether retrying can help.
+message CallFailure {
+  string type = 1;
+  bool retryable = 2;
+}
+
+// ActivityService is served by the SDK on a service's platform port, behind
+// the internal secret: the direct runtime runs the service's activities
+// through it, the handlers activity.Handle registered. Temporal's worker
+// serves the same handlers from its task queue.
+service ActivityService {
+  // Run executes one activity call and answers its result. A handler
+  // error is a status with a CallFailure detail: FAILED_PRECONDITION when
+  // not retryable, UNAVAILABLE when it is; an unknown activity is
+  // NOT_FOUND.
+  rpc Run(ActivityCall) returns (ActivityResult);
 }

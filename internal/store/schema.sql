@@ -217,3 +217,57 @@ CREATE VIEW backplane.audit_feed AS
   SELECT 'application'::text, a.id, a.time, a.received_at, a.service, a.actor, a.action, a.subject, a.outcome,
     a.body, ''::text, 0::bigint, a.attributes, a.resource, a.severity, a.trace_id, a.span_id
   FROM backplane.app_audit a;
+
+-- Runs of the direct runtime (internal/direct): bindings and rules executed
+-- in backplane's own process, without Temporal. The rows are the console's
+-- view of a run — payloads are stored masked by the program's schemas, so
+-- no secret lands here, as json so their text shows as written — and the
+-- dedup of a rule's event (one run per
+-- event id; a failed run may be claimed again by a redelivery). Retention
+-- is deployment-controlled (direct.retention).
+CREATE TABLE backplane.direct_run (
+  id         text        PRIMARY KEY,
+  -- binding | rule
+  kind       text        NOT NULL,
+  -- The hook ("<service>.<Hook>") or the rule id.
+  source     text        NOT NULL,
+  version    bigint      NOT NULL DEFAULT 0,
+  test       boolean     NOT NULL DEFAULT false,
+  -- Who raised it: a service instance, a console session, "rule:<id>".
+  caller     text        NOT NULL DEFAULT '',
+  -- running | completed | failed | canceled
+  status     text        NOT NULL,
+  attempt    integer     NOT NULL DEFAULT 1 CHECK (attempt > 0),
+  input      json,
+  result     json,
+  error      text        NOT NULL DEFAULT '',
+  error_type text        NOT NULL DEFAULT '',
+  program    json        NOT NULL,
+  started_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  closed_at  timestamptz
+);
+
+CREATE INDEX direct_run_source_idx ON backplane.direct_run (kind, source, test, started_at DESC, id DESC);
+CREATE INDEX direct_run_started_at_idx ON backplane.direct_run (started_at);
+
+-- One call of a run: a step, an item of a for-each step or a body step
+-- of one, by its call label ("send", "each[2]", "users[1].send").
+CREATE TABLE backplane.direct_run_step (
+  run_id       text        NOT NULL REFERENCES backplane.direct_run (id) ON DELETE CASCADE,
+  label        text        NOT NULL,
+  -- Scheduling order within the run.
+  seq          integer     NOT NULL,
+  step         text        NOT NULL,
+  parent       text        NOT NULL DEFAULT '',
+  item         integer,
+  activity     text        NOT NULL,
+  -- scheduled | started | completed | failed | timed_out | canceled
+  status       text        NOT NULL,
+  input        json,
+  output       json,
+  error        text        NOT NULL DEFAULT '',
+  error_type   text        NOT NULL DEFAULT '',
+  scheduled_at timestamptz NOT NULL,
+  closed_at    timestamptz,
+  PRIMARY KEY (run_id, label)
+);

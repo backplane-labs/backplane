@@ -152,8 +152,13 @@ type ActivityCall struct {
 	Payload  []byte                 `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
 	Trace    map[string]string      `protobuf:"bytes,3,rep,name=trace,proto3" json:"trace,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// For diagnostics: which binding or rule and which step.
-	Binding       string `protobuf:"bytes,4,opt,name=binding,proto3" json:"binding,omitempty"`
-	Step          string `protobuf:"bytes,5,opt,name=step,proto3" json:"step,omitempty"`
+	Binding string `protobuf:"bytes,4,opt,name=binding,proto3" json:"binding,omitempty"`
+	Step    string `protobuf:"bytes,5,opt,name=step,proto3" json:"step,omitempty"`
+	// Direct runtime: the attempt (1 for the first) and the key of the step
+	// execution — the same for every attempt — as activity.Info shows them;
+	// Temporal supplies its own.
+	Attempt       int32  `protobuf:"varint,6,opt,name=attempt,proto3" json:"attempt,omitempty"`
+	Key           string `protobuf:"bytes,7,opt,name=key,proto3" json:"key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -223,6 +228,20 @@ func (x *ActivityCall) GetStep() string {
 	return ""
 }
 
+func (x *ActivityCall) GetAttempt() int32 {
+	if x != nil {
+		return x.Attempt
+	}
+	return 0
+}
+
+func (x *ActivityCall) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
 type ActivityResult struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Payload       []byte                 `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`
@@ -267,6 +286,61 @@ func (x *ActivityResult) GetPayload() []byte {
 	return nil
 }
 
+// CallFailure is the detail of a failed direct call (a gRPC status
+// detail): the type the binding knows (backplane.NonRetryable, ...) and
+// whether retrying can help.
+type CallFailure struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	Retryable     bool                   `protobuf:"varint,2,opt,name=retryable,proto3" json:"retryable,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CallFailure) Reset() {
+	*x = CallFailure{}
+	mi := &file_backplanepb_v1_call_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CallFailure) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CallFailure) ProtoMessage() {}
+
+func (x *CallFailure) ProtoReflect() protoreflect.Message {
+	mi := &file_backplanepb_v1_call_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CallFailure.ProtoReflect.Descriptor instead.
+func (*CallFailure) Descriptor() ([]byte, []int) {
+	return file_backplanepb_v1_call_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CallFailure) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *CallFailure) GetRetryable() bool {
+	if x != nil {
+		return x.Retryable
+	}
+	return false
+}
+
 var File_backplanepb_v1_call_proto protoreflect.FileDescriptor
 
 const file_backplanepb_v1_call_proto_rawDesc = "" +
@@ -284,19 +358,26 @@ const file_backplanepb_v1_call_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"&\n" +
 	"\n" +
 	"HookResult\x12\x18\n" +
-	"\apayload\x18\x01 \x01(\fR\apayload\"\xe9\x01\n" +
+	"\apayload\x18\x01 \x01(\fR\apayload\"\x95\x02\n" +
 	"\fActivityCall\x12\x1a\n" +
 	"\bactivity\x18\x01 \x01(\tR\bactivity\x12\x18\n" +
 	"\apayload\x18\x02 \x01(\fR\apayload\x12;\n" +
 	"\x05trace\x18\x03 \x03(\v2%.backplane.v1.ActivityCall.TraceEntryR\x05trace\x12\x18\n" +
 	"\abinding\x18\x04 \x01(\tR\abinding\x12\x12\n" +
-	"\x04step\x18\x05 \x01(\tR\x04step\x1a8\n" +
+	"\x04step\x18\x05 \x01(\tR\x04step\x12\x18\n" +
+	"\aattempt\x18\x06 \x01(\x05R\aattempt\x12\x10\n" +
+	"\x03key\x18\a \x01(\tR\x03key\x1a8\n" +
 	"\n" +
 	"TraceEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"*\n" +
 	"\x0eActivityResult\x12\x18\n" +
-	"\apayload\x18\x01 \x01(\fR\apayloadB@Z>github.com/backplane-labs/backplane/backplanepb/v1;backplanev1b\x06proto3"
+	"\apayload\x18\x01 \x01(\fR\apayload\"?\n" +
+	"\vCallFailure\x12\x12\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\x12\x1c\n" +
+	"\tretryable\x18\x02 \x01(\bR\tretryable2R\n" +
+	"\x0fActivityService\x12?\n" +
+	"\x03Run\x12\x1a.backplane.v1.ActivityCall\x1a\x1c.backplane.v1.ActivityResultB@Z>github.com/backplane-labs/backplane/backplanepb/v1;backplanev1b\x06proto3"
 
 var (
 	file_backplanepb_v1_call_proto_rawDescOnce sync.Once
@@ -310,22 +391,25 @@ func file_backplanepb_v1_call_proto_rawDescGZIP() []byte {
 	return file_backplanepb_v1_call_proto_rawDescData
 }
 
-var file_backplanepb_v1_call_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_backplanepb_v1_call_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_backplanepb_v1_call_proto_goTypes = []any{
 	(*HookCall)(nil),            // 0: backplane.v1.HookCall
 	(*HookResult)(nil),          // 1: backplane.v1.HookResult
 	(*ActivityCall)(nil),        // 2: backplane.v1.ActivityCall
 	(*ActivityResult)(nil),      // 3: backplane.v1.ActivityResult
-	nil,                         // 4: backplane.v1.HookCall.TraceEntry
-	nil,                         // 5: backplane.v1.ActivityCall.TraceEntry
-	(*durationpb.Duration)(nil), // 6: google.protobuf.Duration
+	(*CallFailure)(nil),         // 4: backplane.v1.CallFailure
+	nil,                         // 5: backplane.v1.HookCall.TraceEntry
+	nil,                         // 6: backplane.v1.ActivityCall.TraceEntry
+	(*durationpb.Duration)(nil), // 7: google.protobuf.Duration
 }
 var file_backplanepb_v1_call_proto_depIdxs = []int32{
-	4, // 0: backplane.v1.HookCall.trace:type_name -> backplane.v1.HookCall.TraceEntry
-	6, // 1: backplane.v1.HookCall.deadline:type_name -> google.protobuf.Duration
-	5, // 2: backplane.v1.ActivityCall.trace:type_name -> backplane.v1.ActivityCall.TraceEntry
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
+	5, // 0: backplane.v1.HookCall.trace:type_name -> backplane.v1.HookCall.TraceEntry
+	7, // 1: backplane.v1.HookCall.deadline:type_name -> google.protobuf.Duration
+	6, // 2: backplane.v1.ActivityCall.trace:type_name -> backplane.v1.ActivityCall.TraceEntry
+	2, // 3: backplane.v1.ActivityService.Run:input_type -> backplane.v1.ActivityCall
+	3, // 4: backplane.v1.ActivityService.Run:output_type -> backplane.v1.ActivityResult
+	4, // [4:5] is the sub-list for method output_type
+	3, // [3:4] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
 	3, // [3:3] is the sub-list for extension extendee
 	0, // [0:3] is the sub-list for field type_name
@@ -342,9 +426,9 @@ func file_backplanepb_v1_call_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_backplanepb_v1_call_proto_rawDesc), len(file_backplanepb_v1_call_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_backplanepb_v1_call_proto_goTypes,
 		DependencyIndexes: file_backplanepb_v1_call_proto_depIdxs,

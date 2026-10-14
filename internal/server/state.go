@@ -15,6 +15,7 @@ import (
 	"github.com/backplane-labs/backplane/internal/bindings"
 	"github.com/backplane-labs/backplane/internal/config"
 	"github.com/backplane-labs/backplane/internal/console"
+	"github.com/backplane-labs/backplane/internal/direct"
 	"github.com/backplane-labs/backplane/internal/executor"
 	"github.com/backplane-labs/backplane/internal/obs"
 	"github.com/backplane-labs/backplane/internal/ops"
@@ -55,6 +56,10 @@ type State struct {
 	// workflows, runs, schedules; hook and activity calls (their workflows
 	// run on backplane's task queue).
 	Ops *ops.Ops
+	// Direct is the direct runtime: bindings and rules run in this process
+	// without Temporal, activities called over the services' platform
+	// ports; backplane's HookService; the console's run RPCs.
+	Direct *direct.Service
 	// Executor answers every hook over Temporal Nexus (an endpoint per
 	// service with hooks, a Nexus worker on backplane's queue) and runs
 	// bindings and rules as the workflow backplane.Binding.v1 there; the
@@ -142,7 +147,8 @@ func NewState(root backplane.Root[Config]) (*State, error) {
 
 	st.Config = config.New(root, cfg.LiveConfig, client, st.Store, st.Registry, config.Author(sessionAuthor))
 
-	st.Bindings = bindings.New(root, st.Store, st.Registry, bindings.Author(sessionAuthor))
+	st.Bindings = bindings.New(root, st.Store, st.Registry, bindings.Author(sessionAuthor),
+		bindings.DefaultRuntime(cfg.Wiring.Resolve(cfg.Temporal.Enabled())))
 	consoleOptions = append(consoleOptions, st.runtime(root, cfg, errorReader.Register)...)
 	st.Console = console.New(root, cfg.consoleSettings(), console.NewPG(st.Store),
 		console.NewPGAttempts(st.Store, console.DefaultLoginLimits()), st.Registry, consoleOptions...)
@@ -177,24 +183,32 @@ func (st *State) runtime(root backplane.Root[Config],
 	cfg Config,
 	registerErrors func(grpc.ServiceRegistrar),
 ) []console.Option {
-	registerBindings := func(r grpc.ServiceRegistrar) {
-		consolev1.RegisterBindingServiceServer(r,
-			st.Bindings.BindingAPI())
-	}
+	st.Direct = direct.New(root, st.Bindings, st.Registry, st.Store, cfg.InternalSecret.Reveal(),
+		direct.Author(sessionAuthor), direct.RunTimeout(cfg.Direct.RunTimeout), direct.Retention(cfg.Direct.Retention))
+
+	registerBindings := st.Direct.RegisterBindings(st.Bindings.BindingAPI(), st.Bindings, nil)
 	registerRules := func(r grpc.ServiceRegistrar) { consolev1.RegisterRuleServiceServer(r, st.Bindings.RuleAPI()) }
 
 	if cfg.Temporal.Enabled() {
 		workflows.Register(root, ops.RegisterWorkflows)
 		st.Executor = executor.New(root, st.Bindings, st.Registry, executor.Author(sessionAuthor),
 			executor.Namespace(cfg.Temporal.Namespace), executor.Runs(st.Ops.Workflows()),
-			executor.AbsenceGrace(cfg.Nexus.AbsenceGrace), executor.Resync(cfg.Nexus.ReconcileInterval))
+			executor.AbsenceGrace(cfg.Nexus.AbsenceGrace), executor.Resync(cfg.Nexus.ReconcileInterval),
+			executor.WithDirect(st.Direct))
 		workflows.Register(root, st.Executor.RegisterWorkflows)
+		direct.WithTemporal(st.Executor)(st.Direct)
 
 		registerBindings = st.Executor.Register(st.Bindings.BindingAPI())
-		if cfg.NATS.Enabled() {
-			st.Rules = rules.New(root, st.Bindings, st.Registry, rules.WithRuns(st.Ops.Workflows()))
-			registerRules = st.Rules.Register
+	}
+
+	if cfg.NATS.Enabled() {
+		ruleOptions := []rules.Option{rules.WithDirect(st.Direct), rules.TemporalEnabled(cfg.Temporal.Enabled())}
+		if cfg.Temporal.Enabled() {
+			ruleOptions = append(ruleOptions, rules.WithRuns(st.Ops.Workflows()))
 		}
+
+		st.Rules = rules.New(root, st.Bindings, st.Registry, ruleOptions...)
+		registerRules = st.Rules.Register
 	}
 
 	st.Platform = platform.New(root, root.Identity().Instance, capabilities(cfg), st.probes(root, cfg))

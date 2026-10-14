@@ -2,8 +2,8 @@
 // @generated from file backplanepb/v1/call.proto (package backplane.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Duration } from "../../google/protobuf/duration_pb.js";
 import { file_google_protobuf_duration } from "../../google/protobuf/duration_pb.js";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file backplanepb/v1/call.proto.
  */
 export const file_backplanepb_v1_call: GenFile = /*@__PURE__*/
-  fileDesc("ChliYWNrcGxhbmVwYi92MS9jYWxsLnByb3RvEgxiYWNrcGxhbmUudjEiyAEKCEhvb2tDYWxsEgwKBGhvb2sYASABKAkSEAoIaW5zdGFuY2UYAiABKAkSDwoHcGF5bG9hZBgDIAEoDBIwCgV0cmFjZRgEIAMoCzIhLmJhY2twbGFuZS52MS5Ib29rQ2FsbC5UcmFjZUVudHJ5EisKCGRlYWRsaW5lGAUgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uGiwKClRyYWNlRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASIdCgpIb29rUmVzdWx0Eg8KB3BheWxvYWQYASABKAwitAEKDEFjdGl2aXR5Q2FsbBIQCghhY3Rpdml0eRgBIAEoCRIPCgdwYXlsb2FkGAIgASgMEjQKBXRyYWNlGAMgAygLMiUuYmFja3BsYW5lLnYxLkFjdGl2aXR5Q2FsbC5UcmFjZUVudHJ5Eg8KB2JpbmRpbmcYBCABKAkSDAoEc3RlcBgFIAEoCRosCgpUcmFjZUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiIQoOQWN0aXZpdHlSZXN1bHQSDwoHcGF5bG9hZBgBIAEoDEJAWj5naXRodWIuY29tL2JhY2twbGFuZS1sYWJzL2JhY2twbGFuZS9iYWNrcGxhbmVwYi92MTtiYWNrcGxhbmV2MWIGcHJvdG8z", [file_google_protobuf_duration]);
+  fileDesc("ChliYWNrcGxhbmVwYi92MS9jYWxsLnByb3RvEgxiYWNrcGxhbmUudjEiyAEKCEhvb2tDYWxsEgwKBGhvb2sYASABKAkSEAoIaW5zdGFuY2UYAiABKAkSDwoHcGF5bG9hZBgDIAEoDBIwCgV0cmFjZRgEIAMoCzIhLmJhY2twbGFuZS52MS5Ib29rQ2FsbC5UcmFjZUVudHJ5EisKCGRlYWRsaW5lGAUgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uGiwKClRyYWNlRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASIdCgpIb29rUmVzdWx0Eg8KB3BheWxvYWQYASABKAwi0gEKDEFjdGl2aXR5Q2FsbBIQCghhY3Rpdml0eRgBIAEoCRIPCgdwYXlsb2FkGAIgASgMEjQKBXRyYWNlGAMgAygLMiUuYmFja3BsYW5lLnYxLkFjdGl2aXR5Q2FsbC5UcmFjZUVudHJ5Eg8KB2JpbmRpbmcYBCABKAkSDAoEc3RlcBgFIAEoCRIPCgdhdHRlbXB0GAYgASgFEgsKA2tleRgHIAEoCRosCgpUcmFjZUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiIQoOQWN0aXZpdHlSZXN1bHQSDwoHcGF5bG9hZBgBIAEoDCIuCgtDYWxsRmFpbHVyZRIMCgR0eXBlGAEgASgJEhEKCXJldHJ5YWJsZRgCIAEoCDJSCg9BY3Rpdml0eVNlcnZpY2USPwoDUnVuEhouYmFja3BsYW5lLnYxLkFjdGl2aXR5Q2FsbBocLmJhY2twbGFuZS52MS5BY3Rpdml0eVJlc3VsdEJAWj5naXRodWIuY29tL2JhY2twbGFuZS1sYWJzL2JhY2twbGFuZS9iYWNrcGxhbmVwYi92MTtiYWNrcGxhbmV2MWIGcHJvdG8z", [file_google_protobuf_duration]);
 
 /**
  * Input of the Nexus operation a service raises.
@@ -105,6 +105,20 @@ export type ActivityCall = Message<"backplane.v1.ActivityCall"> & {
    * @generated from field: string step = 5;
    */
   step: string;
+
+  /**
+   * Direct runtime: the attempt (1 for the first) and the key of the step
+   * execution — the same for every attempt — as activity.Info shows them;
+   * Temporal supplies its own.
+   *
+   * @generated from field: int32 attempt = 6;
+   */
+  attempt: number;
+
+  /**
+   * @generated from field: string key = 7;
+   */
+  key: string;
 };
 
 /**
@@ -130,4 +144,55 @@ export type ActivityResult = Message<"backplane.v1.ActivityResult"> & {
  */
 export const ActivityResultSchema: GenMessage<ActivityResult> = /*@__PURE__*/
   messageDesc(file_backplanepb_v1_call, 3);
+
+/**
+ * CallFailure is the detail of a failed direct call (a gRPC status
+ * detail): the type the binding knows (backplane.NonRetryable, ...) and
+ * whether retrying can help.
+ *
+ * @generated from message backplane.v1.CallFailure
+ */
+export type CallFailure = Message<"backplane.v1.CallFailure"> & {
+  /**
+   * @generated from field: string type = 1;
+   */
+  type: string;
+
+  /**
+   * @generated from field: bool retryable = 2;
+   */
+  retryable: boolean;
+};
+
+/**
+ * Describes the message backplane.v1.CallFailure.
+ * Use `create(CallFailureSchema)` to create a new message.
+ */
+export const CallFailureSchema: GenMessage<CallFailure> = /*@__PURE__*/
+  messageDesc(file_backplanepb_v1_call, 4);
+
+/**
+ * ActivityService is served by the SDK on a service's platform port, behind
+ * the internal secret: the direct runtime runs the service's activities
+ * through it, the handlers activity.Handle registered. Temporal's worker
+ * serves the same handlers from its task queue.
+ *
+ * @generated from service backplane.v1.ActivityService
+ */
+export const ActivityService: GenService<{
+  /**
+   * Run executes one activity call and answers its result. A handler
+   * error is a status with a CallFailure detail: FAILED_PRECONDITION when
+   * not retryable, UNAVAILABLE when it is; an unknown activity is
+   * NOT_FOUND.
+   *
+   * @generated from rpc backplane.v1.ActivityService.Run
+   */
+  run: {
+    methodKind: "unary";
+    input: typeof ActivityCallSchema;
+    output: typeof ActivityResultSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_backplanepb_v1_call, 0);
 

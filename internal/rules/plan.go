@@ -3,12 +3,14 @@ package rules
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
 
 	"github.com/google/uuid"
 
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	"github.com/backplane-labs/backplane/internal/bindings"
 	"github.com/backplane-labs/backplane/internal/wire"
 )
@@ -52,13 +54,17 @@ type desired struct {
 	err  error
 }
 
+// errNoTemporal: the rule runs on Temporal, which the installation lacks.
+var errNoTemporal = errors.New("the rule runs on the temporal runtime, which this installation does not have: " +
+	"set runtime: direct")
+
 // runnable: the rule's events are consumed.
 func (d desired) runnable() bool { return !d.deleted && !d.paused && d.prog != nil }
 
 // plan is what every rule wants: its consumer's names and, for an active
 // rule, its program compiled against cat. A deleted rule stays in the
 // plan (deleted) so its consumer can be found and removed.
-func plan(entries []bindings.RuleEntry, cat bindings.Catalog) map[uuid.UUID]desired {
+func plan(entries []bindings.RuleEntry, cat bindings.Catalog, temporal bool) map[uuid.UUID]desired {
 	out := make(map[uuid.UUID]desired, len(entries))
 
 	for i := range entries {
@@ -79,6 +85,10 @@ func plan(entries []bindings.RuleEntry, cat bindings.Catalog) map[uuid.UUID]desi
 
 		if d.err == nil && !d.deleted && !d.paused {
 			d.prog, d.err = bindings.CompileRule(e.Current.Rule, cat)
+			if d.err == nil && !temporal && d.prog.Runtime() != consolev1.Runtime_RUNTIME_DIRECT {
+				d.err = errNoTemporal
+			}
+
 			if d.err == nil {
 				d.spec, d.err = json.Marshal(d.prog)
 			}

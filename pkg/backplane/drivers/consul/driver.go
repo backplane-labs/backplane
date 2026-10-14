@@ -2,13 +2,25 @@
 package consul
 
 import (
+	"github.com/gopherex/xlog"
+
 	"github.com/backplane-labs/backplane/pkg/backplane"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	internal "github.com/backplane-labs/backplane/pkg/backplane/internal/consul"
 )
 
-// Driver installs Consul discovery and its live configuration source.
+// Driver installs Consul discovery, its live configuration source and the
+// discovery of backplane's replicas for the direct hook transport.
 func Driver() backplane.Option {
 	remote := backplane.ConfigOptions(Config())
+	discovery := backplane.WithHookDiscovery(func(cfg config.Backplane, _ *xlog.Logger) (backplane.HookDiscovery, error) {
+		client, err := newClient(cfg.Consul)
+		if err != nil {
+			return nil, err
+		}
+
+		return internal.NewDiscovery(client), nil
+	})
 	presence := backplane.WithPresence(func(p backplane.PresenceParams) (backplane.Presence, error) {
 		client, err := newClient(p.Config.Consul)
 		if err != nil {
@@ -41,5 +53,5 @@ func Driver() backplane.Option {
 		})
 	})
 
-	return backplane.Options(remote, presence)
+	return backplane.Options(remote, presence, discovery)
 }

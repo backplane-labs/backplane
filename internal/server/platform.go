@@ -40,8 +40,10 @@ func capabilities(c Config) []*consolev1.Capability {
 		{Name: "events", Enabled: c.NATS.Enabled()},
 		{Name: "workflows", Enabled: c.Temporal.Enabled()},
 		{Name: "schedules", Enabled: c.Temporal.Enabled()},
-		{Name: "bindings", Enabled: c.Temporal.Enabled()},
-		{Name: "rules", Enabled: c.NATS.Enabled() && c.Temporal.Enabled()},
+		{Name: "bindings", Enabled: true},
+		{Name: "rules", Enabled: c.NATS.Enabled()},
+		{Name: "runtime_temporal", Enabled: c.Temporal.Enabled()},
+		{Name: "runtime_direct", Enabled: true},
 		{Name: "metrics", Enabled: c.Obs.MetricsURL != ""},
 		{Name: "logs", Enabled: c.Obs.LogsURL != ""},
 		{Name: "traces", Enabled: c.Obs.TracesURL != ""},
@@ -58,15 +60,10 @@ func disabledMethods(c Config) func(string, string) bool {
 			return !c.Temporal.Enabled()
 		case "EventService":
 			return !c.NATS.Enabled()
-		case "BindingService":
-			switch method {
-			case "TestBinding", "ListBindingRuns", "GetBindingRun", "CancelBindingRun":
-				return !c.Temporal.Enabled()
-			}
 		case "RuleService":
 			switch method {
 			case "TestRule", "ListRuleRuns", "GetRuleRun", "CancelRuleRun":
-				return !c.Temporal.Enabled() || !c.NATS.Enabled()
+				return !c.NATS.Enabled()
 			}
 		}
 

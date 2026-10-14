@@ -24,7 +24,9 @@ func Detached(b Bindings, src registry.Source) *Executor {
 
 // Prepare is prepare.
 func (x *Executor) Prepare(ctx context.Context, hook string, call *backplanev1.HookCall) (Input, error) {
-	return x.prepare(ctx, hook, call)
+	in, _, err := x.prepare(ctx, hook, call)
+
+	return in, err
 }
 
 // Required is required.

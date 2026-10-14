@@ -23,6 +23,7 @@ import (
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/direct"
 	"github.com/backplane-labs/backplane/internal/redact"
 	"github.com/backplane-labs/backplane/internal/wire"
 )
@@ -36,24 +37,17 @@ const (
 	waitSlack = 10 * time.Second
 	// maxEvents bounds the history read for a timeline.
 	maxEvents = 10000
-	// maxVersion bounds a requested version so it converts to int64.
-	maxVersion = 1 << 62
 )
 
-// BindingAPI is BindingService: the bindings Manager's RPCs with the run
-// RPCs of the executor.
-type BindingAPI struct {
-	consolev1.BindingServiceServer
-
-	x *Executor
+// BindingService is base (bindings.Manager's BindingAPI) with the run
+// RPCs: the direct runtime's, with the executor as their Temporal side.
+func (x *Executor) BindingService(base consolev1.BindingServiceServer) consolev1.BindingServiceServer { //nolint:ireturn,lll // the gRPC service
+	return x.direct.BindingService(base, x.bindings, x.Temporal())
 }
 
-var _ consolev1.BindingServiceServer = BindingAPI{}
-
-// BindingService is base (bindings.Manager's BindingAPI) with the run
-// RPCs.
-func (x *Executor) BindingService(base consolev1.BindingServiceServer) BindingAPI {
-	return BindingAPI{BindingServiceServer: base, x: x}
+// Temporal is the executor as the Temporal side of the run RPCs.
+func (x *Executor) Temporal() *direct.TemporalBindings {
+	return &direct.TemporalBindings{Test: x.testBinding, List: x.listRuns, Get: x.getRun, Cancel: x.cancelRun}
 }
 
 // Register registers BindingService — base with the run RPCs — on r.
@@ -90,32 +84,11 @@ func (x *Executor) status(ctx context.Context, err error) error {
 	return status.Error(code, err.Error()) //nolint:wrapcheck // a gRPC status travels as is
 }
 
-// TestBinding implements BindingService.
-func (a BindingAPI) TestBinding(
-	ctx context.Context, req *consolev1.TestBindingRequest,
+// testBinding runs a test of a Temporal-runtime definition: the Temporal
+// side of BindingService.TestBinding.
+func (x *Executor) testBinding(
+	ctx context.Context, req *consolev1.TestBindingRequest, b bindings.Binding, version int64, prog *bindings.Program,
 ) (*consolev1.TestBindingResponse, error) {
-	x := a.x
-
-	b, version, err := x.testBinding(ctx, req)
-	if err != nil {
-		return nil, x.status(ctx, err)
-	}
-
-	cat := x.src.Current()
-	if cat.Index == 0 {
-		return nil, x.status(ctx, ErrNotSynced)
-	}
-
-	prog, err := bindings.CompileBinding(b, bindings.FromRegistry(cat))
-	if err != nil {
-		var bad *bindings.InvalidError
-		if errors.As(err, &bad) {
-			return &consolev1.TestBindingResponse{Violations: bindings.ViolationsPB(bad.Violations), Version: uint64(version)}, nil //nolint:gosec,lll // positive
-		}
-
-		return nil, x.status(ctx, err)
-	}
-
 	input := []byte(req.GetInput())
 	if len(input) == 0 {
 		input = []byte("{}")
@@ -165,46 +138,47 @@ func (a BindingAPI) TestBinding(
 	return &consolev1.TestBindingResponse{Result: res, Version: uint64(version)}, nil //nolint:gosec // positive
 }
 
-// testBinding is what TestBinding runs: an unsaved definition (version
-// 0), or a saved version.
-func (x *Executor) testBinding(
-	ctx context.Context, req *consolev1.TestBindingRequest,
-) (bindings.Binding, int64, error) {
-	hook, def := req.GetHook(), req.GetDefinition()
-
-	if def != nil {
-		if req.GetVersion() != 0 {
-			return bindings.Binding{}, 0, invalid("version and definition are exclusive")
-		}
-
-		switch {
-		case hook == "":
-			hook = def.GetHook()
-		case def.GetHook() != "" && def.GetHook() != hook:
-			return bindings.Binding{}, 0, invalid("the definition is of %s, not %s", def.GetHook(), hook)
-		}
-
-		b := bindings.BindingFromPB(def)
-		b.Hook = hook
-
-		return b, 0, nil
-	}
-
-	if !bindings.IsFullName(hook) {
-		return bindings.Binding{}, 0, invalid("hook must be <service>.<Hook>, got %q", hook)
-	}
-
-	v, err := x.bindings.Version(ctx, hook, int64(min(req.GetVersion(), maxVersion))) //nolint:gosec // bounded
+// RunBinding runs a hook call's Temporal-runtime binding and waits for
+// its answer: the direct runtime's TemporalRunner, for calls that arrive
+// over HookService.
+func (x *Executor) RunBinding(
+	ctx context.Context, hook string, prog *bindings.Program, version int64, call *backplanev1.HookCall,
+) (*backplanev1.HookResult, error) {
+	in, err := BindingInput(prog, Identity{Hook: hook, Version: version}, call.GetPayload(), call.GetTrace())
 	if err != nil {
-		return bindings.Binding{}, 0, err //nolint:wrapcheck // mapped by status
+		return nil, err
 	}
 
-	if v.Deleted {
-		return bindings.Binding{}, 0, status.Errorf(codes.FailedPrecondition,
-			"%s: version %d is a delete: no binding to test", hook, v.Version)
+	c, err := x.client()
+	if err != nil {
+		return nil, err
 	}
 
-	return v.Binding, v.Version, nil
+	deadline := call.GetDeadline().AsDuration()
+	if deadline <= 0 {
+		deadline = defaultTestTimeout
+	}
+
+	opts := client.StartWorkflowOptions{
+		ID: wire.BindingRunID(hook, uuid.NewString()), TaskQueue: x.queue, WorkflowExecutionTimeout: deadline,
+		Memo: map[string]any{wire.MemoSource: call.GetInstance(), wire.MemoBinding: in.Identity.String()},
+	}
+
+	res, err := x.execute(ctx, c, opts, in, deadline+waitSlack)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.GetError() != "" {
+		return nil, &direct.Failure{Msg: res.GetError(), Type: res.GetErrorType(), Retryable: false}
+	}
+
+	payload := []byte(res.GetOutput())
+	if len(payload) == 0 {
+		payload = res.GetRaw()
+	}
+
+	return &backplanev1.HookResult{Payload: payload}, nil
 }
 
 // execute starts a run and waits up to wait for it: a failed run is a
@@ -272,15 +246,12 @@ func (x *Executor) runsAPI() (consolev1.WorkflowServiceServer, error) {
 	return x.runs, nil
 }
 
-// ListBindingRuns implements BindingService.
-func (a BindingAPI) ListBindingRuns(
+// listRuns lists the Temporal runs of a hook's binding: the Temporal side
+// of BindingService.ListBindingRuns.
+func (x *Executor) listRuns(
 	ctx context.Context, req *consolev1.ListBindingRunsRequest,
 ) (*consolev1.ListBindingRunsResponse, error) {
-	if !bindings.IsFullName(req.GetHook()) {
-		return nil, invalid("hook must be <service>.<Hook>, got %q", req.GetHook())
-	}
-
-	runs, err := a.x.runsAPI()
+	runs, err := x.runsAPI()
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +262,7 @@ func (a BindingAPI) ListBindingRuns(
 	}
 
 	res, err := runs.ListRuns(ctx, &consolev1.ListRunsRequest{
-		Service: a.x.queue, Workflow: wire.BindingWorkflow, Status: req.GetStatus(), WorkflowIdPrefix: prefix,
+		Service: x.queue, Workflow: wire.BindingWorkflow, Status: req.GetStatus(), WorkflowIdPrefix: prefix,
 		PageSize: req.GetPageSize(), PageToken: req.GetPageToken(),
 	})
 	if err != nil {
@@ -312,12 +283,11 @@ func runID(id string) error {
 	return nil
 }
 
-// GetBindingRun implements BindingService.
-func (a BindingAPI) GetBindingRun(
+// getRun is one Temporal run of a binding: the Temporal side of
+// BindingService.GetBindingRun.
+func (x *Executor) getRun(
 	ctx context.Context, req *consolev1.GetBindingRunRequest,
 ) (*consolev1.GetBindingRunResponse, error) {
-	x := a.x
-
 	if err := runID(req.GetWorkflowId()); err != nil {
 		return nil, err
 	}
@@ -394,15 +364,16 @@ func history(ctx context.Context, c client.Client, workflowID, runID string) ([]
 	return out, nil
 }
 
-// CancelBindingRun implements BindingService.
-func (a BindingAPI) CancelBindingRun(
+// cancelRun cancels a Temporal run of a binding: the Temporal side of
+// BindingService.CancelBindingRun.
+func (x *Executor) cancelRun(
 	ctx context.Context, req *consolev1.CancelBindingRunRequest,
 ) (*consolev1.CancelBindingRunResponse, error) {
 	if err := runID(req.GetWorkflowId()); err != nil {
 		return nil, err
 	}
 
-	runs, err := a.x.runsAPI()
+	runs, err := x.runsAPI()
 	if err != nil {
 		return nil, err
 	}
@@ -413,7 +384,7 @@ func (a BindingAPI) CancelBindingRun(
 		return nil, err //nolint:wrapcheck // a gRPC status from ops
 	}
 
-	a.x.audit(ctx, "binding.run.cancel", req.GetWorkflowId(), xlog.String("run_id", req.GetRunId()))
+	x.audit(ctx, "binding.run.cancel", req.GetWorkflowId(), xlog.String("run_id", req.GetRunId()))
 
 	return &consolev1.CancelBindingRunResponse{}, nil
 }

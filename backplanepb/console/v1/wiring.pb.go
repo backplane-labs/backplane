@@ -378,7 +378,10 @@ type Analysis struct {
 	// reads a field a schema marks secret, or computes from one. The
 	// console masks these values in runs. Empty until the definition is
 	// valid.
-	Secrets       []string `protobuf:"bytes,5,rep,name=secrets,proto3" json:"secrets,omitempty"`
+	Secrets []string `protobuf:"bytes,5,rep,name=secrets,proto3" json:"secrets,omitempty"`
+	// The runtime the definition compiled for: its own, else the
+	// installation's default.
+	Runtime       Runtime `protobuf:"varint,6,opt,name=runtime,proto3,enum=backplane.console.v1.Runtime" json:"runtime,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -446,6 +449,13 @@ func (x *Analysis) GetSecrets() []string {
 		return x.Secrets
 	}
 	return nil
+}
+
+func (x *Analysis) GetRuntime() Runtime {
+	if x != nil {
+		return x.Runtime
+	}
+	return Runtime_RUNTIME_UNSPECIFIED
 }
 
 // StepAnalysis is where a step stands in the order of execution.
@@ -915,7 +925,7 @@ const file_backplanepb_console_v1_wiring_proto_rawDesc = "" +
 	"definition\x18\x01 \x01(\v2$.backplane.console.v1.RuleDefinitionR\n" +
 	"definition\"Q\n" +
 	"\x13AnalyzeRuleResponse\x12:\n" +
-	"\banalysis\x18\x01 \x01(\v2\x1e.backplane.console.v1.AnalysisR\banalysis\"\x97\x02\n" +
+	"\banalysis\x18\x01 \x01(\v2\x1e.backplane.console.v1.AnalysisR\banalysis\"\xd0\x02\n" +
 	"\bAnalysis\x12?\n" +
 	"\n" +
 	"violations\x18\x01 \x03(\v2\x1f.backplane.console.v1.ViolationR\n" +
@@ -925,7 +935,8 @@ const file_backplanepb_console_v1_wiring_proto_rawDesc = "" +
 	"\n" +
 	"references\x18\x04 \x03(\v2\x1f.backplane.console.v1.ReferenceR\n" +
 	"references\x12\x18\n" +
-	"\asecrets\x18\x05 \x03(\tR\asecrets\"\xbf\x01\n" +
+	"\asecrets\x18\x05 \x03(\tR\asecrets\x127\n" +
+	"\aruntime\x18\x06 \x01(\x0e2\x1d.backplane.console.v1.RuntimeR\aruntime\"\xbf\x01\n" +
 	"\fStepAnalysis\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05level\x18\x02 \x01(\x05R\x05level\x12\x12\n" +
@@ -998,7 +1009,8 @@ var file_backplanepb_console_v1_wiring_proto_goTypes = []any{
 	(*BindingDefinition)(nil),        // 16: backplane.console.v1.BindingDefinition
 	(*RuleDefinition)(nil),           // 17: backplane.console.v1.RuleDefinition
 	(*Violation)(nil),                // 18: backplane.console.v1.Violation
-	(*Range)(nil),                    // 19: backplane.console.v1.Range
+	(Runtime)(0),                     // 19: backplane.console.v1.Runtime
+	(*Range)(nil),                    // 20: backplane.console.v1.Range
 }
 var file_backplanepb_console_v1_wiring_proto_depIdxs = []int32{
 	2,  // 0: backplane.console.v1.GetWiringCatalogResponse.services:type_name -> backplane.console.v1.WiringContract
@@ -1013,25 +1025,26 @@ var file_backplanepb_console_v1_wiring_proto_depIdxs = []int32{
 	8,  // 9: backplane.console.v1.Analysis.steps:type_name -> backplane.console.v1.StepAnalysis
 	9,  // 10: backplane.console.v1.Analysis.types:type_name -> backplane.console.v1.ValueType
 	10, // 11: backplane.console.v1.Analysis.references:type_name -> backplane.console.v1.Reference
-	19, // 12: backplane.console.v1.Reference.expr:type_name -> backplane.console.v1.Range
-	16, // 13: backplane.console.v1.RenameStepRequest.binding:type_name -> backplane.console.v1.BindingDefinition
-	17, // 14: backplane.console.v1.RenameStepRequest.rule:type_name -> backplane.console.v1.RuleDefinition
-	16, // 15: backplane.console.v1.RenameStepResponse.binding:type_name -> backplane.console.v1.BindingDefinition
-	17, // 16: backplane.console.v1.RenameStepResponse.rule:type_name -> backplane.console.v1.RuleDefinition
-	18, // 17: backplane.console.v1.RenameStepResponse.violations:type_name -> backplane.console.v1.Violation
-	0,  // 18: backplane.console.v1.WiringService.GetWiringCatalog:input_type -> backplane.console.v1.GetWiringCatalogRequest
-	3,  // 19: backplane.console.v1.WiringService.AnalyzeBinding:input_type -> backplane.console.v1.AnalyzeBindingRequest
-	5,  // 20: backplane.console.v1.WiringService.AnalyzeRule:input_type -> backplane.console.v1.AnalyzeRuleRequest
-	11, // 21: backplane.console.v1.WiringService.RenameStep:input_type -> backplane.console.v1.RenameStepRequest
-	1,  // 22: backplane.console.v1.WiringService.GetWiringCatalog:output_type -> backplane.console.v1.GetWiringCatalogResponse
-	4,  // 23: backplane.console.v1.WiringService.AnalyzeBinding:output_type -> backplane.console.v1.AnalyzeBindingResponse
-	6,  // 24: backplane.console.v1.WiringService.AnalyzeRule:output_type -> backplane.console.v1.AnalyzeRuleResponse
-	12, // 25: backplane.console.v1.WiringService.RenameStep:output_type -> backplane.console.v1.RenameStepResponse
-	22, // [22:26] is the sub-list for method output_type
-	18, // [18:22] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	19, // 12: backplane.console.v1.Analysis.runtime:type_name -> backplane.console.v1.Runtime
+	20, // 13: backplane.console.v1.Reference.expr:type_name -> backplane.console.v1.Range
+	16, // 14: backplane.console.v1.RenameStepRequest.binding:type_name -> backplane.console.v1.BindingDefinition
+	17, // 15: backplane.console.v1.RenameStepRequest.rule:type_name -> backplane.console.v1.RuleDefinition
+	16, // 16: backplane.console.v1.RenameStepResponse.binding:type_name -> backplane.console.v1.BindingDefinition
+	17, // 17: backplane.console.v1.RenameStepResponse.rule:type_name -> backplane.console.v1.RuleDefinition
+	18, // 18: backplane.console.v1.RenameStepResponse.violations:type_name -> backplane.console.v1.Violation
+	0,  // 19: backplane.console.v1.WiringService.GetWiringCatalog:input_type -> backplane.console.v1.GetWiringCatalogRequest
+	3,  // 20: backplane.console.v1.WiringService.AnalyzeBinding:input_type -> backplane.console.v1.AnalyzeBindingRequest
+	5,  // 21: backplane.console.v1.WiringService.AnalyzeRule:input_type -> backplane.console.v1.AnalyzeRuleRequest
+	11, // 22: backplane.console.v1.WiringService.RenameStep:input_type -> backplane.console.v1.RenameStepRequest
+	1,  // 23: backplane.console.v1.WiringService.GetWiringCatalog:output_type -> backplane.console.v1.GetWiringCatalogResponse
+	4,  // 24: backplane.console.v1.WiringService.AnalyzeBinding:output_type -> backplane.console.v1.AnalyzeBindingResponse
+	6,  // 25: backplane.console.v1.WiringService.AnalyzeRule:output_type -> backplane.console.v1.AnalyzeRuleResponse
+	12, // 26: backplane.console.v1.WiringService.RenameStep:output_type -> backplane.console.v1.RenameStepResponse
+	23, // [23:27] is the sub-list for method output_type
+	19, // [19:23] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_backplanepb_console_v1_wiring_proto_init() }

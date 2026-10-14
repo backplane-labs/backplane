@@ -3,6 +3,7 @@ package bindings
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"go.yaml.in/yaml/v3"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -39,11 +40,25 @@ func RuleYAML(text string) (Rule, error) {
 	return RuleFromPB(&m), nil
 }
 
+// shortRuntime lets YAML say `runtime: direct` for RUNTIME_DIRECT.
+func shortRuntime(tree any) {
+	m, ok := tree.(map[string]any)
+	if !ok {
+		return
+	}
+
+	if rt, isText := m["runtime"].(string); isText && rt != "" && !strings.HasPrefix(rt, "RUNTIME_") {
+		m["runtime"] = "RUNTIME_" + strings.ToUpper(rt)
+	}
+}
+
 func decodeYAML(text string, m proto.Message) error {
 	var tree any
 	if err := yaml.Unmarshal([]byte(text), &tree); err != nil {
 		return fmt.Errorf("bindings: yaml: %w", err)
 	}
+
+	shortRuntime(tree)
 
 	data, err := json.Marshal(tree)
 	if err != nil {

@@ -17,6 +17,7 @@ type options struct {
 	presence  PresenceFactory
 	events    EventTransportFactory
 	workflows WorkflowTransportFactory
+	discovery HookDiscoveryFactory
 	id        Identity
 	log       *xlog.Logger
 	config    []config.Option

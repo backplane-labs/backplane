@@ -17,7 +17,7 @@ import (
 func BindingFromPB(m *consolev1.BindingDefinition) Binding {
 	return Binding{
 		Hook: m.GetHook(), Description: m.GetDescription(), Steps: stepsFromPB(m.GetSteps()),
-		Result: ValueOf(m.GetResult()), Editor: editorOf(m.GetEditor()),
+		Result: ValueOf(m.GetResult()), Runtime: m.GetRuntime(), Editor: editorOf(m.GetEditor()),
 	}
 }
 
@@ -25,7 +25,7 @@ func BindingFromPB(m *consolev1.BindingDefinition) Binding {
 func (b Binding) PB() *consolev1.BindingDefinition {
 	return &consolev1.BindingDefinition{
 		Hook: b.Hook, Description: b.Description, Steps: stepsPB(b.Steps), Result: b.Result.PB(),
-		Editor: editorOf(b.Editor),
+		Runtime: b.Runtime, Editor: editorOf(b.Editor),
 	}
 }
 
@@ -33,14 +33,15 @@ func (b Binding) PB() *consolev1.BindingDefinition {
 func RuleFromPB(m *consolev1.RuleDefinition) Rule {
 	return Rule{
 		Event: m.GetEvent(), When: m.GetWhen(), Description: m.GetDescription(), Steps: stepsFromPB(m.GetSteps()),
-		Editor: editorOf(m.GetEditor()),
+		Runtime: m.GetRuntime(), Editor: editorOf(m.GetEditor()),
 	}
 }
 
 // PB is the definition as a message.
 func (r Rule) PB() *consolev1.RuleDefinition {
 	return &consolev1.RuleDefinition{
-		Event: r.Event, When: r.When, Description: r.Description, Steps: stepsPB(r.Steps), Editor: editorOf(r.Editor),
+		Event: r.Event, When: r.When, Description: r.Description, Steps: stepsPB(r.Steps), Runtime: r.Runtime,
+		Editor: editorOf(r.Editor),
 	}
 }
 

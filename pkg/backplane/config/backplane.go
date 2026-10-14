@@ -15,6 +15,7 @@ type Backplane struct {
 	Consul   Consul   `json:"consul"`
 	NATS     NATS     `json:"nats"`
 	Temporal Temporal `json:"temporal"`
+	Hooks    Hooks    `json:"hooks"`
 	Shutdown Shutdown `json:"shutdown"`
 	Health   Health   `json:"health"`
 	// Limits of the SDK's HTTP and gRPC servers (public and platform ports).
@@ -162,6 +163,43 @@ type Worker struct {
 
 // Enabled reports whether Temporal is configured.
 func (t Temporal) Enabled() bool { return t.Addr != "" }
+
+// Hooks: how this service's hook calls reach backplane.
+type Hooks struct {
+	// Transport of hook calls: "temporal" (Nexus through the configured
+	// Temporal), "direct" (gRPC to backplane's platform port, its replicas
+	// found through Consul), or "auto": temporal when Temporal is
+	// configured, else direct when Consul is.
+	Transport string `json:"transport" schemapb:"default=auto"`
+}
+
+// Transports of hook calls.
+const (
+	HooksAuto     = "auto"
+	HooksTemporal = "temporal"
+	HooksDirect   = "direct"
+)
+
+// Resolve is the transport "auto" stands for given what is configured:
+// HooksTemporal, HooksDirect or "" when neither Temporal nor Consul is.
+func (h Hooks) Resolve(temporal, consul bool) string {
+	switch h.Transport {
+	case HooksTemporal:
+		return HooksTemporal
+	case HooksDirect:
+		return HooksDirect
+	default:
+	}
+
+	switch {
+	case temporal:
+		return HooksTemporal
+	case consul:
+		return HooksDirect
+	default:
+		return ""
+	}
+}
 
 // Shutdown of the instance: readiness drops, Consul deregisters, then after
 // Drain the listeners stop accepting and in-flight work finishes; everything

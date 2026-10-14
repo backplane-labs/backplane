@@ -1052,6 +1052,228 @@ func (q *Queries) DeleteStaleSessions(ctx context.Context, arg DeleteStaleSessio
 	return tag.RowsAffected(), err
 }
 
+const claimDirectRunSQL = `-- A new run, or a failed run of the same id claimed again (a rule's event
+-- redelivered); no row when the id is running or completed already.
+INSERT INTO backplane.direct_run (id, kind, source, version, test, caller, status, input, program)
+VALUES ($1, $2, $3, $4, $5, $6, 'running', $7, $8)
+ON CONFLICT (id) DO UPDATE SET
+  status = 'running', attempt = backplane.direct_run.attempt + 1, started_at = clock_timestamp(),
+  closed_at = NULL, result = NULL, error = '', error_type = '', input = EXCLUDED.input, program = EXCLUDED.program,
+  version = EXCLUDED.version, caller = EXCLUDED.caller
+WHERE backplane.direct_run.status = 'failed'
+RETURNING id, attempt, started_at;`
+
+type ClaimDirectRunParams struct {
+	ID      string
+	Kind    string
+	Source  string
+	Version int64
+	Test    bool
+	Caller  string
+	Input   json.RawMessage
+	Program json.RawMessage
+}
+
+type ClaimDirectRunRow struct {
+	ID        string
+	Attempt   int32
+	StartedAt time.Time
+}
+
+func (q *Queries) ClaimDirectRun(ctx context.Context, arg ClaimDirectRunParams) (ClaimDirectRunRow, error) {
+	row := q.db.QueryRow(ctx, claimDirectRunSQL, arg.ID, arg.Kind, arg.Source, arg.Version, arg.Test, arg.Caller, arg.Input, arg.Program)
+	var i ClaimDirectRunRow
+	err := row.Scan(&i.ID, &i.Attempt, &i.StartedAt)
+	return i, err
+}
+
+const finishDirectRunSQL = `UPDATE backplane.direct_run
+SET status = $1, result = $2, error = $3, error_type = $4, closed_at = clock_timestamp()
+WHERE id = $5;`
+
+type FinishDirectRunParams struct {
+	Status    string
+	Result    json.RawMessage
+	Error     string
+	ErrorType string
+	ID        string
+}
+
+func (q *Queries) FinishDirectRun(ctx context.Context, arg FinishDirectRunParams) error {
+	_, err := q.db.Exec(ctx, finishDirectRunSQL, arg.Status, arg.Result, arg.Error, arg.ErrorType, arg.ID)
+	return err
+}
+
+const getDirectRunSQL = `SELECT id, kind, source, version, test, caller, status, attempt, input, result, error, error_type, program,
+  started_at, closed_at
+FROM backplane.direct_run WHERE id = $1;`
+
+type GetDirectRunRow struct {
+	ID        string
+	Kind      string
+	Source    string
+	Version   int64
+	Test      bool
+	Caller    string
+	Status    string
+	Attempt   int32
+	Input     json.RawMessage
+	Result    json.RawMessage
+	Error     string
+	ErrorType string
+	Program   json.RawMessage
+	StartedAt time.Time
+	ClosedAt  *time.Time
+}
+
+func (q *Queries) GetDirectRun(ctx context.Context, id string) (GetDirectRunRow, error) {
+	row := q.db.QueryRow(ctx, getDirectRunSQL, id)
+	var i GetDirectRunRow
+	err := row.Scan(&i.ID, &i.Kind, &i.Source, &i.Version, &i.Test, &i.Caller, &i.Status, &i.Attempt, &i.Input, &i.Result, &i.Error, &i.ErrorType, &i.Program, &i.StartedAt, &i.ClosedAt)
+	return i, err
+}
+
+const listDirectRunsSQL = `SELECT id, kind, source, version, test, caller, status, attempt, error, error_type, started_at, closed_at
+FROM backplane.direct_run
+WHERE kind = $1 AND source = $2 AND test = $3
+  AND ($4::text = '' OR status = $4::text)
+  AND (started_at, id) < ($5::timestamptz, $6::text)
+ORDER BY started_at DESC, id DESC
+LIMIT $7;`
+
+type ListDirectRunsParams struct {
+	Kind     string
+	Source   string
+	Test     bool
+	Status   string
+	BeforeAt time.Time
+	BeforeID string
+	PageSize int64
+}
+
+type ListDirectRunsRow struct {
+	ID        string
+	Kind      string
+	Source    string
+	Version   int64
+	Test      bool
+	Caller    string
+	Status    string
+	Attempt   int32
+	Error     string
+	ErrorType string
+	StartedAt time.Time
+	ClosedAt  *time.Time
+}
+
+func (q *Queries) ListDirectRuns(ctx context.Context, arg ListDirectRunsParams) ([]ListDirectRunsRow, error) {
+	rows, err := q.db.Query(ctx, listDirectRunsSQL, arg.Kind, arg.Source, arg.Test, arg.Status, arg.BeforeAt, arg.BeforeID, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDirectRunsRow
+	for rows.Next() {
+		var i ListDirectRunsRow
+		if err := rows.Scan(&i.ID, &i.Kind, &i.Source, &i.Version, &i.Test, &i.Caller, &i.Status, &i.Attempt, &i.Error, &i.ErrorType, &i.StartedAt, &i.ClosedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const upsertDirectRunStepSQL = `INSERT INTO backplane.direct_run_step
+  (run_id, label, seq, step, parent, item, activity, status, input, output, error, error_type, scheduled_at, closed_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+  $13, $14)
+ON CONFLICT (run_id, label) DO UPDATE SET
+  status = EXCLUDED.status, output = EXCLUDED.output, error = EXCLUDED.error, error_type = EXCLUDED.error_type,
+  closed_at = EXCLUDED.closed_at;`
+
+type UpsertDirectRunStepParams struct {
+	RunID       string
+	Label       string
+	Seq         int32
+	Step        string
+	Parent      string
+	Item        *int32
+	Activity    string
+	Status      string
+	Input       json.RawMessage
+	Output      json.RawMessage
+	Error       string
+	ErrorType   string
+	ScheduledAt time.Time
+	ClosedAt    *time.Time
+}
+
+func (q *Queries) UpsertDirectRunStep(ctx context.Context, arg UpsertDirectRunStepParams) error {
+	_, err := q.db.Exec(ctx, upsertDirectRunStepSQL, arg.RunID, arg.Label, arg.Seq, arg.Step, arg.Parent, arg.Item, arg.Activity, arg.Status, arg.Input, arg.Output, arg.Error, arg.ErrorType, arg.ScheduledAt, arg.ClosedAt)
+	return err
+}
+
+const listDirectRunStepsSQL = `SELECT run_id, label, seq, step, parent, item, activity, status, input, output, error, error_type, scheduled_at,
+  closed_at
+FROM backplane.direct_run_step WHERE run_id = $1 ORDER BY seq;`
+
+type ListDirectRunStepsRow struct {
+	RunID       string
+	Label       string
+	Seq         int32
+	Step        string
+	Parent      string
+	Item        *int32
+	Activity    string
+	Status      string
+	Input       json.RawMessage
+	Output      json.RawMessage
+	Error       string
+	ErrorType   string
+	ScheduledAt time.Time
+	ClosedAt    *time.Time
+}
+
+func (q *Queries) ListDirectRunSteps(ctx context.Context, runID string) ([]ListDirectRunStepsRow, error) {
+	rows, err := q.db.Query(ctx, listDirectRunStepsSQL, runID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDirectRunStepsRow
+	for rows.Next() {
+		var i ListDirectRunStepsRow
+		if err := rows.Scan(&i.RunID, &i.Label, &i.Seq, &i.Step, &i.Parent, &i.Item, &i.Activity, &i.Status, &i.Input, &i.Output, &i.Error, &i.ErrorType, &i.ScheduledAt, &i.ClosedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const expireDirectRunsSQL = `DELETE FROM backplane.direct_run
+WHERE id IN (
+  SELECT id FROM backplane.direct_run
+  WHERE started_at < $1 AND status <> 'running'
+  ORDER BY started_at LIMIT $2
+);`
+
+type ExpireDirectRunsParams struct {
+	Cutoff    time.Time
+	BatchSize int64
+}
+
+func (q *Queries) ExpireDirectRuns(ctx context.Context, arg ExpireDirectRunsParams) error {
+	_, err := q.db.Exec(ctx, expireDirectRunsSQL, arg.Cutoff, arg.BatchSize)
+	return err
+}
+
 const createInstallationSQL = `INSERT INTO backplane.installation DEFAULT VALUES ON CONFLICT (singleton) DO NOTHING;`
 
 func (q *Queries) CreateInstallation(ctx context.Context) error {

@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/cel-go/cel"
 
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 )
 
@@ -90,6 +91,9 @@ type spec struct {
 	// console masks the hook's answer by them.
 	ResultSchema []byte `json:"result_schema,omitempty"`
 	ResultSecret bool   `json:"result_secret,omitempty"`
+	// Runtime the program compiled for; unspecified in programs compiled
+	// before runtimes existed: Temporal.
+	Runtime consolev1.Runtime `json:"runtime,omitempty"`
 }
 
 type specStep struct {
@@ -378,6 +382,15 @@ func (p *Program) Kind() Kind { return p.spec.Kind }
 
 // Source is the hook or event name.
 func (p *Program) Source() string { return p.spec.Source }
+
+// Runtime is what runs the program: Temporal or direct.
+func (p *Program) Runtime() consolev1.Runtime {
+	if p.spec.Runtime == consolev1.Runtime_RUNTIME_UNSPECIFIED {
+		return consolev1.Runtime_RUNTIME_TEMPORAL
+	}
+
+	return p.spec.Runtime
+}
 
 // Steps are the steps by name.
 func (p *Program) Steps() []StepPlan {

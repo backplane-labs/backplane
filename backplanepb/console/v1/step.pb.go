@@ -24,6 +24,65 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Runtime executes a binding or a rule.
+type Runtime int32
+
+const (
+	// The installation's default (BACKPLANE_WIRING_RUNTIME).
+	Runtime_RUNTIME_UNSPECIFIED Runtime = 0
+	// A Temporal workflow: durable execution, retries per step, undo, child
+	// workflows, heartbeats. Needs Temporal.
+	Runtime_RUNTIME_TEMPORAL Runtime = 1
+	// Backplane's own process: steps and expressions over gRPC calls of the
+	// activities, one timeout per call, the run as a whole retried by its
+	// caller (a hook's) or by event redelivery (a rule's). No undo, retry
+	// options, heartbeat or child workflow: a definition using them does not
+	// compile for this runtime (RUNTIME_UNSUPPORTED). Needs nothing beyond
+	// PostgreSQL and Consul; rules need NATS.
+	Runtime_RUNTIME_DIRECT Runtime = 2
+)
+
+// Enum value maps for Runtime.
+var (
+	Runtime_name = map[int32]string{
+		0: "RUNTIME_UNSPECIFIED",
+		1: "RUNTIME_TEMPORAL",
+		2: "RUNTIME_DIRECT",
+	}
+	Runtime_value = map[string]int32{
+		"RUNTIME_UNSPECIFIED": 0,
+		"RUNTIME_TEMPORAL":    1,
+		"RUNTIME_DIRECT":      2,
+	}
+)
+
+func (x Runtime) Enum() *Runtime {
+	p := new(Runtime)
+	*p = x
+	return p
+}
+
+func (x Runtime) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Runtime) Descriptor() protoreflect.EnumDescriptor {
+	return file_backplanepb_console_v1_step_proto_enumTypes[0].Descriptor()
+}
+
+func (Runtime) Type() protoreflect.EnumType {
+	return &file_backplanepb_console_v1_step_proto_enumTypes[0]
+}
+
+func (x Runtime) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Runtime.Descriptor instead.
+func (Runtime) EnumDescriptor() ([]byte, []int) {
+	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{0}
+}
+
 // StepRunStatus is where a step's call is.
 type StepRunStatus int32
 
@@ -77,11 +136,11 @@ func (x StepRunStatus) String() string {
 }
 
 func (StepRunStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_backplanepb_console_v1_step_proto_enumTypes[0].Descriptor()
+	return file_backplanepb_console_v1_step_proto_enumTypes[1].Descriptor()
 }
 
 func (StepRunStatus) Type() protoreflect.EnumType {
-	return &file_backplanepb_console_v1_step_proto_enumTypes[0]
+	return &file_backplanepb_console_v1_step_proto_enumTypes[1]
 }
 
 func (x StepRunStatus) Number() protoreflect.EnumNumber {
@@ -90,7 +149,7 @@ func (x StepRunStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use StepRunStatus.Descriptor instead.
 func (StepRunStatus) EnumDescriptor() ([]byte, []int) {
-	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{0}
+	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{1}
 }
 
 // Step is one call of an activity. Its name is its key in the definition's
@@ -384,7 +443,7 @@ type Violation struct {
 	// "/hook", "/steps/send/input/subject", "/steps/send/retry/attempts",
 	// "/result"; empty for the whole definition.
 	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
-	// Machine code: INVALID_NAME, RESERVED_NAME, UNKNOWN_HOOK,
+	// Machine code: INVALID_NAME, RESERVED_NAME, UNKNOWN_HOOK, RUNTIME_UNSUPPORTED,
 	// UNKNOWN_EVENT, UNKNOWN_ACTIVITY, UNKNOWN_STEP, CYCLE, UNDO_REFERENCE,
 	// CEL_ERROR, COST, TYPE_MISMATCH, MISSING_FIELD, UNKNOWN_FIELD,
 	// INVALID_VALUE, INVALID_OPTION.
@@ -926,7 +985,11 @@ const file_backplanepb_console_v1_step_proto_rawDesc = "" +
 	"error_type\x18\r \x01(\tR\terrorType\x12\x17\n" +
 	"\x04item\x18\x0e \x01(\rH\x00R\x04item\x88\x01\x01\x12\x16\n" +
 	"\x06parent\x18\x0f \x01(\tR\x06parentB\a\n" +
-	"\x05_item*\x81\x02\n" +
+	"\x05_item*L\n" +
+	"\aRuntime\x12\x17\n" +
+	"\x13RUNTIME_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10RUNTIME_TEMPORAL\x10\x01\x12\x12\n" +
+	"\x0eRUNTIME_DIRECT\x10\x02*\x81\x02\n" +
 	"\rStepRunStatus\x12\x1f\n" +
 	"\x1bSTEP_RUN_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17STEP_RUN_STATUS_NOT_RUN\x10\x01\x12\x1d\n" +
@@ -949,44 +1012,45 @@ func file_backplanepb_console_v1_step_proto_rawDescGZIP() []byte {
 	return file_backplanepb_console_v1_step_proto_rawDescData
 }
 
-var file_backplanepb_console_v1_step_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_backplanepb_console_v1_step_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_backplanepb_console_v1_step_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_backplanepb_console_v1_step_proto_goTypes = []any{
-	(StepRunStatus)(0),            // 0: backplane.console.v1.StepRunStatus
-	(*Step)(nil),                  // 1: backplane.console.v1.Step
-	(*StepRetry)(nil),             // 2: backplane.console.v1.StepRetry
-	(*Violation)(nil),             // 3: backplane.console.v1.Violation
-	(*Range)(nil),                 // 4: backplane.console.v1.Range
-	(*EditorLayout)(nil),          // 5: backplane.console.v1.EditorLayout
-	(*EditorPoint)(nil),           // 6: backplane.console.v1.EditorPoint
-	(*EditorNote)(nil),            // 7: backplane.console.v1.EditorNote
-	(*StepRun)(nil),               // 8: backplane.console.v1.StepRun
-	nil,                           // 9: backplane.console.v1.Step.StepsEntry
-	nil,                           // 10: backplane.console.v1.EditorLayout.NodesEntry
-	(*structpb.Value)(nil),        // 11: google.protobuf.Value
-	(*durationpb.Duration)(nil),   // 12: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
+	(Runtime)(0),                  // 0: backplane.console.v1.Runtime
+	(StepRunStatus)(0),            // 1: backplane.console.v1.StepRunStatus
+	(*Step)(nil),                  // 2: backplane.console.v1.Step
+	(*StepRetry)(nil),             // 3: backplane.console.v1.StepRetry
+	(*Violation)(nil),             // 4: backplane.console.v1.Violation
+	(*Range)(nil),                 // 5: backplane.console.v1.Range
+	(*EditorLayout)(nil),          // 6: backplane.console.v1.EditorLayout
+	(*EditorPoint)(nil),           // 7: backplane.console.v1.EditorPoint
+	(*EditorNote)(nil),            // 8: backplane.console.v1.EditorNote
+	(*StepRun)(nil),               // 9: backplane.console.v1.StepRun
+	nil,                           // 10: backplane.console.v1.Step.StepsEntry
+	nil,                           // 11: backplane.console.v1.EditorLayout.NodesEntry
+	(*structpb.Value)(nil),        // 12: google.protobuf.Value
+	(*durationpb.Duration)(nil),   // 13: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
 }
 var file_backplanepb_console_v1_step_proto_depIdxs = []int32{
-	11, // 0: backplane.console.v1.Step.input:type_name -> google.protobuf.Value
-	11, // 1: backplane.console.v1.Step.undo_input:type_name -> google.protobuf.Value
-	2,  // 2: backplane.console.v1.Step.retry:type_name -> backplane.console.v1.StepRetry
-	12, // 3: backplane.console.v1.Step.start_to_close:type_name -> google.protobuf.Duration
-	12, // 4: backplane.console.v1.Step.heartbeat:type_name -> google.protobuf.Duration
-	9,  // 5: backplane.console.v1.Step.steps:type_name -> backplane.console.v1.Step.StepsEntry
-	11, // 6: backplane.console.v1.Step.result:type_name -> google.protobuf.Value
-	12, // 7: backplane.console.v1.StepRetry.initial_interval:type_name -> google.protobuf.Duration
-	12, // 8: backplane.console.v1.StepRetry.max_interval:type_name -> google.protobuf.Duration
-	4,  // 9: backplane.console.v1.Violation.expr:type_name -> backplane.console.v1.Range
-	10, // 10: backplane.console.v1.EditorLayout.nodes:type_name -> backplane.console.v1.EditorLayout.NodesEntry
-	7,  // 11: backplane.console.v1.EditorLayout.notes:type_name -> backplane.console.v1.EditorNote
-	6,  // 12: backplane.console.v1.EditorNote.at:type_name -> backplane.console.v1.EditorPoint
-	0,  // 13: backplane.console.v1.StepRun.status:type_name -> backplane.console.v1.StepRunStatus
-	13, // 14: backplane.console.v1.StepRun.scheduled_time:type_name -> google.protobuf.Timestamp
-	13, // 15: backplane.console.v1.StepRun.started_time:type_name -> google.protobuf.Timestamp
-	13, // 16: backplane.console.v1.StepRun.close_time:type_name -> google.protobuf.Timestamp
-	1,  // 17: backplane.console.v1.Step.StepsEntry.value:type_name -> backplane.console.v1.Step
-	6,  // 18: backplane.console.v1.EditorLayout.NodesEntry.value:type_name -> backplane.console.v1.EditorPoint
+	12, // 0: backplane.console.v1.Step.input:type_name -> google.protobuf.Value
+	12, // 1: backplane.console.v1.Step.undo_input:type_name -> google.protobuf.Value
+	3,  // 2: backplane.console.v1.Step.retry:type_name -> backplane.console.v1.StepRetry
+	13, // 3: backplane.console.v1.Step.start_to_close:type_name -> google.protobuf.Duration
+	13, // 4: backplane.console.v1.Step.heartbeat:type_name -> google.protobuf.Duration
+	10, // 5: backplane.console.v1.Step.steps:type_name -> backplane.console.v1.Step.StepsEntry
+	12, // 6: backplane.console.v1.Step.result:type_name -> google.protobuf.Value
+	13, // 7: backplane.console.v1.StepRetry.initial_interval:type_name -> google.protobuf.Duration
+	13, // 8: backplane.console.v1.StepRetry.max_interval:type_name -> google.protobuf.Duration
+	5,  // 9: backplane.console.v1.Violation.expr:type_name -> backplane.console.v1.Range
+	11, // 10: backplane.console.v1.EditorLayout.nodes:type_name -> backplane.console.v1.EditorLayout.NodesEntry
+	8,  // 11: backplane.console.v1.EditorLayout.notes:type_name -> backplane.console.v1.EditorNote
+	7,  // 12: backplane.console.v1.EditorNote.at:type_name -> backplane.console.v1.EditorPoint
+	1,  // 13: backplane.console.v1.StepRun.status:type_name -> backplane.console.v1.StepRunStatus
+	14, // 14: backplane.console.v1.StepRun.scheduled_time:type_name -> google.protobuf.Timestamp
+	14, // 15: backplane.console.v1.StepRun.started_time:type_name -> google.protobuf.Timestamp
+	14, // 16: backplane.console.v1.StepRun.close_time:type_name -> google.protobuf.Timestamp
+	2,  // 17: backplane.console.v1.Step.StepsEntry.value:type_name -> backplane.console.v1.Step
+	7,  // 18: backplane.console.v1.EditorLayout.NodesEntry.value:type_name -> backplane.console.v1.EditorPoint
 	19, // [19:19] is the sub-list for method output_type
 	19, // [19:19] is the sub-list for method input_type
 	19, // [19:19] is the sub-list for extension type_name
@@ -1005,7 +1069,7 @@ func file_backplanepb_console_v1_step_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_backplanepb_console_v1_step_proto_rawDesc), len(file_backplanepb_console_v1_step_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,

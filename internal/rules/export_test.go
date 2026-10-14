@@ -73,10 +73,18 @@ func (d desired) Deleted() bool { return d.deleted }
 // Err is why the rule does not compile.
 func (d desired) Err() error { return d.err }
 
-// Plan is plan.
+// Plan is plan with Temporal.
 func Plan(entries []bindings.RuleEntry, cat bindings.Catalog) map[uuid.UUID]Desired {
-	return plan(entries, cat)
+	return plan(entries, cat, true)
 }
+
+// PlanWithTemporal is plan, saying whether the installation has Temporal.
+func PlanWithTemporal(entries []bindings.RuleEntry, cat bindings.Catalog, temporal bool) map[uuid.UUID]Desired {
+	return plan(entries, cat, temporal)
+}
+
+// Program is the compiled program of a runnable rule.
+func (d desired) Program() *bindings.Program { return d.prog }
 
 // Running is running: a consumer being consumed.
 type Running = running
@@ -116,7 +124,7 @@ func Orphan(want map[uuid.UUID]Desired, id uuid.UUID, stream string, version int
 }
 
 // ConsumerConfig is consumerConfig.
-func ConsumerConfig(d Desired) jetstream.ConsumerConfig { return consumerConfig(d) }
+func ConsumerConfig(d Desired) jetstream.ConsumerConfig { return (&Engine{}).consumerConfig(d) }
 
 // RuleOf is ruleOf.
 func RuleOf(metadata map[string]string) (uuid.UUID, int64, bool) { return ruleOf(metadata) }

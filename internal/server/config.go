@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	"github.com/backplane-labs/backplane/internal/audit"
 	liveconfig "github.com/backplane-labs/backplane/internal/config"
 	"github.com/backplane-labs/backplane/internal/console"
@@ -52,6 +53,41 @@ type Config struct {
 	LiveConfig liveconfig.Settings `json:"live_config"`
 	// Nexus endpoint reconciliation and retirement.
 	Nexus Nexus `json:"nexus"`
+	// Wiring: the runtime of bindings and rules that name none.
+	Wiring Wiring `json:"wiring"`
+	// Direct runtime: runs in backplane's process.
+	Direct Direct `json:"direct"`
+}
+
+// Wiring of the installation: BACKPLANE_WIRING_RUNTIME.
+type Wiring struct {
+	// Runtime of a binding or rule that names none: "temporal", "direct",
+	// or "auto": temporal when Temporal is configured, else direct.
+	Runtime string `json:"runtime" schemapb:"default=auto"`
+}
+
+// Resolve is the runtime "auto" stands for.
+func (w Wiring) Resolve(temporal bool) consolev1.Runtime {
+	switch w.Runtime {
+	case "temporal":
+		return consolev1.Runtime_RUNTIME_TEMPORAL
+	case "direct":
+		return consolev1.Runtime_RUNTIME_DIRECT
+	}
+
+	if temporal {
+		return consolev1.Runtime_RUNTIME_TEMPORAL
+	}
+
+	return consolev1.Runtime_RUNTIME_DIRECT
+}
+
+// Direct runtime settings: BACKPLANE_DIRECT_*.
+type Direct struct {
+	// RunTimeout bounds a rule's run (a hook call is bounded by its deadline).
+	RunTimeout time.Duration `json:"run_timeout" schemapb:"default=5m;gt=0"`
+	// Retention of recorded runs; 0 keeps them.
+	Retention time.Duration `json:"retention" schemapb:"default=168h;gte=0"`
 }
 
 // Console of the installation (§11): BACKPLANE_CONSOLE_*.
@@ -93,6 +129,8 @@ var (
 	ErrNoAdminToken = errors.New("admin_token is required (BACKPLANE_ADMIN_TOKEN): " +
 		"the console's login secret, set in the deployment")
 	ErrShortAdminToken = fmt.Errorf("want at least %d characters", console.MinAdminTokenLen)
+	ErrWiringRuntime   = errors.New("want auto, temporal or direct")
+	ErrWiringTemporal  = errors.New("wiring.runtime is temporal but temporal is not configured (BACKPLANE_TEMPORAL_ADDR)")
 )
 
 // Validate checks what the schema cannot: required connections, listen
@@ -112,6 +150,16 @@ func (c Config) Validate() error {
 
 	if err := c.adminToken(); err != nil {
 		errs = append(errs, err)
+	}
+
+	switch c.Wiring.Runtime {
+	case "", "auto", "direct":
+	case "temporal":
+		if !c.Temporal.Enabled() {
+			errs = append(errs, ErrWiringTemporal)
+		}
+	default:
+		errs = append(errs, fmt.Errorf("wiring.runtime %q: %w", c.Wiring.Runtime, ErrWiringRuntime))
 	}
 
 	errs = append(errs, c.ports()...)

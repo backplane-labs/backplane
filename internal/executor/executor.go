@@ -59,6 +59,7 @@ import (
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	"github.com/backplane-labs/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/direct"
 	"github.com/backplane-labs/backplane/internal/registry"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 	"github.com/backplane-labs/backplane/pkg/backplane/workflows"
@@ -122,6 +123,10 @@ func Author(fn func(ctx context.Context) string) Option { return func(x *Executo
 // (visibility, history summaries). Without it those RPCs are UNAVAILABLE.
 func Runs(runs consolev1.WorkflowServiceServer) Option { return func(x *Executor) { x.runs = runs } }
 
+// WithDirect installs the direct runtime: direct-runtime bindings called
+// over Nexus run on it, and the run RPCs list its runs first.
+func WithDirect(d *direct.Service) Option { return func(x *Executor) { x.direct = d } }
+
 // Settle replaces DefaultSettle (tests: 0).
 func Settle(d time.Duration) Option { return func(x *Executor) { x.settle = d } }
 
@@ -150,6 +155,7 @@ type Executor struct {
 	ns           string
 	author       func(ctx context.Context) string
 	runs         consolev1.WorkflowServiceServer
+	direct       *direct.Service
 	settle       time.Duration
 	resync       time.Duration
 	metrics      metrics

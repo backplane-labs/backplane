@@ -60,3 +60,27 @@ func BindingRunHook(workflowID string) (string, bool, bool) {
 
 	return hook, test, true
 }
+
+// Names of the direct runtime (internal/direct): runs in backplane's own
+// process, recorded in PostgreSQL.
+const (
+	// DirectRunPrefix starts the id of a direct run: direct/binding/<hook>/<id>,
+	// direct/rule/<rule id>/<ce-id>, direct/test/<hook or rule>/<uuid>.
+	DirectRunPrefix = "direct/"
+	// DirectWorkflowType is what a direct run reports as its workflow type.
+	DirectWorkflowType = "backplane.Direct.v1"
+	// DirectQueue is what a direct run reports as its task queue.
+	DirectQueue = "direct"
+)
+
+// DirectRunID is the id of a direct run of a hook call.
+func DirectRunID(hook, id string) string { return DirectRunPrefix + BindingRunPrefix + hook + "/" + id }
+
+// DirectTestRunID is the id of a direct console test run of hook's binding
+// or of a rule ("rule/<id>").
+func DirectTestRunID(source, id string) string {
+	return DirectRunPrefix + TestRunPrefix + source + "/" + id
+}
+
+// IsDirectRun reports whether workflowID names a direct run.
+func IsDirectRun(workflowID string) bool { return strings.HasPrefix(workflowID, DirectRunPrefix) }

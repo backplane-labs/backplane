@@ -11,6 +11,7 @@ import (
 	"go.temporal.io/sdk/client"
 
 	"github.com/backplane-labs/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/direct"
 	"github.com/backplane-labs/backplane/internal/executor"
 	"github.com/backplane-labs/backplane/internal/wire"
 )
@@ -122,5 +123,5 @@ func alreadyStarted(err error) bool {
 
 	var dup *serviceerror.WorkflowExecutionAlreadyStarted
 
-	return errors.Is(err, ErrAlreadyStarted) || errors.As(err, &dup)
+	return errors.Is(err, ErrAlreadyStarted) || errors.Is(err, direct.ErrAlreadyStarted) || errors.As(err, &dup)
 }

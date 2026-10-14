@@ -19,6 +19,22 @@ option go_package = "github.com/backplane-labs/backplane/backplanepb/console/v1;
 // and `meta` (a rule's event and its CloudEvents attributes), the output
 // of every step by its name, and `steps.<name>.skipped`.
 
+// Runtime executes a binding or a rule.
+enum Runtime {
+  // The installation's default (BACKPLANE_WIRING_RUNTIME).
+  RUNTIME_UNSPECIFIED = 0;
+  // A Temporal workflow: durable execution, retries per step, undo, child
+  // workflows, heartbeats. Needs Temporal.
+  RUNTIME_TEMPORAL = 1;
+  // Backplane's own process: steps and expressions over gRPC calls of the
+  // activities, one timeout per call, the run as a whole retried by its
+  // caller (a hook's) or by event redelivery (a rule's). No undo, retry
+  // options, heartbeat or child workflow: a definition using them does not
+  // compile for this runtime (RUNTIME_UNSUPPORTED). Needs nothing beyond
+  // PostgreSQL and Consul; rules need NATS.
+  RUNTIME_DIRECT = 2;
+}
+
 // Step is one call of an activity. Its name is its key in the definition's
 // steps: an identifier, the CEL variable of its output.
 //
@@ -97,7 +113,7 @@ message Violation {
   // "/hook", "/steps/send/input/subject", "/steps/send/retry/attempts",
   // "/result"; empty for the whole definition.
   string path = 1;
-  // Machine code: INVALID_NAME, RESERVED_NAME, UNKNOWN_HOOK,
+  // Machine code: INVALID_NAME, RESERVED_NAME, UNKNOWN_HOOK, RUNTIME_UNSUPPORTED,
   // UNKNOWN_EVENT, UNKNOWN_ACTIVITY, UNKNOWN_STEP, CYCLE, UNDO_REFERENCE,
   // CEL_ERROR, COST, TYPE_MISMATCH, MISSING_FIELD, UNKNOWN_FIELD,
   // INVALID_VALUE, INVALID_OPTION.

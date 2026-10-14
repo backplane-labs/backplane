@@ -83,6 +83,9 @@ message Analysis {
   // console masks these values in runs. Empty until the definition is
   // valid.
   repeated string secrets = 5;
+  // The runtime the definition compiled for: its own, else the
+  // installation's default.
+  Runtime runtime = 6;
 }
 
 // StepAnalysis is where a step stands in the order of execution.

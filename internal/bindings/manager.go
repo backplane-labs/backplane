@@ -9,6 +9,7 @@ import (
 
 	"github.com/gopherex/xlog"
 
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	"github.com/backplane-labs/backplane/internal/registry"
 	"github.com/backplane-labs/backplane/internal/store"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
@@ -42,6 +43,10 @@ type Option func(*Manager)
 // default: DefaultAuthor.
 func Author(fn func(ctx context.Context) string) Option { return func(m *Manager) { m.author = fn } }
 
+// DefaultRuntime is the runtime of definitions that name none (the
+// installation's BACKPLANE_WIRING_RUNTIME); default: Temporal.
+func DefaultRuntime(rt consolev1.Runtime) Option { return func(m *Manager) { m.defaults.Runtime = rt } }
+
 // PollInterval is how often saves of other replicas are looked for
 // (default 2s): Changes fires after them too.
 func PollInterval(d time.Duration) Option { return func(m *Manager) { m.poll = d } }
@@ -58,6 +63,8 @@ type Manager struct {
 	author  func(ctx context.Context) string
 	poll    time.Duration
 	changes *broadcast
+	// defaults of definitions: what Catalog carries to compile.
+	defaults Defaults
 
 	mu    sync.Mutex
 	stamp string // what the last poll saw
@@ -93,8 +100,11 @@ func (m *Manager) Catalog() (Catalog, error) {
 		return nil, ErrNotSynced
 	}
 
-	return FromRegistry(cat), nil
+	return WithDefaults(FromRegistry(cat), m.defaults), nil
 }
+
+// Defaults are the installation's defaults of definitions.
+func (m *Manager) Defaults() Defaults { return m.defaults }
 
 // watch polls the store for writes of other replicas.
 func (m *Manager) watch(ctx context.Context) error {

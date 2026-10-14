@@ -42,6 +42,8 @@ type Binding struct {
 	Steps []Step
 	// Result is the hook's output; zero: {}.
 	Result Value
+	// Runtime runs the binding; unspecified: the installation's default.
+	Runtime consolev1.Runtime
 	// Editor is the graph editor's layout, kept as saved; compile and
 	// execution ignore it.
 	Editor *consolev1.EditorLayout
@@ -55,8 +57,10 @@ type Rule struct {
 	When        string
 	Description string
 	// Steps are sorted by name, as Binding.Steps.
-	Steps  []Step
-	Editor *consolev1.EditorLayout
+	Steps []Step
+	// Runtime runs the rule; unspecified: the installation's default.
+	Runtime consolev1.Runtime
+	Editor  *consolev1.EditorLayout
 }
 
 // Step is one call of an activity.
@@ -235,6 +239,9 @@ const (
 	CodeUnknownField    = "UNKNOWN_FIELD"
 	CodeInvalidValue    = "INVALID_VALUE"
 	CodeInvalidOption   = "INVALID_OPTION"
+	// CodeRuntimeUnsupported: the step uses what the definition's runtime
+	// does not run (undo, retry, heartbeat or a child workflow on direct).
+	CodeRuntimeUnsupported = "RUNTIME_UNSUPPORTED"
 )
 
 // Variables every expression may see besides the steps: step names must

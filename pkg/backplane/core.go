@@ -13,9 +13,11 @@ import (
 
 	"github.com/gopherex/xlog"
 
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/configrt"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/direct"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/gate"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/guard"
@@ -95,6 +97,7 @@ func newCore(ctx context.Context, o options, conf configrt.State, cfg config.Bac
 	c.internal = grpc.NewServer(c.serverOptions(recovery.GRPCInternal,
 		append(c.guard.ServerOptions(), c.gate.ServerOptions()...)...)...)
 	hv1.RegisterHealthServer(c.internal, c.health.GRPC())
+	backplanev1.RegisterActivityServiceServer(c.internal, direct.NewServer(id.Service, c.env, log))
 	c.platformRoutes()
 
 	c.svc = node.New(id.Service, log, c.env)
@@ -148,8 +151,49 @@ func (c *core) connect() {
 		hn := c.svc.Child("hooks", node.System, false)
 		hn.OnStart(func(ctx context.Context) error { return c.temporal.StartHookWorker(ctx, hn) })
 		hn.OnStop(c.temporal.StopHookWorker)
+	}
+
+	c.hookTransport()
+}
+
+// hookTransport installs the caller hook calls go through: Temporal's
+// Nexus, or backplane's HookService over gRPC with its replicas found
+// through the installed discovery (the direct transport).
+func (c *core) hookTransport() {
+	switch c.cfg.Hooks.Resolve(c.temporal != nil, c.cfg.Consul.Enabled() && c.opts.discovery != nil) {
+	case config.HooksTemporal:
+		if c.temporal == nil {
+			c.log.Warn("hooks.transport is temporal but temporal is not configured: hook calls are unavailable")
+
+			return
+		}
 
 		c.env.SetCaller(c.temporal)
+	case config.HooksDirect:
+		if c.opts.discovery == nil || !c.cfg.Consul.Enabled() {
+			c.log.Warn("hooks.transport is direct but consul is not configured: hook calls are unavailable")
+
+			return
+		}
+
+		find, err := c.opts.discovery(c.cfg, c.log)
+		if err != nil {
+			c.log.Warn("direct hook transport", xlog.Err(err))
+
+			return
+		}
+
+		caller := direct.NewCaller(direct.CallerParams{
+			Service: c.id.Service, Instance: c.id.Instance, Secret: c.cfg.InternalSecret.Reveal(),
+			Timeout: c.cfg.Temporal.HookTimeout, Discovery: find,
+		})
+		c.env.SetHookTimeout(c.cfg.Temporal.HookTimeout)
+		c.env.SetCaller(caller)
+
+		n := c.svc.Child("hooks", node.System, false)
+		n.OnStop(func(context.Context) error { caller.Close(); return nil })
+	default:
+		c.log.Warn("no hook transport: neither temporal nor consul is configured, hook calls are unavailable")
 	}
 }
 
