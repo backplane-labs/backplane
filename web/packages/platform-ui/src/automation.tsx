@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { create } from '@bufbuild/protobuf';
-import * as api from '@gopherex/backplane-api';
-import { useClient, useSnapshotWatch } from '@gopherex/backplane-react';
-import { Badge, Button, EmptyState, Panel, StatusBadge, Timestamp } from '@gopherex/backplane-ui';
+import * as api from '@backplane-labs/backplane-api';
+import { useClient, useSnapshotWatch } from '@backplane-labs/backplane-react';
+import { Badge, Button, EmptyState, Panel, StatusBadge, Timestamp } from '@backplane-labs/backplane-ui';
 import { ArrowUpRight, Cable, Workflow, Zap } from 'lucide-react';
 import { usePlatformText } from './locales.js';
 import { date, enumLabel } from './format.js';

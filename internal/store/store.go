@@ -27,9 +27,9 @@ import (
 	"github.com/gopherex/pgtx/pkg/tx"
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/internal/store/db"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/infra/postgres"
+	"github.com/backplane-labs/backplane/internal/store/db"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/postgres"
 )
 
 // Schema is where everything of backplane lives in PostgreSQL.

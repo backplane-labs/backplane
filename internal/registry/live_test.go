@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/gopherex/backplane/internal/registry"
+	"github.com/backplane-labs/backplane/internal/registry"
 )
 
 // liveConsul is the Consul of platform-in-a-box (BACKPLANE_TEST_CONSUL,

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package hello.console.v1;
 
-option go_package = "github.com/gopherex/backplane/examples/hello/proto/hello/console/v1;helloconsolev1";
+option go_package = "github.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1;helloconsolev1";
 
 // Internal API of hello: for its console plugin only, via the relay.
 service AdminService {

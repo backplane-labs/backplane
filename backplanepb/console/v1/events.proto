@@ -6,7 +6,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "schemapb/schema.proto";
 
-option go_package = "github.com/gopherex/backplane/backplanepb/console/v1;consolev1";
+option go_package = "github.com/backplane-labs/backplane/backplanepb/console/v1;consolev1";
 
 // EventService is the console's view of events (§8): what every service
 // declares, the JetStream streams behind them, the consumers that read

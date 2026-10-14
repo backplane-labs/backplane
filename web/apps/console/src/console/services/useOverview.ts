@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { create } from '@bufbuild/protobuf';
-import { BindingServiceClient, CatalogServiceClient, GetServiceRequestSchema, ListBindingsRequestSchema, ListRulesRequestSchema, RuleServiceClient, type ServiceSummary } from '@gopherex/backplane-api';
-import { useClient } from '@gopherex/backplane-react';
-import { usePlatformQuery } from '@gopherex/backplane-platform-ui';
+import { BindingServiceClient, CatalogServiceClient, GetServiceRequestSchema, ListBindingsRequestSchema, ListRulesRequestSchema, RuleServiceClient, type ServiceSummary } from '@backplane-labs/backplane-api';
+import { useClient } from '@backplane-labs/backplane-react';
+import { usePlatformQuery } from '@backplane-labs/backplane-platform-ui';
 import { overview, type ServiceOverview } from './model';
 
 /**

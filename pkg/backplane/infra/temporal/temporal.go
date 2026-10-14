@@ -30,8 +30,8 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 )
 
 // Client is the Temporal SDK's client.
@@ -44,7 +44,7 @@ var ErrNoAddr = errors.New("temporal: addr is required")
 const (
 	DefaultNamespace   = "default"
 	DefaultDialTimeout = 2 * time.Second
-	scopeName          = "github.com/gopherex/backplane/temporal"
+	scopeName          = "github.com/backplane-labs/backplane/temporal"
 )
 
 // Config is the connection's section. Field `ns`: `namespace` is a CEL

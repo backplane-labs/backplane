@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { create } from '@bufbuild/protobuf';
-import * as api from '@gopherex/backplane-api';
-import { useClient, useSnapshotWatch } from '@gopherex/backplane-react';
-import { Button, Combobox, DetailDrawer, EmptyState, Input, Panel, SectionLabel, Skeleton, StatRow, StatTile, StatusBadge, StatusDot } from '@gopherex/backplane-ui';
+import * as api from '@backplane-labs/backplane-api';
+import { useClient, useSnapshotWatch } from '@backplane-labs/backplane-react';
+import { Button, Combobox, DetailDrawer, EmptyState, Input, Panel, SectionLabel, Skeleton, StatRow, StatTile, StatusBadge, StatusDot } from '@backplane-labs/backplane-ui';
 import { Blocks, Cable, ChevronRight, CircleAlert, Plus, Search, Zap } from 'lucide-react';
 import { usePlatformText } from '../locales.js';
 import { enumLabel } from '../format.js';

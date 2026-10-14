@@ -1,7 +1,7 @@
 import { fromBinary, toJson } from '@bufbuild/protobuf';
 import { FileDescriptorSetSchema, type DescriptorProto, type FieldDescriptorProto } from '@bufbuild/protobuf/wkt';
 import { parseDocument } from 'yaml';
-import { ApiKind, type Manifest, type API } from '@gopherex/backplane-api/backplanepb/v1/manifest_pb';
+import { ApiKind, type Manifest, type API } from '@backplane-labs/backplane-api/backplanepb/v1/manifest_pb';
 
 type ObjectValue = Record<string, unknown>;
 export interface APIField { name: string; type: string; required?: boolean; description?: string; references?: string[] }

@@ -1,5 +1,5 @@
-import { ObsLanguage, ObsSignal } from '@gopherex/backplane-api';
-import type { QueryLanguage } from '@gopherex/backplane-editors';
+import { ObsLanguage, ObsSignal } from '@backplane-labs/backplane-api';
+import type { QueryLanguage } from '@backplane-labs/backplane-editors';
 
 export type ExploreSignal = 'logs' | 'metrics' | 'traces';
 export const signalIds: Record<ExploreSignal, ObsSignal> = { logs: ObsSignal.LOGS, metrics: ObsSignal.METRICS, traces: ObsSignal.TRACES };

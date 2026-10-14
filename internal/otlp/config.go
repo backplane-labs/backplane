@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/gopherex/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
 )
 
 // Config is deployment-only; an empty URL disables the ingress route.

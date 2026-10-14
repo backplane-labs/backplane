@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { EmptyState, Panel } from '@gopherex/backplane-ui';
-import { TimeSeriesChart } from '@gopherex/backplane-charts';
+import { EmptyState, Panel } from '@backplane-labs/backplane-ui';
+import { TimeSeriesChart } from '@backplane-labs/backplane-charts';
 import { Activity } from 'lucide-react';
 import { usePlatformText } from './locales.js';
 import type { ExploreRun } from './explore.js';

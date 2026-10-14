@@ -4,7 +4,7 @@ import (
 	"context"
 	"math"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 )
 
 // WiringAPI is the Manager as backplane.console.v1.WiringService: the

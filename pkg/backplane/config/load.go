@@ -23,8 +23,8 @@ import (
 	"github.com/gopherex/xconf/contrib/sources/env"
 	"github.com/gopherex/xconf/contrib/sources/file"
 
-	"github.com/gopherex/backplane/pkg/backplane/build"
-	"github.com/gopherex/backplane/pkg/backplane/internal/configrt"
+	"github.com/backplane-labs/backplane/pkg/backplane/build"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/configrt"
 )
 
 // EnvFile names the default configuration file.

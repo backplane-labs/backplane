@@ -3,7 +3,7 @@
 The release image includes the Linux server and production console. It runs as a non-root user and needs no Node runtime or package registry credentials.
 
 ```bash
-docker pull ghcr.io/gopherex/backplane:0.1.1
+docker pull ghcr.io/backplane-labs/backplane:0.1.1
 ```
 
 Both Linux amd64 and arm64 are published. For reproducible deployments, use the immutable digest from the release's `image-digest.txt` instead of the moving `latest` tag.
@@ -25,7 +25,7 @@ Run on a network that resolves those hosts:
 docker run --name backplane --restart unless-stopped \
   --network platform --env-file ./backplane.env \
   -p 127.0.0.1:8081:8081 \
-  ghcr.io/gopherex/backplane:0.1.1
+  ghcr.io/backplane-labs/backplane:0.1.1
 ```
 
 `platform` must be your existing Docker network. Terminate HTTPS in front of the loopback-published console. Secure cookies are the default. Enable `BACKPLANE_CONSOLE_INSECURE_COOKIE=true` only for deliberate plain-HTTP local development.

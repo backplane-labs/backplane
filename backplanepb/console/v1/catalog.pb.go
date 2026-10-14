@@ -7,7 +7,7 @@
 package consolev1
 
 import (
-	v1 "github.com/gopherex/backplane/backplanepb/v1"
+	v1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -808,7 +808,7 @@ const file_backplanepb_console_v1_catalog_proto_rawDesc = "" +
 	"\n" +
 	"GetService\x12'.backplane.console.v1.GetServiceRequest\x1a(.backplane.console.v1.GetServiceResponse\x12g\n" +
 	"\fWatchCatalog\x12).backplane.console.v1.WatchCatalogRequest\x1a*.backplane.console.v1.WatchCatalogResponse0\x01\x12b\n" +
-	"\vListPlugins\x12(.backplane.console.v1.ListPluginsRequest\x1a).backplane.console.v1.ListPluginsResponseB@Z>github.com/gopherex/backplane/backplanepb/console/v1;consolev1b\x06proto3"
+	"\vListPlugins\x12(.backplane.console.v1.ListPluginsRequest\x1a).backplane.console.v1.ListPluginsResponseBFZDgithub.com/backplane-labs/backplane/backplanepb/console/v1;consolev1b\x06proto3"
 
 var (
 	file_backplanepb_console_v1_catalog_proto_rawDescOnce sync.Once

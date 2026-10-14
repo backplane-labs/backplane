@@ -17,12 +17,12 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/examples/hello/internal/greeter"
-	"github.com/gopherex/backplane/examples/hello/internal/store"
-	"github.com/gopherex/backplane/pkg/backplane/activity"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/hook"
-	"github.com/gopherex/backplane/pkg/backplane/workflows"
+	"github.com/backplane-labs/backplane/examples/hello/internal/greeter"
+	"github.com/backplane-labs/backplane/examples/hello/internal/store"
+	"github.com/backplane-labs/backplane/pkg/backplane/activity"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/hook"
+	"github.com/backplane-labs/backplane/pkg/backplane/workflows"
 )
 
 // Registered activity names of the service's own workflows.

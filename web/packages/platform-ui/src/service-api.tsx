@@ -1,11 +1,11 @@
 import { useId, useMemo, useState } from 'react';
 import { create } from '@bufbuild/protobuf';
-import { CatalogServiceClient, GetServiceRequestSchema } from '@gopherex/backplane-api';
-import { ApiKind, type Manifest } from '@gopherex/backplane-api/backplanepb/v1/manifest_pb';
-import { useBackplane, useClient } from '@gopherex/backplane-react';
-import { Badge, Button, ClipboardButton, EmptyState, Input, SelectControl, Panel, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@gopherex/backplane-ui';
-import { EditorActions, JSONViewer } from '@gopherex/backplane-editors';
-import type { ThemeMode } from '@gopherex/backplane-theme';
+import { CatalogServiceClient, GetServiceRequestSchema } from '@backplane-labs/backplane-api';
+import { ApiKind, type Manifest } from '@backplane-labs/backplane-api/backplanepb/v1/manifest_pb';
+import { useBackplane, useClient } from '@backplane-labs/backplane-react';
+import { Badge, Button, ClipboardButton, EmptyState, Input, SelectControl, Panel, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@backplane-labs/backplane-ui';
+import { EditorActions, JSONViewer } from '@backplane-labs/backplane-editors';
+import type { ThemeMode } from '@backplane-labs/backplane-theme';
 import { readAPIDocument, type APIField, type APISection } from './api-document.js';
 import { usePlatformText } from './locales.js';
 import { QueryState, usePlatformQuery } from './runtime.js';
@@ -47,7 +47,7 @@ export function ServiceAPIDocument({ manifest, mode, state: controlled, onStateC
   </div>;
 }
 
-function APIBundleView({ bundle, readFile, ...props }: { bundle: import('@gopherex/backplane-api/backplanepb/v1/manifest_pb').APISchemaBundle; readFile?: APIFileReader; mode: ThemeMode; operation?: string; onOperation: (id: string) => void }) {
+function APIBundleView({ bundle, readFile, ...props }: { bundle: import('@backplane-labs/backplane-api/backplanepb/v1/manifest_pb').APISchemaBundle; readFile?: APIFileReader; mode: ThemeMode; operation?: string; onOperation: (id: string) => void }) {
   const text = usePlatformText();
   const state = usePlatformQuery(`api-files:${bundle.hash}:${bundle.format}:${bundle.entry}`, async (signal) => {
     if (!readFile) throw new Error('The host client does not provide API file delivery.');

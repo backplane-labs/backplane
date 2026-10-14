@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { create, toBinary } from '@bufbuild/protobuf';
 import { FileDescriptorSetSchema } from '@bufbuild/protobuf/wkt';
-import { ManifestSchema, APISchema, ApiKind } from '@gopherex/backplane-api/backplanepb/v1/manifest_pb';
+import { ManifestSchema, APISchema, ApiKind } from '@backplane-labs/backplane-api/backplanepb/v1/manifest_pb';
 import { readAPIDocument, type APIDocument } from '../packages/platform-ui/src/api-document';
 import { externalAPIManifest } from '../apps/catalog/src/api-fixture';
 import { bundleOpenAPI } from '../packages/platform-ui/src/api-bundle';

@@ -24,14 +24,14 @@ import (
 
 	sp "github.com/gopherex/schemapb/go/schemapb"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/internal/bindings"
-	"github.com/gopherex/backplane/internal/executor"
-	"github.com/gopherex/backplane/internal/registry"
-	"github.com/gopherex/backplane/internal/rules"
-	"github.com/gopherex/backplane/internal/wire"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/executor"
+	"github.com/backplane-labs/backplane/internal/registry"
+	"github.com/backplane-labs/backplane/internal/rules"
+	"github.com/backplane-labs/backplane/internal/wire"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
 )
 
 func unique(prefix string) string {

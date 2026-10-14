@@ -7,7 +7,7 @@
 package consolev1
 
 import (
-	v1 "github.com/gopherex/backplane/backplanepb/v1"
+	v1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	schemapb "github.com/gopherex/schemapb/go/schemapb"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -2916,7 +2916,7 @@ const file_backplanepb_console_v1_workflows_proto_rawDesc = "" +
 	"\rListSchedules\x12*.backplane.console.v1.ListSchedulesRequest\x1a+.backplane.console.v1.ListSchedulesResponse\x12h\n" +
 	"\rPauseSchedule\x12*.backplane.console.v1.PauseScheduleRequest\x1a+.backplane.console.v1.PauseScheduleResponse\x12n\n" +
 	"\x0fUnpauseSchedule\x12,.backplane.console.v1.UnpauseScheduleRequest\x1a-.backplane.console.v1.UnpauseScheduleResponse\x12n\n" +
-	"\x0fTriggerSchedule\x12,.backplane.console.v1.TriggerScheduleRequest\x1a-.backplane.console.v1.TriggerScheduleResponseB@Z>github.com/gopherex/backplane/backplanepb/console/v1;consolev1b\x06proto3"
+	"\x0fTriggerSchedule\x12,.backplane.console.v1.TriggerScheduleRequest\x1a-.backplane.console.v1.TriggerScheduleResponseBFZDgithub.com/backplane-labs/backplane/backplanepb/console/v1;consolev1b\x06proto3"
 
 var (
 	file_backplanepb_console_v1_workflows_proto_rawDescOnce sync.Once

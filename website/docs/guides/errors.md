@@ -6,7 +6,7 @@ Errors are OpenTelemetry log records in the configured log store. Backplane read
 
 Go services can call `backplane.CaptureError(ctx, log, err, fields...)`. SDK recovery paths also report supported handler/activity panics. Keep the active trace context when reporting so an occurrence can link to its trace.
 
-Browser applications can use `@gopherex/backplane-errors` for exception capture, registered state, breadcrumbs and OTLP delivery. This package can run outside the console. It supports sanitization, filtering, rate limits and an optional IndexedDB outbox. Treat browser ingest keys as public admission keys, never operator credentials.
+Browser applications can use `@backplane-labs/backplane-errors` for exception capture, registered state, breadcrumbs and OTLP delivery. This package can run outside the console. It supports sanitization, filtering, rate limits and an optional IndexedDB outbox. Treat browser ingest keys as public admission keys, never operator credentials.
 
 Embedded modules use the host's error reporter. Their handled occurrences can include the module identity; their unhandled/render errors belong to the host capture boundary. Avoid installing duplicate global capture hooks in every module.
 

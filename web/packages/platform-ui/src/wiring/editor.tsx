@@ -1,11 +1,11 @@
 import { ExecutionGate, useExecutionEnabled } from '../execution.js';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { create } from '@bufbuild/protobuf';
-import * as api from '@gopherex/backplane-api';
-import { WsStatusError } from '@gopherex/backplane-client';
-import { useClient } from '@gopherex/backplane-react';
-import { Badge, Button, Combobox, ConfirmAction, DetailDrawer, EmptyState, EntityHeader, Input, MetaItem, MetaList, Panel, Skeleton, StatusBadge, TabBar, Timestamp, type StatusTone } from '@gopherex/backplane-ui';
-import { CodeEditor, DiffViewer, type EditorDiagnostic } from '@gopherex/backplane-editors';
+import * as api from '@backplane-labs/backplane-api';
+import { WsStatusError } from '@backplane-labs/backplane-client';
+import { useClient } from '@backplane-labs/backplane-react';
+import { Badge, Button, Combobox, ConfirmAction, DetailDrawer, EmptyState, EntityHeader, Input, MetaItem, MetaList, Panel, Skeleton, StatusBadge, TabBar, Timestamp, type StatusTone } from '@backplane-labs/backplane-ui';
+import { CodeEditor, DiffViewer, type EditorDiagnostic } from '@backplane-labs/backplane-editors';
 import { AlertTriangle, Cable, CircleAlert, CircleCheck, FileWarning, LayoutGrid, Map as MapIcon, GitFork, History, Info, Pause, Play, Redo2, Save, Trash2, Undo2, User, Wand2, Zap } from 'lucide-react';
 import { usePlatformAction, usePlatformQuery } from '../runtime.js';
 import { usePlatformText } from '../locales.js';

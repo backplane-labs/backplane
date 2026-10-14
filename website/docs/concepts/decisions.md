@@ -38,7 +38,7 @@ Control audit is stored in PostgreSQL. Platform mutations share a transaction wi
 
 ## Delivery and releases
 
-Public frontend packages live in GitHub Packages under `@gopherex`. The Go module uses repository tags. A coordinated release contains Linux binaries with the console, multi-platform GHCR images, frontend package tarballs and the documentation archive. `make release` creates a tag; CI performs packaging and publication. Expensive full-stack verification is explicit, while ordinary pushes select checks by changed paths.
+Public frontend packages live in GitHub Packages under `@backplane-labs`. The Go module uses repository tags. A coordinated release contains Linux binaries with the console, multi-platform GHCR images, frontend package tarballs and the documentation archive. `make release` creates a tag; CI performs packaging and publication. Expensive full-stack verification is explicit, while ordinary pushes select checks by changed paths.
 
 ## Current boundaries
 

@@ -5,7 +5,7 @@ package backplane.v1;
 import "google/protobuf/duration.proto";
 import "schemapb/schema.proto";
 
-option go_package = "github.com/gopherex/backplane/backplanepb/v1;backplanev1";
+option go_package = "github.com/backplane-labs/backplane/backplanepb/v1;backplanev1";
 
 // Manifest is everything a service declares. The SDK assembles it at start
 // and writes it to Consul KV `backplane/services/<service>/manifests/<version>`

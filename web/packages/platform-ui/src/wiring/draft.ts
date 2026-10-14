@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { create, equals, toJsonString } from '@bufbuild/protobuf';
-import * as api from '@gopherex/backplane-api';
-import { useClient, useConnection } from '@gopherex/backplane-react';
+import * as api from '@backplane-labs/backplane-api';
+import { useClient, useConnection } from '@backplane-labs/backplane-react';
 import { definitionSchema, locate, parseDraft, type Definition, type Draft, type DraftProblem, type WiringKind } from './document.js';
 
 /**

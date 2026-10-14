@@ -17,10 +17,10 @@ import (
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/internal/bindings"
-	"github.com/gopherex/backplane/internal/executor"
-	"github.com/gopherex/backplane/internal/wire"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/executor"
+	"github.com/backplane-labs/backplane/internal/wire"
 )
 
 // installation: iam raises SendEmail and publishes UserRegistered;

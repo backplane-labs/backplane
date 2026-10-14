@@ -3,8 +3,8 @@ package telemetry_test
 import (
 	"testing"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/telemetry"
-	"github.com/gopherex/backplane/pkg/backplane/internal/testlog"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/telemetry"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
 )
 
 func TestStatus(t *testing.T) {

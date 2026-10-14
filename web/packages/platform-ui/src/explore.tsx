@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { create } from '@bufbuild/protobuf';
-import { ObsServiceClient, GetObsCapabilitiesRequestSchema, GetObsSelectorsRequestSchema, ListObsFieldsRequestSchema, ListObsFieldValuesRequestSchema, ListObsSourcesRequestSchema, QueryObsRequestSchema, type QueryObsResponse } from '@gopherex/backplane-api';
-import { useClient } from '@gopherex/backplane-react';
-import { Badge, Button, DetailDrawer, EmptyState, FilterCombo, Input, SelectControl, Panel, Skeleton, Switch } from '@gopherex/backplane-ui';
-import { CodeEditor, type QueryLanguage } from '@gopherex/backplane-editors';
-import type { CorrelationTarget } from '@gopherex/backplane-observability-ui';
+import { ObsServiceClient, GetObsCapabilitiesRequestSchema, GetObsSelectorsRequestSchema, ListObsFieldsRequestSchema, ListObsFieldValuesRequestSchema, ListObsSourcesRequestSchema, QueryObsRequestSchema, type QueryObsResponse } from '@backplane-labs/backplane-api';
+import { useClient } from '@backplane-labs/backplane-react';
+import { Badge, Button, DetailDrawer, EmptyState, FilterCombo, Input, SelectControl, Panel, Skeleton, Switch } from '@backplane-labs/backplane-ui';
+import { CodeEditor, type QueryLanguage } from '@backplane-labs/backplane-editors';
+import type { CorrelationTarget } from '@backplane-labs/backplane-observability-ui';
 import { Activity, ChevronRight, CircleAlert, FileText, LayoutDashboard, Play, Radio, Search, Waypoints } from 'lucide-react';
 import { usePlatformAction, usePlatformQuery } from './runtime.js';
 import { usePlatformText } from './locales.js';

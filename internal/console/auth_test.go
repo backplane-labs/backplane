@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gopherex/backplane/internal/console"
-	"github.com/gopherex/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/internal/console"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
 )
 
 // The admin token is configuration: login compares against it, and a

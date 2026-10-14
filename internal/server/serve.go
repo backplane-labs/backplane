@@ -3,7 +3,7 @@ package server
 import (
 	"github.com/gopherex/xprobe/pkg/probe"
 
-	"github.com/gopherex/backplane/pkg/backplane"
+	"github.com/backplane-labs/backplane/pkg/backplane"
 )
 
 // Declare is what the server serves beyond its tree, declared before Run

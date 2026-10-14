@@ -5,7 +5,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/gopherex/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/bindings"
 )
 
 // A rename changes reads of the step and nothing else: not a string, not

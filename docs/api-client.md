@@ -2,9 +2,9 @@
 
 [All console methods](api-reference.md) are generated from every service in
 `backplane.console.v1`, including ObsService and AuditService. Imports use
-`@gopherex/backplane-api`; transport/session ownership is in
-`@gopherex/backplane-client`; React integration is in `@gopherex/backplane-react`.
-Packages live in this repository and target GitHub Packages in the gopherex
+`@backplane-labs/backplane-api`; transport/session ownership is in
+`@backplane-labs/backplane-client`; React integration is in `@backplane-labs/backplane-react`.
+Packages live in this repository and target GitHub Packages in the backplane-labs
 organization. Nothing is published to npm by development/build commands.
 
 ## Authentication and transport
@@ -16,8 +16,8 @@ explicit author-supplied fixture/runtime. They do not need backplane.
 
 ```ts
 import { create } from '@bufbuild/protobuf';
-import { CatalogServiceClient, GetServiceRequestSchema } from '@gopherex/backplane-api';
-import { BackplaneClient } from '@gopherex/backplane-client';
+import { CatalogServiceClient, GetServiceRequestSchema } from '@backplane-labs/backplane-api';
+import { BackplaneClient } from '@backplane-labs/backplane-client';
 
 const runtime = new BackplaneClient({ baseURL: `${location.origin}/backplane` });
 await runtime.start(); // checks the existing HttpOnly cookie

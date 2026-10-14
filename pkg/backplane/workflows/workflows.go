@@ -29,8 +29,8 @@ import (
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
 
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/internal/decl"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
 )
 
 var errClient = errors.New("workflows: unexpected Temporal client")

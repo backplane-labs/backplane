@@ -7,7 +7,7 @@ import { syntaxHighlighting, HighlightStyle, bracketMatching } from '@codemirror
 import { autocompletion, completionKeymap, type CompletionContext } from '@codemirror/autocomplete';
 import { linter, lintGutter, setDiagnostics, type Diagnostic } from '@codemirror/lint';
 import { jsonParseLinter } from '@codemirror/lang-json';
-import { tokens, typography } from '@gopherex/backplane-theme';
+import { tokens, typography } from '@backplane-labs/backplane-theme';
 import { boundDiagnostics } from './model.js';
 import { languageExtension, queryKeywords } from './language.js';
 import { useEditorText } from './locales.js';

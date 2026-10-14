@@ -3,7 +3,7 @@ package backplane
 import (
 	"maps"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 )
 
 // TelemetrySources declares optional view presets using exact OTel resource

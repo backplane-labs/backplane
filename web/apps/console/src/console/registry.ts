@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { create } from '@bufbuild/protobuf';
-import { CatalogServiceClient, ListPluginsRequestSchema, WatchCatalogRequestSchema } from '@gopherex/backplane-api';
-import { useClient, useSnapshotWatch } from '@gopherex/backplane-react';
-import { usePlatformQuery } from '@gopherex/backplane-platform-ui';
-import { loadPlugin, type LoadedPlugin } from '@gopherex/backplane-plugin-sdk/host';
-import { installPluginTranslations } from '@gopherex/backplane-plugin-sdk';
+import { CatalogServiceClient, ListPluginsRequestSchema, WatchCatalogRequestSchema } from '@backplane-labs/backplane-api';
+import { useClient, useSnapshotWatch } from '@backplane-labs/backplane-react';
+import { usePlatformQuery } from '@backplane-labs/backplane-platform-ui';
+import { loadPlugin, type LoadedPlugin } from '@backplane-labs/backplane-plugin-sdk/host';
+import { installPluginTranslations } from '@backplane-labs/backplane-plugin-sdk';
 import { useTranslation } from 'react-i18next';
 
 export type ModuleEntry = { plugin?: LoadedPlugin; error?: string };

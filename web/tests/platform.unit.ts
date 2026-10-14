@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { create } from '@bufbuild/protobuf';
 import { DurationSchema, TimestampSchema } from '@bufbuild/protobuf/wkt';
-import { AuditField, AuditOperator, AuditRecordSchema, AuditSource } from '@gopherex/backplane-api';
+import { AuditField, AuditOperator, AuditRecordSchema, AuditSource } from '@backplane-labs/backplane-api';
 import { decodeChips, detailFacts, encodeChips, filterOf, humanActor, mergeRecords } from '../packages/platform-ui/src/audit-model';
 import { addValue, parseValue } from '../packages/platform-ui/src/feed';
 import { causesOf, errorFilterOf, historyOf, parseStack, stateOf } from '../packages/platform-ui/src/errors-model';

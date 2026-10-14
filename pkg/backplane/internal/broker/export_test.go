@@ -7,8 +7,8 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/backoff"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/backoff"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 )
 
 // Fast shortens the timings for tests; maxDeliver bounds deliveries.

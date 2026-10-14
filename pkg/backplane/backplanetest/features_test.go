@@ -14,15 +14,15 @@ import (
 	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/activity"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/event"
-	"github.com/gopherex/backplane/pkg/backplane/hook"
-	"github.com/gopherex/backplane/pkg/backplane/workflows"
-	"github.com/gopherex/backplane/pkg/backplane/workflows/workflowtest"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/activity"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/event"
+	"github.com/backplane-labs/backplane/pkg/backplane/hook"
+	"github.com/backplane-labs/backplane/pkg/backplane/workflows"
+	"github.com/backplane-labs/backplane/pkg/backplane/workflows/workflowtest"
 )
 
 // recordingTB keeps the cleanups and errors of a harness for the test to

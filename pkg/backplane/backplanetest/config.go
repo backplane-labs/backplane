@@ -11,7 +11,7 @@ import (
 
 	"github.com/gopherex/xconf/contrib/sources/env"
 
-	"github.com/gopherex/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
 )
 
 const (

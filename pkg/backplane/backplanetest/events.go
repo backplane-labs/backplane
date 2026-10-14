@@ -10,9 +10,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/gopherex/backplane/pkg/backplane/event"
-	"github.com/gopherex/backplane/pkg/backplane/internal/decl"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/event"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 )
 
 // Published is one recorded event with what Publish set on it.

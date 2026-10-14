@@ -1,6 +1,6 @@
 import { create, type JsonValue } from '@bufbuild/protobuf';
 import { timestampFromMs, ValueSchema } from '@bufbuild/protobuf/wkt';
-import { AuditConditionSchema, AuditField, AuditFilterSchema, AuditOperator, type AuditCondition, type AuditFilter, type AuditRecord } from '@gopherex/backplane-api';
+import { AuditConditionSchema, AuditField, AuditFilterSchema, AuditOperator, type AuditCondition, type AuditFilter, type AuditRecord } from '@backplane-labs/backplane-api';
 import { allOps, type FeedChip, type FeedOp } from './feed.js';
 
 /** A fixed field of an audit record, as the feed names it. */

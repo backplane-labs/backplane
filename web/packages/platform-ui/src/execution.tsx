@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import { EmptyState } from '@gopherex/backplane-ui';
+import { EmptyState } from '@backplane-labs/backplane-ui';
 import { usePlatformText } from './locales.js';
 
 /** The host supplies deployment capabilities. Standalone fixtures may omit this provider. */

@@ -11,7 +11,7 @@ import (
 	sp "github.com/gopherex/schemapb/go/schemapb"
 	"github.com/gopherex/xlog"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 )
 
 // RevisionKey, under config/<service>/, holds the console's revision of the

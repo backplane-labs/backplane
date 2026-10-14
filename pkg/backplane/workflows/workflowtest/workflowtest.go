@@ -13,11 +13,11 @@ import (
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
-	"github.com/gopherex/backplane/pkg/backplane/internal/decl"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
-	internal "github.com/gopherex/backplane/pkg/backplane/internal/temporal"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
+	internal "github.com/backplane-labs/backplane/pkg/backplane/internal/temporal"
 )
 
 // New creates a Temporal test environment (go.temporal.io/sdk/

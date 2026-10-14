@@ -30,19 +30,19 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/internal/wire"
-	inftemporal "github.com/gopherex/backplane/pkg/backplane/infra/temporal"
-	"github.com/gopherex/backplane/pkg/backplane/internal/backoff"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/wire"
+	inftemporal "github.com/backplane-labs/backplane/pkg/backplane/infra/temporal"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/backoff"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 )
 
 const (
 	// stopGrace is how long a stopping worker lets activities finish; the
 	// stop budget of the service bounds it in practice.
 	stopGrace = time.Minute
-	scopeName = "github.com/gopherex/backplane/temporal"
+	scopeName = "github.com/backplane-labs/backplane/temporal"
 	// Bounds of the delay between connection and worker start attempts.
 	retryFloor = time.Second
 	retryCeil  = 30 * time.Second

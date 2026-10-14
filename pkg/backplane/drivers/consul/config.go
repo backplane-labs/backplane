@@ -4,8 +4,8 @@ import (
 	"github.com/gopherex/xconf"
 	consulsrc "github.com/gopherex/xconf/contrib/sources/consul"
 
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/internal/configrt"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/configrt"
 )
 
 // Config installs the Consul KV configuration source. Driver includes this option.

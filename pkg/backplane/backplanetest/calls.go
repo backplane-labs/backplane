@@ -6,9 +6,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/gopherex/backplane/pkg/backplane/hook"
-	"github.com/gopherex/backplane/pkg/backplane/internal/decl"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/hook"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 )
 
 // Answer makes fn answer ref's calls, from Call and, in Workflows, from

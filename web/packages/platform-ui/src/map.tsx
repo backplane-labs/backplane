@@ -1,9 +1,9 @@
 import { memo, useMemo, useState } from 'react';
 import { create } from '@bufbuild/protobuf';
 import { Background, BackgroundVariant, Controls, Handle, MarkerType, Position, ReactFlow, type Edge, type Node, type NodeProps } from '@xyflow/react';
-import * as api from '@gopherex/backplane-api';
-import { useClient } from '@gopherex/backplane-react';
-import { Badge, EmptyState, Panel, Skeleton, StatusDot, type StatusTone } from '@gopherex/backplane-ui';
+import * as api from '@backplane-labs/backplane-api';
+import { useClient } from '@backplane-labs/backplane-react';
+import { Badge, EmptyState, Panel, Skeleton, StatusDot, type StatusTone } from '@backplane-labs/backplane-ui';
 import { Box, Cable, Radio, Zap } from 'lucide-react';
 import { usePlatformQuery } from './runtime.js';
 import { usePlatformText } from './locales.js';

@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/drivers/consul"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/drivers/consul"
 )
 
 // selfSigned returns a certificate and its key as PEM.

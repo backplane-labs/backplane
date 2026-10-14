@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
-import { platformHostBuild } from '@gopherex/backplane-plugin-build/federation';
+import { platformHostBuild } from '@backplane-labs/backplane-plugin-build/federation';
 import tailwind from '@tailwindcss/vite';
 import { consoleDevServer } from './dev-proxy';
 export default defineConfig(({ command }) => {

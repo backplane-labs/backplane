@@ -1,31 +1,31 @@
 # Frontend packages
 
-All public packages use the `@gopherex` scope and GitHub Packages. They share a coordinated version. Install only the layers your application needs, keeping context-bearing runtime versions compatible with the host.
+All public packages use the `@backplane-labs` scope and GitHub Packages. They share a coordinated version. Install only the layers your application needs, keeping context-bearing runtime versions compatible with the host.
 
 | Package | Responsibility |
 | --- | --- |
-| `@gopherex/backplane-api` | Generated protobuf messages and ws-proto clients for the complete console API |
-| `@gopherex/backplane-client` | Cookie login, connection state, RPC transport and protected asset reads |
-| `@gopherex/backplane-react` | Providers, `useClient`, connection and snapshot-watch hooks |
-| `@gopherex/backplane-theme` | Semantic tokens, light/dark theme and Grafana theme bridge |
-| `@gopherex/backplane-ui` | Primitive controls, tables, trees, layout and common compositions |
-| `@gopherex/backplane-schema-forms` | Schema-driven editing with schemapb defaults, validation and masking |
-| `@gopherex/backplane-editors` | Lazy code/structured editors and language integrations |
-| `@gopherex/backplane-charts` | Charts, graphs and exact-value representations |
-| `@gopherex/backplane-observability-ui` | Reusable logs, metrics and trace views |
-| `@gopherex/backplane-platform-ui` | Catalog, configuration, wiring, runs, API reference and investigation compositions |
-| `@gopherex/backplane-plugin-sdk` | Module routes, context, navigation, host contract and error reporting |
-| `@gopherex/backplane-plugin-build` | Vite/Module Federation build contract and shared dependency policy |
-| `@gopherex/backplane-errors` | Browser exception capture, state/breadcrumbs and OTLP delivery |
+| `@backplane-labs/backplane-api` | Generated protobuf messages and ws-proto clients for the complete console API |
+| `@backplane-labs/backplane-client` | Cookie login, connection state, RPC transport and protected asset reads |
+| `@backplane-labs/backplane-react` | Providers, `useClient`, connection and snapshot-watch hooks |
+| `@backplane-labs/backplane-theme` | Semantic tokens, light/dark theme and Grafana theme bridge |
+| `@backplane-labs/backplane-ui` | Primitive controls, tables, trees, layout and common compositions |
+| `@backplane-labs/backplane-schema-forms` | Schema-driven editing with schemapb defaults, validation and masking |
+| `@backplane-labs/backplane-editors` | Lazy code/structured editors and language integrations |
+| `@backplane-labs/backplane-charts` | Charts, graphs and exact-value representations |
+| `@backplane-labs/backplane-observability-ui` | Reusable logs, metrics and trace views |
+| `@backplane-labs/backplane-platform-ui` | Catalog, configuration, wiring, runs, API reference and investigation compositions |
+| `@backplane-labs/backplane-plugin-sdk` | Module routes, context, navigation, host contract and error reporting |
+| `@backplane-labs/backplane-plugin-build` | Vite/Module Federation build contract and shared dependency policy |
+| `@backplane-labs/backplane-errors` | Browser exception capture, state/breadcrumbs and OTLP delivery |
 
 ## Install from GitHub Packages
 
 Configure the registry as in [quickstart](../quickstart.md), then install matching versions:
 
 ```bash
-yarn add @gopherex/backplane-api@0.1.1 \
-  @gopherex/backplane-client@0.1.1 \
-  @gopherex/backplane-react@0.1.1
+yarn add @backplane-labs/backplane-api@0.1.1 \
+  @backplane-labs/backplane-client@0.1.1 \
+  @backplane-labs/backplane-react@0.1.1
 ```
 
 The [module template](../reference/module-template.md) contains the complete dependency and build setup for an embedded author UI. It is preferable to reconstructing the Module Federation configuration by hand.
@@ -34,8 +34,8 @@ The [module template](../reference/module-template.md) contains the complete dep
 
 ```ts
 import { create } from '@bufbuild/protobuf';
-import { BackplaneClient } from '@gopherex/backplane-client';
-import { CatalogServiceClient, ListServicesRequestSchema } from '@gopherex/backplane-api';
+import { BackplaneClient } from '@backplane-labs/backplane-client';
+import { CatalogServiceClient, ListServicesRequestSchema } from '@backplane-labs/backplane-api';
 
 const runtime = new BackplaneClient({ baseURL: `${location.origin}/backplane/` });
 await runtime.start();
@@ -51,7 +51,7 @@ The host wraps its content in `BackplaneProvider client={runtime}`. A page calls
 
 ## Styling and translations
 
-Import `@gopherex/backplane-theme/style.css` and `@gopherex/backplane-ui/style.css` once in the owning shell. Embedded modules inherit them. Use semantic CSS variables and shared components, including `SelectControl` for ordinary dropdowns. Keep English strings in a module namespace such as `module.hello`.
+Import `@backplane-labs/backplane-theme/style.css` and `@backplane-labs/backplane-ui/style.css` once in the owning shell. Embedded modules inherit them. Use semantic CSS variables and shared components, including `SelectControl` for ordinary dropdowns. Keep English strings in a module namespace such as `module.hello`.
 
 Grafana types and assets stay behind adapters. The kit does not promise compatibility with arbitrary Grafana application components. Heavy editors and charts should be lazy-loaded; a small page should not eagerly import an entire workbench.
 

@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gopherex/backplane/internal/server"
-	"github.com/gopherex/backplane/pkg/backplane"
-	"github.com/gopherex/backplane/pkg/backplane/drivers/standard"
+	"github.com/backplane-labs/backplane/internal/server"
+	"github.com/backplane-labs/backplane/pkg/backplane"
+	"github.com/backplane-labs/backplane/pkg/backplane/drivers/standard"
 )
 
 func main() {

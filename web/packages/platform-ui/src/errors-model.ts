@@ -1,7 +1,7 @@
 import { create, type JsonValue } from '@bufbuild/protobuf';
 import { timestampDate, timestampFromMs } from '@bufbuild/protobuf/wkt';
-import { ErrorField, ErrorFilterSchema, ErrorOperator, type ErrorFilter, type GetErrorResponse, type RelatedLog } from '@gopherex/backplane-api';
-import type { ErrorCause, LogRecord, StackFrame } from '@gopherex/backplane-observability-ui';
+import { ErrorField, ErrorFilterSchema, ErrorOperator, type ErrorFilter, type GetErrorResponse, type RelatedLog } from '@backplane-labs/backplane-api';
+import type { ErrorCause, LogRecord, StackFrame } from '@backplane-labs/backplane-observability-ui';
 import type { FeedChip, FeedOp } from './feed.js';
 
 /** A filterable field of an error, as chips name it. */

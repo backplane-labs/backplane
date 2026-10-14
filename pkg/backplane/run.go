@@ -13,9 +13,9 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/build"
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/build"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 )
 
 const devVersion = "0.0.0"

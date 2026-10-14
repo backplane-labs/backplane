@@ -2259,7 +2259,7 @@ const file_backplanepb_console_v1_rules_proto_rawDesc = "" +
 	"\fListRuleRuns\x12).backplane.console.v1.ListRuleRunsRequest\x1a*.backplane.console.v1.ListRuleRunsResponse\x12_\n" +
 	"\n" +
 	"GetRuleRun\x12'.backplane.console.v1.GetRuleRunRequest\x1a(.backplane.console.v1.GetRuleRunResponse\x12h\n" +
-	"\rCancelRuleRun\x12*.backplane.console.v1.CancelRuleRunRequest\x1a+.backplane.console.v1.CancelRuleRunResponseB@Z>github.com/gopherex/backplane/backplanepb/console/v1;consolev1b\x06proto3"
+	"\rCancelRuleRun\x12*.backplane.console.v1.CancelRuleRunRequest\x1a+.backplane.console.v1.CancelRuleRunResponseBFZDgithub.com/backplane-labs/backplane/backplanepb/console/v1;consolev1b\x06proto3"
 
 var (
 	file_backplanepb_console_v1_rules_proto_rawDescOnce sync.Once

@@ -3,7 +3,7 @@
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
-@import "@gopherex/backplane-ui/theme.css";
+@import "@backplane-labs/backplane-ui/theme.css";
 @source "./";
 /* Utilities of the whole kit are regenerated here too: two stylesheets that both
    emit a utility must agree on its order, or a later sheet silently wins. */

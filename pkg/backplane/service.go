@@ -44,10 +44,10 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/gopherex/backplane/pkg/backplane/build"
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/internal/link"
+	"github.com/backplane-labs/backplane/pkg/backplane/build"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
 )
 
 // Root is the root of the author's tree, handed to the State constructor:

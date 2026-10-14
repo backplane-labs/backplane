@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gopherex/backplane/pkg/backplane/hook"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/hook"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 )
 
 // probe is a transport recording what a call brought.

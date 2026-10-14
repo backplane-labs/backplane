@@ -8,7 +8,7 @@ import (
 
 	"google.golang.org/grpc/metadata"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/guard"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/guard"
 )
 
 func TestHTTP(t *testing.T) {

@@ -18,7 +18,7 @@ const sources = {
   'web/packages/errors/README.md': 'browser-errors', 'docs/api-reference.md': 'api',
 };
 const routes = Object.fromEntries(Object.entries(sources).map(([source, id]) => [source, `reference/${id}.md`]));
-const repository = 'https://github.com/gopherex/backplane/blob/master/';
+const repository = 'https://github.com/backplane-labs/backplane/blob/master/';
 function links(text, source, target) {
   return text.replace(/\]\(([^)]+)\)/g, (match, href) => {
     if (/^(?:[a-z]+:|#|\/)/i.test(href)) return match;

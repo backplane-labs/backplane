@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gopherex/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
 )
 
 const (

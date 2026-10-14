@@ -3,13 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { create } from '@bufbuild/protobuf';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { KeyRound, LogOut, MonitorSmartphone, ShieldX, UserRound, Users } from 'lucide-react';
-import { ListSessionsRequestSchema, RevokeOtherSessionsRequestSchema, RevokeSessionRequestSchema, SessionServiceClient, type Session } from '@gopherex/backplane-api';
-import { useClient } from '@gopherex/backplane-react';
-import { usePlatformAction, usePlatformQuery } from '@gopherex/backplane-platform-ui';
+import { ListSessionsRequestSchema, RevokeOtherSessionsRequestSchema, RevokeSessionRequestSchema, SessionServiceClient, type Session } from '@backplane-labs/backplane-api';
+import { useClient } from '@backplane-labs/backplane-react';
+import { usePlatformAction, usePlatformQuery } from '@backplane-labs/backplane-platform-ui';
 import {
   Button, ConfirmAction, DetailDrawer, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
   EmptyState, KeyValueList, Panel, StatusBadge, Timestamp,
-} from '@gopherex/backplane-ui';
+} from '@backplane-labs/backplane-ui';
 
 const date = (value?: Session['createdAt']) => value ? timestampDate(value) : undefined;
 

@@ -13,7 +13,7 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/internal/registry"
+	"github.com/backplane-labs/backplane/internal/registry"
 )
 
 // absenceVerifier rechecks authoritative discovery before destructive cleanup.

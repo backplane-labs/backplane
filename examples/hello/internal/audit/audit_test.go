@@ -4,10 +4,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/gopherex/backplane/examples/hello/internal/audit"
-	"github.com/gopherex/backplane/examples/hello/internal/greeter"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
-	"github.com/gopherex/backplane/pkg/backplane/event"
+	"github.com/backplane-labs/backplane/examples/hello/internal/audit"
+	"github.com/backplane-labs/backplane/examples/hello/internal/greeter"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/pkg/backplane/event"
 )
 
 func TestAudit(t *testing.T) {

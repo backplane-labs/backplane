@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AppWindow, Box, Compass, History, Moon, Search, Sun, Workflow, type LucideIcon, Bug } from 'lucide-react';
-import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandShortcut, Kbd } from '@gopherex/backplane-ui';
-import type { ServiceSummary } from '@gopherex/backplane-api';
-import type { ThemeMode } from '@gopherex/backplane-theme';
+import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandShortcut, Kbd } from '@backplane-labs/backplane-ui';
+import type { ServiceSummary } from '@backplane-labs/backplane-api';
+import type { ThemeMode } from '@backplane-labs/backplane-theme';
 import type { ModuleEntry } from '../registry';
 import { serviceTabs } from '../service/tabs';
 

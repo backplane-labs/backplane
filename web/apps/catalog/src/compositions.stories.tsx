@@ -8,7 +8,7 @@ import {
   AutoSaveInput, AutoSizeInput, AutoSizeTextarea, FormControl, Input, Toolbar,
   Checkbox, Switch, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Spinner,
   type ChoiceOption, type DataColumn,
-} from '@gopherex/backplane-ui';
+} from '@backplane-labs/backplane-ui';
 
 function ControlsFixture() {
   const [number, setNumber] = useState('9007199254740993.125'), [secret, setSecret] = useState('token'), [query, setQuery] = useState('');

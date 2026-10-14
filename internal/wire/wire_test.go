@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/gopherex/backplane/internal/wire"
+	"github.com/backplane-labs/backplane/internal/wire"
 )
 
 func TestNATSNames(t *testing.T) {

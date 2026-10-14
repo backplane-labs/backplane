@@ -3,10 +3,10 @@
 package standard
 
 import (
-	"github.com/gopherex/backplane/pkg/backplane"
-	"github.com/gopherex/backplane/pkg/backplane/drivers/consul"
-	"github.com/gopherex/backplane/pkg/backplane/drivers/nats"
-	"github.com/gopherex/backplane/pkg/backplane/drivers/temporal"
+	"github.com/backplane-labs/backplane/pkg/backplane"
+	"github.com/backplane-labs/backplane/pkg/backplane/drivers/consul"
+	"github.com/backplane-labs/backplane/pkg/backplane/drivers/nats"
+	"github.com/backplane-labs/backplane/pkg/backplane/drivers/temporal"
 )
 
 // Drivers installs Consul, NATS and Temporal. Each connects only when configured.

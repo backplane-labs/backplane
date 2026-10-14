@@ -21,10 +21,10 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/pkg/backplane"
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/drivers/standard"
-	"github.com/gopherex/backplane/pkg/backplane/event"
+	"github.com/backplane-labs/backplane/pkg/backplane"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/drivers/standard"
+	"github.com/backplane-labs/backplane/pkg/backplane/event"
 )
 
 // Greeted is hello's event, decoded by the subscriber's own copy of the
@@ -230,7 +230,7 @@ func runHello(t *testing.T, url string) *env {
 	t.Helper()
 
 	bin := filepath.Join(t.TempDir(), "hello")
-	pkg := "github.com/gopherex/backplane/pkg/backplane/build"
+	pkg := "github.com/backplane-labs/backplane/pkg/backplane/build"
 
 	build := exec.Command("go", "build", "-o", bin,
 		"-ldflags", "-X "+pkg+".Service="+service+" -X "+pkg+".Version="+version,

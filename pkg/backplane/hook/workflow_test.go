@@ -13,17 +13,17 @@ import (
 	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/hook"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
-	"github.com/gopherex/backplane/pkg/backplane/internal/link"
-	"github.com/gopherex/backplane/pkg/backplane/internal/manifest"
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
-	internal "github.com/gopherex/backplane/pkg/backplane/internal/temporal"
-	"github.com/gopherex/backplane/pkg/backplane/internal/temporal/temporaltest"
-	"github.com/gopherex/backplane/pkg/backplane/internal/testlog"
-	"github.com/gopherex/backplane/pkg/backplane/workflows"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/hook"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
+	internal "github.com/backplane-labs/backplane/pkg/backplane/internal/temporal"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/temporal/temporaltest"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
+	"github.com/backplane-labs/backplane/pkg/backplane/workflows"
 )
 
 // outcome is what the test workflow saw.

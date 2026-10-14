@@ -10,8 +10,8 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/backoff"
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/backoff"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 )
 
 // StartHookWorker runs the hooks worker: CallHookWorkflow alone on the

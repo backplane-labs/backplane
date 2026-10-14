@@ -7,9 +7,9 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/gopherex/backplane/pkg/backplane"
-	"github.com/gopherex/backplane/pkg/backplane/internal/guard"
-	"github.com/gopherex/backplane/pkg/backplane/internal/manifest"
+	"github.com/backplane-labs/backplane/pkg/backplane"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/guard"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
 )
 
 // uiGet fetches path of the UI bundle with the internal secret and, when

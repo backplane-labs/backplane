@@ -9,21 +9,21 @@ workflows, API discovery, telemetry and one console for the whole installation.
 
 <br/>
 
-[![CI](https://img.shields.io/github/actions/workflow/status/gopherex/backplane/ci.yml?branch=master&label=CI&style=flat-square)](https://github.com/gopherex/backplane/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/gopherex/backplane?style=flat-square&color=12d6a3)](https://github.com/gopherex/backplane/releases)
-[![Release build](https://img.shields.io/github/actions/workflow/status/gopherex/backplane/release.yml?label=release%20build&style=flat-square)](https://github.com/gopherex/backplane/actions/workflows/release.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/backplane-labs/backplane/ci.yml?branch=master&label=CI&style=flat-square)](https://github.com/backplane-labs/backplane/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/backplane-labs/backplane?style=flat-square&color=12d6a3)](https://github.com/backplane-labs/backplane/releases)
+[![Release build](https://img.shields.io/github/actions/workflow/status/backplane-labs/backplane/release.yml?label=release%20build&style=flat-square)](https://github.com/backplane-labs/backplane/actions/workflows/release.yml)
 [![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white&style=flat-square)](https://go.dev)
 [![TypeScript](https://img.shields.io/badge/SDK-TypeScript-3178C6?logo=typescript&logoColor=white&style=flat-square)](web/README.md)
-[![Container](https://img.shields.io/badge/container-GHCR-12d6a3?logo=docker&logoColor=white&style=flat-square)](https://github.com/gopherex/backplane/pkgs/container/backplane)
-[![License](https://img.shields.io/github/license/gopherex/backplane?style=flat-square)](LICENSE)
+[![Container](https://img.shields.io/badge/container-GHCR-12d6a3?logo=docker&logoColor=white&style=flat-square)](https://github.com/backplane-labs/backplane/pkgs/container/backplane)
+[![License](https://img.shields.io/github/license/backplane-labs/backplane?style=flat-square)](LICENSE)
 
-**[Documentation](https://gopherex.github.io/backplane/)** ·
+**[Documentation](https://backplane-labs.github.io/backplane/)** ·
 [Quickstart](#quickstart) ·
 [Deployment](deployments/README.md) ·
 [Go SDK](pkg/backplane) ·
 [Frontend SDK](web/README.md) ·
 [API reference](docs/api-reference.md) ·
-[Releases](https://github.com/gopherex/backplane/releases)
+[Releases](https://github.com/backplane-labs/backplane/releases)
 
 </div>
 
@@ -43,7 +43,7 @@ frontend dependencies come from GitHub Packages; configure a token with package
 read access in your user [package-manager configuration](web/README.md).
 
 ```sh
-git clone https://github.com/gopherex/backplane.git
+git clone https://github.com/backplane-labs/backplane.git
 cd backplane
 make configure
 make dev
@@ -84,7 +84,7 @@ See [development](docs/development.md) and [deployment](deployments/README.md).
 ## Use it in a service
 
 ```sh
-go get github.com/gopherex/backplane
+go get github.com/backplane-labs/backplane
 ```
 
 The Go SDK manages identity, manifests, listeners, probes, configuration and
@@ -102,12 +102,12 @@ See the [author template](web/templates/module/README.md),
 ## Install a release
 
 Tagged releases publish **Linux amd64 and arm64** images to
-`ghcr.io/gopherex/backplane`, plus archives containing the server and the ready
+`ghcr.io/backplane-labs/backplane`, plus archives containing the server and the ready
 console. The release page carries checksums, the image digest and all 13
 frontend package tarballs. Frontend packages publish to **GitHub Packages**.
 
 ```sh
-docker pull ghcr.io/gopherex/backplane:0.1.1
+docker pull ghcr.io/backplane-labs/backplane:0.1.1
 ```
 
 The image runs as a non-root user. Supply PostgreSQL, Consul and an

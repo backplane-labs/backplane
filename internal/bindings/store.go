@@ -14,8 +14,8 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/internal/store"
-	"github.com/gopherex/backplane/internal/store/db"
+	"github.com/backplane-labs/backplane/internal/store"
+	"github.com/backplane-labs/backplane/internal/store/db"
 )
 
 // bindingRow is the shape of every binding version query.

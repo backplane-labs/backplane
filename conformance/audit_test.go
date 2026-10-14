@@ -14,8 +14,8 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	"github.com/gopherex/backplane/internal/audit"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	"github.com/backplane-labs/backplane/internal/audit"
 )
 
 func (w *replicaWorld) auditDelivered(t *testing.T) {

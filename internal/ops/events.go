@@ -18,9 +18,9 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/internal/wire"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/wire"
 )
 
 // backplaneService is the name backplane runs under: its consumers on a

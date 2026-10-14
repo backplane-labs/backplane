@@ -1898,7 +1898,7 @@ const file_backplanepb_console_v1_bindings_proto_rawDesc = "" +
 	"\vTestBinding\x12(.backplane.console.v1.TestBindingRequest\x1a).backplane.console.v1.TestBindingResponse\x12n\n" +
 	"\x0fListBindingRuns\x12,.backplane.console.v1.ListBindingRunsRequest\x1a-.backplane.console.v1.ListBindingRunsResponse\x12h\n" +
 	"\rGetBindingRun\x12*.backplane.console.v1.GetBindingRunRequest\x1a+.backplane.console.v1.GetBindingRunResponse\x12q\n" +
-	"\x10CancelBindingRun\x12-.backplane.console.v1.CancelBindingRunRequest\x1a..backplane.console.v1.CancelBindingRunResponseB@Z>github.com/gopherex/backplane/backplanepb/console/v1;consolev1b\x06proto3"
+	"\x10CancelBindingRun\x12-.backplane.console.v1.CancelBindingRunRequest\x1a..backplane.console.v1.CancelBindingRunResponseBFZDgithub.com/backplane-labs/backplane/backplanepb/console/v1;consolev1b\x06proto3"
 
 var (
 	file_backplanepb_console_v1_bindings_proto_rawDescOnce sync.Once

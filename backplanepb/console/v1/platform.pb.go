@@ -348,7 +348,7 @@ const file_backplanepb_console_v1_platform_proto_rawDesc = "" +
 	"\fdependencies\x18\x02 \x03(\v2*.backplane.console.v1.InfrastructureStatusR\fdependencies2\xf7\x01\n" +
 	"\x0fPlatformService\x12n\n" +
 	"\x0fGetCapabilities\x12,.backplane.console.v1.GetCapabilitiesRequest\x1a-.backplane.console.v1.GetCapabilitiesResponse\x12t\n" +
-	"\x11GetInfrastructure\x12..backplane.console.v1.GetInfrastructureRequest\x1a/.backplane.console.v1.GetInfrastructureResponseB@Z>github.com/gopherex/backplane/backplanepb/console/v1;consolev1b\x06proto3"
+	"\x11GetInfrastructure\x12..backplane.console.v1.GetInfrastructureRequest\x1a/.backplane.console.v1.GetInfrastructureResponseBFZDgithub.com/backplane-labs/backplane/backplanepb/console/v1;consolev1b\x06proto3"
 
 var (
 	file_backplanepb_console_v1_platform_proto_rawDescOnce sync.Once

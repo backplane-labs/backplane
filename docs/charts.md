@@ -1,6 +1,6 @@
 # Charts
 
-`@gopherex/backplane-charts` provides `TimeSeriesChart`, `BarChart`, `Histogram`,
+`@backplane-labs/backplane-charts` provides `TimeSeriesChart`, `BarChart`, `Histogram`,
 `Heatmap`, `Stat`, `BarGauge`, `RadialGauge`, `SeriesTable`,
 `VisualizationControls` and `VisualizationPanel`. English resources are exported
 as `chartsEnglish` for `backplane.charts`. Renderers load lazily. Data adapters

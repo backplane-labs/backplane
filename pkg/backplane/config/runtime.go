@@ -15,10 +15,10 @@ import (
 	"github.com/gopherex/xconf"
 	"github.com/gopherex/xlog"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/internal/configrt"
-	"github.com/gopherex/backplane/pkg/backplane/internal/link"
-	"github.com/gopherex/backplane/pkg/backplane/internal/metrics"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/configrt"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/metrics"
 )
 
 //nolint:gochecknoinits // installs the private accessors for the SDK core and backplanetest

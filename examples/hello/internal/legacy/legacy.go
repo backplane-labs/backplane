@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gopherex/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 )
 
 const readHeaderTimeout = 5 * time.Second

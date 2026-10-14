@@ -1,7 +1,7 @@
 import { timestampDate } from '@bufbuild/protobuf/wkt';
-import { InstancePhase } from '@gopherex/backplane-api/backplanepb/v1/instance_pb';
-import { BindingState, ServiceHealth, type GetServiceResponse, type HookBinding, type Rule, type ServiceSummary } from '@gopherex/backplane-api';
-import type { StatusTone } from '@gopherex/backplane-ui';
+import { InstancePhase } from '@backplane-labs/backplane-api/backplanepb/v1/instance_pb';
+import { BindingState, ServiceHealth, type GetServiceResponse, type HookBinding, type Rule, type ServiceSummary } from '@backplane-labs/backplane-api';
+import type { StatusTone } from '@backplane-labs/backplane-ui';
 
 export const healthTone: Record<ServiceHealth, StatusTone> = {
   [ServiceHealth.UNSPECIFIED]: 'neutral', [ServiceHealth.HEALTHY]: 'success', [ServiceHealth.DEGRADED]: 'warning', [ServiceHealth.DOWN]: 'danger',

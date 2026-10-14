@@ -1,5 +1,5 @@
 // Package metrics is the SDK's own instrumentation, on meter
-// github.com/gopherex/backplane. Instruments are created once on the global
+// github.com/backplane-labs/backplane. Instruments are created once on the global
 // provider, which delegates to the one telemetry installs, so they may be
 // used before telemetry starts.
 package metrics
@@ -15,7 +15,7 @@ import (
 )
 
 // Meter name.
-const Meter = "github.com/gopherex/backplane"
+const Meter = "github.com/backplane-labs/backplane"
 
 // Outcomes shared by the counters.
 const (

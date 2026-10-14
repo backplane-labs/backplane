@@ -1,5 +1,5 @@
 // Package envelope checks the browser SDK's error envelope (app-debug v1):
-// the JSON body of the log record @gopherex/backplane-errors writes. The
+// the JSON body of the log record @backplane-labs/backplane-errors writes. The
 // schema is the one the SDK's tests validate against.
 package envelope
 

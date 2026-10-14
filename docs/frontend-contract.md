@@ -1,14 +1,14 @@
 # Frontend package and integration contract
 
 This document records the frontend package and integration contract. The
-[English handbook](https://gopherex.github.io/backplane/) describes current
+[English handbook](https://backplane-labs.github.io/backplane/) describes current
 usage, deployment and implementation boundaries. Component coverage is tracked
 in the [UI matrix](ui-components.md); the live console and module workflow are
 documented in [development](development.md).
 
 ## Package boundaries
 
-The `web/` Yarn workspace publishes only to GitHub Packages, under `@gopherex`.
+The `web/` Yarn workspace publishes only to GitHub Packages, under `@backplane-labs`.
 All public `backplane-*` packages in a release have the same version. The major
 version is the plugin `sdk_major`. Third-party packages remain ordinary package
 dependencies; the public npm registry is not a publication target.
@@ -26,10 +26,10 @@ dependencies; the public npm registry is not a publication target.
 | `schema-forms` | schemapb forms, validation presentation and JSON fallback | Configuration writes |
 | `platform-ui` | API-aware service, operation, audit and telemetry compositions | A second console shell |
 | `plugin-sdk` | Typed plugin definition, relative routes, navigation registry and host context; `usePluginErrorReporter()` reports a module's handled errors to the installation's Errors, marked `backplane.module` | Service deployment |
-| `errors` (`@gopherex/backplane-errors`) | Browser error capture for any frontend (the console, modules, applications) over OTLP logs; see [errors.md](errors.md) | Storage, queries, sourcemaps |
+| `errors` (`@backplane-labs/backplane-errors`) | Browser error capture for any frontend (the console, modules, applications) over OTLP logs; see [errors.md](errors.md) | Storage, queries, sourcemaps |
 | `plugin-build` | Pinned build preset, shared dependency contract, remote and manifest output | Running a local platform for authors |
 
-Names are `@gopherex/backplane-<suffix>`. Create packages when they have a real
+Names are `@backplane-labs/backplane-<suffix>`. Create packages when they have a real
 implementation; do not publish empty placeholders. `web/apps/console` is the
 production console. The isolated compatibility host lives in
 `web/tests/fixtures/embedding`. `web/apps/catalog` documents the kit. Package exports keep heavy editors and charts
@@ -173,7 +173,7 @@ The implemented [ObsService](obs-api.md) reads the same stored signals through
 the authenticated query API; its acceptance tests also cover native discovery.
 
 External applications can send ordinary OTLP without registering as modules.
-Errors are part of the platform: `@gopherex/backplane-errors` captures them in
+Errors are part of the platform: `@backplane-labs/backplane-errors` captures them in
 any frontend, `ErrorService` reads them from the log store and the console
 shows them ([errors.md](errors.md)). Storage credentials do not reach plugins.
 

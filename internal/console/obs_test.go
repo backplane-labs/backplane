@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"testing"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	"github.com/gopherex/backplane/internal/console"
-	"github.com/gopherex/backplane/internal/obs"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	"github.com/backplane-labs/backplane/internal/console"
+	"github.com/backplane-labs/backplane/internal/obs"
 )
 
 func TestObsCookieBoundary(t *testing.T) {

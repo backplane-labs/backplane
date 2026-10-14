@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { DataTable } from '@gopherex/backplane-ui';
-import { JSONViewer } from '@gopherex/backplane-editors';
+import { DataTable } from '@backplane-labs/backplane-ui';
+import { JSONViewer } from '@backplane-labs/backplane-editors';
 import { useObsText } from './locales.js';
 import type { ErrorCause, SourceLine, StackFrame } from './types.js';
 export function SourceContext({ lines, line, label }: { lines: readonly SourceLine[]; line?: number; label: string }) {

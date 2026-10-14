@@ -4,7 +4,7 @@ package backplane.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/gopherex/backplane/backplanepb/v1;backplanev1";
+option go_package = "github.com/backplane-labs/backplane/backplanepb/v1;backplanev1";
 
 // InstanceState is written by the SDK to Consul KV
 // `backplane/services/<service>/instances/<id>` under a session with TTL, so

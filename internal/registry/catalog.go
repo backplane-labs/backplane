@@ -26,7 +26,7 @@ import (
 
 	"golang.org/x/mod/semver"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 )
 
 // Catalog is an immutable snapshot of the installation. A new snapshot is

@@ -14,9 +14,9 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	"github.com/gopherex/backplane/internal/store"
-	"github.com/gopherex/backplane/internal/wire"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	"github.com/backplane-labs/backplane/internal/store"
+	"github.com/backplane-labs/backplane/internal/wire"
 )
 
 const (

@@ -1,7 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { useRoutes, useNavigate, type RouteObject } from 'react-router-dom';
 import type { i18n } from 'i18next';
-import type { ThemeMode } from '@gopherex/backplane-theme';
+import type { ThemeMode } from '@backplane-labs/backplane-theme';
 
 export const SDK_MAJOR = 0;
 
@@ -17,7 +17,7 @@ export interface PluginContext {
   mode: ThemeMode;
   /** Explicit fixture marker, never inferred from connection failures. */
   environment: 'standalone' | 'embedded';
-  /** The host's error reporter (the console's @gopherex/backplane-errors client); absent standalone. */
+  /** The host's error reporter (the console's @backplane-labs/backplane-errors client); absent standalone. */
   reportError?: ErrorReporter;
 }
 /** Reports an exception to the installation's Errors, with attributes that filter it there. */

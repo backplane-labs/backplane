@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/gopherex/backplane/internal/store"
+	"github.com/backplane-labs/backplane/internal/store"
 )
 
 func TestAuditRollbackIsAtomic(t *testing.T) {

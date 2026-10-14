@@ -35,7 +35,7 @@ try {
     // All public exports, including build-only packages, must resolve from tarballs.
     Object.assign(manifest.dependencies, resolutions);
     writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-    writeFileSync(join(target, '.npmrc'), '@gopherex:registry=https://npm.pkg.github.com\n');
+    writeFileSync(join(target, '.npmrc'), '@backplane-labs:registry=https://npm.pkg.github.com\n@gopherex:registry=https://npm.pkg.github.com\n');
     if (name === 'host') {
       cpSync(join(scratch, 'module/src/gen'), join(target, 'src/gen'), { recursive: true });
       cpSync(join(scratch, 'module/src/fixtures.ts'), join(target, 'src/fixtures.ts'));

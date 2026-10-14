@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/gopherex/backplane/internal/bindings"
-	"github.com/gopherex/backplane/internal/wire"
+	"github.com/backplane-labs/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/wire"
 )
 
 // Subscriber is the service name rule consumers are made under: their

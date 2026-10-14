@@ -6,7 +6,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/gopherex/backplane/backplanepb/console/v1;consolev1";
+option go_package = "github.com/backplane-labs/backplane/backplanepb/console/v1;consolev1";
 
 // The parts bindings and rules share: steps, violations, the editor's
 // layout and the timeline of a run.

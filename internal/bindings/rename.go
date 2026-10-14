@@ -8,7 +8,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 )
 
 // RenameBinding is b with step from renamed to: its key, every `after`

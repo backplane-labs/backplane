@@ -19,11 +19,11 @@ import (
 	"github.com/gopherex/xlog"
 	"github.com/gopherex/xtrace"
 
-	"github.com/gopherex/backplane/internal/wire"
-	"github.com/gopherex/backplane/pkg/backplane/internal/backoff"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
-	"github.com/gopherex/backplane/pkg/backplane/internal/metrics"
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
+	"github.com/backplane-labs/backplane/internal/wire"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/backoff"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/metrics"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 )
 
 const (

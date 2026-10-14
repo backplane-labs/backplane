@@ -22,11 +22,11 @@ import (
 
 	"google.golang.org/protobuf/types/known/durationpb"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/internal/decl"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
-	"github.com/gopherex/backplane/pkg/backplane/internal/metrics"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/metrics"
 )
 
 var (

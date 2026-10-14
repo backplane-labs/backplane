@@ -7,7 +7,7 @@
 package consolev1
 
 import (
-	v1 "github.com/gopherex/backplane/backplanepb/v1"
+	v1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	schemapb "github.com/gopherex/schemapb/go/schemapb"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -1202,7 +1202,7 @@ const file_backplanepb_console_v1_config_proto_rawDesc = "" +
 	"\x10ValidateOverride\x12-.backplane.console.v1.ValidateOverrideRequest\x1a..backplane.console.v1.ValidateOverrideResponse\x12e\n" +
 	"\fSaveRevision\x12).backplane.console.v1.SaveRevisionRequest\x1a*.backplane.console.v1.SaveRevisionResponse\x12Y\n" +
 	"\bRollback\x12%.backplane.console.v1.RollbackRequest\x1a&.backplane.console.v1.RollbackResponse\x12d\n" +
-	"\vWatchConfig\x12(.backplane.console.v1.WatchConfigRequest\x1a).backplane.console.v1.WatchConfigResponse0\x01B@Z>github.com/gopherex/backplane/backplanepb/console/v1;consolev1b\x06proto3"
+	"\vWatchConfig\x12(.backplane.console.v1.WatchConfigRequest\x1a).backplane.console.v1.WatchConfigResponse0\x01BFZDgithub.com/backplane-labs/backplane/backplanepb/console/v1;consolev1b\x06proto3"
 
 var (
 	file_backplanepb_console_v1_config_proto_rawDescOnce sync.Once

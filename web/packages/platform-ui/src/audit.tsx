@@ -2,10 +2,10 @@ import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { create, toJson, type JsonValue } from '@bufbuild/protobuf';
 import { timestampDate, ValueSchema, type Value } from '@bufbuild/protobuf/wkt';
 import { AuditHistogramRequestSchema, AuditFacetsRequestSchema, AuditFieldsRequestSchema, AuditServiceClient, AuditSource, SearchAuditRequestSchema,
-  type AuditRecord } from '@gopherex/backplane-api';
-import { useClient } from '@gopherex/backplane-react';
-import { Button, Count, DetailDrawer, EmptyState, Panel, Skeleton, StatusBadge, Timestamp, resolveTimeRange, type TimeRangeValue } from '@gopherex/backplane-ui';
-import { JSONViewer } from '@gopherex/backplane-editors';
+  type AuditRecord } from '@backplane-labs/backplane-api';
+import { useClient } from '@backplane-labs/backplane-react';
+import { Button, Count, DetailDrawer, EmptyState, Panel, Skeleton, StatusBadge, Timestamp, resolveTimeRange, type TimeRangeValue } from '@backplane-labs/backplane-ui';
+import { JSONViewer } from '@backplane-labs/backplane-editors';
 import { Boxes, ClipboardList, Minus, Plus, ShieldCheck, Waypoints, Workflow } from 'lucide-react';
 import { usePlatformText } from './locales.js';
 import { usePlatformQuery } from './runtime.js';

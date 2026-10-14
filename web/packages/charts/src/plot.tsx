@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
-import { tokens, typography } from '@gopherex/backplane-theme';
-import { Button, DataTable, Input } from '@gopherex/backplane-ui';
+import { tokens, typography } from '@backplane-labs/backplane-theme';
+import { Button, DataTable, Input } from '@backplane-labs/backplane-ui';
 import { exact, prepareSeries } from './model.js';
 import { useChartText } from './locales.js';
 import type { ChartProps } from './types.js';

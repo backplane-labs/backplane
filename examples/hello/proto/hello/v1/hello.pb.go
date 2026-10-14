@@ -212,7 +212,7 @@ const file_proto_hello_v1_hello_proto_rawDesc = "" +
 	"\x04left\x18\x01 \x01(\rR\x04left2\x90\x01\n" +
 	"\fHelloService\x128\n" +
 	"\x05Greet\x12\x16.hello.v1.GreetRequest\x1a\x17.hello.v1.GreetResponse\x12F\n" +
-	"\tCountdown\x12\x1a.hello.v1.CountdownRequest\x1a\x1b.hello.v1.CountdownResponse0\x01BEZCgithub.com/gopherex/backplane/examples/hello/proto/hello/v1;hellov1b\x06proto3"
+	"\tCountdown\x12\x1a.hello.v1.CountdownRequest\x1a\x1b.hello.v1.CountdownResponse0\x01BKZIgithub.com/backplane-labs/backplane/examples/hello/proto/hello/v1;hellov1b\x06proto3"
 
 var (
 	file_proto_hello_v1_hello_proto_rawDescOnce sync.Once

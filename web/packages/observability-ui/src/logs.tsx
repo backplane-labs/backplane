@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Button, DataTable, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Input, type DataColumn } from '@gopherex/backplane-ui';
-import { JSONViewer } from '@gopherex/backplane-editors';
+import { Button, DataTable, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Input, type DataColumn } from '@backplane-labs/backplane-ui';
+import { JSONViewer } from '@backplane-labs/backplane-editors';
 import { AttributeTable, CorrelationLinks, HighlightText, attributeText } from './attributes.js';
 import { useObsText } from './locales.js';
 import type { CorrelationTarget, LogRecord } from './types.js';

@@ -8,10 +8,10 @@ import (
 
 	"github.com/gopherex/ws-proto/wsrpc"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	"github.com/gopherex/backplane/internal/console"
-	"github.com/gopherex/backplane/internal/registry"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	"github.com/backplane-labs/backplane/internal/console"
+	"github.com/backplane-labs/backplane/internal/registry"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
 )
 
 // The console on its own listener, under a prefix; its stop closes the

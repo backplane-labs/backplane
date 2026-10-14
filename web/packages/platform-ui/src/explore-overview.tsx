@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { create } from '@bufbuild/protobuf';
-import { ListObsFieldValuesRequestSchema, ObsLanguage, ObsServiceClient, ObsSignal, QueryObsRequestSchema, type ObsSeries } from '@gopherex/backplane-api';
-import { useClient } from '@gopherex/backplane-react';
-import { Badge, EmptyState, Input, Panel, Skeleton } from '@gopherex/backplane-ui';
-import { TimeSeriesChart } from '@gopherex/backplane-charts';
+import { ListObsFieldValuesRequestSchema, ObsLanguage, ObsServiceClient, ObsSignal, QueryObsRequestSchema, type ObsSeries } from '@backplane-labs/backplane-api';
+import { useClient } from '@backplane-labs/backplane-react';
+import { Badge, EmptyState, Input, Panel, Skeleton } from '@backplane-labs/backplane-ui';
+import { TimeSeriesChart } from '@backplane-labs/backplane-charts';
 import { Activity, ChevronRight, LayoutDashboard, Search } from 'lucide-react';
 import { usePlatformQuery } from './runtime.js';
 import { usePlatformText } from './locales.js';

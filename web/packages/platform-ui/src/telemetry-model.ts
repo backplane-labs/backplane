@@ -1,7 +1,7 @@
 import { parse, isLosslessNumber, stringify } from 'lossless-json';
-import type { ObsRows, ObsTimeSeries, ObsTraceSearch } from '@gopherex/backplane-api';
-import type { ChartSeries } from '@gopherex/backplane-charts';
-import type { Attributes, LogRecord, SpanRecord, TraceSummary } from '@gopherex/backplane-observability-ui';
+import type { ObsRows, ObsTimeSeries, ObsTraceSearch } from '@backplane-labs/backplane-api';
+import type { ChartSeries } from '@backplane-labs/backplane-charts';
+import type { Attributes, LogRecord, SpanRecord, TraceSummary } from '@backplane-labs/backplane-observability-ui';
 
 export const object = (value: unknown): Record<string, unknown> => value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const list = (value: unknown): unknown[] => Array.isArray(value) ? value : [];

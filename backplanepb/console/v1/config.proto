@@ -6,7 +6,7 @@ import "google/protobuf/timestamp.proto";
 import "schemapb/schema.proto";
 import "backplanepb/v1/instance.proto";
 
-option go_package = "github.com/gopherex/backplane/backplanepb/console/v1;consolev1";
+option go_package = "github.com/backplane-labs/backplane/backplanepb/console/v1;consolev1";
 
 // ConfigService is the console's view of Live configuration (§5): the
 // override of a service's Live fields kept as revisions in PostgreSQL and

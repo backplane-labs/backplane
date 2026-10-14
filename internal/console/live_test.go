@@ -20,16 +20,16 @@ import (
 	"github.com/jackc/pgx/v5"
 	"google.golang.org/grpc/codes"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	helloconsolev1 "github.com/gopherex/backplane/examples/hello/proto/hello/console/v1"
-	"github.com/gopherex/backplane/internal/console"
-	"github.com/gopherex/backplane/internal/registry"
-	"github.com/gopherex/backplane/internal/store"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/infra/postgres"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	helloconsolev1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1"
+	"github.com/backplane-labs/backplane/internal/console"
+	"github.com/backplane-labs/backplane/internal/registry"
+	"github.com/backplane-labs/backplane/internal/store"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/postgres"
 )
 
 // pgSessions starts a store on a database of its own, created on the
@@ -239,7 +239,7 @@ func startHello(t *testing.T) *hello {
 	}
 
 	bin := filepath.Join(t.TempDir(), "hello")
-	pkg := "github.com/gopherex/backplane/pkg/backplane/build"
+	pkg := "github.com/backplane-labs/backplane/pkg/backplane/build"
 
 	build := exec.CommandContext(t.Context(), "go", "build", "-o", bin,
 		"-ldflags", "-X "+pkg+".Service=hello -X "+pkg+".Version=1.0.0", "../../examples/hello/cmd/hello")

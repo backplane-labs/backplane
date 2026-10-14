@@ -20,14 +20,14 @@ import (
 	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	inftemporal "github.com/gopherex/backplane/pkg/backplane/infra/temporal"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
-	"github.com/gopherex/backplane/pkg/backplane/internal/manifest"
-	"github.com/gopherex/backplane/pkg/backplane/internal/temporal"
-	"github.com/gopherex/backplane/pkg/backplane/internal/temporal/temporaltest"
-	"github.com/gopherex/backplane/pkg/backplane/internal/testlog"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	inftemporal "github.com/backplane-labs/backplane/pkg/backplane/infra/temporal"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/temporal"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/temporal/temporaltest"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
 )
 
 // step plays a binding step with a heartbeat timeout: a workflow with id

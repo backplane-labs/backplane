@@ -10,7 +10,7 @@ import (
 
 	sp "github.com/gopherex/schemapb/go/schemapb"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/configrt"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/configrt"
 )
 
 // Live is a configuration field that changes at runtime: set from the

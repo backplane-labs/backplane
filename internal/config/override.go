@@ -15,7 +15,7 @@ import (
 
 	sp "github.com/gopherex/schemapb/go/schemapb"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 )
 
 // Codes of violations found before the schema: the rest are schemapb's

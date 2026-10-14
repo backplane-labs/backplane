@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { Activity, CircleAlert, Clock3, Database, Radio, RefreshCw, Server, SlidersHorizontal } from 'lucide-react';
-import { Button, EmptyState, MetaItem, MetaList, PageHeader, Panel, Skeleton, StatRow, StatTile, StatusBadge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Timestamp } from '@gopherex/backplane-ui';
+import { Button, EmptyState, MetaItem, MetaList, PageHeader, Panel, Skeleton, StatRow, StatTile, StatusBadge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Timestamp } from '@backplane-labs/backplane-ui';
 import { usePlatformStatus } from './Platform';
 
 const freshnessWindow = 15_000;

@@ -1,16 +1,16 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { create } from '@bufbuild/protobuf';
-import { CatalogServiceClient, ListServicesRequestSchema, type ListServicesResponse } from '@gopherex/backplane-api';
+import { CatalogServiceClient, ListServicesRequestSchema, type ListServicesResponse } from '@backplane-labs/backplane-api';
 import { AdminServiceClient } from './gen/proto/hello/console/v1/admin_ws_pb';
 import { GetStatsRequestSchema } from './gen/proto/hello/console/v1/admin_pb';
-import { usePlatformQuery } from '@gopherex/backplane-platform-ui';
-import { useClient } from '@gopherex/backplane-react';
-import { definePlugin, usePluginContext, usePluginNavigate } from '@gopherex/backplane-plugin-sdk';
+import { usePlatformQuery } from '@backplane-labs/backplane-platform-ui';
+import { useClient } from '@backplane-labs/backplane-react';
+import { definePlugin, usePluginContext, usePluginNavigate } from '@backplane-labs/backplane-plugin-sdk';
 import {
   Badge, Button, EmptyState, Field, FieldDescription, FieldLabel, Input, PageHeader, Panel, Skeleton, Stack, StatRow, StatTile,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@gopherex/backplane-ui';
+} from '@backplane-labs/backplane-ui';
 import navigation from './navigation';
 import { lazy, Suspense } from 'react';
 const Workbench = lazy(() => import('./workbench'));

@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gopherex/backplane/internal/otlp"
-	"github.com/gopherex/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/internal/otlp"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
 )
 
 func settings(url string) otlp.Config {

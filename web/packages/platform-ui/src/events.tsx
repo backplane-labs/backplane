@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { create } from '@bufbuild/protobuf';
-import * as api from '@gopherex/backplane-api';
+import * as api from '@backplane-labs/backplane-api';
 import { structToNative } from '@gopherex/schemapb';
-import { useClient } from '@gopherex/backplane-react';
-import { SchemaForm } from '@gopherex/backplane-schema-forms';
-import { Badge, Button, Checkbox, ConfirmAction, Count, DetailDrawer, EmptyState, Input, KeyValueList, Panel, StatusBadge, StatusDot, Timestamp, type StatusTone } from '@gopherex/backplane-ui';
-import { CodeEditor, JSONViewer } from '@gopherex/backplane-editors';
+import { useClient } from '@backplane-labs/backplane-react';
+import { SchemaForm } from '@backplane-labs/backplane-schema-forms';
+import { Badge, Button, Checkbox, ConfirmAction, Count, DetailDrawer, EmptyState, Input, KeyValueList, Panel, StatusBadge, StatusDot, Timestamp, type StatusTone } from '@backplane-labs/backplane-ui';
+import { CodeEditor, JSONViewer } from '@backplane-labs/backplane-editors';
 import { Inbox, Radio, RefreshCw, RotateCcw, Send, Trash2, TriangleAlert } from 'lucide-react';
 import { usePlatformAction, usePlatformQuery } from './runtime.js';
 import { usePlatformText } from './locales.js';

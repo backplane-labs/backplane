@@ -175,7 +175,7 @@ export const platformEnglish = {
   auditField_outcome: 'Outcome', auditField_operation: 'Operation', auditField_severity: 'Severity', auditField_trace_id: 'Trace ID',
   auditOp_is: 'is', auditOp_is_not: 'is not', auditOp_contains: 'contains', auditOp_not_contains: 'does not contain', auditOp_prefix: 'starts with',
   auditOp_exists: 'exists', auditOp_not_exists: 'does not exist', auditOp_gt: '>', auditOp_gte: '≥', auditOp_lt: '<', auditOp_lte: '≤',
-  errorsTitle: 'Errors', errorsOverTime: 'Errors over time', invalidTimeRange: 'The time range does not parse or is empty.', occurrences: 'Occurrences', noErrors: 'No errors', errorsEmptyHelp: 'Errors captured by @gopherex/backplane-errors in frontends, by backplane.CaptureError and recovered panics in services, and any OpenTelemetry exception log appear here, for as long as the log store keeps logs.',
+  errorsTitle: 'Errors', errorsOverTime: 'Errors over time', invalidTimeRange: 'The time range does not parse or is empty.', occurrences: 'Occurrences', noErrors: 'No errors', errorsEmptyHelp: 'Errors captured by @backplane-labs/backplane-errors in frontends, by backplane.CaptureError and recovered panics in services, and any OpenTelemetry exception log appear here, for as long as the log store keeps logs.',
   errorsUnavailable: 'The log store did not answer', errorsUnavailableHelp: 'Errors are read from the installation\'s log store; check that it is configured and reachable.',
   errorGone: 'This error is no longer in the log store', errorGoneHelp: 'Errors are kept as long as the log store keeps logs.',
   originSdk: 'Browser SDK', originOtel: 'OpenTelemetry log', rawStack: 'Raw stack', noState: 'No state', noStateHelp: 'The application registered no state sources when this error was captured.',

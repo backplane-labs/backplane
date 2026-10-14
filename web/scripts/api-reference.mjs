@@ -20,7 +20,7 @@ const markdown = [
 ];
 const examples = [
   '// Generated callable wrappers; request values come from the caller/form.',
-  "import type * as API from '@gopherex/backplane-api';",
+  "import type * as API from '@backplane-labs/backplane-api';",
 ];
 let count = 0;
 for (const file of (await readdir(directory)).filter((name) => name.endsWith('.proto')).sort()) {

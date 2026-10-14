@@ -1,6 +1,6 @@
 # Observability presentation
 
-`@gopherex/backplane-observability-ui` contains generic `LogViewer`, `TraceList`,
+`@backplane-labs/backplane-observability-ui` contains generic `LogViewer`, `TraceList`,
 `TraceWaterfall`, `SpanDetails`, `AttributeTable`, `CorrelationLinks`, `StackTrace`,
 `SourceContext` and `ErrorDetails`. It has no query client, error grouping engine,
 issue workflow or service deployment knowledge. English resources are exported

@@ -6,14 +6,14 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"github.com/gopherex/backplane/pkg/backplane"
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	infranats "github.com/gopherex/backplane/pkg/backplane/infra/nats"
-	"github.com/gopherex/backplane/pkg/backplane/internal/broker"
-	"github.com/gopherex/backplane/pkg/backplane/internal/decl"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
-	"github.com/gopherex/backplane/pkg/backplane/internal/link"
+	"github.com/backplane-labs/backplane/pkg/backplane"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	infranats "github.com/backplane-labs/backplane/pkg/backplane/infra/nats"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/broker"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
 )
 
 // Driver installs the transport; configuration decides whether it is enabled.

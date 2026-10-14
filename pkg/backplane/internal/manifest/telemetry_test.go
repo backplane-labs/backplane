@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/internal/manifest"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
 )
 
 func TestTelemetryPresence(t *testing.T) {

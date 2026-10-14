@@ -50,4 +50,4 @@ Use `component.Log()`, `Tracer()` and `Meter()` so component identity remains at
 
 Resources should be released by their provider/lifecycle contract. The SDK uses the shared `xshutdown/lifecycle` machinery rather than a second service-specific lifecycle implementation. Verify that cancellation unblocks network calls, loops and dependency acquisition; a goroutine waiting forever can prevent clean shutdown.
 
-The [hello store and greeter](https://github.com/gopherex/backplane/tree/master/examples/hello/internal) demonstrate providers, lazy templates, optional cache recovery, probes and a background reporting loop.
+The [hello store and greeter](https://github.com/backplane-labs/backplane/tree/master/examples/hello/internal) demonstrate providers, lazy templates, optional cache recovery, probes and a background reporting loop.

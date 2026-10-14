@@ -26,14 +26,14 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	helloconsolev1 "github.com/gopherex/backplane/examples/hello/proto/hello/console/v1"
-	hellov1 "github.com/gopherex/backplane/examples/hello/proto/hello/v1"
-	"github.com/gopherex/backplane/pkg/backplane"
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/drivers/standard"
-	"github.com/gopherex/backplane/pkg/backplane/internal/guard"
-	"github.com/gopherex/backplane/pkg/backplane/internal/testlog"
+	helloconsolev1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1"
+	hellov1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/drivers/standard"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/guard"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
 )
 
 const (

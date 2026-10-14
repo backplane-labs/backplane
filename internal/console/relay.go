@@ -19,8 +19,8 @@ import (
 
 	"github.com/gopherex/ws-proto/wsrpc"
 
-	"github.com/gopherex/backplane/internal/registry"
-	"github.com/gopherex/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/internal/registry"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
 )
 
 // Metadata the relay sets on a forwarded call (§11.1, §17).

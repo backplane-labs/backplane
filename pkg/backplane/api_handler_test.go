@@ -6,9 +6,9 @@ import (
 	"testing"
 	"testing/fstest"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/internal/apifiles"
-	"github.com/gopherex/backplane/pkg/backplane/internal/routes"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/apifiles"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/routes"
 )
 
 func TestSchemaFileHandler(t *testing.T) {

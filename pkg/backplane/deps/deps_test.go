@@ -11,10 +11,10 @@ import (
 
 	"github.com/gopherex/xprobe/pkg/probe"
 
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/internal/link"
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
-	"github.com/gopherex/backplane/pkg/backplane/internal/testlog"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
 )
 
 const eventually = 2 * time.Second

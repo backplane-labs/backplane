@@ -14,10 +14,10 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/internal/configrt"
-	"github.com/gopherex/backplane/pkg/backplane/internal/consul"
-	"github.com/gopherex/backplane/pkg/backplane/internal/testlog"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/configrt"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/consul"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
 )
 
 var errTest = errors.New("validate: limit: must be positive")

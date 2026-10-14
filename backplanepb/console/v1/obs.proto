@@ -4,7 +4,7 @@ package backplane.console.v1;
 
 import "backplanepb/v1/manifest.proto";
 
-option go_package = "github.com/gopherex/backplane/backplanepb/console/v1;consolev1";
+option go_package = "github.com/backplane-labs/backplane/backplanepb/console/v1;consolev1";
 
 // Read-only access to deployment-owned telemetry storage. Cookie-authenticated
 // console WS and the installation-secret-protected internal API share this service.

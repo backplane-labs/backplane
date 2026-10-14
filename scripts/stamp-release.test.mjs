@@ -15,7 +15,7 @@ async function fixture(t) {
     await writeFile(path, typeof content === 'string' ? content : JSON.stringify(content, null, 2) + '\n');
   }
   await file('web/package.json', { private: true, workspaces: ['packages/*', 'apps/*', 'templates/*', 'tests/fixtures/embedding'] });
-  const api = '@gopherex/backplane-api', client = '@gopherex/backplane-client';
+  const api = '@backplane-labs/backplane-api', client = '@backplane-labs/backplane-client';
   await file('web/packages/api/package.json', { name: api, version: '0.1.1', publishConfig: { registry: 'https://npm.pkg.github.com' }, files: ['dist'] });
   await file('web/packages/client/package.json', { name: client, version: '0.1.1', dependencies: { [api]: '0.1.1', other: '3.0.0' }, peerDependencies: { [api]: '0.1.1' }, publishConfig: { registry: 'https://npm.pkg.github.com' }, files: ['dist'] });
   for (const path of ['apps/console', 'templates/module', 'tests/fixtures/embedding']) {
@@ -23,8 +23,8 @@ async function fixture(t) {
   }
   await file('website/package.json', { private: true, version: '0.1.1', dependencies: { docusaurus: '3.9.2' } });
   await file('web/yarn.lock', '# unchanged lockfile\n');
-  await file('docs/releases.md', 'Install @gopherex/backplane-api@0.1.1; historical 0.1.10\n');
-  await file('website/docs/sdk/go.md', 'go get github.com/gopherex/backplane@v0.1.1\n');
+  await file('docs/releases.md', 'Install @backplane-labs/backplane-api@0.1.1; historical 0.1.10\n');
+  await file('website/docs/sdk/go.md', 'go get github.com/backplane-labs/backplane@v0.1.1\n');
   return root;
 }
 const json = async (root, path) => JSON.parse(await readFile(resolve(root, path), 'utf8'));
@@ -34,14 +34,14 @@ test('tag version coordinates packages, consumers and documentation without chan
   assert.equal(await stampRelease(root, '0.2.0'), 2);
   const client = await json(root, 'web/packages/client/package.json');
   assert.equal(client.version, '0.2.0');
-  assert.equal(client.dependencies['@gopherex/backplane-api'], '0.2.0');
-  assert.equal(client.peerDependencies['@gopherex/backplane-api'], '0.2.0');
+  assert.equal(client.dependencies['@backplane-labs/backplane-api'], '0.2.0');
+  assert.equal(client.peerDependencies['@backplane-labs/backplane-api'], '0.2.0');
   assert.equal(client.dependencies.other, '3.0.0');
   for (const path of ['apps/console', 'templates/module', 'tests/fixtures/embedding']) {
     const manifest = await json(root, `web/${path}/package.json`);
-    assert.equal(manifest.dependencies['@gopherex/backplane-client'], '0.2.0');
-    assert.equal(manifest.devDependencies['@gopherex/backplane-api'], '0.2.0');
-    assert.equal(manifest.optionalDependencies['@gopherex/backplane-api'], '0.2.0');
+    assert.equal(manifest.dependencies['@backplane-labs/backplane-client'], '0.2.0');
+    assert.equal(manifest.devDependencies['@backplane-labs/backplane-api'], '0.2.0');
+    assert.equal(manifest.optionalDependencies['@backplane-labs/backplane-api'], '0.2.0');
   }
   assert.equal((await json(root, 'website/package.json')).version, '0.2.0');
   assert.match(await readFile(resolve(root, 'website/docs/sdk/go.md'), 'utf8'), /@v0\.2\.0/);

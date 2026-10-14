@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { create, toJson } from '@bufbuild/protobuf';
 import { ValueSchema } from '@bufbuild/protobuf/wkt';
-import * as api from '@gopherex/backplane-api';
-import { useClient } from '@gopherex/backplane-react';
-import { Badge, Button, Combobox, Input, SectionLabel, StatusBadge, Textarea } from '@gopherex/backplane-ui';
-import { InlineCodeEditor, JSONViewer } from '@gopherex/backplane-editors';
+import * as api from '@backplane-labs/backplane-api';
+import { useClient } from '@backplane-labs/backplane-react';
+import { Badge, Button, Combobox, Input, SectionLabel, StatusBadge, Textarea } from '@backplane-labs/backplane-ui';
+import { InlineCodeEditor, JSONViewer } from '@backplane-labs/backplane-editors';
 import { Repeat, Trash2 } from 'lucide-react';
 import { usePlatformAction } from '../runtime.js';
 import { usePlatformText } from '../locales.js';

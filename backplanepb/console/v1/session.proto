@@ -4,7 +4,7 @@ package backplane.console.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/gopherex/backplane/backplanepb/console/v1;consolev1";
+option go_package = "github.com/backplane-labs/backplane/backplanepb/console/v1;consolev1";
 
 // SessionService manages the console's sessions. The admin token itself is
 // configuration of the deployment (BACKPLANE_ADMIN_TOKEN), not an API.

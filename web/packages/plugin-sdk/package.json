@@ -1,11 +1,11 @@
 {
-  "name": "@gopherex/backplane-plugin-sdk",
+  "name": "@backplane-labs/backplane-plugin-sdk",
   "version": "0.1.1",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gopherex/backplane.git",
+    "url": "https://github.com/backplane-labs/backplane.git",
     "directory": "web/packages/plugin-sdk"
   },
   "publishConfig": {
@@ -38,6 +38,6 @@
   },
   "dependencies": {
     "@module-federation/runtime": "2.9.1",
-    "@gopherex/backplane-theme": "0.1.1"
+    "@backplane-labs/backplane-theme": "0.1.1"
   }
 }

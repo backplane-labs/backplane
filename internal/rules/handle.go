@@ -12,7 +12,7 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/bindings"
 )
 
 // Redelivery of an event whose run did not start: nakFirst after the first

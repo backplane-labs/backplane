@@ -1,5 +1,5 @@
 // Generated callable wrappers; request values come from the caller/form.
-import type * as API from '@gopherex/backplane-api';
+import type * as API from '@backplane-labs/backplane-api';
 export function AuditService_SearchAudit(client: API.AuditServiceClient, request: API.SearchAuditRequest, signal: AbortSignal) {
   return client.searchAudit(request, { signal });
 }

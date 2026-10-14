@@ -5,10 +5,10 @@ package link
 import (
 	"net/http"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/internal/configrt"
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
-	"github.com/gopherex/backplane/pkg/backplane/internal/routes"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/configrt"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/routes"
 )
 
 // NodeOf returns the node a deps.Scope wraps, or nil for a zero scope.

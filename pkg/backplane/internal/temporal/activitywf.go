@@ -3,7 +3,7 @@ package temporal
 import (
 	"go.temporal.io/sdk/workflow"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 )
 
 // WorkflowHandler is a workflow-backed activity over JSON payloads.

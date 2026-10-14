@@ -1,6 +1,6 @@
 # Backplane frontend
 
-The workspace provides thirteen `@gopherex/backplane-*` packages: `api`, `client`, `errors`,
+The workspace provides thirteen `@backplane-labs/backplane-*` packages: `api`, `client`, `errors`,
 `react`, `theme`, `ui`, `schema-forms`, `editors`, `charts`, `observability-ui`,
 `platform-ui`, `plugin-sdk` and `plugin-build`. It includes a Storybook catalog,
 a standalone author template and an embedded host acceptance fixture. Product
@@ -51,8 +51,8 @@ service client without colliding generated `CallOptions` declarations.
 
 ```ts
 import { create } from '@bufbuild/protobuf';
-import { BackplaneClient } from '@gopherex/backplane-client';
-import { CatalogServiceClient, ListServicesRequestSchema } from '@gopherex/backplane-api';
+import { BackplaneClient } from '@backplane-labs/backplane-client';
+import { CatalogServiceClient, ListServicesRequestSchema } from '@backplane-labs/backplane-api';
 
 const runtime = new BackplaneClient({ baseURL: `${location.origin}/backplane/` });
 await runtime.start(); // checks the existing HttpOnly cookie

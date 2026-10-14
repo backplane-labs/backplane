@@ -139,7 +139,7 @@ const file_proto_hello_console_v1_admin_proto_rawDesc = "" +
 	"\aaudited\x18\x03 \x01(\x04R\aaudited\x12#\n" +
 	"\rcache_present\x18\x04 \x01(\bR\fcachePresent2a\n" +
 	"\fAdminService\x12Q\n" +
-	"\bGetStats\x12!.hello.console.v1.GetStatsRequest\x1a\".hello.console.v1.GetStatsResponseBTZRgithub.com/gopherex/backplane/examples/hello/proto/hello/console/v1;helloconsolev1b\x06proto3"
+	"\bGetStats\x12!.hello.console.v1.GetStatsRequest\x1a\".hello.console.v1.GetStatsResponseBZZXgithub.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1;helloconsolev1b\x06proto3"
 
 var (
 	file_proto_hello_console_v1_admin_proto_rawDescOnce sync.Once

@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 )
 
 // BindingFromPB is the definition a message carries.

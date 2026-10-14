@@ -7,7 +7,7 @@
 package consolev1
 
 import (
-	v1 "github.com/gopherex/backplane/backplanepb/v1"
+	v1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -950,7 +950,7 @@ const file_backplanepb_console_v1_wiring_proto_rawDesc = "" +
 	"\x0eAnalyzeBinding\x12+.backplane.console.v1.AnalyzeBindingRequest\x1a,.backplane.console.v1.AnalyzeBindingResponse\x12b\n" +
 	"\vAnalyzeRule\x12(.backplane.console.v1.AnalyzeRuleRequest\x1a).backplane.console.v1.AnalyzeRuleResponse\x12_\n" +
 	"\n" +
-	"RenameStep\x12'.backplane.console.v1.RenameStepRequest\x1a(.backplane.console.v1.RenameStepResponseB@Z>github.com/gopherex/backplane/backplanepb/console/v1;consolev1b\x06proto3"
+	"RenameStep\x12'.backplane.console.v1.RenameStepRequest\x1a(.backplane.console.v1.RenameStepResponseBFZDgithub.com/backplane-labs/backplane/backplanepb/console/v1;consolev1b\x06proto3"
 
 var (
 	file_backplanepb_console_v1_wiring_proto_rawDescOnce sync.Once

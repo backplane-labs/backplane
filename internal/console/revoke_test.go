@@ -11,8 +11,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	"github.com/gopherex/backplane/internal/console"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	"github.com/backplane-labs/backplane/internal/console"
 )
 
 type failingSessions struct {

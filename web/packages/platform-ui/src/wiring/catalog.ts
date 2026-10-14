@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { create } from '@bufbuild/protobuf';
-import * as api from '@gopherex/backplane-api';
-import { useClient, useSnapshotWatch } from '@gopherex/backplane-react';
+import * as api from '@backplane-labs/backplane-api';
+import { useClient, useSnapshotWatch } from '@backplane-labs/backplane-react';
 import { usePlatformQuery } from '../runtime.js';
 import { dyn, shapeAt, shapeOf, type Shape } from './shape.js';
 

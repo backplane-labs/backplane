@@ -16,13 +16,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gopherex/backplane/internal/audit"
-	liveconfig "github.com/gopherex/backplane/internal/config"
-	"github.com/gopherex/backplane/internal/console"
-	"github.com/gopherex/backplane/internal/obs"
-	"github.com/gopherex/backplane/internal/otlp"
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/infra/postgres"
+	"github.com/backplane-labs/backplane/internal/audit"
+	liveconfig "github.com/backplane-labs/backplane/internal/config"
+	"github.com/backplane-labs/backplane/internal/console"
+	"github.com/backplane-labs/backplane/internal/obs"
+	"github.com/backplane-labs/backplane/internal/otlp"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/postgres"
 )
 
 // Name of the service.

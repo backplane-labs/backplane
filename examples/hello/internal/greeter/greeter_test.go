@@ -5,11 +5,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gopherex/backplane/examples/hello/internal/greeter"
-	"github.com/gopherex/backplane/examples/hello/internal/hellotest"
-	"github.com/gopherex/backplane/examples/hello/internal/store"
-	hellov1 "github.com/gopherex/backplane/examples/hello/proto/hello/v1"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/examples/hello/internal/greeter"
+	"github.com/backplane-labs/backplane/examples/hello/internal/hellotest"
+	"github.com/backplane-labs/backplane/examples/hello/internal/store"
+	hellov1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
 )
 
 func TestGreetPublishes(t *testing.T) {

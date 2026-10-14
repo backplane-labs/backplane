@@ -2,8 +2,8 @@ import { memo, useCallback, useEffect, useMemo, useState, type DragEvent } from 
 import { applyNodeChanges, Background, BackgroundVariant, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, useReactFlow, type Connection, type Edge, type Node, type NodeChange, type NodeProps } from '@xyflow/react';
 import { toJson } from '@bufbuild/protobuf';
 import { ValueSchema } from '@bufbuild/protobuf/wkt';
-import * as api from '@gopherex/backplane-api';
-import { Badge, EmptyState, StatusBadge, type StatusTone } from '@gopherex/backplane-ui';
+import * as api from '@backplane-labs/backplane-api';
+import { Badge, EmptyState, StatusBadge, type StatusTone } from '@backplane-labs/backplane-ui';
 import { CircleAlert, Clock, Filter, Flag, Play, Repeat, RotateCcw, Undo2 } from 'lucide-react';
 import { usePlatformText } from '../locales.js';
 import { enumLabel } from '../format.js';

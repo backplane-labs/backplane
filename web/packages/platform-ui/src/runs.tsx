@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { create } from '@bufbuild/protobuf';
-import * as api from '@gopherex/backplane-api';
-import { useClient } from '@gopherex/backplane-react';
-import { Badge, Button, ConfirmAction, DetailDrawer, Duration, EmptyState, Input, KeyValueList, Panel, Skeleton, StatusBadge, Timestamp, type StatusTone } from '@gopherex/backplane-ui';
-import { CodeEditor, JSONViewer } from '@gopherex/backplane-editors';
+import * as api from '@backplane-labs/backplane-api';
+import { useClient } from '@backplane-labs/backplane-react';
+import { Badge, Button, ConfirmAction, DetailDrawer, Duration, EmptyState, Input, KeyValueList, Panel, Skeleton, StatusBadge, Timestamp, type StatusTone } from '@backplane-labs/backplane-ui';
+import { CodeEditor, JSONViewer } from '@backplane-labs/backplane-editors';
 import { ArrowLeft, ChevronDown, ChevronRight, CircleX, OctagonX, RefreshCw, Send } from 'lucide-react';
 import { usePlatformAction, usePlatformQuery } from './runtime.js';
 import { usePlatformText } from './locales.js';

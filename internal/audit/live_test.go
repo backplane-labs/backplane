@@ -20,13 +20,13 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	"github.com/gopherex/backplane/internal/audit"
-	"github.com/gopherex/backplane/internal/store"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/infra/postgres"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	"github.com/backplane-labs/backplane/internal/audit"
+	"github.com/backplane-labs/backplane/internal/store"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/postgres"
 )
 
 func isolatedDatabase(t *testing.T) string {

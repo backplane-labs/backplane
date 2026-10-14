@@ -4,7 +4,7 @@ package backplane.v1;
 
 import "google/protobuf/duration.proto";
 
-option go_package = "github.com/gopherex/backplane/backplanepb/v1;backplanev1";
+option go_package = "github.com/backplane-labs/backplane/backplanepb/v1;backplanev1";
 
 // Envelopes carried through Temporal. The envelope is ours; `payload` is
 // the author's data as JSON, opaque to the platform.

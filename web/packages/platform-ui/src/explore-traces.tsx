@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { create } from '@bufbuild/protobuf';
-import { GetTraceRequestSchema, ObsServiceClient } from '@gopherex/backplane-api';
-import { useClient } from '@gopherex/backplane-react';
-import { Badge, Button, EmptyState, Input, KeyValueList, Panel, Skeleton, StatusBadge, Timestamp } from '@gopherex/backplane-ui';
-import { JSONViewer } from '@gopherex/backplane-editors';
-import { attributeText, humanDuration, spanForest, type CorrelationTarget, type SpanNode, type SpanRecord } from '@gopherex/backplane-observability-ui';
+import { GetTraceRequestSchema, ObsServiceClient } from '@backplane-labs/backplane-api';
+import { useClient } from '@backplane-labs/backplane-react';
+import { Badge, Button, EmptyState, Input, KeyValueList, Panel, Skeleton, StatusBadge, Timestamp } from '@backplane-labs/backplane-ui';
+import { JSONViewer } from '@backplane-labs/backplane-editors';
+import { attributeText, humanDuration, spanForest, type CorrelationTarget, type SpanNode, type SpanRecord } from '@backplane-labs/backplane-observability-ui';
 import { ChevronDown, ChevronRight, CircleAlert, FileText, Minimize2, Maximize2, Search, Waypoints } from 'lucide-react';
 import { traceSearchToList, tempoToSpans } from './telemetry-model.js';
 import { usePlatformQuery } from './runtime.js';

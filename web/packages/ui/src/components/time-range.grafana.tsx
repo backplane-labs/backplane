@@ -2,7 +2,7 @@ import { useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { dateTime, rangeUtil, type TimeRange } from '@grafana/data';
 import { ThemeContext, TimeRangePicker, WeekStartPicker } from '@grafana/ui';
-import { createGrafanaTheme } from '@gopherex/backplane-theme';
+import { createGrafanaTheme } from '@backplane-labs/backplane-theme';
 import type { TimeRangeControlProps } from './time-range.js';
 
 export default function GrafanaTimeRange({ value, onChange, mode, label, weekStartPicker }: TimeRangeControlProps) {

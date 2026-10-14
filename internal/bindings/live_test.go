@@ -15,15 +15,15 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/internal/bindings"
-	"github.com/gopherex/backplane/internal/registry"
-	"github.com/gopherex/backplane/internal/store"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
-	sdkconfig "github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/infra/postgres"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/registry"
+	"github.com/backplane-labs/backplane/internal/store"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
+	sdkconfig "github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/postgres"
 )
 
 // live is the Manager over PostgreSQL (BACKPLANE_TEST_PG, skipped

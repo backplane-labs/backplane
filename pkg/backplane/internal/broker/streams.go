@@ -8,7 +8,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"github.com/gopherex/backplane/internal/wire"
+	"github.com/backplane-labs/backplane/internal/wire"
 )
 
 // Platform defaults of the streams (DefaultStreams). The emitter owns its

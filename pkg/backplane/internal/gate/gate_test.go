@@ -17,7 +17,7 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/gate"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/gate"
 )
 
 const (

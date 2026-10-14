@@ -9,8 +9,8 @@ Registering an API never publishes it through a gateway.
 
 ```go
 import (
-    "github.com/gopherex/backplane/pkg/backplane/api"
-    "github.com/gopherex/backplane/pkg/backplane/wsproto"
+    "github.com/backplane-labs/backplane/pkg/backplane/api"
+    "github.com/backplane-labs/backplane/pkg/backplane/wsproto"
 )
 
 svc.GRPC(st.Greeter.Register, api.Reflection())

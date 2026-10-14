@@ -15,9 +15,9 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/examples/hello/internal/flows"
-	"github.com/gopherex/backplane/examples/hello/internal/greeter"
-	"github.com/gopherex/backplane/pkg/backplane/hook"
+	"github.com/backplane-labs/backplane/examples/hello/internal/flows"
+	"github.com/backplane-labs/backplane/examples/hello/internal/greeter"
+	"github.com/backplane-labs/backplane/pkg/backplane/hook"
 )
 
 // GreetTimeout bounds the hook call of the /hello/ handler.

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gopherex/backplane/internal/obs/logsql"
+	"github.com/backplane-labs/backplane/internal/obs/logsql"
 )
 
 // Values are quoted and patterns escaped: nothing a value holds changes the

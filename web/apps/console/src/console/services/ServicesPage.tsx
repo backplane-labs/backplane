@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SystemMap } from '@gopherex/backplane-platform-ui';
-import type { ThemeMode } from '@gopherex/backplane-theme';
+import { SystemMap } from '@backplane-labs/backplane-platform-ui';
+import type { ThemeMode } from '@backplane-labs/backplane-theme';
 import { useTranslation } from 'react-i18next';
 import { Activity, Boxes, Cable, LayoutGrid, Network, Rows3, Server, SearchX, Workflow, Zap } from 'lucide-react';
-import { EmptyState, Input, PageHeader, Skeleton, StatRow, StatTile, ViewToggle } from '@gopherex/backplane-ui';
-import { ServiceHealth, type ServiceSummary } from '@gopherex/backplane-api';
+import { EmptyState, Input, PageHeader, Skeleton, StatRow, StatTile, ViewToggle } from '@backplane-labs/backplane-ui';
+import { ServiceHealth, type ServiceSummary } from '@backplane-labs/backplane-api';
 import { ServiceCard } from './ServiceCard';
 import { ServiceTable } from './ServiceTable';
 import { useServicesOverview } from './useOverview';

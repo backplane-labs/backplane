@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { create } from '@bufbuild/protobuf';
-import { ConfigServiceClient, WatchConfigRequestSchema, ListRevisionsRequestSchema, SaveRevisionRequestSchema, ValidateOverrideRequestSchema, RollbackRequestSchema, type ServiceConfig, type Revision, type ConfigViolation, type InstanceConfig } from '@gopherex/backplane-api';
-import { ConfigSource, InstancePhase } from '@gopherex/backplane-api/backplanepb/v1/instance_pb';
-import { useClient, useSnapshotWatch } from '@gopherex/backplane-react';
+import { ConfigServiceClient, WatchConfigRequestSchema, ListRevisionsRequestSchema, SaveRevisionRequestSchema, ValidateOverrideRequestSchema, RollbackRequestSchema, type ServiceConfig, type Revision, type ConfigViolation, type InstanceConfig } from '@backplane-labs/backplane-api';
+import { ConfigSource, InstancePhase } from '@backplane-labs/backplane-api/backplanepb/v1/instance_pb';
+import { useClient, useSnapshotWatch } from '@backplane-labs/backplane-react';
 import { toNative, type Schema, type Schema_Field } from '@gopherex/schemapb';
-import { fieldSchema } from '@gopherex/backplane-schema-forms';
-import { Badge, Button, ConfirmAction, Count, DetailDrawer, EmptyState, Input, KeyValueList, SelectControl, Panel, Skeleton, StatusBadge, StatusDot, Switch, Timestamp } from '@gopherex/backplane-ui';
-import { CodeEditor, DiffViewer } from '@gopherex/backplane-editors';
+import { fieldSchema } from '@backplane-labs/backplane-schema-forms';
+import { Badge, Button, ConfirmAction, Count, DetailDrawer, EmptyState, Input, KeyValueList, SelectControl, Panel, Skeleton, StatusBadge, StatusDot, Switch, Timestamp } from '@backplane-labs/backplane-ui';
+import { CodeEditor, DiffViewer } from '@backplane-labs/backplane-editors';
 import { CircleAlert, CircleCheck, History, Lock, RotateCcw, SlidersHorizontal, Undo2 } from 'lucide-react';
 import { usePlatformAction, usePlatformQuery } from './runtime.js';
 import { usePlatformText } from './locales.js';
 import { date, enumLabel } from './format.js';
-import { formatDuration } from '@gopherex/backplane-ui';
+import { formatDuration } from '@backplane-labs/backplane-ui';
 
 export function ConfigurationPanel({ service, mode }: { service: string; mode: 'dark' | 'light' }) {
   const client = useClient(ConfigServiceClient), text = usePlatformText();

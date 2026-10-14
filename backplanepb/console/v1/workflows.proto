@@ -7,7 +7,7 @@ import "google/protobuf/timestamp.proto";
 import "schemapb/schema.proto";
 import "backplanepb/v1/manifest.proto";
 
-option go_package = "github.com/gopherex/backplane/backplanepb/console/v1;consolev1";
+option go_package = "github.com/backplane-labs/backplane/backplanepb/console/v1;consolev1";
 
 // WorkflowService is the console's view of the services' Temporal
 // workflows (§9): what they declare, starting one with a form, the runs

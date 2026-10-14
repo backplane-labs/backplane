@@ -20,14 +20,14 @@ import (
 	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	"google.golang.org/protobuf/proto"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/internal/console"
-	"github.com/gopherex/backplane/internal/otlp"
-	platformapi "github.com/gopherex/backplane/internal/platform"
-	"github.com/gopherex/backplane/internal/registry"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
-	"github.com/gopherex/backplane/pkg/backplane/config"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/console"
+	"github.com/backplane-labs/backplane/internal/otlp"
+	platformapi "github.com/backplane-labs/backplane/internal/platform"
+	"github.com/backplane-labs/backplane/internal/registry"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
 )
 
 // Real HTTP cookie, ws-proto and bundle-proxy acceptance. Only the registry and

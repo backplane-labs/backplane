@@ -16,7 +16,7 @@ import (
 
 	sp "github.com/gopherex/schemapb/go/schemapb"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 )
 
 // Platform defaults of a step, below the binding's own options and the

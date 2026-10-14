@@ -8,9 +8,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/proto"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/internal/registry"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/registry"
 )
 
 // SourceSelection is a deployment-only override. Presence of an empty entry

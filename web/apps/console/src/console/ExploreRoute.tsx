@@ -1,7 +1,7 @@
 import { FeatureGate } from './Platform';
 import { useSearchParams } from 'react-router-dom';
-import { ExplorePanel, type ExploreRange, type ExploreSignal, type ExploreState } from '@gopherex/backplane-platform-ui';
-import type { ThemeMode } from '@gopherex/backplane-theme';
+import { ExplorePanel, type ExploreRange, type ExploreSignal, type ExploreState } from '@backplane-labs/backplane-platform-ui';
+import type { ThemeMode } from '@backplane-labs/backplane-theme';
 
 const signals: ExploreSignal[] = ['logs', 'metrics', 'traces'];
 const ranges: ExploreRange[] = ['5m', '15m', '1h', '3h', '6h', '12h', '24h', '7d'];

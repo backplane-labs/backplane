@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MapPinOff } from 'lucide-react';
-import { Button, EmptyState } from '@gopherex/backplane-ui';
+import { Button, EmptyState } from '@backplane-labs/backplane-ui';
 
 export function NotFound() {
   const { t } = useTranslation('console');

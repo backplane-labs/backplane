@@ -14,13 +14,13 @@ import (
 
 	"github.com/gopherex/xprobe/pkg/probe"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/api"
-	"github.com/gopherex/backplane/pkg/backplane/internal/apifiles"
-	"github.com/gopherex/backplane/pkg/backplane/internal/health"
-	"github.com/gopherex/backplane/pkg/backplane/internal/link"
-	"github.com/gopherex/backplane/pkg/backplane/internal/manifest"
-	"github.com/gopherex/backplane/pkg/backplane/internal/routes"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/api"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/apifiles"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/health"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/routes"
 )
 
 //nolint:gochecknoinits // installs the private accessor for the wsproto package

@@ -26,9 +26,9 @@ import (
 	"github.com/hashicorp/consul/api"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/gopherex/backplane/internal/registry"
-	"github.com/gopherex/backplane/internal/store"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/internal/registry"
+	"github.com/backplane-labs/backplane/internal/store"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 )
 
 // Settings of the configuration component: BACKPLANE_LIVE_CONFIG_*.

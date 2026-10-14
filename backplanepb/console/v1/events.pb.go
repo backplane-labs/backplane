@@ -2187,7 +2187,7 @@ const file_backplanepb_console_v1_events_proto_rawDesc = "" +
 	"\x10PublishTestEvent\x12-.backplane.console.v1.PublishTestEventRequest\x1a..backplane.console.v1.PublishTestEventResponse\x12n\n" +
 	"\x0fListDeadLetters\x12,.backplane.console.v1.ListDeadLettersRequest\x1a-.backplane.console.v1.ListDeadLettersResponse\x12w\n" +
 	"\x12RedriveDeadLetters\x12/.backplane.console.v1.RedriveDeadLettersRequest\x1a0.backplane.console.v1.RedriveDeadLettersResponse\x12q\n" +
-	"\x10PurgeDeadLetters\x12-.backplane.console.v1.PurgeDeadLettersRequest\x1a..backplane.console.v1.PurgeDeadLettersResponseB@Z>github.com/gopherex/backplane/backplanepb/console/v1;consolev1b\x06proto3"
+	"\x10PurgeDeadLetters\x12-.backplane.console.v1.PurgeDeadLettersRequest\x1a..backplane.console.v1.PurgeDeadLettersResponseBFZDgithub.com/backplane-labs/backplane/backplanepb/console/v1;consolev1b\x06proto3"
 
 var (
 	file_backplanepb_console_v1_events_proto_rawDescOnce sync.Once

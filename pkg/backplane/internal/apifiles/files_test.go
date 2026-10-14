@@ -7,7 +7,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/apifiles"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/apifiles"
 )
 
 func TestSnapshotImmutable(t *testing.T) {

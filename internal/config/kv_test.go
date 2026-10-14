@@ -7,7 +7,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 
-	"github.com/gopherex/backplane/internal/config"
+	"github.com/backplane-labs/backplane/internal/config"
 )
 
 func kvPairs(kv map[string]string, index uint64) api.KVPairs {

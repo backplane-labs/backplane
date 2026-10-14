@@ -9,7 +9,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/gopherex/backplane/backplanepb/console/v1;consolev1";
+option go_package = "github.com/backplane-labs/backplane/backplanepb/console/v1;consolev1";
 
 // BindingService is the console's view of bindings (§7.1): the
 // implementation of a hook ("<service>.<Hook>") assembled from activities

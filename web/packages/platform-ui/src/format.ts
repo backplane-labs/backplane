@@ -1,5 +1,5 @@
 import { timestampDate, type Duration, type Timestamp } from '@bufbuild/protobuf/wkt';
-import { formatDuration, type StatusTone } from '@gopherex/backplane-ui';
+import { formatDuration, type StatusTone } from '@backplane-labs/backplane-ui';
 
 /** "WS_PROTO" → "ws-proto"; numeric enums keep their reverse mapping. */
 export function enumLabel(values: Record<number, string>, value: number): string {

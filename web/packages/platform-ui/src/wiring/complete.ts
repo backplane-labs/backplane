@@ -1,5 +1,5 @@
-import type { EditorCompletion, EditorCompletionResult } from '@gopherex/backplane-editors';
-import type * as api from '@gopherex/backplane-api';
+import type { EditorCompletion, EditorCompletionResult } from '@backplane-labs/backplane-editors';
+import type * as api from '@backplane-labs/backplane-api';
 import { framesOf, scopeAt, type Scope, type StepLike, type WiringIndex } from './catalog.js';
 import type { Definition, WiringKind } from './document.js';
 import { shapeAt, shapeLabel, shapeOf, type Shape } from './shape.js';

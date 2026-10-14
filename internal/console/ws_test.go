@@ -22,11 +22,11 @@ import (
 
 	"github.com/gopherex/ws-proto/wsrpc"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	helloconsolev1 "github.com/gopherex/backplane/examples/hello/proto/hello/console/v1"
-	"github.com/gopherex/backplane/internal/console"
-	"github.com/gopherex/backplane/internal/registry"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	helloconsolev1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1"
+	"github.com/backplane-labs/backplane/internal/console"
+	"github.com/backplane-labs/backplane/internal/registry"
 )
 
 const waitFor = 5 * time.Second

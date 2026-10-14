@@ -6,11 +6,12 @@ This walkthrough starts Backplane, hello and formatter with containerized infras
 
 - Docker with Compose and permission to use the Docker daemon.
 - Go 1.26, Node 24 and Yarn 1.22.22.
-- Git and GitHub Packages read credentials for the `@gopherex` packages.
+- Git and GitHub Packages read credentials for the `@backplane-labs` and `@gopherex` packages.
 
 Configure the registry in your user package-manager configuration. Keep the token in the environment or your credential manager; never commit it:
 
 ```ini
+@backplane-labs:registry=https://npm.pkg.github.com
 @gopherex:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
 ```
@@ -18,7 +19,7 @@ Configure the registry in your user package-manager configuration. Keep the toke
 The token needs package read access. GitHub Packages requires authentication even for public npm packages. The published container is public and does not require these credentials at runtime.
 
 ```bash
-git clone https://github.com/gopherex/backplane.git
+git clone https://github.com/backplane-labs/backplane.git
 cd backplane
 git checkout v0.1.1
 make configure

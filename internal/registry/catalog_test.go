@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/internal/registry"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/registry"
 )
 
 func TestLatest(t *testing.T) {

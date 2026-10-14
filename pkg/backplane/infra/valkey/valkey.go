@@ -23,8 +23,8 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 )
 
 // Client is valkey-go's client: commands are built with B() and sent with

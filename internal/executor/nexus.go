@@ -19,10 +19,10 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/internal/bindings"
-	"github.com/gopherex/backplane/internal/registry"
-	"github.com/gopherex/backplane/internal/wire"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/registry"
+	"github.com/backplane-labs/backplane/internal/wire"
 )
 
 // hookSet is what the Nexus worker serves: service -> its hooks, sorted.

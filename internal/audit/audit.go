@@ -14,10 +14,10 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	"github.com/gopherex/backplane/internal/store"
-	"github.com/gopherex/backplane/internal/store/db"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	"github.com/backplane-labs/backplane/internal/store"
+	"github.com/backplane-labs/backplane/internal/store/db"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 )
 
 const (

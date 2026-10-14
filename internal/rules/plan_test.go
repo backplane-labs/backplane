@@ -8,9 +8,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 
-	"github.com/gopherex/backplane/internal/bindings"
-	"github.com/gopherex/backplane/internal/rules"
-	"github.com/gopherex/backplane/internal/wire"
+	"github.com/backplane-labs/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/rules"
+	"github.com/backplane-labs/backplane/internal/wire"
 )
 
 func idOf(n byte) uuid.UUID {

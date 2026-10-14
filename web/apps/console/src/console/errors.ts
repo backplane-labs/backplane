@@ -1,5 +1,5 @@
-import { createOtlpClient } from '@gopherex/backplane-errors/otlp';
-import { createReactErrorHandler, instrumentBrowser } from '@gopherex/backplane-errors/browser';
+import { createOtlpClient } from '@backplane-labs/backplane-errors/otlp';
+import { createReactErrorHandler, instrumentBrowser } from '@backplane-labs/backplane-errors/browser';
 
 /**
  * The console reports its own errors like any frontend: through the

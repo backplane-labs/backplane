@@ -13,8 +13,8 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/broker"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/broker"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 )
 
 // deadCount is the number of dead letters of sub's consumer.

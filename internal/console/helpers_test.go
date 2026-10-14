@@ -19,9 +19,9 @@ import (
 
 	"github.com/gopherex/ws-proto/wsrpc"
 
-	"github.com/gopherex/backplane/internal/console"
-	"github.com/gopherex/backplane/internal/registry"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/internal/console"
+	"github.com/backplane-labs/backplane/internal/registry"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
 )
 
 // adminToken is the configured admin token of the tests.

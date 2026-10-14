@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button, DataTable, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, type DataColumn } from '@gopherex/backplane-ui';
+import { Button, DataTable, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, type DataColumn } from '@backplane-labs/backplane-ui';
 import { AttributeTable, CorrelationLinks } from './attributes.js';
 import { duration, nanoDate, nanos, spanForest, spanPosition, type SpanNode } from './model.js';
 import { useObsText } from './locales.js';

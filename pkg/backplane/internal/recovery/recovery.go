@@ -17,8 +17,8 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/exception"
-	"github.com/gopherex/backplane/pkg/backplane/internal/metrics"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/exception"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/metrics"
 )
 
 // Where a panic was recovered: the value of the metric's where attribute.

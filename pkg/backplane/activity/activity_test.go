@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gopherex/backplane/pkg/backplane/activity"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/activity"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 )
 
 type (

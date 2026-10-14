@@ -6,7 +6,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 
-	"github.com/gopherex/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
 )
 
 // ConsulAPIConfig is the client configuration the block maps to.

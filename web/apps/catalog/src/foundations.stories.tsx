@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { CircleCheck } from 'lucide-react';
-import { tokens } from '@gopherex/backplane-theme';
-import { Button, ErrorBoundary, FeatureBadge, FilterPill, Icon, Segment, Stack, UserAvatar, UsersIndicator, useClickOutside, useDelayedSwitch } from '@gopherex/backplane-ui';
+import { tokens } from '@backplane-labs/backplane-theme';
+import { Button, ErrorBoundary, FeatureBadge, FilterPill, Icon, Segment, Stack, UserAvatar, UsersIndicator, useClickOutside, useDelayedSwitch } from '@backplane-labs/backplane-ui';
 function Failure({ fail }: { fail: boolean }) { if (fail) throw new Error('Expected catalog boundary failure'); return <p>Recovered content</p>; }
 function Utilities() {
   const [filter, setFilter] = useState(true), [selection, setSelection] = useState<string[]>([]), [fail, setFail] = useState(false), [outside, setOutside] = useState(0);

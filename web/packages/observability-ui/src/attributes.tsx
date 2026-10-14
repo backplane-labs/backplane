@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { Button, DataTable, type DataColumn } from '@gopherex/backplane-ui';
-import { displayJSON } from '@gopherex/backplane-editors';
+import { Button, DataTable, type DataColumn } from '@backplane-labs/backplane-ui';
+import { displayJSON } from '@backplane-labs/backplane-editors';
 import { useObsText } from './locales.js';
 import type { Attributes, CorrelationTarget } from './types.js';
 export function attributeText(value: unknown) { return typeof value === 'string' ? value : typeof value === 'bigint' ? String(value) : displayJSON(value); }

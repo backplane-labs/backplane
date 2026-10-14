@@ -17,8 +17,8 @@ import (
 
 	"github.com/gopherex/ws-proto/wsrpc"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	"github.com/gopherex/backplane/examples/demo"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	"github.com/backplane-labs/backplane/examples/demo"
 )
 
 const replicaVersion = "0.0.0-replicas"

@@ -5,9 +5,9 @@ import (
 
 	historypb "go.temporal.io/api/history/v1"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/internal/registry"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/registry"
 )
 
 // ErrDefault is errDefault: an optional hook answers {}.

@@ -1678,7 +1678,7 @@ const file_backplanepb_v1_manifest_proto_rawDesc = "" +
 	"\x1bSCHEDULE_OVERLAP_BUFFER_ALL\x10\x03\x12!\n" +
 	"\x1dSCHEDULE_OVERLAP_CANCEL_OTHER\x10\x04\x12$\n" +
 	" SCHEDULE_OVERLAP_TERMINATE_OTHER\x10\x05\x12\x1e\n" +
-	"\x1aSCHEDULE_OVERLAP_ALLOW_ALL\x10\x06B:Z8github.com/gopherex/backplane/backplanepb/v1;backplanev1b\x06proto3"
+	"\x1aSCHEDULE_OVERLAP_ALLOW_ALL\x10\x06B@Z>github.com/backplane-labs/backplane/backplanepb/v1;backplanev1b\x06proto3"
 
 var (
 	file_backplanepb_v1_manifest_proto_rawDescOnce sync.Once

@@ -24,8 +24,8 @@ import (
 	"github.com/gopherex/xlog"
 	"github.com/gopherex/xtrace"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/link"
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 )
 
 //nolint:gochecknoinits // installs the private accessor for SDK packages

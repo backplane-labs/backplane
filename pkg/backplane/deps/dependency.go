@@ -10,9 +10,9 @@ import (
 	"github.com/gopherex/xlog"
 	"github.com/gopherex/xprobe/pkg/probe"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/backoff"
-	"github.com/gopherex/backplane/pkg/backplane/internal/metrics"
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/backoff"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/metrics"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 )
 
 // Errors.

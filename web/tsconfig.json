@@ -16,19 +16,19 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@gopherex/backplane-theme": [
+      "@backplane-labs/backplane-theme": [
         "packages/theme/src/index.ts"
       ],
-      "@gopherex/backplane-errors": [
+      "@backplane-labs/backplane-errors": [
         "packages/errors/src/index.ts"
       ],
-      "@gopherex/backplane-errors/*": [
+      "@backplane-labs/backplane-errors/*": [
         "packages/errors/src/*.ts"
       ],
-      "@gopherex/backplane-ui": [
+      "@backplane-labs/backplane-ui": [
         "packages/ui/src/index.ts"
       ],
-      "@gopherex/backplane-ui/*": [
+      "@backplane-labs/backplane-ui/*": [
         "packages/ui/src/*"
       ]
     }

@@ -153,16 +153,16 @@ linters:
         - generic
         # Option interfaces are how options are checked at compile time: each
         # constructor returns exactly the set of interfaces it applies to.
-        - github.com/gopherex/backplane/pkg/backplane/.*Option$
+        - github.com/backplane-labs/backplane/pkg/backplane/.*Option$
         - google.golang.org/grpc/health/grpc_health_v1.HealthServer
         - github.com/gopherex/xconf.Source
-        - github.com/gopherex/backplane/pkg/backplane/internal/configrt.State
+        - github.com/backplane-labs/backplane/pkg/backplane/internal/configrt.State
         - github.com/nats-io/nats.go/jetstream.ConsumeContext
         - google.golang.org/protobuf/proto.Message
         # The installed transport and the tree's readiness are interfaces by
         # nature: whatever carries events, whatever composite of probes.
-        - github.com/gopherex/backplane/pkg/backplane/internal/env.Broker
-        - github.com/gopherex/backplane/pkg/backplane/internal/env.Caller
+        - github.com/backplane-labs/backplane/pkg/backplane/internal/env.Broker
+        - github.com/backplane-labs/backplane/pkg/backplane/internal/env.Caller
         # Temporal's client and logger are interfaces by the SDK's design.
         - go.temporal.io/sdk/client.Client
         - go.temporal.io/sdk/log.Logger
@@ -175,11 +175,11 @@ linters:
         - github.com/google/cel-go/cel.Program
         # The console's runs service, a Nexus operation, a workflow future
         # and the registry catalog are interfaces by their SDKs' design.
-        - github.com/gopherex/backplane/backplanepb/console/v1.WorkflowServiceServer
+        - github.com/backplane-labs/backplane/backplanepb/console/v1.WorkflowServiceServer
         - github.com/nexus-rpc/sdk-go/nexus.RegisterableOperation
         - go.temporal.io/sdk/workflow.Future
         - go.temporal.io/sdk/workflow.Context
-        - github.com/gopherex/backplane/internal/bindings.Catalog
+        - github.com/backplane-labs/backplane/internal/bindings.Catalog
         # JetStream's client and consumers are interfaces by nats.go's design.
         - github.com/nats-io/nats.go/jetstream.JetStream
         - github.com/nats-io/nats.go/jetstream.Consumer
@@ -348,7 +348,7 @@ formatters:
     - goimports
   settings:
     gofumpt:
-      module-path: github.com/gopherex/backplane
+      module-path: github.com/backplane-labs/backplane
     gci:
       sections:
         - standard

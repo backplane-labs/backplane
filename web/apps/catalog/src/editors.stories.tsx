@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { CodeEditor, DiffViewer, EditorActions, InlineCodeEditor, JSONViewer, QueryEditor, type CodeEditorProps, type QueryLanguage } from '@gopherex/backplane-editors';
-import { Stack } from '@gopherex/backplane-ui';
+import { CodeEditor, DiffViewer, EditorActions, InlineCodeEditor, JSONViewer, QueryEditor, type CodeEditorProps, type QueryLanguage } from '@backplane-labs/backplane-editors';
+import { Stack } from '@backplane-labs/backplane-ui';
 
 function Queries({ mode }: { mode: 'dark' | 'light' }) {
   const [value, setValue] = useState('service.name'), [language, setLanguage] = useState<QueryLanguage>('logsql'), [runs, setRuns] = useState(0), [aborts, setAborts] = useState(0);

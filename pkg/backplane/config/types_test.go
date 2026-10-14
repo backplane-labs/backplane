@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/internal/link"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
 )
 
 func TestSecretMasksEveryVerb(t *testing.T) {

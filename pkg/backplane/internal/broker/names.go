@@ -3,7 +3,7 @@ package broker
 import (
 	"errors"
 
-	"github.com/gopherex/backplane/internal/wire"
+	"github.com/backplane-labs/backplane/internal/wire"
 )
 
 // Names of the NATS objects (design §8, §17) come from the wire contract

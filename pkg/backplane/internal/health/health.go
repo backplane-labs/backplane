@@ -24,7 +24,7 @@ import (
 	grpcprobe "github.com/gopherex/xprobe/pkg/transport/grpc"
 	httpprobe "github.com/gopherex/xprobe/pkg/transport/http"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 )
 
 // Kind of probe.

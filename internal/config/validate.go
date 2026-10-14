@@ -12,8 +12,8 @@ import (
 	sp "github.com/gopherex/schemapb/go/schemapb"
 	"github.com/gopherex/xconf/contrib/sources/env"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/internal/registry"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/registry"
 )
 
 // engines compiles schemas once: manifests in registry snapshots are

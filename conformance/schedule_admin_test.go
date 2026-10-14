@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 )
 
 // Administrative calls travel through the generated platform contract and the

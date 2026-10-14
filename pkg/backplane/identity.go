@@ -10,7 +10,7 @@ import (
 	"github.com/gopherex/xlog"
 	xlogtrace "github.com/gopherex/xtrace/contrib/libs/xlog"
 
-	"github.com/gopherex/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
 )
 
 const loopback = "127.0.0.1"

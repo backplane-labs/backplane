@@ -1349,7 +1349,7 @@ const file_backplanepb_console_v1_audit_proto_rawDesc = "" +
 	"\vSearchAudit\x12(.backplane.console.v1.SearchAuditRequest\x1a).backplane.console.v1.SearchAuditResponse\x12k\n" +
 	"\x0eAuditHistogram\x12+.backplane.console.v1.AuditHistogramRequest\x1a,.backplane.console.v1.AuditHistogramResponse\x12b\n" +
 	"\vAuditFields\x12(.backplane.console.v1.AuditFieldsRequest\x1a).backplane.console.v1.AuditFieldsResponse\x12b\n" +
-	"\vAuditFacets\x12(.backplane.console.v1.AuditFacetsRequest\x1a).backplane.console.v1.AuditFacetsResponseB@Z>github.com/gopherex/backplane/backplanepb/console/v1;consolev1b\x06proto3"
+	"\vAuditFacets\x12(.backplane.console.v1.AuditFacetsRequest\x1a).backplane.console.v1.AuditFacetsResponseBFZDgithub.com/backplane-labs/backplane/backplanepb/console/v1;consolev1b\x06proto3"
 
 var (
 	file_backplanepb_console_v1_audit_proto_rawDescOnce sync.Once

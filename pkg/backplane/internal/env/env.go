@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/backoff"
-	"github.com/gopherex/backplane/pkg/backplane/internal/manifest"
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/backoff"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 )
 
 // ErrUnavailable: no transport carries this call (yet).

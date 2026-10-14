@@ -2,8 +2,8 @@ import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { create } from '@bufbuild/protobuf';
 import { SchemaSchema, type Baked } from '@gopherex/schemapb';
-import { SchemaForm, SchemaValuesPreview } from '@gopherex/backplane-schema-forms';
-import { Checkbox, Label } from '@gopherex/backplane-ui';
+import { SchemaForm, SchemaValuesPreview } from '@backplane-labs/backplane-schema-forms';
+import { Checkbox, Label } from '@backplane-labs/backplane-ui';
 
 const schema = create(SchemaSchema, {
   id: { namespace: 'catalog', name: 'service', version: '1' },

@@ -476,7 +476,7 @@ const file_backplanepb_v1_instance_proto_rawDesc = "" +
 	"\x15CONFIG_SOURCE_DEFAULT\x10\x01\x12\x16\n" +
 	"\x12CONFIG_SOURCE_FILE\x10\x02\x12\x15\n" +
 	"\x11CONFIG_SOURCE_ENV\x10\x03\x12\x14\n" +
-	"\x10CONFIG_SOURCE_KV\x10\x04B:Z8github.com/gopherex/backplane/backplanepb/v1;backplanev1b\x06proto3"
+	"\x10CONFIG_SOURCE_KV\x10\x04B@Z>github.com/backplane-labs/backplane/backplanepb/v1;backplanev1b\x06proto3"
 
 var (
 	file_backplanepb_v1_instance_proto_rawDescOnce sync.Once

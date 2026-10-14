@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gopherex/backplane/examples/hello/internal/flows"
-	"github.com/gopherex/backplane/examples/hello/internal/hellotest"
-	"github.com/gopherex/backplane/examples/hello/internal/web"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/examples/hello/internal/flows"
+	"github.com/backplane-labs/backplane/examples/hello/internal/hellotest"
+	"github.com/backplane-labs/backplane/examples/hello/internal/web"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
 )
 
 func get(t *testing.T, h http.Handler, target string, header ...string) string {

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { BackplaneProvider } from '@gopherex/backplane-react';
-import { AuditExplorer, ErrorsExplorer, AutomationPanel, ConfigurationPanel, DeadLettersPanel, EventStreams, ExplorePanel, SchedulesPanel, ServiceCatalog, ServiceInspector, ServiceOperations, SystemMap, WiringWorkspace, WorkflowRuns, WorkflowsPanel, type WiringState, type AuditState, type ErrorsState, defaultAuditState, defaultErrorsState } from '@gopherex/backplane-platform-ui';
-import { ServiceHealth } from '@gopherex/backplane-api';
+import { BackplaneProvider } from '@backplane-labs/backplane-react';
+import { AuditExplorer, ErrorsExplorer, AutomationPanel, ConfigurationPanel, DeadLettersPanel, EventStreams, ExplorePanel, SchedulesPanel, ServiceCatalog, ServiceInspector, ServiceOperations, SystemMap, WiringWorkspace, WorkflowRuns, WorkflowsPanel, type WiringState, type AuditState, type ErrorsState, defaultAuditState, defaultErrorsState } from '@backplane-labs/backplane-platform-ui';
+import { ServiceHealth } from '@backplane-labs/backplane-api';
 import '@xyflow/react/dist/base.css';
-import { Button, Checkbox, Stack } from '@gopherex/backplane-ui';
+import { Button, Checkbox, Stack } from '@backplane-labs/backplane-ui';
 import { PlatformFixture } from './platform-fixture';
-import { ServiceAPIDocument } from '@gopherex/backplane-platform-ui';
+import { ServiceAPIDocument } from '@backplane-labs/backplane-platform-ui';
 import { externalAPIManifest, readAPIFixtureFile } from './api-fixture';
 
 function Fixture({ children }: { children: ReactNode }) {

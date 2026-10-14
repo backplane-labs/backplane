@@ -6,7 +6,7 @@ import (
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/backoff"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/backoff"
 )
 
 // UseFastRetry shortens the delay between connection and worker start

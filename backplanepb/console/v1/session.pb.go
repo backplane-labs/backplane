@@ -389,7 +389,7 @@ const file_backplanepb_console_v1_session_proto_rawDesc = "" +
 	"\x0eSessionService\x12e\n" +
 	"\fListSessions\x12).backplane.console.v1.ListSessionsRequest\x1a*.backplane.console.v1.ListSessionsResponse\x12h\n" +
 	"\rRevokeSession\x12*.backplane.console.v1.RevokeSessionRequest\x1a+.backplane.console.v1.RevokeSessionResponse\x12z\n" +
-	"\x13RevokeOtherSessions\x120.backplane.console.v1.RevokeOtherSessionsRequest\x1a1.backplane.console.v1.RevokeOtherSessionsResponseB@Z>github.com/gopherex/backplane/backplanepb/console/v1;consolev1b\x06proto3"
+	"\x13RevokeOtherSessions\x120.backplane.console.v1.RevokeOtherSessionsRequest\x1a1.backplane.console.v1.RevokeOtherSessionsResponseBFZDgithub.com/backplane-labs/backplane/backplanepb/console/v1;consolev1b\x06proto3"
 
 var (
 	file_backplanepb_console_v1_session_proto_rawDescOnce sync.Once

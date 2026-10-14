@@ -10,7 +10,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/routes"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/routes"
 )
 
 func TestServiceOf(t *testing.T) {

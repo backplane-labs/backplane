@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { create } from '@bufbuild/protobuf';
 import { DurationSchema } from '@bufbuild/protobuf/wkt';
-import * as api from '@gopherex/backplane-api';
-import { useClient } from '@gopherex/backplane-react';
+import * as api from '@backplane-labs/backplane-api';
+import { useClient } from '@backplane-labs/backplane-react';
 import { parse, parseNumberAndBigInt } from 'lossless-json';
 import { structToNative, type NativeStruct } from '@gopherex/schemapb';
-import { SchemaForm } from '@gopherex/backplane-schema-forms';
-import { Button, Input, SelectControl } from '@gopherex/backplane-ui';
-import { JSONViewer } from '@gopherex/backplane-editors';
+import { SchemaForm } from '@backplane-labs/backplane-schema-forms';
+import { Button, Input, SelectControl } from '@backplane-labs/backplane-ui';
+import { JSONViewer } from '@backplane-labs/backplane-editors';
 import { MutationState, QueryState, usePlatformAction, usePlatformQuery } from './runtime.js';
 import { usePlatformText } from './locales.js';
 import { nativeJSON } from './serialization.js';

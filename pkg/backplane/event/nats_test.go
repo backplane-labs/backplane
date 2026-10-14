@@ -9,17 +9,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	natsdriver "github.com/gopherex/backplane/pkg/backplane/drivers/nats"
-	"github.com/gopherex/backplane/pkg/backplane/event"
-	infranats "github.com/gopherex/backplane/pkg/backplane/infra/nats"
-	"github.com/gopherex/backplane/pkg/backplane/internal/broker"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
-	"github.com/gopherex/backplane/pkg/backplane/internal/link"
-	"github.com/gopherex/backplane/pkg/backplane/internal/manifest"
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
-	"github.com/gopherex/backplane/pkg/backplane/internal/testlog"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	natsdriver "github.com/backplane-labs/backplane/pkg/backplane/drivers/nats"
+	"github.com/backplane-labs/backplane/pkg/backplane/event"
+	infranats "github.com/backplane-labs/backplane/pkg/backplane/infra/nats"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/broker"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
 )
 
 const waitFor = 15 * time.Second

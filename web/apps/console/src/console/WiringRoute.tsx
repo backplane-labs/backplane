@@ -1,6 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
-import { WiringWorkspace, type WiringState, type WiringTarget, type WiringView } from '@gopherex/backplane-platform-ui';
-import type { ThemeMode } from '@gopherex/backplane-theme';
+import { WiringWorkspace, type WiringState, type WiringTarget, type WiringView } from '@backplane-labs/backplane-platform-ui';
+import type { ThemeMode } from '@backplane-labs/backplane-theme';
 
 const views: WiringView[] = ['graph', 'yaml', 'versions', 'test', 'runs'];
 

@@ -1,4 +1,4 @@
-module github.com/gopherex/backplane
+module github.com/backplane-labs/backplane
 
 go 1.26.0
 

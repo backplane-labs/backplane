@@ -10,17 +10,17 @@ import (
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/workflow"
 
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	inftemporal "github.com/gopherex/backplane/pkg/backplane/infra/temporal"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
-	"github.com/gopherex/backplane/pkg/backplane/internal/link"
-	"github.com/gopherex/backplane/pkg/backplane/internal/manifest"
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
-	internal "github.com/gopherex/backplane/pkg/backplane/internal/temporal"
-	"github.com/gopherex/backplane/pkg/backplane/internal/temporal/temporaltest"
-	"github.com/gopherex/backplane/pkg/backplane/internal/testlog"
-	"github.com/gopherex/backplane/pkg/backplane/workflows"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	inftemporal "github.com/backplane-labs/backplane/pkg/backplane/infra/temporal"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
+	internal "github.com/backplane-labs/backplane/pkg/backplane/internal/temporal"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/temporal/temporaltest"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
+	"github.com/backplane-labs/backplane/pkg/backplane/workflows"
 )
 
 type (

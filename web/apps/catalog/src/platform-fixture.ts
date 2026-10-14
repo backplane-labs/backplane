@@ -1,8 +1,8 @@
 import { create, fromJson, toJson, type JsonValue } from '@bufbuild/protobuf';
 import { timestampFromDate, ValueSchema } from '@bufbuild/protobuf/wkt';
-import * as api from '@gopherex/backplane-api';
-import { WsStatusError, type ClientConstructor, type ClientRuntime, type ClientState } from '@gopherex/backplane-client';
-import { SchemaSchema } from '@gopherex/backplane-api/schemapb/schema_pb';
+import * as api from '@backplane-labs/backplane-api';
+import { WsStatusError, type ClientConstructor, type ClientRuntime, type ClientState } from '@backplane-labs/backplane-client';
+import { SchemaSchema } from '@backplane-labs/backplane-api/schemapb/schema_pb';
 
 const schema = create(SchemaSchema, { id: { name: 'input' }, fields: [
   { name: 'name', title: 'Recipient', kind: { case: 'string', value: { default: 'World', minLen: 1n } } },

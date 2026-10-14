@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from 'react';
 import { create } from '@bufbuild/protobuf';
-import * as api from '@gopherex/backplane-api';
-import { useClient } from '@gopherex/backplane-react';
-import { Badge, Button, ConfirmAction, Count, DetailDrawer, EmptyState, Panel, StatusBadge, Switch, Timestamp, type StatusTone } from '@gopherex/backplane-ui';
-import { CodeEditor, DiffViewer, JSONViewer } from '@gopherex/backplane-editors';
+import * as api from '@backplane-labs/backplane-api';
+import { useClient } from '@backplane-labs/backplane-react';
+import { Badge, Button, ConfirmAction, Count, DetailDrawer, EmptyState, Panel, StatusBadge, Switch, Timestamp, type StatusTone } from '@backplane-labs/backplane-ui';
+import { CodeEditor, DiffViewer, JSONViewer } from '@backplane-labs/backplane-editors';
 import { CircleCheck, CircleX, FilePen, FlaskConical, History, Play, RefreshCw, RotateCcw, Sparkles } from 'lucide-react';
 import { usePlatformAction, usePlatformQuery } from '../runtime.js';
 import { usePlatformText } from '../locales.js';

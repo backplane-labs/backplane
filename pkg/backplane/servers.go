@@ -10,9 +10,9 @@ import (
 	hv1 "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/listener"
-	"github.com/gopherex/backplane/pkg/backplane/internal/recovery"
-	"github.com/gopherex/backplane/pkg/backplane/internal/routes"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/listener"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/recovery"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/routes"
 )
 
 // serverOptions of every SDK gRPC server: telemetry without health-check

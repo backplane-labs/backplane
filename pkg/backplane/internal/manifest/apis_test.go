@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/internal/manifest"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
 )
 
 // A route matches by host and prefix together: the same prefix for two

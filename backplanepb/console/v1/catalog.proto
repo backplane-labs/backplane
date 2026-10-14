@@ -5,7 +5,7 @@ package backplane.console.v1;
 import "backplanepb/v1/instance.proto";
 import "backplanepb/v1/manifest.proto";
 
-option go_package = "github.com/gopherex/backplane/backplanepb/console/v1;consolev1";
+option go_package = "github.com/backplane-labs/backplane/backplanepb/console/v1;consolev1";
 
 // CatalogService is the installation as backplane's registry sees it: the
 // services, their manifests per version, their instances with state and

@@ -19,12 +19,12 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/examples/hello/internal/store"
-	hellov1 "github.com/gopherex/backplane/examples/hello/proto/hello/v1"
-	"github.com/gopherex/backplane/pkg/backplane"
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/event"
+	"github.com/backplane-labs/backplane/examples/hello/internal/store"
+	hellov1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/event"
 )
 
 const (

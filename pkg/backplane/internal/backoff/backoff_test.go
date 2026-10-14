@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/backoff"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/backoff"
 )
 
 func TestValidate(t *testing.T) {

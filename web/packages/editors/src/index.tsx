@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Button, ClipboardButton, SelectControl } from '@gopherex/backplane-ui';
+import { Button, ClipboardButton, SelectControl } from '@backplane-labs/backplane-ui';
 import { useEditorText } from './locales.js';
 import { displayJSON } from './model.js';
 import type { CodeEditorProps, DiffViewerProps, QueryLanguage } from './types.js';

@@ -16,8 +16,8 @@ import (
 	"google.golang.org/grpc/health"
 	hv1 "google.golang.org/grpc/health/grpc_health_v1"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/listener"
-	"github.com/gopherex/backplane/pkg/backplane/internal/testlog"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/listener"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
 )
 
 // group mirrors a node: goroutines run on a context cancelled at stop, and

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gopherex/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/bindings"
 )
 
 // A run of §7.1's example step by step: inputs from req and earlier

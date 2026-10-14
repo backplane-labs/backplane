@@ -14,7 +14,7 @@ import (
 	consulsrc "github.com/gopherex/xconf/contrib/sources/consul"
 	"github.com/gopherex/xconf/contrib/sources/env"
 
-	"github.com/gopherex/backplane/internal/config"
+	"github.com/backplane-labs/backplane/internal/config"
 )
 
 func TestParseRejects(t *testing.T) {

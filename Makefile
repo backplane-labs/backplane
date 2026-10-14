@@ -130,7 +130,7 @@ down: ## Stop platform-in-a-box
 	docker compose down
 
 # ---- service build: stamp identity at link time --------------------------------
-BUILD_PKG := github.com/gopherex/backplane/pkg/backplane/build
+BUILD_PKG := github.com/backplane-labs/backplane/pkg/backplane/build
 VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.0.0)
 COMMIT    ?= $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
 DATE      ?= $(shell date -u +%FT%TZ)

@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	infranats "github.com/gopherex/backplane/pkg/backplane/infra/nats"
-	"github.com/gopherex/backplane/pkg/backplane/internal/link"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	infranats "github.com/backplane-labs/backplane/pkg/backplane/infra/nats"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
 )
 
 type natsSecretsConfig struct {

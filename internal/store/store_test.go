@@ -6,11 +6,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gopherex/backplane/internal/store"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/infra/postgres"
+	"github.com/backplane-labs/backplane/internal/store"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/postgres"
 )
 
 var errRollback = errors.New("rollback")

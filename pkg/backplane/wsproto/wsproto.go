@@ -17,14 +17,14 @@ import (
 
 	"github.com/gopherex/ws-proto/wsrpc"
 
-	"github.com/gopherex/backplane/pkg/backplane"
-	"github.com/gopherex/backplane/pkg/backplane/api"
-	"github.com/gopherex/backplane/pkg/backplane/internal/link"
-	"github.com/gopherex/backplane/pkg/backplane/internal/recovery"
-	"github.com/gopherex/backplane/pkg/backplane/internal/routes"
+	"github.com/backplane-labs/backplane/pkg/backplane"
+	"github.com/backplane-labs/backplane/pkg/backplane/api"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/recovery"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/routes"
 )
 
-const instrumentation = "github.com/gopherex/backplane/pkg/backplane/wsproto"
+const instrumentation = "github.com/backplane-labs/backplane/pkg/backplane/wsproto"
 
 // Serve mounts a ws-proto endpoint at prefix on a public port of svc and
 // announces it with the registered services' descriptors. origins is the

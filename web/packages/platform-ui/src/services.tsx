@@ -1,11 +1,11 @@
 import { useCallback, useState, type ReactNode } from 'react';
 import { create } from '@bufbuild/protobuf';
-import { BindingServiceClient, BindingState, CatalogServiceClient, GetServiceRequestSchema, ListBindingsRequestSchema, WatchCatalogRequestSchema, type Instance, type ServiceSummary } from '@gopherex/backplane-api';
-import { ActivityKind, NodeKind, ApiKind, type Manifest } from '@gopherex/backplane-api/backplanepb/v1/manifest_pb';
-import { ConfigSource, InstancePhase } from '@gopherex/backplane-api/backplanepb/v1/instance_pb';
-import { useClient, useSnapshotWatch } from '@gopherex/backplane-react';
-import { Badge, DataTable, DetailDrawer, Duration, EmptyState, KeyValueList, Panel, StatusBadge, StatusDot, Timestamp, type StatusTone } from '@gopherex/backplane-ui';
-import { JSONViewer } from '@gopherex/backplane-editors';
+import { BindingServiceClient, BindingState, CatalogServiceClient, GetServiceRequestSchema, ListBindingsRequestSchema, WatchCatalogRequestSchema, type Instance, type ServiceSummary } from '@backplane-labs/backplane-api';
+import { ActivityKind, NodeKind, ApiKind, type Manifest } from '@backplane-labs/backplane-api/backplanepb/v1/manifest_pb';
+import { ConfigSource, InstancePhase } from '@backplane-labs/backplane-api/backplanepb/v1/instance_pb';
+import { useClient, useSnapshotWatch } from '@backplane-labs/backplane-react';
+import { Badge, DataTable, DetailDrawer, Duration, EmptyState, KeyValueList, Panel, StatusBadge, StatusDot, Timestamp, type StatusTone } from '@backplane-labs/backplane-ui';
+import { JSONViewer } from '@backplane-labs/backplane-editors';
 import { Box, Boxes, Cable, CalendarClock, ChevronRight, Component, Link2, Radio, Route, Workflow, Zap } from 'lucide-react';
 import { ConnectionNotice, QueryState, usePlatformQuery } from './runtime.js';
 import { usePlatformText } from './locales.js';

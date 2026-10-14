@@ -1,6 +1,6 @@
 # Platform compositions
 
-`@gopherex/backplane-platform-ui` connects the kit to the generated console APIs.
+`@backplane-labs/backplane-platform-ui` connects the kit to the generated console APIs.
 It consumes `BackplaneProvider`; it does not create another connection, router
 or console shell. English resources are exported as `platformEnglish` for
 `backplane.platform`. Components accept the host's dark/light mode and are

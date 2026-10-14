@@ -16,9 +16,9 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/internal/registry"
-	"github.com/gopherex/backplane/internal/store"
-	"github.com/gopherex/backplane/internal/store/db"
+	"github.com/backplane-labs/backplane/internal/registry"
+	"github.com/backplane-labs/backplane/internal/store"
+	"github.com/backplane-labs/backplane/internal/store/db"
 )
 
 // Errors of saving.

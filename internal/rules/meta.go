@@ -6,8 +6,8 @@ import (
 
 	"github.com/nats-io/nats.go"
 
-	"github.com/gopherex/backplane/internal/bindings"
-	"github.com/gopherex/backplane/internal/wire"
+	"github.com/backplane-labs/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/wire"
 )
 
 // ErrNoID: the event has no ce-id — its run could not be deduplicated.

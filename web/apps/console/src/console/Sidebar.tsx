@@ -2,9 +2,9 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { NavLink, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Box, Boxes, ChevronRight, ChevronsLeft, Compass, History, PanelLeftOpen, Settings2, Workflow, Bug, ServerCog } from 'lucide-react';
-import { Button, Input, StatusDot } from '@gopherex/backplane-ui';
+import { Button, Input, StatusDot } from '@backplane-labs/backplane-ui';
 import { healthTone } from './services/model';
-import type { ServiceSummary } from '@gopherex/backplane-api';
+import type { ServiceSummary } from '@backplane-labs/backplane-api';
 import type { ModuleEntry } from './registry';
 
 const MIN = 224, MAX = 400, DEFAULT = 264, KEY = 'backplane.navigation';

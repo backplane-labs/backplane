@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go/jetstream"
 
-	"github.com/gopherex/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/bindings"
 )
 
 // Outcome is outcome: what became of a delivery.

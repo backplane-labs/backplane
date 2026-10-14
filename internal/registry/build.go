@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"google.golang.org/protobuf/proto"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 )
 
 // Prefix of everything the SDK writes to Consul KV (§4.2, §17).

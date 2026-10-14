@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 
-// @gopherex/backplane-errors in a real browser (Chromium): capture,
+// @backplane-labs/backplane-errors in a real browser (Chromium): capture,
 // breadcrumbs, React errors and the IndexedDB outbox.
 export default defineConfig({
   testDir: '.',

@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { create, toBinary } from '@bufbuild/protobuf';
-import { CatalogServiceClient, ListServicesRequestSchema, ListServicesResponseSchema, RevisionSchema } from '@gopherex/backplane-api';
+import { CatalogServiceClient, ListServicesRequestSchema, ListServicesResponseSchema, RevisionSchema } from '@backplane-labs/backplane-api';
 import { BackplaneClient, SessionHttpError, type ObservableSocket } from '../packages/client/src/index';
 import { FakeSocket, Kind } from '@gopherex/ws-proto-transport';
 

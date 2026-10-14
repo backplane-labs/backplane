@@ -8,8 +8,8 @@ import (
 
 	sp "github.com/gopherex/schemapb/go/schemapb"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/internal/bindings"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/bindings"
 )
 
 // Payloads of the fixture services, as their authors declare them: the

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AppWindow, Box, TriangleAlert } from 'lucide-react';
-import { Duration, Meter, StatusBadge, StatusDot, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@gopherex/backplane-ui';
+import { Duration, Meter, StatusBadge, StatusDot, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@backplane-labs/backplane-ui';
 import { healthLabel, healthTone, transportTone, type ServiceOverview } from './model';
 
 export function ServiceTable({ items }: { items: ServiceOverview[] }) {

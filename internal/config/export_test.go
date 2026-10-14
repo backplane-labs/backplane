@@ -5,8 +5,8 @@ import (
 
 	"github.com/hashicorp/consul/api"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/internal/registry"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/registry"
 )
 
 // Reasons KV is rewritten, and Consul's transaction limit.

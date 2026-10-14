@@ -8,10 +8,10 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/gopherex/backplane/pkg/backplane/api"
-	"github.com/gopherex/backplane/pkg/backplane/internal/apifiles"
-	"github.com/gopherex/backplane/pkg/backplane/internal/link"
-	"github.com/gopherex/backplane/pkg/backplane/internal/manifest"
+	"github.com/backplane-labs/backplane/pkg/backplane/api"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/apifiles"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
 )
 
 func TestLargeAPIStaysOutsideManifest(t *testing.T) {

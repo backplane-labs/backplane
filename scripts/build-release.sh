@@ -16,7 +16,7 @@ for arch in amd64 arm64; do
   tree="$output/linux_$arch"
   mkdir -p "$tree/bin"
   CGO_ENABLED=0 GOWORK=off GOOS=linux GOARCH="$arch" go build -trimpath \
-    -ldflags="-s -w -X github.com/gopherex/backplane/pkg/backplane/build.Service=backplane -X github.com/gopherex/backplane/pkg/backplane/build.Version=$version -X github.com/gopherex/backplane/pkg/backplane/build.Commit=$commit -X github.com/gopherex/backplane/pkg/backplane/build.Date=$build_time" \
+    -ldflags="-s -w -X github.com/backplane-labs/backplane/pkg/backplane/build.Service=backplane -X github.com/backplane-labs/backplane/pkg/backplane/build.Version=$version -X github.com/backplane-labs/backplane/pkg/backplane/build.Commit=$commit -X github.com/backplane-labs/backplane/pkg/backplane/build.Date=$build_time" \
     -o "$tree/bin/backplane" ./cmd/backplane
   mkdir -p "$tree/console"
   cp -R web/apps/console/dist/. "$tree/console/"

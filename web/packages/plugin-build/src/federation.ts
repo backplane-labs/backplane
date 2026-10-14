@@ -10,20 +10,24 @@ export interface ModuleBuildOptions {
   embedded?: boolean;
 }
 
+// Release CI stamps this manifest together with every shared platform package.
+const sdkVersion = createRequire(import.meta.url)('../package.json').version as string;
+const platformVersion = `^${sdkVersion}`;
+
 const versions: Record<string, string> = {
   react: '^19.3.0', 'react/': '^19.3.0', 'react-dom': '^19.3.0', 'react-dom/': '^19.3.0',
   'react-router': '^7.18.4', 'react-router-dom': '^7.18.4',
   i18next: '^26.4.2', 'react-i18next': '^17.0.15',
   '@grafana/ui': '13.2.3', '@grafana/data': '13.2.3',
-  '@gopherex/backplane-theme': '^0.1.0', '@gopherex/backplane-ui': '^0.1.0',
-  '@gopherex/backplane-client': '^0.1.0', '@gopherex/backplane-react': '^0.1.0',
-  '@gopherex/backplane-api': '^0.1.0',
-  '@gopherex/backplane-plugin-sdk': '^0.1.0',
-  '@gopherex/backplane-schema-forms': '^0.1.0',
-  '@gopherex/backplane-editors': '^0.1.0',
-  '@gopherex/backplane-charts': '^0.1.0',
-  '@gopherex/backplane-observability-ui': '^0.1.0',
-  '@gopherex/backplane-platform-ui': '^0.1.0',
+  '@backplane-labs/backplane-theme': platformVersion, '@backplane-labs/backplane-ui': platformVersion,
+  '@backplane-labs/backplane-client': platformVersion, '@backplane-labs/backplane-react': platformVersion,
+  '@backplane-labs/backplane-api': platformVersion,
+  '@backplane-labs/backplane-plugin-sdk': platformVersion,
+  '@backplane-labs/backplane-schema-forms': platformVersion,
+  '@backplane-labs/backplane-editors': platformVersion,
+  '@backplane-labs/backplane-charts': platformVersion,
+  '@backplane-labs/backplane-observability-ui': platformVersion,
+  '@backplane-labs/backplane-platform-ui': platformVersion,
 
 };
 // Router dedupe is intentionally excluded: Grafana carries private v5/v6

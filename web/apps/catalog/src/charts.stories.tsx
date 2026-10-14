@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { TimeSeriesChart, Histogram, BarChart, Heatmap, Stat, BarGauge, RadialGauge, SeriesTable, VisualizationControls, VisualizationPanel, type ChartSeries, type VisualizationSettings } from '@gopherex/backplane-charts';
-import { Stack } from '@gopherex/backplane-ui';
+import { TimeSeriesChart, Histogram, BarChart, Heatmap, Stat, BarGauge, RadialGauge, SeriesTable, VisualizationControls, VisualizationPanel, type ChartSeries, type VisualizationSettings } from '@backplane-labs/backplane-charts';
+import { Stack } from '@backplane-labs/backplane-ui';
 const origin = Date.UTC(2026, 8, 29);
 const series: ChartSeries[] = [{ id: 'requests', label: 'Requests', points: Array.from({ length: 20000 }, (_, index) => ({ x: origin + index * 1000, value: index === 10001 ? 200 : Math.sin(index / 200) * 10 + 20 })) },
   { id: 'sequence', label: 'Sequence', points: [{ x: origin, value: 18446744073709551615n }, { x: origin + 20000000, value: 18446744073709551615n }] }];

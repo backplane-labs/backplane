@@ -10,9 +10,9 @@ import (
 
 	"github.com/gopherex/pgtx/pkg/tx"
 
-	"github.com/gopherex/backplane/internal/store"
-	"github.com/gopherex/backplane/internal/store/db"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/internal/store"
+	"github.com/backplane-labs/backplane/internal/store/db"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 )
 
 // ErrAttempts: the login attempts cannot be counted; the login is refused.

@@ -7,7 +7,7 @@ import {
   type Baked, type Native, type NativeStruct, type Schema, type Schema_Field,
   type ValidationError,
 } from '@gopherex/schemapb';
-import { Button, Input, Textarea, Checkbox, SelectControl, Field, FieldLabel, FieldDescription, FieldError, Badge } from '@gopherex/backplane-ui';
+import { Button, Input, Textarea, Checkbox, SelectControl, Field, FieldLabel, FieldDescription, FieldError, Badge } from '@backplane-labs/backplane-ui';
 import { decodeValue, emptyValue, encodeValue, evaluateForm, fieldSchema, parseScalar, pathKey, scalarText, setValue, valueAt, type FieldPath } from './model.js';
 import { schemaFormsEnglish } from './locales.js';
 

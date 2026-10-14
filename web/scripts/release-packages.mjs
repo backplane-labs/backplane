@@ -17,7 +17,7 @@ const packages = await Promise.all((await readdir(resolve(web, 'packages'))).sor
 }));
 const names = new Set(packages.map(({ manifest }) => manifest.name));
 for (const { manifest } of packages) {
-  if (manifest.private || !manifest.name.startsWith('@gopherex/backplane-') || manifest.version !== version || manifest.publishConfig?.registry !== registry) {
+  if (manifest.private || !manifest.name.startsWith('@backplane-labs/backplane-') || manifest.version !== version || manifest.publishConfig?.registry !== registry) {
     throw new Error(`${manifest.name}: public package version and registry must match release ${version} on GitHub Packages`);
   }
   for (const group of ['dependencies', 'devDependencies', 'peerDependencies']) {

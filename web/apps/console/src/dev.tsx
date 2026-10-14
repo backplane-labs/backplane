@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AuditExplorer, AutomationPanel, ConfigurationPanel, EventStreams, ExplorePanel, ServiceCatalog, ServiceInspector, ServiceOperations, WiringWorkspace, WorkflowRuns, SchedulesPanel, type WiringState, defaultAuditState } from '@gopherex/backplane-platform-ui';
-import { PageHeader, Panel, TabBar } from '@gopherex/backplane-ui';
+import { AuditExplorer, AutomationPanel, ConfigurationPanel, EventStreams, ExplorePanel, ServiceCatalog, ServiceInspector, ServiceOperations, WiringWorkspace, WorkflowRuns, SchedulesPanel, type WiringState, defaultAuditState } from '@backplane-labs/backplane-platform-ui';
+import { PageHeader, Panel, TabBar } from '@backplane-labs/backplane-ui';
 
 const views = ['services', 'configuration', 'operations', 'wiring', 'automation', 'events', 'runs', 'schedules', 'audit', 'explore'] as const;
 

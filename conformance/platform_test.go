@@ -12,8 +12,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"google.golang.org/grpc/codes"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	"github.com/gopherex/backplane/examples/demo"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	"github.com/backplane-labs/backplane/examples/demo"
 )
 
 // TestPlatformModes checks the real console over authenticated WebSocket with

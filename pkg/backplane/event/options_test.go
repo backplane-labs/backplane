@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	natsdriver "github.com/gopherex/backplane/pkg/backplane/drivers/nats"
-	"github.com/gopherex/backplane/pkg/backplane/event"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	natsdriver "github.com/backplane-labs/backplane/pkg/backplane/drivers/nats"
+	"github.com/backplane-labs/backplane/pkg/backplane/event"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 )
 
 func mustPanic(t *testing.T, want string, fn func()) {

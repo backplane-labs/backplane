@@ -13,19 +13,19 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/internal/configrt"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
-	"github.com/gopherex/backplane/pkg/backplane/internal/gate"
-	"github.com/gopherex/backplane/pkg/backplane/internal/guard"
-	"github.com/gopherex/backplane/pkg/backplane/internal/health"
-	"github.com/gopherex/backplane/pkg/backplane/internal/link"
-	"github.com/gopherex/backplane/pkg/backplane/internal/listener"
-	"github.com/gopherex/backplane/pkg/backplane/internal/manifest"
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
-	"github.com/gopherex/backplane/pkg/backplane/internal/recovery"
-	"github.com/gopherex/backplane/pkg/backplane/internal/telemetry"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/configrt"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/gate"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/guard"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/health"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/listener"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/recovery"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/telemetry"
 )
 
 const (

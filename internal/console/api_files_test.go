@@ -11,8 +11,8 @@ import (
 
 	"github.com/google/uuid"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/internal/registry"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/registry"
 )
 
 type apiTransport func(*http.Request) (*http.Response, error)

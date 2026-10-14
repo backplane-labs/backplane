@@ -2,8 +2,8 @@
 package consul
 
 import (
-	"github.com/gopherex/backplane/pkg/backplane"
-	internal "github.com/gopherex/backplane/pkg/backplane/internal/consul"
+	"github.com/backplane-labs/backplane/pkg/backplane"
+	internal "github.com/backplane-labs/backplane/pkg/backplane/internal/consul"
 )
 
 // Driver installs Consul discovery and its live configuration source.

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { create } from '@bufbuild/protobuf';
-import { ObsLanguage, ObsServiceClient, ObsSignal, QueryObsRequestSchema } from '@gopherex/backplane-api';
-import { useClient } from '@gopherex/backplane-react';
-import { Button, DetailDrawer, EmptyState, Input, Panel, StatusBadge, Switch, type StatusTone } from '@gopherex/backplane-ui';
-import { JSONViewer } from '@gopherex/backplane-editors';
-import { HighlightText, attributeText, type CorrelationTarget, type LogRecord } from '@gopherex/backplane-observability-ui';
+import { ObsLanguage, ObsServiceClient, ObsSignal, QueryObsRequestSchema } from '@backplane-labs/backplane-api';
+import { useClient } from '@backplane-labs/backplane-react';
+import { Button, DetailDrawer, EmptyState, Input, Panel, StatusBadge, Switch, type StatusTone } from '@backplane-labs/backplane-ui';
+import { JSONViewer } from '@backplane-labs/backplane-editors';
+import { HighlightText, attributeText, type CorrelationTarget, type LogRecord } from '@backplane-labs/backplane-observability-ui';
 import { FileText, History, Radio, Waypoints, WrapText } from 'lucide-react';
 import { rowsToLogs } from './telemetry-model.js';
 import { usePlatformQuery } from './runtime.js';

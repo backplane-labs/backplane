@@ -13,9 +13,9 @@ import (
 
 	sp "github.com/gopherex/schemapb/go/schemapb"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
-	"github.com/gopherex/backplane/pkg/backplane/internal/link"
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 )
 
 // Env returns the service env and node of scope; a zero scope panics.

@@ -5,10 +5,10 @@ package hellotest
 import (
 	"testing"
 
-	"github.com/gopherex/backplane/examples/hello/internal/greeter"
-	"github.com/gopherex/backplane/examples/hello/internal/store"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/examples/hello/internal/greeter"
+	"github.com/backplane-labs/backplane/examples/hello/internal/store"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 )
 
 // Tree is a harness named hello with a store and a greeter under its root.

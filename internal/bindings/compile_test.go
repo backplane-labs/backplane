@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/internal/bindings"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/bindings"
 )
 
 // §7.1's example compiles into two levels with the options resolved from

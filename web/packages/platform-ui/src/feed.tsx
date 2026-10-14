@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { JsonValue } from '@bufbuild/protobuf';
-import { BarChart, type ChartSeries } from '@gopherex/backplane-charts';
+import { BarChart, type ChartSeries } from '@backplane-labs/backplane-charts';
 import { Badge, Button, Combobox, Input, SelectControl, Panel, Popover, PopoverContent, PopoverTrigger, RefreshControl, Skeleton, TimeRangeControl,
-  type TimeRangeValue } from '@gopherex/backplane-ui';
+  type TimeRangeValue } from '@backplane-labs/backplane-ui';
 import { Plus, Search, X } from 'lucide-react';
 import { usePlatformText } from './locales.js';
 

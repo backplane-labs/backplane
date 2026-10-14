@@ -25,7 +25,7 @@ yarn dev:module
 
 The template supplies explicit local fixtures. It does not need Backplane, PostgreSQL, Consul, NATS or Temporal. An independent module project uses the same published packages and runs `yarn dev` in its own directory. Its backend fixtures, ports and local data belong to that project.
 
-Copy the [template](https://github.com/gopherex/backplane/tree/master/web/templates/module) as the reference structure, update the service name and English namespace, and use registry versions instead of workspace assumptions. The template's standalone entrypoint owns providers; its embedded entrypoint consumes them.
+Copy the [template](https://github.com/backplane-labs/backplane/tree/master/web/templates/module) as the reference structure, update the service name and English namespace, and use registry versions instead of workspace assumptions. The template's standalone entrypoint owns providers; its embedded entrypoint consumes them.
 
 ## Declare navigation and routes
 

@@ -1,11 +1,11 @@
 {
-  "name": "@gopherex/backplane-api",
+  "name": "@backplane-labs/backplane-api",
   "version": "0.1.1",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gopherex/backplane.git",
+    "url": "https://github.com/backplane-labs/backplane.git",
     "directory": "web/packages/api"
   },
   "publishConfig": {

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/gopherex/backplane/examples/formatter/internal/formatter"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/examples/formatter/internal/formatter"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
 )
 
 func TestActivitiesAndLiveConfig(t *testing.T) {

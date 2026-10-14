@@ -1,11 +1,11 @@
 {
-  "name": "@gopherex/backplane-ui",
+  "name": "@backplane-labs/backplane-ui",
   "version": "0.1.1",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gopherex/backplane.git",
+    "url": "https://github.com/backplane-labs/backplane.git",
     "directory": "web/packages/ui"
   },
   "publishConfig": {
@@ -37,7 +37,7 @@
     "react-i18next": ">=17 <18"
   },
   "dependencies": {
-    "@gopherex/backplane-theme": "0.1.1",
+    "@backplane-labs/backplane-theme": "0.1.1",
     "@grafana/ui": "13.2.3",
     "@tanstack/react-table": "8.21.3",
     "@tanstack/react-virtual": "3.14.13",

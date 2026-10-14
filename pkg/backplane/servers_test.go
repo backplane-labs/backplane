@@ -23,15 +23,15 @@ import (
 
 	"github.com/gopherex/ws-proto/wsrpc"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	helloconsolev1 "github.com/gopherex/backplane/examples/hello/proto/hello/console/v1"
-	hellov1 "github.com/gopherex/backplane/examples/hello/proto/hello/v1"
-	"github.com/gopherex/backplane/pkg/backplane"
-	"github.com/gopherex/backplane/pkg/backplane/api"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/drivers/standard"
-	"github.com/gopherex/backplane/pkg/backplane/internal/guard"
-	"github.com/gopherex/backplane/pkg/backplane/wsproto"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	helloconsolev1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1"
+	hellov1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane"
+	"github.com/backplane-labs/backplane/pkg/backplane/api"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/drivers/standard"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/guard"
+	"github.com/backplane-labs/backplane/pkg/backplane/wsproto"
 )
 
 // hello greets, panics on "panic", and streams until the call ends.

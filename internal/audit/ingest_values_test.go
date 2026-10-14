@@ -9,8 +9,8 @@ import (
 	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	"github.com/gopherex/backplane/internal/audit"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	"github.com/backplane-labs/backplane/internal/audit"
 )
 
 func specialNumber(value float64) *commonpb.AnyValue {

@@ -24,4 +24,4 @@ The console is built for `/backplane/`; another asset base requires rebuilding
 with `BACKPLANE_CONSOLE_BASE` and setting the matching console prefix or host.
 
 Full configuration and examples:
-https://github.com/gopherex/backplane/blob/master/deployments/README.md
+https://github.com/backplane-labs/backplane/blob/master/deployments/README.md

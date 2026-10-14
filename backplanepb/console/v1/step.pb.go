@@ -935,7 +935,7 @@ const file_backplanepb_console_v1_step_proto_rawDesc = "" +
 	"\x19STEP_RUN_STATUS_COMPLETED\x10\x04\x12\x1a\n" +
 	"\x16STEP_RUN_STATUS_FAILED\x10\x05\x12\x1d\n" +
 	"\x19STEP_RUN_STATUS_TIMED_OUT\x10\x06\x12\x1c\n" +
-	"\x18STEP_RUN_STATUS_CANCELED\x10\aB@Z>github.com/gopherex/backplane/backplanepb/console/v1;consolev1b\x06proto3"
+	"\x18STEP_RUN_STATUS_CANCELED\x10\aBFZDgithub.com/backplane-labs/backplane/backplanepb/console/v1;consolev1b\x06proto3"
 
 var (
 	file_backplanepb_console_v1_step_proto_rawDescOnce sync.Once

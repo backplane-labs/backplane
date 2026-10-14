@@ -4,10 +4,10 @@ import (
 	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/internal/decl"
-	internal "github.com/gopherex/backplane/pkg/backplane/internal/temporal"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
+	internal "github.com/backplane-labs/backplane/pkg/backplane/internal/temporal"
 )
 
 // DeclareOption tunes Declare.

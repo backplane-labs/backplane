@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	"github.com/gopherex/backplane/internal/obs"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	"github.com/backplane-labs/backplane/internal/obs"
 )
 
 // checkObs reads the signals just accepted by the independent storage stack

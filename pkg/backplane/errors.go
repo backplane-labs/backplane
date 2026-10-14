@@ -5,7 +5,7 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/exception"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/exception"
 )
 
 // CaptureError logs err as an OpenTelemetry exception record (its type,

@@ -16,12 +16,12 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/internal/console"
-	"github.com/gopherex/backplane/internal/registry"
-	"github.com/gopherex/backplane/internal/store"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/infra/postgres"
+	"github.com/backplane-labs/backplane/internal/console"
+	"github.com/backplane-labs/backplane/internal/registry"
+	"github.com/backplane-labs/backplane/internal/store"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/postgres"
 )
 
 // TestPGAttempts checks per-address windows and shared exponential backoff.

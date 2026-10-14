@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/examples/hello/internal/flows"
-	"github.com/gopherex/backplane/examples/hello/internal/hellotest"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
-	"github.com/gopherex/backplane/pkg/backplane/workflows/workflowtest"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/examples/hello/internal/flows"
+	"github.com/backplane-labs/backplane/examples/hello/internal/hellotest"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/pkg/backplane/workflows/workflowtest"
 )
 
 func setup(t *testing.T) (*hellotest.Tree, *flows.Flows) {

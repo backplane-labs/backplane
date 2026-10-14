@@ -8,9 +8,9 @@ import (
 
 	sp "github.com/gopherex/schemapb/go/schemapb"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/internal/registry"
-	sdkconfig "github.com/gopherex/backplane/pkg/backplane/config"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/registry"
+	sdkconfig "github.com/backplane-labs/backplane/pkg/backplane/config"
 )
 
 // limits is a section whose Live fields a CEL rule ties together.

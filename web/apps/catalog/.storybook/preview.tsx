@@ -1,12 +1,12 @@
 import { useLayoutEffect, type ReactNode } from 'react';
 import type { Preview } from '@storybook/react-vite';
 import { I18nextProvider } from 'react-i18next';
-import { TooltipProvider } from '@gopherex/backplane-ui';
+import { TooltipProvider } from '@backplane-labs/backplane-ui';
 import { i18n } from '../src/i18n';
 import '@fontsource/ibm-plex-sans/400.css';
 import '@fontsource/ibm-plex-mono/400.css';
-import '@gopherex/backplane-ui/style.css';
-import '@gopherex/backplane-theme/style.css';
+import '@backplane-labs/backplane-ui/style.css';
+import '@backplane-labs/backplane-theme/style.css';
 
 function Frame({ mode, children }: { mode: string; children: ReactNode }) {
   useLayoutEffect(() => {

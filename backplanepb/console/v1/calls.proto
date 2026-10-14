@@ -4,7 +4,7 @@ package backplane.console.v1;
 
 import "google/protobuf/duration.proto";
 
-option go_package = "github.com/gopherex/backplane/backplanepb/console/v1;consolev1";
+option go_package = "github.com/backplane-labs/backplane/backplanepb/console/v1;consolev1";
 
 // CallService runs a hook or an activity from the console with a JSON
 // input (§9, §7.2) and waits for the result. Both run as short workflows

@@ -1563,7 +1563,7 @@ const file_backplanepb_console_v1_errors_proto_rawDesc = "" +
 	"\x0eErrorHistogram\x12+.backplane.console.v1.ErrorHistogramRequest\x1a,.backplane.console.v1.ErrorHistogramResponse\x12b\n" +
 	"\vErrorFacets\x12(.backplane.console.v1.ErrorFacetsRequest\x1a).backplane.console.v1.ErrorFacetsResponse\x12Y\n" +
 	"\bGetError\x12%.backplane.console.v1.GetErrorRequest\x1a&.backplane.console.v1.GetErrorResponse\x12b\n" +
-	"\vRelatedLogs\x12(.backplane.console.v1.RelatedLogsRequest\x1a).backplane.console.v1.RelatedLogsResponseB@Z>github.com/gopherex/backplane/backplanepb/console/v1;consolev1b\x06proto3"
+	"\vRelatedLogs\x12(.backplane.console.v1.RelatedLogsRequest\x1a).backplane.console.v1.RelatedLogsResponseBFZDgithub.com/backplane-labs/backplane/backplanepb/console/v1;consolev1b\x06proto3"
 
 var (
 	file_backplanepb_console_v1_errors_proto_rawDescOnce sync.Once

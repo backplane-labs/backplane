@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/cel-go/cel"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 )
 
 // Kind is what a program implements.

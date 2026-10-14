@@ -3,8 +3,8 @@ package temporal
 import (
 	"context"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 )
 
 // ActivityFunc adapts a declared activity's handler to the Temporal

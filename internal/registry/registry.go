@@ -13,7 +13,7 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 )
 
 // ErrNotSynced: the first snapshot is not built yet.

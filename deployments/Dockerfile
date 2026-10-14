@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOWORK=off GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
-    -ldflags="-s -w -X github.com/gopherex/backplane/pkg/backplane/build.Service=backplane -X github.com/gopherex/backplane/pkg/backplane/build.Version=$VERSION -X github.com/gopherex/backplane/pkg/backplane/build.Commit=$COMMIT -X github.com/gopherex/backplane/pkg/backplane/build.Date=$BUILD_TIME" \
+    -ldflags="-s -w -X github.com/backplane-labs/backplane/pkg/backplane/build.Service=backplane -X github.com/backplane-labs/backplane/pkg/backplane/build.Version=$VERSION -X github.com/backplane-labs/backplane/pkg/backplane/build.Commit=$COMMIT -X github.com/backplane-labs/backplane/pkg/backplane/build.Date=$BUILD_TIME" \
     -o /out/backplane ./cmd/backplane
 
 FROM gcr.io/distroless/static-debian12:nonroot

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { useBackplane, useConnection } from '@gopherex/backplane-react';
-import { Button } from '@gopherex/backplane-ui';
+import { useBackplane, useConnection } from '@backplane-labs/backplane-react';
+import { Button } from '@backplane-labs/backplane-ui';
 import { usePlatformText } from './locales.js';
 
 export function usePlatformQuery<T>(key: string, read: (signal: AbortSignal) => Promise<T>) {

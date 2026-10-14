@@ -1,7 +1,7 @@
 import { GetStatsResponseSchema } from './gen/proto/hello/console/v1/admin_pb';
 import { create } from '@bufbuild/protobuf';
-import { CatalogServiceClient, ListServicesResponseSchema } from '@gopherex/backplane-api';
-import type { ClientRuntime, ClientConstructor, ClientState } from '@gopherex/backplane-client';
+import { CatalogServiceClient, ListServicesResponseSchema } from '@backplane-labs/backplane-api';
+import type { ClientRuntime, ClientConstructor, ClientState } from '@backplane-labs/backplane-client';
 
 const state: ClientState = { connection: 'connected', session: null, connectionId: 1 };
 /** Explicit local fixture. Replace with BackplaneClient or your own adapter. */

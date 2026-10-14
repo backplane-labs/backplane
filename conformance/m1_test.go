@@ -26,10 +26,10 @@ import (
 
 	"github.com/gopherex/ws-proto/wsrpc"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	helloconsolev1 "github.com/gopherex/backplane/examples/hello/proto/hello/console/v1"
-	hellov1 "github.com/gopherex/backplane/examples/hello/proto/hello/v1"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	helloconsolev1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1"
+	hellov1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/v1"
 )
 
 // M1 exercises configuration, relay and bundles using direct process listeners.
@@ -143,7 +143,7 @@ func m1Build(t *testing.T, dir, name, pkg, version string) string {
 	t.Helper()
 
 	bin := filepath.Join(dir, name)
-	build := "github.com/gopherex/backplane/pkg/backplane/build"
+	build := "github.com/backplane-labs/backplane/pkg/backplane/build"
 
 	cmd := exec.Command("go", "build", "-race", "-o", bin,
 		"-ldflags", "-X "+build+".Service="+name+" -X "+build+".Version="+version, pkg)

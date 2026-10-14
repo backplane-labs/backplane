@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { tokens } from '@gopherex/backplane-theme';
-import { DataTable } from '@gopherex/backplane-ui';
+import { tokens } from '@backplane-labs/backplane-theme';
+import { DataTable } from '@backplane-labs/backplane-ui';
 import { exact, numeric } from './model.js';
 import { useChartText } from './locales.js';
 import type { HeatmapProps } from './types.js';

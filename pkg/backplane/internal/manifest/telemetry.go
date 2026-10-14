@@ -7,7 +7,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 )
 
 var errTelemetry = errors.New("manifest: empty telemetry resource attribute")

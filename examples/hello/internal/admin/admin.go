@@ -5,11 +5,11 @@ package admin
 import (
 	"context"
 
-	"github.com/gopherex/backplane/examples/hello/internal/audit"
-	"github.com/gopherex/backplane/examples/hello/internal/greeter"
-	"github.com/gopherex/backplane/examples/hello/internal/store"
-	helloconsolev1 "github.com/gopherex/backplane/examples/hello/proto/hello/console/v1"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/examples/hello/internal/audit"
+	"github.com/backplane-labs/backplane/examples/hello/internal/greeter"
+	"github.com/backplane-labs/backplane/examples/hello/internal/store"
+	helloconsolev1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 )
 
 // Admin serves AdminService.

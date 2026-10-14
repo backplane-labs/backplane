@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gopherex/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/bindings"
 )
 
 // Kind is what a run executes.

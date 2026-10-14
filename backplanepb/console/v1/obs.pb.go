@@ -7,7 +7,7 @@
 package consolev1
 
 import (
-	v1 "github.com/gopherex/backplane/backplanepb/v1"
+	v1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -1816,7 +1816,7 @@ const file_backplanepb_console_v1_obs_proto_rawDesc = "" +
 	"\x0eListObsSources\x12+.backplane.console.v1.ListObsSourcesRequest\x1a,.backplane.console.v1.ListObsSourcesResponse\x12h\n" +
 	"\rListObsFields\x12*.backplane.console.v1.ListObsFieldsRequest\x1a+.backplane.console.v1.ListObsFieldsResponse\x12w\n" +
 	"\x12ListObsFieldValues\x12/.backplane.console.v1.ListObsFieldValuesRequest\x1a0.backplane.console.v1.ListObsFieldValuesResponse\x12n\n" +
-	"\x0fGetObsSelectors\x12,.backplane.console.v1.GetObsSelectorsRequest\x1a-.backplane.console.v1.GetObsSelectorsResponseB@Z>github.com/gopherex/backplane/backplanepb/console/v1;consolev1b\x06proto3"
+	"\x0fGetObsSelectors\x12,.backplane.console.v1.GetObsSelectorsRequest\x1a-.backplane.console.v1.GetObsSelectorsResponseBFZDgithub.com/backplane-labs/backplane/backplanepb/console/v1;consolev1b\x06proto3"
 
 var (
 	file_backplanepb_console_v1_obs_proto_rawDescOnce sync.Once

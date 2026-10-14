@@ -14,9 +14,9 @@ import (
 
 	"github.com/gopherex/xconf"
 
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	consuldriver "github.com/gopherex/backplane/pkg/backplane/drivers/consul"
-	"github.com/gopherex/backplane/pkg/backplane/internal/link"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	consuldriver "github.com/backplane-labs/backplane/pkg/backplane/drivers/consul"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
 )
 
 type Postgres struct {

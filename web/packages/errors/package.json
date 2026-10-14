@@ -1,12 +1,12 @@
 {
-  "name": "@gopherex/backplane-errors",
+  "name": "@backplane-labs/backplane-errors",
   "version": "0.1.1",
   "type": "module",
   "license": "MIT",
   "description": "Browser error capture over OpenTelemetry logs, for any web frontend reporting to a Backplane installation",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gopherex/backplane.git",
+    "url": "https://github.com/backplane-labs/backplane.git",
     "directory": "web/packages/errors"
   },
   "publishConfig": {

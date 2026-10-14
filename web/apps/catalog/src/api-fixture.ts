@@ -1,6 +1,6 @@
 import { create, toBinary } from '@bufbuild/protobuf';
 import { FileDescriptorSetSchema } from '@bufbuild/protobuf/wkt';
-import { SchemaFormat, ManifestSchema, ApiKind } from '@gopherex/backplane-api/backplanepb/v1/manifest_pb';
+import { SchemaFormat, ManifestSchema, ApiKind } from '@backplane-labs/backplane-api/backplanepb/v1/manifest_pb';
 
 const bytes = (value: unknown) => new TextEncoder().encode(typeof value === 'string' ? value : JSON.stringify(value));
 const bundleFiles: Record<string, unknown> = {

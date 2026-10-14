@@ -42,15 +42,15 @@ import (
 	"github.com/gopherex/xlog"
 	"github.com/gopherex/xtrace"
 
-	infranats "github.com/gopherex/backplane/pkg/backplane/infra/nats"
-	"github.com/gopherex/backplane/pkg/backplane/internal/backoff"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
-	"github.com/gopherex/backplane/pkg/backplane/internal/metrics"
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
+	infranats "github.com/backplane-labs/backplane/pkg/backplane/infra/nats"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/backoff"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/metrics"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 )
 
 const (
-	instrumentation = "github.com/gopherex/backplane/pkg/backplane/internal/broker"
+	instrumentation = "github.com/backplane-labs/backplane/pkg/backplane/internal/broker"
 	// transport is the attribute of backplane.transport.connected.
 	transport = "nats"
 )

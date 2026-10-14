@@ -3,8 +3,8 @@ package decl_test
 import (
 	"testing"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/internal/decl"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
 )
 
 // A newer producer's payload: fields the reader's type lacks.

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AppWindow, Box, Clock, Settings2, TriangleAlert } from 'lucide-react';
-import { Duration, EntityCard, Figure, Meter, StatusBadge, StatusDot, Tooltip, TooltipContent, TooltipTrigger } from '@gopherex/backplane-ui';
+import { Duration, EntityCard, Figure, Meter, StatusBadge, StatusDot, Tooltip, TooltipContent, TooltipTrigger } from '@backplane-labs/backplane-ui';
 import { healthLabel, healthTone, transportTone, type ServiceOverview } from './model';
 
 export function ServiceCard({ item }: { item: ServiceOverview }) {

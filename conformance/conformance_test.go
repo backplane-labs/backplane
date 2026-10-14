@@ -32,9 +32,9 @@ import (
 
 	"github.com/gopherex/ws-proto/wsrpc"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	helloconsolev1 "github.com/gopherex/backplane/examples/hello/proto/hello/console/v1"
-	hellov1 "github.com/gopherex/backplane/examples/hello/proto/hello/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	helloconsolev1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1"
+	hellov1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/v1"
 )
 
 // The service is named hello: its internal API lives in hello.console.v1,
@@ -119,7 +119,7 @@ func start(t *testing.T) *env {
 	t.Cleanup(cleanup)
 
 	bin := filepath.Join(t.TempDir(), "hello")
-	pkg := "github.com/gopherex/backplane/pkg/backplane/build"
+	pkg := "github.com/backplane-labs/backplane/pkg/backplane/build"
 
 	build := exec.Command("go", "build", "-o", bin,
 		"-ldflags", "-X "+pkg+".Service="+service+" -X "+pkg+".Version="+version,

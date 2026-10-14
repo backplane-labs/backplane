@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fromJsonString, toJsonString, type DescMessage, type MessageShape } from '@bufbuild/protobuf';
-import { Button, Input } from '@gopherex/backplane-ui';
-import { CodeEditor, DiffViewer } from '@gopherex/backplane-editors';
+import { Button, Input } from '@backplane-labs/backplane-ui';
+import { CodeEditor, DiffViewer } from '@backplane-labs/backplane-editors';
 import { MutationState, usePlatformAction } from './runtime.js';
 import { usePlatformText } from './locales.js';
 

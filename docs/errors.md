@@ -10,21 +10,21 @@ log store keeps logs. There is no deletion and no grouping into issues.
 
 | Source | Record | In the list |
 | --- | --- | --- |
-| Frontends with `@gopherex/backplane-errors` | one log record per capture: the exception, the app's registered state and a bounded history (breadcrumbs, state snapshots) as a JSON envelope (`app-debug` v1) in the body, the small fields as `app.debug.*` and `exception.*` attributes | origin `sdk`, one row per event id (retries collapse) |
+| Frontends with `@backplane-labs/backplane-errors` | one log record per capture: the exception, the app's registered state and a bounded history (breadcrumbs, state snapshots) as a JSON envelope (`app-debug` v1) in the body, the small fields as `app.debug.*` and `exception.*` attributes | origin `sdk`, one row per event id (retries collapse) |
 | Services on the Go SDK | `backplane.CaptureError(ctx, log, err, fields...)`; recovered panics of gRPC, ws-proto and HTTP handlers and of activities | origin `otel-log` |
 | Anything else | any log record with `exception.type`, `exception.message`, `exception.stacktrace` or `event.name=exception` | origin `otel-log` |
 
 ### Frontends
 
-`@gopherex/backplane-errors` (web/packages/errors) runs in any web frontend,
+`@backplane-labs/backplane-errors` (web/packages/errors) runs in any web frontend,
 not only in the console. It sends OTLP/HTTP protobuf logs to Backplane's
 public OTLP ingest (`<console>/telemetry/v1/logs`, see
 [telemetry-admission.md](telemetry-admission.md)); an ingest key there
 (`BACKPLANE_OTLP_KEYS`) filters stray traffic but is public in a browser.
 
 ```ts
-import { createOtlpClient } from '@gopherex/backplane-errors/otlp';
-import { createReactErrorHandler, instrumentBrowser } from '@gopherex/backplane-errors/browser';
+import { createOtlpClient } from '@backplane-labs/backplane-errors/otlp';
+import { createReactErrorHandler, instrumentBrowser } from '@backplane-labs/backplane-errors/browser';
 
 const errors = createOtlpClient({
   url: 'https://example.com/backplane/telemetry/v1/logs',

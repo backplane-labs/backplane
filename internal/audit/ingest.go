@@ -30,9 +30,9 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/internal/store"
-	"github.com/gopherex/backplane/internal/store/db"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/internal/store"
+	"github.com/backplane-labs/backplane/internal/store/db"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 )
 
 // Attributes of an application audit record (backplane.AuditLabel and the

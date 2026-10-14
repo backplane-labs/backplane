@@ -11,8 +11,8 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel"
 
-	"github.com/gopherex/backplane/internal/wire"
-	"github.com/gopherex/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/internal/wire"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 )
 
 // CloudEvents over the NATS binding (binary mode): attributes and

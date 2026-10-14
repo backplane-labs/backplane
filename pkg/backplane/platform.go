@@ -11,10 +11,10 @@ import (
 	"github.com/gopherex/xlog"
 	"github.com/gopherex/xprobe/pkg/probe"
 
-	"github.com/gopherex/backplane/pkg/backplane/build"
-	"github.com/gopherex/backplane/pkg/backplane/internal/health"
-	"github.com/gopherex/backplane/pkg/backplane/internal/manifest"
-	"github.com/gopherex/backplane/pkg/backplane/internal/recovery"
+	"github.com/backplane-labs/backplane/pkg/backplane/build"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/health"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/recovery"
 )
 
 const (

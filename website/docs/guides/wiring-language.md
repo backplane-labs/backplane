@@ -88,4 +88,4 @@ Analysis checks declared targets, names, references, cycles, scope, options, CEL
 
 Saved definitions are re-evaluated against current manifests. Removing a referenced field can make a previously valid definition broken. Rollback is validated again; historical validity is not a guarantee of present compatibility.
 
-For exact protobuf fields see [step.proto](https://github.com/gopherex/backplane/blob/master/backplanepb/console/v1/step.proto); for request/error examples see [WiringService](../reference/services/wiring-service.md).
+For exact protobuf fields see [step.proto](https://github.com/backplane-labs/backplane/blob/master/backplanepb/console/v1/step.proto); for request/error examples see [WiringService](../reference/services/wiring-service.md).

@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/gopherex/backplane/examples/demo"
+	"github.com/backplane-labs/backplane/examples/demo"
 )
 
 var errToken = errors.New("BACKPLANE_ADMIN_TOKEN is required")

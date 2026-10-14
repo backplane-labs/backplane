@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useTranslation } from 'react-i18next';
-import { Button, DataTable, SearchInput, Stack, Tabs, TabsContent, TabsList, TabsTrigger } from '@gopherex/backplane-ui';
-import { ErrorDetails, LogViewer, TraceList, TraceWaterfall, type CorrelationTarget, type ErrorCause, type LogRecord, type SpanRecord } from '@gopherex/backplane-observability-ui';
+import { Button, DataTable, SearchInput, Stack, Tabs, TabsContent, TabsList, TabsTrigger } from '@backplane-labs/backplane-ui';
+import { ErrorDetails, LogViewer, TraceList, TraceWaterfall, type CorrelationTarget, type ErrorCause, type LogRecord, type SpanRecord } from '@backplane-labs/backplane-observability-ui';
 
 const english = { title: 'Error investigation fixture', search: 'Search errors', errors: 'Errors', message: 'Message', service: 'Service', occurrences: 'Occurrences', back: 'Back to errors', details: 'Error detail', stack: 'Stack and causes', logs: 'Related logs', traces: 'Related trace', span: 'Related spans', empty: 'No matching errors' };
 const traceId = '0123456789abcdef0123456789abcdef', start = '1790683200123456789';

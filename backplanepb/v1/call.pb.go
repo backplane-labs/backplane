@@ -296,7 +296,7 @@ const file_backplanepb_v1_call_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"*\n" +
 	"\x0eActivityResult\x12\x18\n" +
-	"\apayload\x18\x01 \x01(\fR\apayloadB:Z8github.com/gopherex/backplane/backplanepb/v1;backplanev1b\x06proto3"
+	"\apayload\x18\x01 \x01(\fR\apayloadB@Z>github.com/backplane-labs/backplane/backplanepb/v1;backplanev1b\x06proto3"
 
 var (
 	file_backplanepb_v1_call_proto_rawDescOnce sync.Once

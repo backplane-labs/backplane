@@ -9,7 +9,7 @@ verification suite.
 ## Version contract
 
 The `vX.Y.Z` tag is the source of truth for the server, container, all 13 public
-`@gopherex/backplane-*` packages and documentation. No package-version edit or
+`@backplane-labs/backplane-*` packages and documentation. No package-version edit or
 version-bump commit is required before `make release`.
 
 CI stamps the tag version into its checkout before dependency installation and
@@ -31,9 +31,9 @@ version bump alone does not establish compatibility.
 | GitHub Releases | 13 frontend `.tgz` packages and `frontend-packages.json` inventory |
 | GitHub Releases | `backplane_X.Y.Z_docs.tar.gz`: static English documentation site |
 | GitHub Releases | `SHA256SUMS` and `image-digest.txt` |
-| GitHub Pages | Release documentation at https://gopherex.github.io/backplane/ |
-| GHCR | `ghcr.io/gopherex/backplane:X.Y.Z` and `:latest`, both Linux amd64/arm64 |
-| GitHub Packages | All 13 `@gopherex/backplane-*` packages at the coordinated version |
+| GitHub Pages | Release documentation at https://backplane-labs.github.io/backplane/ |
+| GHCR | `ghcr.io/backplane-labs/backplane:X.Y.Z` and `:latest`, both Linux amd64/arm64 |
+| GitHub Packages | All 13 `@backplane-labs/backplane-*` packages at the coordinated version |
 
 The multi-platform image is assembled from the same binary and console trees
 as the downloadable archives. It runs as non-root and includes trusted CA

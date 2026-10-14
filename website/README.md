@@ -1,7 +1,7 @@
 # Backplane documentation
 
 English Docusaurus handbook, published from version tags at
-https://gopherex.github.io/backplane/.
+https://backplane-labs.github.io/backplane/.
 
 ```sh
 yarn install --frozen-lockfile

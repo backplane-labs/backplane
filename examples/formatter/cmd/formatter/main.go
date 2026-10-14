@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gopherex/backplane/examples/formatter/internal/formatter"
-	"github.com/gopherex/backplane/pkg/backplane"
-	"github.com/gopherex/backplane/pkg/backplane/api"
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/drivers/standard"
+	"github.com/backplane-labs/backplane/examples/formatter/internal/formatter"
+	"github.com/backplane-labs/backplane/pkg/backplane"
+	"github.com/backplane-labs/backplane/pkg/backplane/api"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/drivers/standard"
 )
 
 type Config struct {

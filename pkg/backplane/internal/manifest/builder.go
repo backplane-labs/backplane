@@ -21,12 +21,12 @@ import (
 
 	sp "github.com/gopherex/schemapb/go/schemapb"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/internal/apifiles"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/apifiles"
 )
 
 const (
-	sdkModule = "github.com/gopherex/backplane"
+	sdkModule = "github.com/backplane-labs/backplane"
 	// MaxSize is Consul's KV value limit; the manifest is one value.
 	MaxSize = 512 * 1024
 )

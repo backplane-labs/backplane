@@ -2,11 +2,11 @@ import { useCallback, useMemo, useState } from 'react';
 import { create, type JsonValue } from '@bufbuild/protobuf';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { ErrorFacetsRequestSchema, ErrorHistogramRequestSchema, ErrorOrigin, ErrorRelation, ErrorServiceClient, GetErrorRequestSchema, RelatedLogsRequestSchema,
-  SearchErrorsRequestSchema, type ErrorOccurrence, type GetErrorResponse } from '@gopherex/backplane-api';
-import { useClient } from '@gopherex/backplane-react';
-import { Badge, Button, DetailDrawer, EmptyState, SelectControl, Panel, Skeleton, Timestamp, resolveTimeRange, type TimeRangeValue } from '@gopherex/backplane-ui';
-import { JSONViewer } from '@gopherex/backplane-editors';
-import { ErrorDetails, LogViewer } from '@gopherex/backplane-observability-ui';
+  SearchErrorsRequestSchema, type ErrorOccurrence, type GetErrorResponse } from '@backplane-labs/backplane-api';
+import { useClient } from '@backplane-labs/backplane-react';
+import { Badge, Button, DetailDrawer, EmptyState, SelectControl, Panel, Skeleton, Timestamp, resolveTimeRange, type TimeRangeValue } from '@backplane-labs/backplane-ui';
+import { JSONViewer } from '@backplane-labs/backplane-editors';
+import { ErrorDetails, LogViewer } from '@backplane-labs/backplane-observability-ui';
 import { AppWindow, Bug, CircleAlert, Server, Waypoints } from 'lucide-react';
 import { usePlatformText } from './locales.js';
 import { usePlatformQuery } from './runtime.js';

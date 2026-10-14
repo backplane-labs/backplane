@@ -15,7 +15,7 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/recovery"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/recovery"
 )
 
 // sink records log lines.

@@ -397,7 +397,7 @@ const file_backplanepb_console_v1_calls_proto_rawDesc = "" +
 	"\x06result\x18\x01 \x01(\v2 .backplane.console.v1.CallResultR\x06result2\xcc\x01\n" +
 	"\vCallService\x12Y\n" +
 	"\bCallHook\x12%.backplane.console.v1.CallHookRequest\x1a&.backplane.console.v1.CallHookResponse\x12b\n" +
-	"\vRunActivity\x12(.backplane.console.v1.RunActivityRequest\x1a).backplane.console.v1.RunActivityResponseB@Z>github.com/gopherex/backplane/backplanepb/console/v1;consolev1b\x06proto3"
+	"\vRunActivity\x12(.backplane.console.v1.RunActivityRequest\x1a).backplane.console.v1.RunActivityResponseBFZDgithub.com/backplane-labs/backplane/backplanepb/console/v1;consolev1b\x06proto3"
 
 var (
 	file_backplanepb_console_v1_calls_proto_rawDescOnce sync.Once

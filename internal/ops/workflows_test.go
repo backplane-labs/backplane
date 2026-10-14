@@ -11,8 +11,8 @@ import (
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/internal/ops"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/ops"
 )
 
 // TestRunActivityWorkflow: the console's activity run calls the activity

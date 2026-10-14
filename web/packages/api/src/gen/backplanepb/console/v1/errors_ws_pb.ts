@@ -61,7 +61,7 @@ const ErrorService_RelatedLogs: MethodInfo<RelatedLogsRequest, RelatedLogsRespon
 
 /**
  * ErrorService reads errors from the installation's log store: records the
- * browser SDK (@gopherex/backplane-errors) writes, and any OpenTelemetry log
+ * browser SDK (@backplane-labs/backplane-errors) writes, and any OpenTelemetry log
  * record carrying the exception semantic conventions (exception.type,
  * exception.message, exception.stacktrace; the Go SDK's CaptureError).
  * Errors are retained as long as the log store retains logs; nothing is

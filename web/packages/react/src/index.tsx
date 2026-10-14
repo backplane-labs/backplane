@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { watchWithRetry, type ClientRuntime, type ClientConstructor, type ClientState } from '@gopherex/backplane-client';
+import { watchWithRetry, type ClientRuntime, type ClientConstructor, type ClientState } from '@backplane-labs/backplane-client';
 
 const Context = createContext<ClientRuntime | null>(null);
 

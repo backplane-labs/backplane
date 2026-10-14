@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 
-// A blank page whose tests import @gopherex/backplane-errors from source.
+// A blank page whose tests import @backplane-labs/backplane-errors from source.
 export default defineConfig({
   root: resolve(import.meta.dirname),
   optimizeDeps: { include: ['react', 'react-dom/client'] },

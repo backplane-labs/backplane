@@ -5,10 +5,10 @@ package backplane.console.v1;
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/gopherex/backplane/backplanepb/console/v1;consolev1";
+option go_package = "github.com/backplane-labs/backplane/backplanepb/console/v1;consolev1";
 
 // ErrorService reads errors from the installation's log store: records the
-// browser SDK (@gopherex/backplane-errors) writes, and any OpenTelemetry log
+// browser SDK (@backplane-labs/backplane-errors) writes, and any OpenTelemetry log
 // record carrying the exception semantic conventions (exception.type,
 // exception.message, exception.stacktrace; the Go SDK's CaptureError).
 // Errors are retained as long as the log store retains logs; nothing is

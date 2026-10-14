@@ -11,8 +11,8 @@ import (
 
 	"github.com/gopherex/xprobe/pkg/probe"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
-	"github.com/gopherex/backplane/pkg/backplane/internal/testlog"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
 )
 
 type journal struct {

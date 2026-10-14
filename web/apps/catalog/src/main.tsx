@@ -3,19 +3,19 @@ import { createRoot } from 'react-dom/client';
 import { I18nextProvider, useTranslation } from 'react-i18next';
 import { dateTime, type TimeRange } from '@grafana/data';
 import { BigValue, BigValueColorMode, BigValueGraphMode, ThemeContext, TimeRangePicker } from '@grafana/ui';
-import { createGrafanaTheme, tokens, type ThemeMode } from '@gopherex/backplane-theme';
+import { createGrafanaTheme, tokens, type ThemeMode } from '@backplane-labs/backplane-theme';
 import {
   Badge, Button, Input, Label, Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableCaption,
   Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
   Select, SelectTrigger, SelectContent, SelectItem, SelectValue,
-} from '@gopherex/backplane-ui';
+} from '@backplane-labs/backplane-ui';
 import { QueryEditor } from './query-editor';
 import { i18n } from './i18n';
 import '@fontsource/ibm-plex-sans/400.css';
 import '@fontsource/ibm-plex-sans/500.css';
 import '@fontsource/ibm-plex-mono/400.css';
-import '@gopherex/backplane-ui/style.css';
-import '@gopherex/backplane-theme/style.css';
+import '@backplane-labs/backplane-ui/style.css';
+import '@backplane-labs/backplane-theme/style.css';
 import './style.css';
 
 const sources = [

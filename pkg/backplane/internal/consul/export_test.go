@@ -3,7 +3,7 @@ package consul
 import (
 	"time"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/backoff"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/backoff"
 )
 
 // UseFastTiming shrinks the presence clocks so renew and retry cycles take

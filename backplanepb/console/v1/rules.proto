@@ -8,7 +8,7 @@ import "backplanepb/console/v1/workflows.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/gopherex/backplane/backplanepb/console/v1;consolev1";
+option go_package = "github.com/backplane-labs/backplane/backplanepb/console/v1;consolev1";
 
 // RuleService is the console's view of rules (§8.1): a binding whose source
 // is an event instead of a hook — same steps, same executor, no result.

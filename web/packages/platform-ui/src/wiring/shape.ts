@@ -1,4 +1,4 @@
-import type * as api from '@gopherex/backplane-api';
+import type * as api from '@backplane-labs/backplane-api';
 
 /** A manifest schema (schemapb) as the wiring editor reads it. */
 export type Schema = NonNullable<api.WiringContract['hooks'][number]['input']>;

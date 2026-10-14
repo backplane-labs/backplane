@@ -1,6 +1,6 @@
 import { Document, isMap, isPair, isScalar, isSeq, parseDocument, type Node, type Pair, type Scalar } from 'yaml';
 import { fromJson, ScalarType, toJson, type DescField, type DescMessage, type JsonValue } from '@bufbuild/protobuf';
-import * as api from '@gopherex/backplane-api';
+import * as api from '@backplane-labs/backplane-api';
 
 /**
  * A binding or rule as the wiring editor holds it: YAML text whose data is the

@@ -11,9 +11,9 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/examples/hello/internal/greeter"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	"github.com/gopherex/backplane/pkg/backplane/event"
+	"github.com/backplane-labs/backplane/examples/hello/internal/greeter"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/event"
 )
 
 // Consumer is the reactor's pinned consumer name: moving or renaming the

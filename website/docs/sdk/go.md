@@ -1,10 +1,10 @@
 # Build a Go service
 
-The SDK entrypoint is `github.com/gopherex/backplane/pkg/backplane`. A service builds a typed state tree, registers its public and internal interfaces, then runs under a managed lifecycle.
+The SDK entrypoint is `github.com/backplane-labs/backplane/pkg/backplane`. A service builds a typed state tree, registers its public and internal interfaces, then runs under a managed lifecycle.
 
 ```bash
 go mod init example.com/my-service
-go get github.com/gopherex/backplane@v0.1.1
+go get github.com/backplane-labs/backplane@v0.1.1
 ```
 
 ## Minimal service
@@ -20,8 +20,8 @@ import (
     "net/http"
     "os"
 
-    "github.com/gopherex/backplane/pkg/backplane"
-    "github.com/gopherex/backplane/pkg/backplane/config"
+    "github.com/backplane-labs/backplane/pkg/backplane"
+    "github.com/backplane-labs/backplane/pkg/backplane/config"
 )
 
 type Config struct {
@@ -57,7 +57,7 @@ Build identity is normally set by your build pipeline. The repository demonstrat
 
 ## Add infrastructure intentionally
 
-For the standard integrations, import `github.com/gopherex/backplane/pkg/backplane/drivers/standard` and call:
+For the standard integrations, import `github.com/backplane-labs/backplane/pkg/backplane/drivers/standard` and call:
 
 ```go
 svc, err := backplane.Open(ctx, NewState, standard.Drivers())
@@ -79,4 +79,4 @@ proto/                   public and internal RPC contracts
 ui/                      built module bundle and embedding
 ```
 
-Pass dependencies through constructors. Keep domain components independent of global clients. The complete [hello example](https://github.com/gopherex/backplane/tree/master/examples/hello) includes managed listeners, another independently served listener described in the API catalog, configuration, reactors, hooks, workflows and an embedded module.
+Pass dependencies through constructors. Keep domain components independent of global clients. The complete [hello example](https://github.com/backplane-labs/backplane/tree/master/examples/hello) includes managed listeners, another independently served listener described in the API catalog, configuration, reactors, hooks, workflows and an embedded module.

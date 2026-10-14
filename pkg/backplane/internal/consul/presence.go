@@ -27,11 +27,11 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
-	"github.com/gopherex/backplane/pkg/backplane/internal/backoff"
-	"github.com/gopherex/backplane/pkg/backplane/internal/configrt"
-	"github.com/gopherex/backplane/pkg/backplane/internal/metrics"
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/backoff"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/configrt"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/metrics"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 )
 
 var (

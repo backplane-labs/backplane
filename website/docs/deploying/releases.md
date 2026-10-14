@@ -5,12 +5,12 @@ A coordinated release uses one `vX.Y.Z` tag for the Go server, all thirteen fron
 ## Artifacts
 
 - Linux amd64/arm64 archives containing server, production console, license and launch instructions.
-- Multi-platform `ghcr.io/gopherex/backplane:X.Y.Z` image and immutable digest.
+- Multi-platform `ghcr.io/backplane-labs/backplane:X.Y.Z` image and immutable digest.
 - Thirteen GitHub Packages releases and downloadable `.tgz` files with an integrity inventory.
 - `backplane_X.Y.Z_docs.tar.gz`, the complete static documentation site.
 - `SHA256SUMS` covering downloadable archives and metadata.
 
-The documentation is deployed to **https://gopherex.github.io/backplane/** from release CI. Ordinary branch/PR changes build and validate it without publishing an unreleased site. The header identifies the published release. Older release archives preserve their matching site.
+The documentation is deployed to **https://backplane-labs.github.io/backplane/** from release CI. Ordinary branch/PR changes build and validate it without publishing an unreleased site. The header identifies the published release. Older release archives preserve their matching site.
 
 ## Maintain documentation
 

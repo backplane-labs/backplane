@@ -31,7 +31,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
 // ErrorService reads errors from the installation's log store: records the
-// browser SDK (@gopherex/backplane-errors) writes, and any OpenTelemetry log
+// browser SDK (@backplane-labs/backplane-errors) writes, and any OpenTelemetry log
 // record carrying the exception semantic conventions (exception.type,
 // exception.message, exception.stacktrace; the Go SDK's CaptureError).
 // Errors are retained as long as the log store retains logs; nothing is
@@ -116,7 +116,7 @@ func (c *errorServiceClient) RelatedLogs(ctx context.Context, in *RelatedLogsReq
 // for forward compatibility.
 //
 // ErrorService reads errors from the installation's log store: records the
-// browser SDK (@gopherex/backplane-errors) writes, and any OpenTelemetry log
+// browser SDK (@backplane-labs/backplane-errors) writes, and any OpenTelemetry log
 // record carrying the exception semantic conventions (exception.type,
 // exception.message, exception.stacktrace; the Go SDK's CaptureError).
 // Errors are retained as long as the log store retains logs; nothing is

@@ -34,8 +34,8 @@ import (
 	"github.com/gopherex/xlog"
 	xlogpgx "github.com/gopherex/xlog/contrib/libs/pgx"
 
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 )
 
 // Errors of Config.

@@ -1,4 +1,4 @@
-# @gopherex/backplane-errors
+# @backplane-labs/backplane-errors
 
 Browser exception capture for any web frontend reporting to a Backplane
 installation: each captured exception is one OpenTelemetry log record carrying
@@ -8,7 +8,7 @@ Errors section reads them back with their trace and related logs. Importing
 the package installs no listeners and sends nothing.
 
 ```ts
-import { createOtlpClient } from '@gopherex/backplane-errors/otlp';
+import { createOtlpClient } from '@backplane-labs/backplane-errors/otlp';
 
 const errors = createOtlpClient({
   // Backplane's public OTLP/HTTP ingest (the console's /telemetry route).

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, within } from 'storybook/test';
-import * as UI from '@gopherex/backplane-ui';
+import * as UI from '@backplane-labs/backplane-ui';
 
 const meta = {
   title: 'Kit/Primitives',

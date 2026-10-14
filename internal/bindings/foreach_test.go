@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/gopherex/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/bindings"
 )
 
 const forEachBinding = `

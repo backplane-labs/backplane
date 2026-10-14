@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/gopherex/backplane/internal/store/db"
+	"github.com/backplane-labs/backplane/internal/store/db"
 )
 
 // AuditDetail permits control metadata, never arbitrary request bodies, secrets,

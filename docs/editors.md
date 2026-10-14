@@ -1,6 +1,6 @@
 # Editors
 
-`@gopherex/backplane-editors` exports lazy CodeMirror controls: `CodeEditor`,
+`@backplane-labs/backplane-editors` exports lazy CodeMirror controls: `CodeEditor`,
 `InlineCodeEditor`, `QueryEditor`, `JSONViewer`, `DiffViewer` and `EditorActions`.
 The author supplies an accessible label, controlled string value and theme mode.
 English resources are exported as `editorsEnglish` for `backplane.editors`.

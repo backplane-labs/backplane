@@ -1,6 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
-import { decodeChips, defaultErrorsState, encodeChips, ErrorsExplorer, type ErrorsState } from '@gopherex/backplane-platform-ui';
-import type { ThemeMode } from '@gopherex/backplane-theme';
+import { decodeChips, defaultErrorsState, encodeChips, ErrorsExplorer, type ErrorsState } from '@backplane-labs/backplane-platform-ui';
+import type { ThemeMode } from '@backplane-labs/backplane-theme';
 
 const fields = new Set(['service', 'environment', 'type', 'message', 'release', 'trace_id', 'runtime_id', 'group_key', 'origin']);
 

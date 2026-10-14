@@ -8,7 +8,7 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/metrics"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/metrics"
 )
 
 // Connected reports whether the client holds a connection that answered

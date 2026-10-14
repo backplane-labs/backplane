@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package hello.v1;
 
-option go_package = "github.com/gopherex/backplane/examples/hello/proto/hello/v1;hellov1";
+option go_package = "github.com/backplane-labs/backplane/examples/hello/proto/hello/v1;hellov1";
 
 // External API of hello. One implementation is served over native gRPC
 // and ws-proto.

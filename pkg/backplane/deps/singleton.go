@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/node"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 )
 
 // Singleton is built on first Get and closed at stop if it was built. It is

@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"go.temporal.io/api/serviceerror"
 
-	"github.com/gopherex/backplane/internal/rules"
+	"github.com/backplane-labs/backplane/internal/rules"
 )
 
 func engineWith(s rules.Starter) *rules.Engine { return rules.Detached(nil, rules.WithStarter(s)) }

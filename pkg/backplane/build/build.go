@@ -1,10 +1,10 @@
 // Package build carries what the deployment stamps into the binary at link
 // time. Set with -ldflags:
 //
-//	-X github.com/gopherex/backplane/pkg/backplane/build.Service=hello
-//	-X github.com/gopherex/backplane/pkg/backplane/build.Version=1.2.0
-//	-X github.com/gopherex/backplane/pkg/backplane/build.Commit=$(git rev-parse HEAD)
-//	-X github.com/gopherex/backplane/pkg/backplane/build.Date=$(date -u +%FT%TZ)
+//	-X github.com/backplane-labs/backplane/pkg/backplane/build.Service=hello
+//	-X github.com/backplane-labs/backplane/pkg/backplane/build.Version=1.2.0
+//	-X github.com/backplane-labs/backplane/pkg/backplane/build.Commit=$(git rev-parse HEAD)
+//	-X github.com/backplane-labs/backplane/pkg/backplane/build.Date=$(date -u +%FT%TZ)
 //
 // Everything falls back to debug.ReadBuildInfo: Service to the last element
 // of the main package path (".../cmd/hello" -> "hello"), so `go run` works;

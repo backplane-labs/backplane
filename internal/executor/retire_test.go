@@ -14,9 +14,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/gopherex/backplane/internal/executor"
-	"github.com/gopherex/backplane/internal/registry"
-	"github.com/gopherex/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/internal/executor"
+	"github.com/backplane-labs/backplane/internal/registry"
+	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
 )
 
 type endpointAPI struct {

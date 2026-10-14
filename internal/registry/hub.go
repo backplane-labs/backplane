@@ -8,7 +8,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	backplanev1 "github.com/gopherex/backplane/backplanepb/v1"
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 )
 
 // Hub holds the current snapshot and signals changes: the Source half of

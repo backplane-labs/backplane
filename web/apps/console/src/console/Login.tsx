@@ -1,9 +1,9 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowRight, CircleAlert, Eye, EyeOff, KeyRound, LoaderCircle, Moon, Sun } from 'lucide-react';
-import { Button, Input, Label } from '@gopherex/backplane-ui';
-import { SessionHttpError, type BackplaneClient, type ConnectionState } from '@gopherex/backplane-client';
-import type { ThemeMode } from '@gopherex/backplane-theme';
+import { Button, Input, Label } from '@backplane-labs/backplane-ui';
+import { SessionHttpError, type BackplaneClient, type ConnectionState } from '@backplane-labs/backplane-client';
+import type { ThemeMode } from '@backplane-labs/backplane-theme';
 import { BrandMark } from './shell/BrandMark';
 import './login.css';
 

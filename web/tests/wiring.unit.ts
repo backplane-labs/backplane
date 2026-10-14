@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { create, fromJson, toJson } from '@bufbuild/protobuf';
 import { isScalar } from 'yaml';
-import * as api from '@gopherex/backplane-api';
-import { SchemaSchema } from '@gopherex/backplane-api/schemapb/schema_pb';
+import * as api from '@backplane-labs/backplane-api';
+import { SchemaSchema } from '@backplane-labs/backplane-api/schemapb/schema_pb';
 import { addStep, editAll, stepAt, stepPathOf, exprRange, locate, nodeAt, parseDraft, pathAt, protoDuration, removeStep, stepNameFor, templateYAML, toYAML } from '../packages/platform-ui/src/wiring/document';
 import { completeCEL, completeYAML, parentKeys } from '../packages/platform-ui/src/wiring/complete';
 import { framesOf, indexCatalog, outputShape, scopeAt, scopeOf } from '../packages/platform-ui/src/wiring/catalog';

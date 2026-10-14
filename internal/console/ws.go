@@ -16,7 +16,7 @@ import (
 	"github.com/gopherex/ws-proto/wsrpc"
 	"github.com/gopherex/xlog"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 )
 
 // revokeDelay lets the RPC that revoked its own session answer before its

@@ -9,7 +9,7 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/gopherex/backplane/pkg/backplane/internal/exception"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/exception"
 )
 
 func values(fields []xlog.Field) map[string]string {

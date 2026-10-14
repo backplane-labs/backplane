@@ -1,8 +1,8 @@
 # Base UI kit
 
-`@gopherex/backplane-ui` supplies 47 shadcn/Radix primitive modules, page
+`@backplane-labs/backplane-ui` supplies 47 shadcn/Radix primitive modules, page
 compositions and platform building blocks. Import its `style.css` alongside
-`@gopherex/backplane-theme/style.css`. Register `englishResources` under the
+`@backplane-labs/backplane-theme/style.css`. Register `englishResources` under the
 `backplane.ui` i18next namespace. Both themes use the same semantic CSS tokens
 and focus behavior.
 
@@ -18,7 +18,7 @@ theme status colors keep WCAG AA contrast on their tinted badges.
 `style.css` is one stylesheet for the whole kit family: its Tailwind build also
 scans platform-ui, schema-forms, observability-ui, editors and charts. Apps and
 modules that use Tailwind themselves import the preset
-`@gopherex/backplane-ui/theme.css` and should also `@source` the kit sources, so
+`@backplane-labs/backplane-ui/theme.css` and should also `@source` the kit sources, so
 that both stylesheets agree on utility order. Modules without their own Tailwind
 build compose pages from kit components only; kit components never rely on
 classes the module would have to generate.

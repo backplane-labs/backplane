@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { ErrorDetails, LogViewer, TraceList, TraceWaterfall, type CorrelationTarget, type ErrorCause, type LogRecord, type SpanRecord } from '@gopherex/backplane-observability-ui';
-import { Button, Stack } from '@gopherex/backplane-ui';
+import { ErrorDetails, LogViewer, TraceList, TraceWaterfall, type CorrelationTarget, type ErrorCause, type LogRecord, type SpanRecord } from '@backplane-labs/backplane-observability-ui';
+import { Button, Stack } from '@backplane-labs/backplane-ui';
 const traceId = '0123456789abcdef0123456789abcdef';
 const logs: LogRecord[] = Array.from({ length: 10000 }, (_, index) => ({ id: `log-${index}`, timestamp: `2026-09-29T12:00:00.${String(index).padStart(9, '0')}Z`, severity: index % 3 ? 'info' : 'error', body: `Request ${index} failed <script>unsafe()</script>`, attributes: { sequence: 18446744073709551615n, retry: index }, resource: { 'service.name': index % 2 ? 'hello' : 'formatter' }, traceId, spanId: String(index) }));
 const base = 1790683200123456789n;

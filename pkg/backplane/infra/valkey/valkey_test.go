@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/infra/valkey"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/valkey"
 )
 
 // The provider itself runs live in internal/console (BACKPLANE_TEST_VALKEY).

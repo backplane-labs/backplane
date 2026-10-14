@@ -2,12 +2,12 @@
 package temporal
 
 import (
-	"github.com/gopherex/backplane/pkg/backplane"
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	"github.com/gopherex/backplane/pkg/backplane/deps"
-	inftemporal "github.com/gopherex/backplane/pkg/backplane/infra/temporal"
-	"github.com/gopherex/backplane/pkg/backplane/internal/decl"
-	"github.com/gopherex/backplane/pkg/backplane/internal/temporal"
+	"github.com/backplane-labs/backplane/pkg/backplane"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	inftemporal "github.com/backplane-labs/backplane/pkg/backplane/infra/temporal"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/temporal"
 )
 
 // Driver installs the transport; configuration decides whether it is enabled.

@@ -10,9 +10,9 @@ import (
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/client"
 
-	"github.com/gopherex/backplane/internal/bindings"
-	"github.com/gopherex/backplane/internal/executor"
-	"github.com/gopherex/backplane/internal/wire"
+	"github.com/backplane-labs/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/executor"
+	"github.com/backplane-labs/backplane/internal/wire"
 )
 
 // Workflow is the workflow type that runs bindings and rules on

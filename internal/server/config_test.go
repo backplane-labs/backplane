@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gopherex/backplane/internal/server"
-	"github.com/gopherex/backplane/pkg/backplane/config"
-	consuldriver "github.com/gopherex/backplane/pkg/backplane/drivers/consul"
+	"github.com/backplane-labs/backplane/internal/server"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	consuldriver "github.com/backplane-labs/backplane/pkg/backplane/drivers/consul"
 )
 
 func load(t *testing.T) (server.Config, error) {

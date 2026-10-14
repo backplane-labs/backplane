@@ -1,6 +1,6 @@
 import { create } from '@bufbuild/protobuf';
 import { parseDocument } from 'yaml';
-import { SchemaFormat, ManifestSchema, ApiKind, APISchema, type APISchemaBundle } from '@gopherex/backplane-api/backplanepb/v1/manifest_pb';
+import { SchemaFormat, ManifestSchema, ApiKind, APISchema, type APISchemaBundle } from '@backplane-labs/backplane-api/backplanepb/v1/manifest_pb';
 import { readAPIDocument, type APIResult } from './api-document.js';
 
 export type APIFileReader = (hash: string, file: string, signal: AbortSignal) => Promise<Uint8Array>;

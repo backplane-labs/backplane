@@ -3,7 +3,7 @@ import { EditorState } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { useTranslation } from 'react-i18next';
-import { tokens, typography, type ThemeMode } from '@gopherex/backplane-theme';
+import { tokens, typography, type ThemeMode } from '@backplane-labs/backplane-theme';
 
 // Compatibility fixture. Language parsing/completion belongs to the editors
 // package; the fixture must not advertise a working LogsQL parser yet.

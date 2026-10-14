@@ -25,9 +25,9 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	consolev1 "github.com/gopherex/backplane/backplanepb/console/v1"
-	"github.com/gopherex/backplane/internal/errors/envelope"
-	"github.com/gopherex/backplane/internal/obs/logsql"
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	"github.com/backplane-labs/backplane/internal/errors/envelope"
+	"github.com/backplane-labs/backplane/internal/obs/logsql"
 )
 
 // Stored fields of an error record: the OTel log data model and exception

@@ -1,10 +1,10 @@
-import { PlatformExecutionProvider } from '@gopherex/backplane-platform-ui';
+import { PlatformExecutionProvider } from '@backplane-labs/backplane-platform-ui';
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
 import { create } from '@bufbuild/protobuf';
-import { PlatformServiceClient, GetCapabilitiesRequestSchema, GetInfrastructureRequestSchema } from '@gopherex/backplane-api';
-import { useClient } from '@gopherex/backplane-react';
-import { usePlatformQuery } from '@gopherex/backplane-platform-ui';
-import { Button, EmptyState } from '@gopherex/backplane-ui';
+import { PlatformServiceClient, GetCapabilitiesRequestSchema, GetInfrastructureRequestSchema } from '@backplane-labs/backplane-api';
+import { useClient } from '@backplane-labs/backplane-react';
+import { usePlatformQuery } from '@backplane-labs/backplane-platform-ui';
+import { Button, EmptyState } from '@backplane-labs/backplane-ui';
 import { useTranslation } from 'react-i18next';
 
 function usePlatformState() {
