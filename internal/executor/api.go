@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -250,10 +251,15 @@ func (x *Executor) execute(
 	return out, nil
 }
 
-// maskResult hides the secrets of a test run's answer by its program.
+// maskResult hides the secrets of a test run's answer by its program: a
+// JSON answer field by field, a raw one whole when the result is secret.
 func maskResult(res *consolev1.CallResult, prog *redact.Program) {
 	if res.GetOutput() != "" {
 		res.Output = string(prog.MaskResult([]byte(res.GetOutput())))
+	}
+
+	if masked := prog.MaskResult(res.GetRaw()); len(res.GetRaw()) > 0 && !bytes.Equal(masked, res.GetRaw()) {
+		res.Output, res.Raw = string(masked), nil
 	}
 }
 

@@ -559,6 +559,9 @@ func maskEvent(event *consolev1.HistoryEvent, e *historypb.HistoryEvent, red *re
 	case e.GetWorkflowExecutionStartedEventAttributes() != nil:
 		at := e.GetWorkflowExecutionStartedEventAttributes()
 		event.Payload = red.Started(at.GetWorkflowType().GetName(), at.GetTaskQueue().GetName(), event.GetPayload())
+	case e.GetWorkflowExecutionContinuedAsNewEventAttributes() != nil:
+		at := e.GetWorkflowExecutionContinuedAsNewEventAttributes()
+		event.Payload = red.Started(at.GetWorkflowType().GetName(), at.GetTaskQueue().GetName(), event.GetPayload())
 	case e.GetWorkflowExecutionCompletedEventAttributes() != nil:
 		event.Payload = red.Result(event.GetPayload())
 	case e.GetActivityTaskScheduledEventAttributes() != nil,
