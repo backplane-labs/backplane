@@ -17,6 +17,7 @@ import (
 	"time"
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	"github.com/backplane-labs/backplane/internal/apperrors"
 	"github.com/backplane-labs/backplane/internal/audit"
 	liveconfig "github.com/backplane-labs/backplane/internal/config"
 	"github.com/backplane-labs/backplane/internal/console"
@@ -47,6 +48,8 @@ type Config struct {
 	Obs obs.Config `json:"obs"`
 	// Durable control audit settings belong to deployment.
 	Audit audit.Settings `json:"audit"`
+	// Durable application errors: BACKPLANE_ERRORS_*.
+	Errors apperrors.Settings `json:"errors"`
 	// OTLP admission into a deployment-owned Collector; empty URL disables it.
 	OTLP otlp.Config `json:"otlp"`
 	// Live-value overrides: BACKPLANE_LIVE_CONFIG_* (§5.3).

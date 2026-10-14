@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package backplane.console.v1;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -28,6 +29,16 @@ service ErrorService {
   // Logs related to an occurrence: of its span, its trace, its SDK runtime
   // or its service around its time. Its trace itself is ObsService.GetTrace.
   rpc RelatedLogs(RelatedLogsRequest) returns (RelatedLogsResponse);
+  // SearchErrorGroups lists groups — one fingerprint in one service — with
+  // their counts over the filter's range, newest activity first.
+  rpc SearchErrorGroups(SearchErrorGroupsRequest) returns (SearchErrorGroupsResponse);
+  // GetErrorGroup is one group with its trend and facets over the range.
+  rpc GetErrorGroup(GetErrorGroupRequest) returns (GetErrorGroupResponse);
+  // ErrorInfo says how errors are kept: retention, burst limits, record
+  // size and whether related logs can be read.
+  rpc ErrorInfo(ErrorInfoRequest) returns (ErrorInfoResponse);
+  // Resolves, mutes or reopens a group; audited as error_group.<state>.
+  rpc SetErrorGroupState(SetErrorGroupStateRequest) returns (SetErrorGroupStateResponse);
 }
 
 enum ErrorOrigin {
@@ -62,6 +73,17 @@ message ErrorOccurrence {
   string mechanism = 14;
   // SDK: the application's grouping key, as given.
   string group_key = 15;
+  // The group the occurrence belongs to: hex of its fingerprint.
+  string fingerprint = 16;
+  // SDK: the exception was not handled by the application (window.error,
+  // unhandledrejection); false when handled or unknown.
+  bool unhandled = 17;
+  // Where it came in: "proxy" (the public OTLP ingest: browsers) or
+  // "trusted" (the Collector's own senders).
+  string ingest = 18;
+  google.protobuf.Timestamp received_at = 19;
+  // The stored record was cut to the size limit (stack, envelope).
+  bool truncated = 20;
 }
 
 // ErrorField is a filterable field of an occurrence.
@@ -77,6 +99,13 @@ enum ErrorField {
   ERROR_FIELD_GROUP_KEY = 8;
   // "sdk" or "otel-log"; IS and IS_NOT only.
   ERROR_FIELD_ORIGIN = 9;
+  // The group (hex fingerprint); is / is_not.
+  ERROR_FIELD_FINGERPRINT = 10;
+  // "true" / "false": whether the application handled it; is / is_not.
+  ERROR_FIELD_HANDLED = 11;
+  // "proxy" / "trusted"; is / is_not.
+  ERROR_FIELD_INGEST = 12;
+  ERROR_FIELD_INSTANCE = 13;
 }
 
 enum ErrorOperator {
@@ -186,6 +215,130 @@ message GetErrorResponse {
   map<string, string> fields = 6;
   // invalid_payload, index_payload_mismatch, event_id_body_conflict, ...
   repeated string warnings = 7;
+  // The occurrence's group, counted over all time.
+  ErrorGroup group = 8;
+  // Every attribute of the record and of its resource, as sent.
+  google.protobuf.Struct attributes = 9;
+  google.protobuf.Struct resource = 10;
+  // The instrumentation scope that wrote the record ("name@version").
+  string scope = 11;
+}
+
+// ErrorGroup is one fingerprint in one service: the same exception at the
+// same place, occurring over time.
+message ErrorGroup {
+  // Hex of the fingerprint.
+  string fingerprint = 1;
+  string service = 2;
+  // The group's exception as first seen.
+  string type = 3;
+  string message = 4;
+  google.protobuf.Timestamp first_seen = 5;
+  google.protobuf.Timestamp last_seen = 6;
+  // Occurrences over all time, also those the burst limits did not store.
+  uint64 count = 7;
+  // Occurrences stored over all time.
+  uint64 stored = 8;
+  // Occurrences stored within the request's range.
+  uint64 count_in_range = 9;
+  // Stored occurrences per bucket of the range (SearchErrorGroups: the
+  // sparkline; GetErrorGroup: the trend), ErrorHistogramResponse's step.
+  repeated uint64 trend = 10;
+  // The newest stored occurrence in the range: its ref, for GetError.
+  string sample_ref = 11;
+  // The occurrence's origin in the group: sdk when any is.
+  ErrorOrigin origin = 12;
+  // An unhandled occurrence is among them.
+  bool unhandled = 13;
+  // Environments and releases seen in the range, most frequent first.
+  repeated string environments = 14;
+  repeated string releases = 15;
+  // The group started within the range.
+  bool new = 16;
+  // Triage state; open unless resolved or muted.
+  ErrorGroupState state = 17;
+  // When, by whom and why the state was last set.
+  google.protobuf.Timestamp state_at = 18;
+  string state_by = 19;
+  string state_note = 20;
+  // Set when an occurrence reopened a resolved group: a regression.
+  google.protobuf.Timestamp regressed_at = 21;
+}
+
+// Triage state of a group. Occurrences of a muted group are still stored
+// and counted; the group is hidden unless asked for.
+enum ErrorGroupState {
+  ERROR_GROUP_STATE_UNSPECIFIED = 0;
+  ERROR_GROUP_STATE_OPEN = 1;
+  ERROR_GROUP_STATE_RESOLVED = 2;
+  ERROR_GROUP_STATE_MUTED = 3;
+}
+
+enum ErrorGroupSort {
+  ERROR_GROUP_SORT_UNSPECIFIED = 0;
+  ERROR_GROUP_SORT_LAST_SEEN = 1;
+  ERROR_GROUP_SORT_COUNT = 2;
+  ERROR_GROUP_SORT_FIRST_SEEN = 3;
+}
+
+message SearchErrorGroupsRequest {
+  ErrorFilter filter = 1;
+  // At most this many (default 50, at most 200).
+  uint32 page_size = 2;
+  // From the previous response; empty: the first page.
+  string page_cursor = 3;
+  ErrorGroupSort sort = 4;
+  // States to list; none: open groups only.
+  repeated ErrorGroupState states = 5;
+}
+
+message SearchErrorGroupsResponse {
+  repeated ErrorGroup groups = 1;
+  string next_page_cursor = 2;
+  // The trend's bucket size.
+  int64 step_millis = 3;
+}
+
+message GetErrorGroupRequest {
+  string fingerprint = 1;
+  string service = 2;
+  // The range (and conditions) the counts and facets are over; absent:
+  // the last 24 hours.
+  ErrorFilter filter = 3;
+}
+
+message GetErrorGroupResponse {
+  ErrorGroup group = 1;
+  // The trend's buckets, as ErrorHistogram's.
+  repeated ErrorBucket buckets = 2;
+  int64 step_millis = 3;
+}
+
+message SetErrorGroupStateRequest {
+  string fingerprint = 1;
+  string service = 2;
+  ErrorGroupState state = 3;
+  // Why; kept with the state and in the audit entry.
+  string note = 4;
+}
+
+message SetErrorGroupStateResponse {
+  ErrorGroup group = 1;
+}
+
+message ErrorInfoRequest {}
+
+message ErrorInfoResponse {
+  // How long occurrences are kept; zero: for ever.
+  google.protobuf.Duration retention = 1;
+  // Occurrences stored per group within a minute and within a day; past
+  // them the group only counts.
+  uint32 burst_per_minute = 2;
+  uint32 burst_per_day = 3;
+  // Bytes a stored record may take before its stack and envelope are cut.
+  uint64 max_record_bytes = 4;
+  // The log store is configured: RelatedLogs and traces can be read.
+  bool related_available = 5;
 }
 
 enum ErrorRelation {

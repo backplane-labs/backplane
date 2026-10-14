@@ -49,6 +49,7 @@ func capabilities(c Config) []*consolev1.Capability {
 		{Name: "traces", Enabled: c.Obs.TracesURL != ""},
 		{Name: "telemetry", Enabled: c.OTLP.URL != ""},
 		{Name: "audit", Enabled: true},
+		{Name: "errors", Enabled: true},
 		{Name: "audit_export", Enabled: c.Audit.ExportURL != ""},
 	}
 }

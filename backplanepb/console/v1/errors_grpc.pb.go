@@ -19,11 +19,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ErrorService_SearchErrors_FullMethodName   = "/backplane.console.v1.ErrorService/SearchErrors"
-	ErrorService_ErrorHistogram_FullMethodName = "/backplane.console.v1.ErrorService/ErrorHistogram"
-	ErrorService_ErrorFacets_FullMethodName    = "/backplane.console.v1.ErrorService/ErrorFacets"
-	ErrorService_GetError_FullMethodName       = "/backplane.console.v1.ErrorService/GetError"
-	ErrorService_RelatedLogs_FullMethodName    = "/backplane.console.v1.ErrorService/RelatedLogs"
+	ErrorService_SearchErrors_FullMethodName       = "/backplane.console.v1.ErrorService/SearchErrors"
+	ErrorService_ErrorHistogram_FullMethodName     = "/backplane.console.v1.ErrorService/ErrorHistogram"
+	ErrorService_ErrorFacets_FullMethodName        = "/backplane.console.v1.ErrorService/ErrorFacets"
+	ErrorService_GetError_FullMethodName           = "/backplane.console.v1.ErrorService/GetError"
+	ErrorService_RelatedLogs_FullMethodName        = "/backplane.console.v1.ErrorService/RelatedLogs"
+	ErrorService_SearchErrorGroups_FullMethodName  = "/backplane.console.v1.ErrorService/SearchErrorGroups"
+	ErrorService_GetErrorGroup_FullMethodName      = "/backplane.console.v1.ErrorService/GetErrorGroup"
+	ErrorService_ErrorInfo_FullMethodName          = "/backplane.console.v1.ErrorService/ErrorInfo"
+	ErrorService_SetErrorGroupState_FullMethodName = "/backplane.console.v1.ErrorService/SetErrorGroupState"
 )
 
 // ErrorServiceClient is the client API for ErrorService service.
@@ -51,6 +55,16 @@ type ErrorServiceClient interface {
 	// Logs related to an occurrence: of its span, its trace, its SDK runtime
 	// or its service around its time. Its trace itself is ObsService.GetTrace.
 	RelatedLogs(ctx context.Context, in *RelatedLogsRequest, opts ...grpc.CallOption) (*RelatedLogsResponse, error)
+	// SearchErrorGroups lists groups — one fingerprint in one service — with
+	// their counts over the filter's range, newest activity first.
+	SearchErrorGroups(ctx context.Context, in *SearchErrorGroupsRequest, opts ...grpc.CallOption) (*SearchErrorGroupsResponse, error)
+	// GetErrorGroup is one group with its trend and facets over the range.
+	GetErrorGroup(ctx context.Context, in *GetErrorGroupRequest, opts ...grpc.CallOption) (*GetErrorGroupResponse, error)
+	// ErrorInfo says how errors are kept: retention, burst limits, record
+	// size and whether related logs can be read.
+	ErrorInfo(ctx context.Context, in *ErrorInfoRequest, opts ...grpc.CallOption) (*ErrorInfoResponse, error)
+	// Resolves, mutes or reopens a group; audited as error_group.<state>.
+	SetErrorGroupState(ctx context.Context, in *SetErrorGroupStateRequest, opts ...grpc.CallOption) (*SetErrorGroupStateResponse, error)
 }
 
 type errorServiceClient struct {
@@ -111,6 +125,46 @@ func (c *errorServiceClient) RelatedLogs(ctx context.Context, in *RelatedLogsReq
 	return out, nil
 }
 
+func (c *errorServiceClient) SearchErrorGroups(ctx context.Context, in *SearchErrorGroupsRequest, opts ...grpc.CallOption) (*SearchErrorGroupsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SearchErrorGroupsResponse)
+	err := c.cc.Invoke(ctx, ErrorService_SearchErrorGroups_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *errorServiceClient) GetErrorGroup(ctx context.Context, in *GetErrorGroupRequest, opts ...grpc.CallOption) (*GetErrorGroupResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetErrorGroupResponse)
+	err := c.cc.Invoke(ctx, ErrorService_GetErrorGroup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *errorServiceClient) ErrorInfo(ctx context.Context, in *ErrorInfoRequest, opts ...grpc.CallOption) (*ErrorInfoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ErrorInfoResponse)
+	err := c.cc.Invoke(ctx, ErrorService_ErrorInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *errorServiceClient) SetErrorGroupState(ctx context.Context, in *SetErrorGroupStateRequest, opts ...grpc.CallOption) (*SetErrorGroupStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetErrorGroupStateResponse)
+	err := c.cc.Invoke(ctx, ErrorService_SetErrorGroupState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ErrorServiceServer is the server API for ErrorService service.
 // All implementations must embed UnimplementedErrorServiceServer
 // for forward compatibility.
@@ -136,6 +190,16 @@ type ErrorServiceServer interface {
 	// Logs related to an occurrence: of its span, its trace, its SDK runtime
 	// or its service around its time. Its trace itself is ObsService.GetTrace.
 	RelatedLogs(context.Context, *RelatedLogsRequest) (*RelatedLogsResponse, error)
+	// SearchErrorGroups lists groups — one fingerprint in one service — with
+	// their counts over the filter's range, newest activity first.
+	SearchErrorGroups(context.Context, *SearchErrorGroupsRequest) (*SearchErrorGroupsResponse, error)
+	// GetErrorGroup is one group with its trend and facets over the range.
+	GetErrorGroup(context.Context, *GetErrorGroupRequest) (*GetErrorGroupResponse, error)
+	// ErrorInfo says how errors are kept: retention, burst limits, record
+	// size and whether related logs can be read.
+	ErrorInfo(context.Context, *ErrorInfoRequest) (*ErrorInfoResponse, error)
+	// Resolves, mutes or reopens a group; audited as error_group.<state>.
+	SetErrorGroupState(context.Context, *SetErrorGroupStateRequest) (*SetErrorGroupStateResponse, error)
 	mustEmbedUnimplementedErrorServiceServer()
 }
 
@@ -160,6 +224,18 @@ func (UnimplementedErrorServiceServer) GetError(context.Context, *GetErrorReques
 }
 func (UnimplementedErrorServiceServer) RelatedLogs(context.Context, *RelatedLogsRequest) (*RelatedLogsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RelatedLogs not implemented")
+}
+func (UnimplementedErrorServiceServer) SearchErrorGroups(context.Context, *SearchErrorGroupsRequest) (*SearchErrorGroupsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SearchErrorGroups not implemented")
+}
+func (UnimplementedErrorServiceServer) GetErrorGroup(context.Context, *GetErrorGroupRequest) (*GetErrorGroupResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetErrorGroup not implemented")
+}
+func (UnimplementedErrorServiceServer) ErrorInfo(context.Context, *ErrorInfoRequest) (*ErrorInfoResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ErrorInfo not implemented")
+}
+func (UnimplementedErrorServiceServer) SetErrorGroupState(context.Context, *SetErrorGroupStateRequest) (*SetErrorGroupStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetErrorGroupState not implemented")
 }
 func (UnimplementedErrorServiceServer) mustEmbedUnimplementedErrorServiceServer() {}
 func (UnimplementedErrorServiceServer) testEmbeddedByValue()                      {}
@@ -272,6 +348,78 @@ func _ErrorService_RelatedLogs_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ErrorService_SearchErrorGroups_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchErrorGroupsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ErrorServiceServer).SearchErrorGroups(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ErrorService_SearchErrorGroups_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ErrorServiceServer).SearchErrorGroups(ctx, req.(*SearchErrorGroupsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ErrorService_GetErrorGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetErrorGroupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ErrorServiceServer).GetErrorGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ErrorService_GetErrorGroup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ErrorServiceServer).GetErrorGroup(ctx, req.(*GetErrorGroupRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ErrorService_ErrorInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ErrorInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ErrorServiceServer).ErrorInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ErrorService_ErrorInfo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ErrorServiceServer).ErrorInfo(ctx, req.(*ErrorInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ErrorService_SetErrorGroupState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetErrorGroupStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ErrorServiceServer).SetErrorGroupState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ErrorService_SetErrorGroupState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ErrorServiceServer).SetErrorGroupState(ctx, req.(*SetErrorGroupStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ErrorService_ServiceDesc is the grpc.ServiceDesc for ErrorService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -298,6 +446,22 @@ var ErrorService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RelatedLogs",
 			Handler:    _ErrorService_RelatedLogs_Handler,
+		},
+		{
+			MethodName: "SearchErrorGroups",
+			Handler:    _ErrorService_SearchErrorGroups_Handler,
+		},
+		{
+			MethodName: "GetErrorGroup",
+			Handler:    _ErrorService_GetErrorGroup_Handler,
+		},
+		{
+			MethodName: "ErrorInfo",
+			Handler:    _ErrorService_ErrorInfo_Handler,
+		},
+		{
+			MethodName: "SetErrorGroupState",
+			Handler:    _ErrorService_SetErrorGroupState_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

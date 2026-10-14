@@ -204,7 +204,7 @@ test-otlp: ## OTLP admission and errors -> isolated Collector -> Victoria storag
 	GOWORK=off BACKPLANE_TEST_OTLP=http://127.0.0.1:14318 \
 	BACKPLANE_TEST_LOGS_URL=http://127.0.0.1:19428 BACKPLANE_TEST_TRACES_URL=http://127.0.0.1:20428 \
 	BACKPLANE_TEST_METRICS_URL=http://127.0.0.1:18428 \
-		go test -race -count=1 -run '^(TestStoredSignals|TestErrorsLive)$$' -v ./internal/otlp ./internal/obs
+		go test -race -count=1 -run '^(TestStoredSignals|TestRelatedLogsLive)$$' -v ./internal/otlp ./internal/obs
 
 release: ## Create and push a version tag; no local builds or tests
 	cd "$$(git rev-parse --show-toplevel)"

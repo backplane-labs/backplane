@@ -27,19 +27,41 @@ for (const theme of ['dark', 'light']) for (const story of stories) {
       await expect(page.getByLabel('Write attempts')).toHaveText('2');
     }
     if (story === 'errors') {
+      // Groups first: one row per distinct error; a group opens its drawer, an occurrence in it opens its own.
       const table = page.getByRole('table', { name: 'Errors', exact: true });
       await expect(table.locator('tbody tr')).toHaveCount(2);
+      await expect(table.getByText('New', { exact: true })).toBeVisible();
       await page.getByRole('button', { name: /^billing/ }).first().click();
       await expect(table.locator('tbody tr')).toHaveCount(1);
       await page.getByRole('button', { name: 'Remove service', exact: true }).click();
       await expect(table.locator('tbody tr')).toHaveCount(2);
       await table.locator('tbody tr').first().focus(); await page.keyboard.press('Enter');
-      const drawer = page.getByRole('dialog');
+      const group = page.getByRole('dialog');
+      await expect(group.getByText('7 stored', { exact: false })).toBeVisible();
+      // Triage: resolving takes the group out of the open list; "All states" shows it with its note.
+      await group.getByRole('button', { name: 'Resolve', exact: true }).click();
+      const confirm = page.getByRole('dialog').last();
+      await confirm.getByRole('textbox', { name: 'Note', exact: true }).fill('fixed in 2.0.1');
+      await confirm.getByRole('button', { name: 'Resolve', exact: true }).click();
+      await expect(group.getByText('Resolved by console:fixture', { exact: false })).toBeVisible();
+      await expect(group.getByText('fixed in 2.0.1', { exact: true })).toBeVisible();
+      await group.getByRole('table', { name: 'Occurrences of this group', exact: true }).locator('tbody tr').first().click();
+      const drawer = page.getByRole('dialog').last();
+      await expect(drawer.getByRole('button', { name: 'Copy report', exact: true })).toBeVisible();
       await expect(drawer.getByText('total', { exact: true }).first()).toBeVisible();
       await drawer.getByRole('tab', { name: 'History', exact: true }).click(); await expect(drawer.getByText('navigation /checkout', { exact: true })).toBeVisible();
       await drawer.getByRole('tab', { name: 'State', exact: true }).click(); await expect(drawer.getByText('cart', { exact: true })).toBeVisible();
       await drawer.getByRole('tab', { name: 'Logs', exact: true }).click(); await expect(drawer.getByText('rendering cart').first()).toBeVisible();
-      await page.keyboard.press('Escape');
+      await drawer.getByRole('tab', { name: 'Environment', exact: true }).click(); await expect(drawer.getByText('app-debug.browser@0.1.0', { exact: true })).toBeVisible();
+      await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
+      await expect(table.locator('tbody tr')).toHaveCount(1);
+      await page.getByRole('combobox', { name: 'State', exact: true }).click(); await page.getByRole('option', { name: 'All states', exact: true }).click();
+      await expect(table.locator('tbody tr')).toHaveCount(2);
+      await expect(table.getByText('Resolved', { exact: true })).toBeVisible();
+      // Every occurrence, one by one.
+      await page.getByRole('button', { name: 'Occurrences', exact: true }).click();
+      await expect(table.locator('tbody tr')).toHaveCount(2);
+      await expect(table.getByText('Unhandled', { exact: true })).toBeVisible();
     }
     if (story === 'audit') {
       const table = page.getByRole('table', { name: 'Audit', exact: true });

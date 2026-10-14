@@ -27,3 +27,8 @@ DELETE FROM backplane.console_session WHERE id <> @id;
 
 -- name: DeleteStaleSessions :execrows
 DELETE FROM backplane.console_session WHERE expires_at <= @now OR last_seen_at <= @idle_since;
+
+-- name: LockScheduleCommand :exec
+-- Serializes the schedule commands of one declaration across replicas for
+-- the transaction.
+SELECT pg_advisory_xact_lock(hashtextextended(@key::text, 0));

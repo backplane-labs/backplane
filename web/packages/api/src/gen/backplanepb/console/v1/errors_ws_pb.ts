@@ -3,8 +3,8 @@
 /* eslint-disable */
 
 import { applyUnaryCallbacks, MethodInfo, WsTransport } from "@gopherex/ws-proto-transport";
-import type { ErrorFacetsRequest, ErrorFacetsResponse, ErrorHistogramRequest, ErrorHistogramResponse, GetErrorRequest, GetErrorResponse, RelatedLogsRequest, RelatedLogsResponse, SearchErrorsRequest, SearchErrorsResponse } from "./errors_pb.js";
-import { ErrorFacetsRequestSchema, ErrorFacetsResponseSchema, ErrorHistogramRequestSchema, ErrorHistogramResponseSchema, GetErrorRequestSchema, GetErrorResponseSchema, RelatedLogsRequestSchema, RelatedLogsResponseSchema, SearchErrorsRequestSchema, SearchErrorsResponseSchema } from "./errors_pb.js";
+import type { ErrorFacetsRequest, ErrorFacetsResponse, ErrorHistogramRequest, ErrorHistogramResponse, ErrorInfoRequest, ErrorInfoResponse, GetErrorGroupRequest, GetErrorGroupResponse, GetErrorRequest, GetErrorResponse, RelatedLogsRequest, RelatedLogsResponse, SearchErrorGroupsRequest, SearchErrorGroupsResponse, SearchErrorsRequest, SearchErrorsResponse, SetErrorGroupStateRequest, SetErrorGroupStateResponse } from "./errors_pb.js";
+import { ErrorFacetsRequestSchema, ErrorFacetsResponseSchema, ErrorHistogramRequestSchema, ErrorHistogramResponseSchema, ErrorInfoRequestSchema, ErrorInfoResponseSchema, GetErrorGroupRequestSchema, GetErrorGroupResponseSchema, GetErrorRequestSchema, GetErrorResponseSchema, RelatedLogsRequestSchema, RelatedLogsResponseSchema, SearchErrorGroupsRequestSchema, SearchErrorGroupsResponseSchema, SearchErrorsRequestSchema, SearchErrorsResponseSchema, SetErrorGroupStateRequestSchema, SetErrorGroupStateResponseSchema } from "./errors_pb.js";
 
 export interface CallOptions {
   /** Request metadata sent as headers on the opening frame. */
@@ -57,6 +57,38 @@ const ErrorService_RelatedLogs: MethodInfo<RelatedLogsRequest, RelatedLogsRespon
   kind: "unary",
   input: RelatedLogsRequestSchema,
   output: RelatedLogsResponseSchema,
+};
+
+const ErrorService_SearchErrorGroups: MethodInfo<SearchErrorGroupsRequest, SearchErrorGroupsResponse> = {
+  typeName: "backplane.console.v1.ErrorService",
+  name: "SearchErrorGroups",
+  kind: "unary",
+  input: SearchErrorGroupsRequestSchema,
+  output: SearchErrorGroupsResponseSchema,
+};
+
+const ErrorService_GetErrorGroup: MethodInfo<GetErrorGroupRequest, GetErrorGroupResponse> = {
+  typeName: "backplane.console.v1.ErrorService",
+  name: "GetErrorGroup",
+  kind: "unary",
+  input: GetErrorGroupRequestSchema,
+  output: GetErrorGroupResponseSchema,
+};
+
+const ErrorService_ErrorInfo: MethodInfo<ErrorInfoRequest, ErrorInfoResponse> = {
+  typeName: "backplane.console.v1.ErrorService",
+  name: "ErrorInfo",
+  kind: "unary",
+  input: ErrorInfoRequestSchema,
+  output: ErrorInfoResponseSchema,
+};
+
+const ErrorService_SetErrorGroupState: MethodInfo<SetErrorGroupStateRequest, SetErrorGroupStateResponse> = {
+  typeName: "backplane.console.v1.ErrorService",
+  name: "SetErrorGroupState",
+  kind: "unary",
+  input: SetErrorGroupStateRequestSchema,
+  output: SetErrorGroupStateResponseSchema,
 };
 
 /**
@@ -123,6 +155,48 @@ export class ErrorServiceClient {
    */
   async relatedLogs(req: RelatedLogsRequest, options?: CallOptions): Promise<RelatedLogsResponse> {
     const res = await this.transport.unary(ErrorService_RelatedLogs, req, { headers: options?.headers, signal: options?.signal, timeoutMs: options?.timeoutMs });
+    return applyUnaryCallbacks(res, options);
+  }
+
+  /**
+   * SearchErrorGroups lists groups — one fingerprint in one service — with
+   * their counts over the filter's range, newest activity first.
+   *
+   * @generated from rpc backplane.console.v1.ErrorService.SearchErrorGroups
+   */
+  async searchErrorGroups(req: SearchErrorGroupsRequest, options?: CallOptions): Promise<SearchErrorGroupsResponse> {
+    const res = await this.transport.unary(ErrorService_SearchErrorGroups, req, { headers: options?.headers, signal: options?.signal, timeoutMs: options?.timeoutMs });
+    return applyUnaryCallbacks(res, options);
+  }
+
+  /**
+   * GetErrorGroup is one group with its trend and facets over the range.
+   *
+   * @generated from rpc backplane.console.v1.ErrorService.GetErrorGroup
+   */
+  async getErrorGroup(req: GetErrorGroupRequest, options?: CallOptions): Promise<GetErrorGroupResponse> {
+    const res = await this.transport.unary(ErrorService_GetErrorGroup, req, { headers: options?.headers, signal: options?.signal, timeoutMs: options?.timeoutMs });
+    return applyUnaryCallbacks(res, options);
+  }
+
+  /**
+   * ErrorInfo says how errors are kept: retention, burst limits, record
+   * size and whether related logs can be read.
+   *
+   * @generated from rpc backplane.console.v1.ErrorService.ErrorInfo
+   */
+  async errorInfo(req: ErrorInfoRequest, options?: CallOptions): Promise<ErrorInfoResponse> {
+    const res = await this.transport.unary(ErrorService_ErrorInfo, req, { headers: options?.headers, signal: options?.signal, timeoutMs: options?.timeoutMs });
+    return applyUnaryCallbacks(res, options);
+  }
+
+  /**
+   * Resolves, mutes or reopens a group; audited as error_group.<state>.
+   *
+   * @generated from rpc backplane.console.v1.ErrorService.SetErrorGroupState
+   */
+  async setErrorGroupState(req: SetErrorGroupStateRequest, options?: CallOptions): Promise<SetErrorGroupStateResponse> {
+    const res = await this.transport.unary(ErrorService_SetErrorGroupState, req, { headers: options?.headers, signal: options?.signal, timeoutMs: options?.timeoutMs });
     return applyUnaryCallbacks(res, options);
   }
 

@@ -4,6 +4,8 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Duration } from "../../../google/protobuf/duration_pb.js";
+import { file_google_protobuf_duration } from "../../../google/protobuf/duration_pb.js";
 import { file_google_protobuf_struct } from "../../../google/protobuf/struct_pb.js";
 import type { Timestamp } from "../../../google/protobuf/timestamp_pb.js";
 import { file_google_protobuf_timestamp } from "../../../google/protobuf/timestamp_pb.js";
@@ -13,7 +15,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file backplanepb/console/v1/errors.proto.
  */
 export const file_backplanepb_console_v1_errors: GenFile = /*@__PURE__*/
-  fileDesc("CiNiYWNrcGxhbmVwYi9jb25zb2xlL3YxL2Vycm9ycy5wcm90bxIUYmFja3BsYW5lLmNvbnNvbGUudjEi0gIKD0Vycm9yT2NjdXJyZW5jZRILCgNyZWYYASABKAkSMQoGb3JpZ2luGAIgASgOMiEuYmFja3BsYW5lLmNvbnNvbGUudjEuRXJyb3JPcmlnaW4SEAoIZXZlbnRfaWQYAyABKAkSKAoEdGltZRgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHc2VydmljZRgFIAEoCRITCgtlbnZpcm9ubWVudBgGIAEoCRIPCgdyZWxlYXNlGAcgASgJEgwKBHR5cGUYCCABKAkSDwoHbWVzc2FnZRgJIAEoCRIQCghzZXZlcml0eRgKIAEoBRIQCgh0cmFjZV9pZBgLIAEoCRIPCgdzcGFuX2lkGAwgASgJEhIKCnJ1bnRpbWVfaWQYDSABKAkSEQoJbWVjaGFuaXNtGA4gASgJEhEKCWdyb3VwX2tleRgPIAEoCSKCAQoORXJyb3JDb25kaXRpb24SLwoFZmllbGQYASABKA4yIC5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvckZpZWxkEi8KAm9wGAIgASgOMiMuYmFja3BsYW5lLmNvbnNvbGUudjEuRXJyb3JPcGVyYXRvchIOCgZ2YWx1ZXMYAyADKAkiqQEKC0Vycm9yRmlsdGVyEikKBXN0YXJ0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBInCgNlbmQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjgKCmNvbmRpdGlvbnMYAyADKAsyJC5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvckNvbmRpdGlvbhIMCgR0ZXh0GAQgASgJInAKE1NlYXJjaEVycm9yc1JlcXVlc3QSMQoGZmlsdGVyGAEgASgLMiEuYmFja3BsYW5lLmNvbnNvbGUudjEuRXJyb3JGaWx0ZXISEQoJcGFnZV9zaXplGAIgASgNEhMKC3BhZ2VfY3Vyc29yGAMgASgJIo8BChRTZWFyY2hFcnJvcnNSZXNwb25zZRI6CgtvY2N1cnJlbmNlcxgBIAMoCzIlLmJhY2twbGFuZS5jb25zb2xlLnYxLkVycm9yT2NjdXJyZW5jZRIYChBuZXh0X3BhZ2VfY3Vyc29yGAIgASgJEg8KB3BhcnRpYWwYAyABKAgSEAoId2FybmluZ3MYBCADKAkiSgoVRXJyb3JIaXN0b2dyYW1SZXF1ZXN0EjEKBmZpbHRlchgBIAEoCzIhLmJhY2twbGFuZS5jb25zb2xlLnYxLkVycm9yRmlsdGVyIoEBChZFcnJvckhpc3RvZ3JhbVJlc3BvbnNlEjIKB2J1Y2tldHMYASADKAsyIS5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvckJ1Y2tldBITCgtzdGVwX21pbGxpcxgCIAEoAxINCgV0b3RhbBgDIAEoBBIPCgdwYXJ0aWFsGAQgASgIIkcKC0Vycm9yQnVja2V0EikKBXN0YXJ0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVjb3VudBgCIAEoBCKIAQoSRXJyb3JGYWNldHNSZXF1ZXN0EjEKBmZpbHRlchgBIAEoCzIhLmJhY2twbGFuZS5jb25zb2xlLnYxLkVycm9yRmlsdGVyEjAKBmZpZWxkcxgCIAMoDjIgLmJhY2twbGFuZS5jb25zb2xlLnYxLkVycm9yRmllbGQSDQoFbGltaXQYAyABKA0iWAoTRXJyb3JGYWNldHNSZXNwb25zZRIwCgZmYWNldHMYASADKAsyIC5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvckZhY2V0Eg8KB3BhcnRpYWwYAiABKAgidAoKRXJyb3JGYWNldBIvCgVmaWVsZBgBIAEoDjIgLmJhY2twbGFuZS5jb25zb2xlLnYxLkVycm9yRmllbGQSNQoGdmFsdWVzGAIgAygLMiUuYmFja3BsYW5lLmNvbnNvbGUudjEuRXJyb3JGYWNldFZhbHVlIl4KD0Vycm9yRmFjZXRWYWx1ZRINCgV2YWx1ZRgBIAEoCRINCgVjb3VudBgCIAEoBBItCglsYXN0X3NlZW4YAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIh4KD0dldEVycm9yUmVxdWVzdBILCgNyZWYYASABKAki1gIKEEdldEVycm9yUmVzcG9uc2USOQoKb2NjdXJyZW5jZRgBIAEoCzIlLmJhY2twbGFuZS5jb25zb2xlLnYxLkVycm9yT2NjdXJyZW5jZRISCgpzdGFja3RyYWNlGAIgASgJEioKCWV4Y2VwdGlvbhgDIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSKQoIZW52ZWxvcGUYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhcKD2VudmVsb3BlX3N0YXR1cxgFIAEoCRJCCgZmaWVsZHMYBiADKAsyMi5iYWNrcGxhbmUuY29uc29sZS52MS5HZXRFcnJvclJlc3BvbnNlLkZpZWxkc0VudHJ5EhAKCHdhcm5pbmdzGAcgAygJGi0KC0ZpZWxkc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEivwEKElJlbGF0ZWRMb2dzUmVxdWVzdBILCgNyZWYYASABKAkSNQoIcmVsYXRpb24YAiABKA4yIy5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvclJlbGF0aW9uEikKBXN0YXJ0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBInCgNlbmQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCXBhZ2Vfc2l6ZRgFIAEoDSJlChNSZWxhdGVkTG9nc1Jlc3BvbnNlEg4KBnN0YXR1cxgBIAEoCRIOCgZyZWFzb24YAiABKAkSLgoEbG9ncxgDIAMoCzIgLmJhY2twbGFuZS5jb25zb2xlLnYxLlJlbGF0ZWRMb2ciowEKClJlbGF0ZWRMb2cSKAoEdGltZRgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASPAoGZmllbGRzGAIgAygLMiwuYmFja3BsYW5lLmNvbnNvbGUudjEuUmVsYXRlZExvZy5GaWVsZHNFbnRyeRotCgtGaWVsZHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBKlwKC0Vycm9yT3JpZ2luEhwKGEVSUk9SX09SSUdJTl9VTlNQRUNJRklFRBAAEhQKEEVSUk9SX09SSUdJTl9TREsQARIZChVFUlJPUl9PUklHSU5fT1RFTF9MT0cQAiqQAgoKRXJyb3JGaWVsZBIbChdFUlJPUl9GSUVMRF9VTlNQRUNJRklFRBAAEhcKE0VSUk9SX0ZJRUxEX1NFUlZJQ0UQARIbChdFUlJPUl9GSUVMRF9FTlZJUk9OTUVOVBACEhQKEEVSUk9SX0ZJRUxEX1RZUEUQAxIXChNFUlJPUl9GSUVMRF9NRVNTQUdFEAQSFwoTRVJST1JfRklFTERfUkVMRUFTRRAFEhgKFEVSUk9SX0ZJRUxEX1RSQUNFX0lEEAYSGgoWRVJST1JfRklFTERfUlVOVElNRV9JRBAHEhkKFUVSUk9SX0ZJRUxEX0dST1VQX0tFWRAIEhYKEkVSUk9SX0ZJRUxEX09SSUdJThAJKvQBCg1FcnJvck9wZXJhdG9yEh4KGkVSUk9SX09QRVJBVE9SX1VOU1BFQ0lGSUVEEAASFQoRRVJST1JfT1BFUkFUT1JfSVMQARIZChVFUlJPUl9PUEVSQVRPUl9JU19OT1QQAhIbChdFUlJPUl9PUEVSQVRPUl9DT05UQUlOUxADEh8KG0VSUk9SX09QRVJBVE9SX05PVF9DT05UQUlOUxAEEhkKFUVSUk9SX09QRVJBVE9SX1BSRUZJWBAFEhkKFUVSUk9SX09QRVJBVE9SX0VYSVNUUxAGEh0KGUVSUk9SX09QRVJBVE9SX05PVF9FWElTVFMQByqtAQoNRXJyb3JSZWxhdGlvbhIeChpFUlJPUl9SRUxBVElPTl9VTlNQRUNJRklFRBAAEhwKGEVSUk9SX1JFTEFUSU9OX1NBTUVfU1BBThABEh0KGUVSUk9SX1JFTEFUSU9OX1NBTUVfVFJBQ0UQAhIfChtFUlJPUl9SRUxBVElPTl9TQU1FX1JVTlRJTUUQAxIeChpFUlJPUl9SRUxBVElPTl9USU1FX1dJTkRPVxAEMoUECgxFcnJvclNlcnZpY2USZQoMU2VhcmNoRXJyb3JzEikuYmFja3BsYW5lLmNvbnNvbGUudjEuU2VhcmNoRXJyb3JzUmVxdWVzdBoqLmJhY2twbGFuZS5jb25zb2xlLnYxLlNlYXJjaEVycm9yc1Jlc3BvbnNlEmsKDkVycm9ySGlzdG9ncmFtEisuYmFja3BsYW5lLmNvbnNvbGUudjEuRXJyb3JIaXN0b2dyYW1SZXF1ZXN0GiwuYmFja3BsYW5lLmNvbnNvbGUudjEuRXJyb3JIaXN0b2dyYW1SZXNwb25zZRJiCgtFcnJvckZhY2V0cxIoLmJhY2twbGFuZS5jb25zb2xlLnYxLkVycm9yRmFjZXRzUmVxdWVzdBopLmJhY2twbGFuZS5jb25zb2xlLnYxLkVycm9yRmFjZXRzUmVzcG9uc2USWQoIR2V0RXJyb3ISJS5iYWNrcGxhbmUuY29uc29sZS52MS5HZXRFcnJvclJlcXVlc3QaJi5iYWNrcGxhbmUuY29uc29sZS52MS5HZXRFcnJvclJlc3BvbnNlEmIKC1JlbGF0ZWRMb2dzEiguYmFja3BsYW5lLmNvbnNvbGUudjEuUmVsYXRlZExvZ3NSZXF1ZXN0GikuYmFja3BsYW5lLmNvbnNvbGUudjEuUmVsYXRlZExvZ3NSZXNwb25zZUJGWkRnaXRodWIuY29tL2JhY2twbGFuZS1sYWJzL2JhY2twbGFuZS9iYWNrcGxhbmVwYi9jb25zb2xlL3YxO2NvbnNvbGV2MWIGcHJvdG8z", [file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("CiNiYWNrcGxhbmVwYi9jb25zb2xlL3YxL2Vycm9ycy5wcm90bxIUYmFja3BsYW5lLmNvbnNvbGUudjEizgMKD0Vycm9yT2NjdXJyZW5jZRILCgNyZWYYASABKAkSMQoGb3JpZ2luGAIgASgOMiEuYmFja3BsYW5lLmNvbnNvbGUudjEuRXJyb3JPcmlnaW4SEAoIZXZlbnRfaWQYAyABKAkSKAoEdGltZRgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHc2VydmljZRgFIAEoCRITCgtlbnZpcm9ubWVudBgGIAEoCRIPCgdyZWxlYXNlGAcgASgJEgwKBHR5cGUYCCABKAkSDwoHbWVzc2FnZRgJIAEoCRIQCghzZXZlcml0eRgKIAEoBRIQCgh0cmFjZV9pZBgLIAEoCRIPCgdzcGFuX2lkGAwgASgJEhIKCnJ1bnRpbWVfaWQYDSABKAkSEQoJbWVjaGFuaXNtGA4gASgJEhEKCWdyb3VwX2tleRgPIAEoCRITCgtmaW5nZXJwcmludBgQIAEoCRIRCgl1bmhhbmRsZWQYESABKAgSDgoGaW5nZXN0GBIgASgJEi8KC3JlY2VpdmVkX2F0GBMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCgl0cnVuY2F0ZWQYFCABKAgiggEKDkVycm9yQ29uZGl0aW9uEi8KBWZpZWxkGAEgASgOMiAuYmFja3BsYW5lLmNvbnNvbGUudjEuRXJyb3JGaWVsZBIvCgJvcBgCIAEoDjIjLmJhY2twbGFuZS5jb25zb2xlLnYxLkVycm9yT3BlcmF0b3ISDgoGdmFsdWVzGAMgAygJIqkBCgtFcnJvckZpbHRlchIpCgVzdGFydBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJwoDZW5kGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI4Cgpjb25kaXRpb25zGAMgAygLMiQuYmFja3BsYW5lLmNvbnNvbGUudjEuRXJyb3JDb25kaXRpb24SDAoEdGV4dBgEIAEoCSJwChNTZWFyY2hFcnJvcnNSZXF1ZXN0EjEKBmZpbHRlchgBIAEoCzIhLmJhY2twbGFuZS5jb25zb2xlLnYxLkVycm9yRmlsdGVyEhEKCXBhZ2Vfc2l6ZRgCIAEoDRITCgtwYWdlX2N1cnNvchgDIAEoCSKPAQoUU2VhcmNoRXJyb3JzUmVzcG9uc2USOgoLb2NjdXJyZW5jZXMYASADKAsyJS5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvck9jY3VycmVuY2USGAoQbmV4dF9wYWdlX2N1cnNvchgCIAEoCRIPCgdwYXJ0aWFsGAMgASgIEhAKCHdhcm5pbmdzGAQgAygJIkoKFUVycm9ySGlzdG9ncmFtUmVxdWVzdBIxCgZmaWx0ZXIYASABKAsyIS5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvckZpbHRlciKBAQoWRXJyb3JIaXN0b2dyYW1SZXNwb25zZRIyCgdidWNrZXRzGAEgAygLMiEuYmFja3BsYW5lLmNvbnNvbGUudjEuRXJyb3JCdWNrZXQSEwoLc3RlcF9taWxsaXMYAiABKAMSDQoFdG90YWwYAyABKAQSDwoHcGFydGlhbBgEIAEoCCJHCgtFcnJvckJ1Y2tldBIpCgVzdGFydBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDQoFY291bnQYAiABKAQiiAEKEkVycm9yRmFjZXRzUmVxdWVzdBIxCgZmaWx0ZXIYASABKAsyIS5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvckZpbHRlchIwCgZmaWVsZHMYAiADKA4yIC5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvckZpZWxkEg0KBWxpbWl0GAMgASgNIlgKE0Vycm9yRmFjZXRzUmVzcG9uc2USMAoGZmFjZXRzGAEgAygLMiAuYmFja3BsYW5lLmNvbnNvbGUudjEuRXJyb3JGYWNldBIPCgdwYXJ0aWFsGAIgASgIInQKCkVycm9yRmFjZXQSLwoFZmllbGQYASABKA4yIC5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvckZpZWxkEjUKBnZhbHVlcxgCIAMoCzIlLmJhY2twbGFuZS5jb25zb2xlLnYxLkVycm9yRmFjZXRWYWx1ZSJeCg9FcnJvckZhY2V0VmFsdWUSDQoFdmFsdWUYASABKAkSDQoFY291bnQYAiABKAQSLQoJbGFzdF9zZWVuGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIeCg9HZXRFcnJvclJlcXVlc3QSCwoDcmVmGAEgASgJIu4DChBHZXRFcnJvclJlc3BvbnNlEjkKCm9jY3VycmVuY2UYASABKAsyJS5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvck9jY3VycmVuY2USEgoKc3RhY2t0cmFjZRgCIAEoCRIqCglleGNlcHRpb24YAyABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EikKCGVudmVsb3BlGAQgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIXCg9lbnZlbG9wZV9zdGF0dXMYBSABKAkSQgoGZmllbGRzGAYgAygLMjIuYmFja3BsYW5lLmNvbnNvbGUudjEuR2V0RXJyb3JSZXNwb25zZS5GaWVsZHNFbnRyeRIQCgh3YXJuaW5ncxgHIAMoCRIvCgVncm91cBgIIAEoCzIgLmJhY2twbGFuZS5jb25zb2xlLnYxLkVycm9yR3JvdXASKwoKYXR0cmlidXRlcxgJIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSKQoIcmVzb3VyY2UYCiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Eg0KBXNjb3BlGAsgASgJGi0KC0ZpZWxkc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiwQQKCkVycm9yR3JvdXASEwoLZmluZ2VycHJpbnQYASABKAkSDwoHc2VydmljZRgCIAEoCRIMCgR0eXBlGAMgASgJEg8KB21lc3NhZ2UYBCABKAkSLgoKZmlyc3Rfc2VlbhgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLQoJbGFzdF9zZWVuGAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVjb3VudBgHIAEoBBIOCgZzdG9yZWQYCCABKAQSFgoOY291bnRfaW5fcmFuZ2UYCSABKAQSDQoFdHJlbmQYCiADKAQSEgoKc2FtcGxlX3JlZhgLIAEoCRIxCgZvcmlnaW4YDCABKA4yIS5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvck9yaWdpbhIRCgl1bmhhbmRsZWQYDSABKAgSFAoMZW52aXJvbm1lbnRzGA4gAygJEhAKCHJlbGVhc2VzGA8gAygJEgsKA25ldxgQIAEoCBI0CgVzdGF0ZRgRIAEoDjIlLmJhY2twbGFuZS5jb25zb2xlLnYxLkVycm9yR3JvdXBTdGF0ZRIsCghzdGF0ZV9hdBgSIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIc3RhdGVfYnkYEyABKAkSEgoKc3RhdGVfbm90ZRgUIAEoCRIwCgxyZWdyZXNzZWRfYXQYFSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIuABChhTZWFyY2hFcnJvckdyb3Vwc1JlcXVlc3QSMQoGZmlsdGVyGAEgASgLMiEuYmFja3BsYW5lLmNvbnNvbGUudjEuRXJyb3JGaWx0ZXISEQoJcGFnZV9zaXplGAIgASgNEhMKC3BhZ2VfY3Vyc29yGAMgASgJEjIKBHNvcnQYBCABKA4yJC5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvckdyb3VwU29ydBI1CgZzdGF0ZXMYBSADKA4yJS5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvckdyb3VwU3RhdGUifAoZU2VhcmNoRXJyb3JHcm91cHNSZXNwb25zZRIwCgZncm91cHMYASADKAsyIC5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvckdyb3VwEhgKEG5leHRfcGFnZV9jdXJzb3IYAiABKAkSEwoLc3RlcF9taWxsaXMYAyABKAMibwoUR2V0RXJyb3JHcm91cFJlcXVlc3QSEwoLZmluZ2VycHJpbnQYASABKAkSDwoHc2VydmljZRgCIAEoCRIxCgZmaWx0ZXIYAyABKAsyIS5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvckZpbHRlciKRAQoVR2V0RXJyb3JHcm91cFJlc3BvbnNlEi8KBWdyb3VwGAEgASgLMiAuYmFja3BsYW5lLmNvbnNvbGUudjEuRXJyb3JHcm91cBIyCgdidWNrZXRzGAIgAygLMiEuYmFja3BsYW5lLmNvbnNvbGUudjEuRXJyb3JCdWNrZXQSEwoLc3RlcF9taWxsaXMYAyABKAMihQEKGVNldEVycm9yR3JvdXBTdGF0ZVJlcXVlc3QSEwoLZmluZ2VycHJpbnQYASABKAkSDwoHc2VydmljZRgCIAEoCRI0CgVzdGF0ZRgDIAEoDjIlLmJhY2twbGFuZS5jb25zb2xlLnYxLkVycm9yR3JvdXBTdGF0ZRIMCgRub3RlGAQgASgJIk0KGlNldEVycm9yR3JvdXBTdGF0ZVJlc3BvbnNlEi8KBWdyb3VwGAEgASgLMiAuYmFja3BsYW5lLmNvbnNvbGUudjEuRXJyb3JHcm91cCISChBFcnJvckluZm9SZXF1ZXN0IqcBChFFcnJvckluZm9SZXNwb25zZRIsCglyZXRlbnRpb24YASABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SGAoQYnVyc3RfcGVyX21pbnV0ZRgCIAEoDRIVCg1idXJzdF9wZXJfZGF5GAMgASgNEhgKEG1heF9yZWNvcmRfYnl0ZXMYBCABKAQSGQoRcmVsYXRlZF9hdmFpbGFibGUYBSABKAgivwEKElJlbGF0ZWRMb2dzUmVxdWVzdBILCgNyZWYYASABKAkSNQoIcmVsYXRpb24YAiABKA4yIy5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvclJlbGF0aW9uEikKBXN0YXJ0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBInCgNlbmQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCXBhZ2Vfc2l6ZRgFIAEoDSJlChNSZWxhdGVkTG9nc1Jlc3BvbnNlEg4KBnN0YXR1cxgBIAEoCRIOCgZyZWFzb24YAiABKAkSLgoEbG9ncxgDIAMoCzIgLmJhY2twbGFuZS5jb25zb2xlLnYxLlJlbGF0ZWRMb2ciowEKClJlbGF0ZWRMb2cSKAoEdGltZRgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASPAoGZmllbGRzGAIgAygLMiwuYmFja3BsYW5lLmNvbnNvbGUudjEuUmVsYXRlZExvZy5GaWVsZHNFbnRyeRotCgtGaWVsZHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBKlwKC0Vycm9yT3JpZ2luEhwKGEVSUk9SX09SSUdJTl9VTlNQRUNJRklFRBAAEhQKEEVSUk9SX09SSUdJTl9TREsQARIZChVFUlJPUl9PUklHSU5fT1RFTF9MT0cQAir4AgoKRXJyb3JGaWVsZBIbChdFUlJPUl9GSUVMRF9VTlNQRUNJRklFRBAAEhcKE0VSUk9SX0ZJRUxEX1NFUlZJQ0UQARIbChdFUlJPUl9GSUVMRF9FTlZJUk9OTUVOVBACEhQKEEVSUk9SX0ZJRUxEX1RZUEUQAxIXChNFUlJPUl9GSUVMRF9NRVNTQUdFEAQSFwoTRVJST1JfRklFTERfUkVMRUFTRRAFEhgKFEVSUk9SX0ZJRUxEX1RSQUNFX0lEEAYSGgoWRVJST1JfRklFTERfUlVOVElNRV9JRBAHEhkKFUVSUk9SX0ZJRUxEX0dST1VQX0tFWRAIEhYKEkVSUk9SX0ZJRUxEX09SSUdJThAJEhsKF0VSUk9SX0ZJRUxEX0ZJTkdFUlBSSU5UEAoSFwoTRVJST1JfRklFTERfSEFORExFRBALEhYKEkVSUk9SX0ZJRUxEX0lOR0VTVBAMEhgKFEVSUk9SX0ZJRUxEX0lOU1RBTkNFEA0q9AEKDUVycm9yT3BlcmF0b3ISHgoaRVJST1JfT1BFUkFUT1JfVU5TUEVDSUZJRUQQABIVChFFUlJPUl9PUEVSQVRPUl9JUxABEhkKFUVSUk9SX09QRVJBVE9SX0lTX05PVBACEhsKF0VSUk9SX09QRVJBVE9SX0NPTlRBSU5TEAMSHwobRVJST1JfT1BFUkFUT1JfTk9UX0NPTlRBSU5TEAQSGQoVRVJST1JfT1BFUkFUT1JfUFJFRklYEAUSGQoVRVJST1JfT1BFUkFUT1JfRVhJU1RTEAYSHQoZRVJST1JfT1BFUkFUT1JfTk9UX0VYSVNUUxAHKo0BCg9FcnJvckdyb3VwU3RhdGUSIQodRVJST1JfR1JPVVBfU1RBVEVfVU5TUEVDSUZJRUQQABIaChZFUlJPUl9HUk9VUF9TVEFURV9PUEVOEAESHgoaRVJST1JfR1JPVVBfU1RBVEVfUkVTT0xWRUQQAhIbChdFUlJPUl9HUk9VUF9TVEFURV9NVVRFRBADKo8BCg5FcnJvckdyb3VwU29ydBIgChxFUlJPUl9HUk9VUF9TT1JUX1VOU1BFQ0lGSUVEEAASHgoaRVJST1JfR1JPVVBfU09SVF9MQVNUX1NFRU4QARIaChZFUlJPUl9HUk9VUF9TT1JUX0NPVU5UEAISHwobRVJST1JfR1JPVVBfU09SVF9GSVJTVF9TRUVOEAMqrQEKDUVycm9yUmVsYXRpb24SHgoaRVJST1JfUkVMQVRJT05fVU5TUEVDSUZJRUQQABIcChhFUlJPUl9SRUxBVElPTl9TQU1FX1NQQU4QARIdChlFUlJPUl9SRUxBVElPTl9TQU1FX1RSQUNFEAISHwobRVJST1JfUkVMQVRJT05fU0FNRV9SVU5USU1FEAMSHgoaRVJST1JfUkVMQVRJT05fVElNRV9XSU5ET1cQBDK8BwoMRXJyb3JTZXJ2aWNlEmUKDFNlYXJjaEVycm9ycxIpLmJhY2twbGFuZS5jb25zb2xlLnYxLlNlYXJjaEVycm9yc1JlcXVlc3QaKi5iYWNrcGxhbmUuY29uc29sZS52MS5TZWFyY2hFcnJvcnNSZXNwb25zZRJrCg5FcnJvckhpc3RvZ3JhbRIrLmJhY2twbGFuZS5jb25zb2xlLnYxLkVycm9ySGlzdG9ncmFtUmVxdWVzdBosLmJhY2twbGFuZS5jb25zb2xlLnYxLkVycm9ySGlzdG9ncmFtUmVzcG9uc2USYgoLRXJyb3JGYWNldHMSKC5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvckZhY2V0c1JlcXVlc3QaKS5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvckZhY2V0c1Jlc3BvbnNlElkKCEdldEVycm9yEiUuYmFja3BsYW5lLmNvbnNvbGUudjEuR2V0RXJyb3JSZXF1ZXN0GiYuYmFja3BsYW5lLmNvbnNvbGUudjEuR2V0RXJyb3JSZXNwb25zZRJiCgtSZWxhdGVkTG9ncxIoLmJhY2twbGFuZS5jb25zb2xlLnYxLlJlbGF0ZWRMb2dzUmVxdWVzdBopLmJhY2twbGFuZS5jb25zb2xlLnYxLlJlbGF0ZWRMb2dzUmVzcG9uc2USdAoRU2VhcmNoRXJyb3JHcm91cHMSLi5iYWNrcGxhbmUuY29uc29sZS52MS5TZWFyY2hFcnJvckdyb3Vwc1JlcXVlc3QaLy5iYWNrcGxhbmUuY29uc29sZS52MS5TZWFyY2hFcnJvckdyb3Vwc1Jlc3BvbnNlEmgKDUdldEVycm9yR3JvdXASKi5iYWNrcGxhbmUuY29uc29sZS52MS5HZXRFcnJvckdyb3VwUmVxdWVzdBorLmJhY2twbGFuZS5jb25zb2xlLnYxLkdldEVycm9yR3JvdXBSZXNwb25zZRJcCglFcnJvckluZm8SJi5iYWNrcGxhbmUuY29uc29sZS52MS5FcnJvckluZm9SZXF1ZXN0GicuYmFja3BsYW5lLmNvbnNvbGUudjEuRXJyb3JJbmZvUmVzcG9uc2USdwoSU2V0RXJyb3JHcm91cFN0YXRlEi8uYmFja3BsYW5lLmNvbnNvbGUudjEuU2V0RXJyb3JHcm91cFN0YXRlUmVxdWVzdBowLmJhY2twbGFuZS5jb25zb2xlLnYxLlNldEVycm9yR3JvdXBTdGF0ZVJlc3BvbnNlQkZaRGdpdGh1Yi5jb20vYmFja3BsYW5lLWxhYnMvYmFja3BsYW5lL2JhY2twbGFuZXBiL2NvbnNvbGUvdjE7Y29uc29sZXYxYgZwcm90bzM", [file_google_protobuf_duration, file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * ErrorOccurrence is one captured exception as the list shows it.
@@ -109,6 +111,41 @@ export type ErrorOccurrence = Message<"backplane.console.v1.ErrorOccurrence"> & 
    * @generated from field: string group_key = 15;
    */
   groupKey: string;
+
+  /**
+   * The group the occurrence belongs to: hex of its fingerprint.
+   *
+   * @generated from field: string fingerprint = 16;
+   */
+  fingerprint: string;
+
+  /**
+   * SDK: the exception was not handled by the application (window.error,
+   * unhandledrejection); false when handled or unknown.
+   *
+   * @generated from field: bool unhandled = 17;
+   */
+  unhandled: boolean;
+
+  /**
+   * Where it came in: "proxy" (the public OTLP ingest: browsers) or
+   * "trusted" (the Collector's own senders).
+   *
+   * @generated from field: string ingest = 18;
+   */
+  ingest: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp received_at = 19;
+   */
+  receivedAt?: Timestamp | undefined;
+
+  /**
+   * The stored record was cut to the size limit (stack, envelope).
+   *
+   * @generated from field: bool truncated = 20;
+   */
+  truncated: boolean;
 };
 
 /**
@@ -489,6 +526,32 @@ export type GetErrorResponse = Message<"backplane.console.v1.GetErrorResponse"> 
    * @generated from field: repeated string warnings = 7;
    */
   warnings: string[];
+
+  /**
+   * The occurrence's group, counted over all time.
+   *
+   * @generated from field: backplane.console.v1.ErrorGroup group = 8;
+   */
+  group?: ErrorGroup | undefined;
+
+  /**
+   * Every attribute of the record and of its resource, as sent.
+   *
+   * @generated from field: google.protobuf.Struct attributes = 9;
+   */
+  attributes?: JsonObject | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Struct resource = 10;
+   */
+  resource?: JsonObject | undefined;
+
+  /**
+   * The instrumentation scope that wrote the record ("name@version").
+   *
+   * @generated from field: string scope = 11;
+   */
+  scope: string;
 };
 
 /**
@@ -497,6 +560,396 @@ export type GetErrorResponse = Message<"backplane.console.v1.GetErrorResponse"> 
  */
 export const GetErrorResponseSchema: GenMessage<GetErrorResponse> = /*@__PURE__*/
   messageDesc(file_backplanepb_console_v1_errors, 13);
+
+/**
+ * ErrorGroup is one fingerprint in one service: the same exception at the
+ * same place, occurring over time.
+ *
+ * @generated from message backplane.console.v1.ErrorGroup
+ */
+export type ErrorGroup = Message<"backplane.console.v1.ErrorGroup"> & {
+  /**
+   * Hex of the fingerprint.
+   *
+   * @generated from field: string fingerprint = 1;
+   */
+  fingerprint: string;
+
+  /**
+   * @generated from field: string service = 2;
+   */
+  service: string;
+
+  /**
+   * The group's exception as first seen.
+   *
+   * @generated from field: string type = 3;
+   */
+  type: string;
+
+  /**
+   * @generated from field: string message = 4;
+   */
+  message: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp first_seen = 5;
+   */
+  firstSeen?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp last_seen = 6;
+   */
+  lastSeen?: Timestamp | undefined;
+
+  /**
+   * Occurrences over all time, also those the burst limits did not store.
+   *
+   * @generated from field: uint64 count = 7;
+   */
+  count: bigint;
+
+  /**
+   * Occurrences stored over all time.
+   *
+   * @generated from field: uint64 stored = 8;
+   */
+  stored: bigint;
+
+  /**
+   * Occurrences stored within the request's range.
+   *
+   * @generated from field: uint64 count_in_range = 9;
+   */
+  countInRange: bigint;
+
+  /**
+   * Stored occurrences per bucket of the range (SearchErrorGroups: the
+   * sparkline; GetErrorGroup: the trend), ErrorHistogramResponse's step.
+   *
+   * @generated from field: repeated uint64 trend = 10;
+   */
+  trend: bigint[];
+
+  /**
+   * The newest stored occurrence in the range: its ref, for GetError.
+   *
+   * @generated from field: string sample_ref = 11;
+   */
+  sampleRef: string;
+
+  /**
+   * The occurrence's origin in the group: sdk when any is.
+   *
+   * @generated from field: backplane.console.v1.ErrorOrigin origin = 12;
+   */
+  origin: ErrorOrigin;
+
+  /**
+   * An unhandled occurrence is among them.
+   *
+   * @generated from field: bool unhandled = 13;
+   */
+  unhandled: boolean;
+
+  /**
+   * Environments and releases seen in the range, most frequent first.
+   *
+   * @generated from field: repeated string environments = 14;
+   */
+  environments: string[];
+
+  /**
+   * @generated from field: repeated string releases = 15;
+   */
+  releases: string[];
+
+  /**
+   * The group started within the range.
+   *
+   * @generated from field: bool new = 16;
+   */
+  new: boolean;
+
+  /**
+   * Triage state; open unless resolved or muted.
+   *
+   * @generated from field: backplane.console.v1.ErrorGroupState state = 17;
+   */
+  state: ErrorGroupState;
+
+  /**
+   * When, by whom and why the state was last set.
+   *
+   * @generated from field: google.protobuf.Timestamp state_at = 18;
+   */
+  stateAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string state_by = 19;
+   */
+  stateBy: string;
+
+  /**
+   * @generated from field: string state_note = 20;
+   */
+  stateNote: string;
+
+  /**
+   * Set when an occurrence reopened a resolved group: a regression.
+   *
+   * @generated from field: google.protobuf.Timestamp regressed_at = 21;
+   */
+  regressedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message backplane.console.v1.ErrorGroup.
+ * Use `create(ErrorGroupSchema)` to create a new message.
+ */
+export const ErrorGroupSchema: GenMessage<ErrorGroup> = /*@__PURE__*/
+  messageDesc(file_backplanepb_console_v1_errors, 14);
+
+/**
+ * @generated from message backplane.console.v1.SearchErrorGroupsRequest
+ */
+export type SearchErrorGroupsRequest = Message<"backplane.console.v1.SearchErrorGroupsRequest"> & {
+  /**
+   * @generated from field: backplane.console.v1.ErrorFilter filter = 1;
+   */
+  filter?: ErrorFilter | undefined;
+
+  /**
+   * At most this many (default 50, at most 200).
+   *
+   * @generated from field: uint32 page_size = 2;
+   */
+  pageSize: number;
+
+  /**
+   * From the previous response; empty: the first page.
+   *
+   * @generated from field: string page_cursor = 3;
+   */
+  pageCursor: string;
+
+  /**
+   * @generated from field: backplane.console.v1.ErrorGroupSort sort = 4;
+   */
+  sort: ErrorGroupSort;
+
+  /**
+   * States to list; none: open groups only.
+   *
+   * @generated from field: repeated backplane.console.v1.ErrorGroupState states = 5;
+   */
+  states: ErrorGroupState[];
+};
+
+/**
+ * Describes the message backplane.console.v1.SearchErrorGroupsRequest.
+ * Use `create(SearchErrorGroupsRequestSchema)` to create a new message.
+ */
+export const SearchErrorGroupsRequestSchema: GenMessage<SearchErrorGroupsRequest> = /*@__PURE__*/
+  messageDesc(file_backplanepb_console_v1_errors, 15);
+
+/**
+ * @generated from message backplane.console.v1.SearchErrorGroupsResponse
+ */
+export type SearchErrorGroupsResponse = Message<"backplane.console.v1.SearchErrorGroupsResponse"> & {
+  /**
+   * @generated from field: repeated backplane.console.v1.ErrorGroup groups = 1;
+   */
+  groups: ErrorGroup[];
+
+  /**
+   * @generated from field: string next_page_cursor = 2;
+   */
+  nextPageCursor: string;
+
+  /**
+   * The trend's bucket size.
+   *
+   * @generated from field: int64 step_millis = 3;
+   */
+  stepMillis: bigint;
+};
+
+/**
+ * Describes the message backplane.console.v1.SearchErrorGroupsResponse.
+ * Use `create(SearchErrorGroupsResponseSchema)` to create a new message.
+ */
+export const SearchErrorGroupsResponseSchema: GenMessage<SearchErrorGroupsResponse> = /*@__PURE__*/
+  messageDesc(file_backplanepb_console_v1_errors, 16);
+
+/**
+ * @generated from message backplane.console.v1.GetErrorGroupRequest
+ */
+export type GetErrorGroupRequest = Message<"backplane.console.v1.GetErrorGroupRequest"> & {
+  /**
+   * @generated from field: string fingerprint = 1;
+   */
+  fingerprint: string;
+
+  /**
+   * @generated from field: string service = 2;
+   */
+  service: string;
+
+  /**
+   * The range (and conditions) the counts and facets are over; absent:
+   * the last 24 hours.
+   *
+   * @generated from field: backplane.console.v1.ErrorFilter filter = 3;
+   */
+  filter?: ErrorFilter | undefined;
+};
+
+/**
+ * Describes the message backplane.console.v1.GetErrorGroupRequest.
+ * Use `create(GetErrorGroupRequestSchema)` to create a new message.
+ */
+export const GetErrorGroupRequestSchema: GenMessage<GetErrorGroupRequest> = /*@__PURE__*/
+  messageDesc(file_backplanepb_console_v1_errors, 17);
+
+/**
+ * @generated from message backplane.console.v1.GetErrorGroupResponse
+ */
+export type GetErrorGroupResponse = Message<"backplane.console.v1.GetErrorGroupResponse"> & {
+  /**
+   * @generated from field: backplane.console.v1.ErrorGroup group = 1;
+   */
+  group?: ErrorGroup | undefined;
+
+  /**
+   * The trend's buckets, as ErrorHistogram's.
+   *
+   * @generated from field: repeated backplane.console.v1.ErrorBucket buckets = 2;
+   */
+  buckets: ErrorBucket[];
+
+  /**
+   * @generated from field: int64 step_millis = 3;
+   */
+  stepMillis: bigint;
+};
+
+/**
+ * Describes the message backplane.console.v1.GetErrorGroupResponse.
+ * Use `create(GetErrorGroupResponseSchema)` to create a new message.
+ */
+export const GetErrorGroupResponseSchema: GenMessage<GetErrorGroupResponse> = /*@__PURE__*/
+  messageDesc(file_backplanepb_console_v1_errors, 18);
+
+/**
+ * @generated from message backplane.console.v1.SetErrorGroupStateRequest
+ */
+export type SetErrorGroupStateRequest = Message<"backplane.console.v1.SetErrorGroupStateRequest"> & {
+  /**
+   * @generated from field: string fingerprint = 1;
+   */
+  fingerprint: string;
+
+  /**
+   * @generated from field: string service = 2;
+   */
+  service: string;
+
+  /**
+   * @generated from field: backplane.console.v1.ErrorGroupState state = 3;
+   */
+  state: ErrorGroupState;
+
+  /**
+   * Why; kept with the state and in the audit entry.
+   *
+   * @generated from field: string note = 4;
+   */
+  note: string;
+};
+
+/**
+ * Describes the message backplane.console.v1.SetErrorGroupStateRequest.
+ * Use `create(SetErrorGroupStateRequestSchema)` to create a new message.
+ */
+export const SetErrorGroupStateRequestSchema: GenMessage<SetErrorGroupStateRequest> = /*@__PURE__*/
+  messageDesc(file_backplanepb_console_v1_errors, 19);
+
+/**
+ * @generated from message backplane.console.v1.SetErrorGroupStateResponse
+ */
+export type SetErrorGroupStateResponse = Message<"backplane.console.v1.SetErrorGroupStateResponse"> & {
+  /**
+   * @generated from field: backplane.console.v1.ErrorGroup group = 1;
+   */
+  group?: ErrorGroup | undefined;
+};
+
+/**
+ * Describes the message backplane.console.v1.SetErrorGroupStateResponse.
+ * Use `create(SetErrorGroupStateResponseSchema)` to create a new message.
+ */
+export const SetErrorGroupStateResponseSchema: GenMessage<SetErrorGroupStateResponse> = /*@__PURE__*/
+  messageDesc(file_backplanepb_console_v1_errors, 20);
+
+/**
+ * @generated from message backplane.console.v1.ErrorInfoRequest
+ */
+export type ErrorInfoRequest = Message<"backplane.console.v1.ErrorInfoRequest"> & {
+};
+
+/**
+ * Describes the message backplane.console.v1.ErrorInfoRequest.
+ * Use `create(ErrorInfoRequestSchema)` to create a new message.
+ */
+export const ErrorInfoRequestSchema: GenMessage<ErrorInfoRequest> = /*@__PURE__*/
+  messageDesc(file_backplanepb_console_v1_errors, 21);
+
+/**
+ * @generated from message backplane.console.v1.ErrorInfoResponse
+ */
+export type ErrorInfoResponse = Message<"backplane.console.v1.ErrorInfoResponse"> & {
+  /**
+   * How long occurrences are kept; zero: for ever.
+   *
+   * @generated from field: google.protobuf.Duration retention = 1;
+   */
+  retention?: Duration | undefined;
+
+  /**
+   * Occurrences stored per group within a minute and within a day; past
+   * them the group only counts.
+   *
+   * @generated from field: uint32 burst_per_minute = 2;
+   */
+  burstPerMinute: number;
+
+  /**
+   * @generated from field: uint32 burst_per_day = 3;
+   */
+  burstPerDay: number;
+
+  /**
+   * Bytes a stored record may take before its stack and envelope are cut.
+   *
+   * @generated from field: uint64 max_record_bytes = 4;
+   */
+  maxRecordBytes: bigint;
+
+  /**
+   * The log store is configured: RelatedLogs and traces can be read.
+   *
+   * @generated from field: bool related_available = 5;
+   */
+  relatedAvailable: boolean;
+};
+
+/**
+ * Describes the message backplane.console.v1.ErrorInfoResponse.
+ * Use `create(ErrorInfoResponseSchema)` to create a new message.
+ */
+export const ErrorInfoResponseSchema: GenMessage<ErrorInfoResponse> = /*@__PURE__*/
+  messageDesc(file_backplanepb_console_v1_errors, 22);
 
 /**
  * @generated from message backplane.console.v1.RelatedLogsRequest
@@ -537,7 +990,7 @@ export type RelatedLogsRequest = Message<"backplane.console.v1.RelatedLogsReques
  * Use `create(RelatedLogsRequestSchema)` to create a new message.
  */
 export const RelatedLogsRequestSchema: GenMessage<RelatedLogsRequest> = /*@__PURE__*/
-  messageDesc(file_backplanepb_console_v1_errors, 14);
+  messageDesc(file_backplanepb_console_v1_errors, 23);
 
 /**
  * @generated from message backplane.console.v1.RelatedLogsResponse
@@ -566,7 +1019,7 @@ export type RelatedLogsResponse = Message<"backplane.console.v1.RelatedLogsRespo
  * Use `create(RelatedLogsResponseSchema)` to create a new message.
  */
 export const RelatedLogsResponseSchema: GenMessage<RelatedLogsResponse> = /*@__PURE__*/
-  messageDesc(file_backplanepb_console_v1_errors, 15);
+  messageDesc(file_backplanepb_console_v1_errors, 24);
 
 /**
  * @generated from message backplane.console.v1.RelatedLog
@@ -588,7 +1041,7 @@ export type RelatedLog = Message<"backplane.console.v1.RelatedLog"> & {
  * Use `create(RelatedLogSchema)` to create a new message.
  */
 export const RelatedLogSchema: GenMessage<RelatedLog> = /*@__PURE__*/
-  messageDesc(file_backplanepb_console_v1_errors, 16);
+  messageDesc(file_backplanepb_console_v1_errors, 25);
 
 /**
  * @generated from enum backplane.console.v1.ErrorOrigin
@@ -677,6 +1130,32 @@ export enum ErrorField {
    * @generated from enum value: ERROR_FIELD_ORIGIN = 9;
    */
   ORIGIN = 9,
+
+  /**
+   * The group (hex fingerprint); is / is_not.
+   *
+   * @generated from enum value: ERROR_FIELD_FINGERPRINT = 10;
+   */
+  FINGERPRINT = 10,
+
+  /**
+   * "true" / "false": whether the application handled it; is / is_not.
+   *
+   * @generated from enum value: ERROR_FIELD_HANDLED = 11;
+   */
+  HANDLED = 11,
+
+  /**
+   * "proxy" / "trusted"; is / is_not.
+   *
+   * @generated from enum value: ERROR_FIELD_INGEST = 12;
+   */
+  INGEST = 12,
+
+  /**
+   * @generated from enum value: ERROR_FIELD_INSTANCE = 13;
+   */
+  INSTANCE = 13,
 }
 
 /**
@@ -745,6 +1224,71 @@ export const ErrorOperatorSchema: GenEnum<ErrorOperator> = /*@__PURE__*/
   enumDesc(file_backplanepb_console_v1_errors, 2);
 
 /**
+ * Triage state of a group. Occurrences of a muted group are still stored
+ * and counted; the group is hidden unless asked for.
+ *
+ * @generated from enum backplane.console.v1.ErrorGroupState
+ */
+export enum ErrorGroupState {
+  /**
+   * @generated from enum value: ERROR_GROUP_STATE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: ERROR_GROUP_STATE_OPEN = 1;
+   */
+  OPEN = 1,
+
+  /**
+   * @generated from enum value: ERROR_GROUP_STATE_RESOLVED = 2;
+   */
+  RESOLVED = 2,
+
+  /**
+   * @generated from enum value: ERROR_GROUP_STATE_MUTED = 3;
+   */
+  MUTED = 3,
+}
+
+/**
+ * Describes the enum backplane.console.v1.ErrorGroupState.
+ */
+export const ErrorGroupStateSchema: GenEnum<ErrorGroupState> = /*@__PURE__*/
+  enumDesc(file_backplanepb_console_v1_errors, 3);
+
+/**
+ * @generated from enum backplane.console.v1.ErrorGroupSort
+ */
+export enum ErrorGroupSort {
+  /**
+   * @generated from enum value: ERROR_GROUP_SORT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: ERROR_GROUP_SORT_LAST_SEEN = 1;
+   */
+  LAST_SEEN = 1,
+
+  /**
+   * @generated from enum value: ERROR_GROUP_SORT_COUNT = 2;
+   */
+  COUNT = 2,
+
+  /**
+   * @generated from enum value: ERROR_GROUP_SORT_FIRST_SEEN = 3;
+   */
+  FIRST_SEEN = 3,
+}
+
+/**
+ * Describes the enum backplane.console.v1.ErrorGroupSort.
+ */
+export const ErrorGroupSortSchema: GenEnum<ErrorGroupSort> = /*@__PURE__*/
+  enumDesc(file_backplanepb_console_v1_errors, 4);
+
+/**
  * @generated from enum backplane.console.v1.ErrorRelation
  */
 export enum ErrorRelation {
@@ -784,7 +1328,7 @@ export enum ErrorRelation {
  * Describes the enum backplane.console.v1.ErrorRelation.
  */
 export const ErrorRelationSchema: GenEnum<ErrorRelation> = /*@__PURE__*/
-  enumDesc(file_backplanepb_console_v1_errors, 3);
+  enumDesc(file_backplanepb_console_v1_errors, 5);
 
 /**
  * ErrorService reads errors from the installation's log store: records the
@@ -850,6 +1394,48 @@ export const ErrorService: GenService<{
     methodKind: "unary";
     input: typeof RelatedLogsRequestSchema;
     output: typeof RelatedLogsResponseSchema;
+  },
+  /**
+   * SearchErrorGroups lists groups — one fingerprint in one service — with
+   * their counts over the filter's range, newest activity first.
+   *
+   * @generated from rpc backplane.console.v1.ErrorService.SearchErrorGroups
+   */
+  searchErrorGroups: {
+    methodKind: "unary";
+    input: typeof SearchErrorGroupsRequestSchema;
+    output: typeof SearchErrorGroupsResponseSchema;
+  },
+  /**
+   * GetErrorGroup is one group with its trend and facets over the range.
+   *
+   * @generated from rpc backplane.console.v1.ErrorService.GetErrorGroup
+   */
+  getErrorGroup: {
+    methodKind: "unary";
+    input: typeof GetErrorGroupRequestSchema;
+    output: typeof GetErrorGroupResponseSchema;
+  },
+  /**
+   * ErrorInfo says how errors are kept: retention, burst limits, record
+   * size and whether related logs can be read.
+   *
+   * @generated from rpc backplane.console.v1.ErrorService.ErrorInfo
+   */
+  errorInfo: {
+    methodKind: "unary";
+    input: typeof ErrorInfoRequestSchema;
+    output: typeof ErrorInfoResponseSchema;
+  },
+  /**
+   * Resolves, mutes or reopens a group; audited as error_group.<state>.
+   *
+   * @generated from rpc backplane.console.v1.ErrorService.SetErrorGroupState
+   */
+  setErrorGroupState: {
+    methodKind: "unary";
+    input: typeof SetErrorGroupStateRequestSchema;
+    output: typeof SetErrorGroupStateResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_backplanepb_console_v1_errors, 0);

@@ -95,7 +95,7 @@ records queued by installations that previously used event delivery.
 
 The outbox acknowledges only a successful synchronous OTLP response; partial
 rejection, invalid responses and network failures retry. Records carry the stable
-entry UUID and `backplane.audit.origin=platform`. The Collector's audit pipeline
+entry UUID and `backplane.audit.origin=platform`. The Collector's backplane pipeline
 filters these records, and ingest acknowledges echoes without inserting them as
 application records. Their authoritative row is already committed in PostgreSQL.
 The optional export's JSON body contains only the same allowlisted metadata;
@@ -186,8 +186,9 @@ log.Info("identity deleted", backplane.Audit(),
 
 ### Delivery
 
-The Collector's audit pipeline (`deployments/otel-collector.audit.yaml`, merged
-with the main configuration) keeps the marked records and exports them over
+The Collector's backplane pipeline (`deployments/otel-collector.audit.yaml`,
+merged with the main configuration) keeps the marked records, and exception
+records with them ([errors.md](errors.md)), and exports them over
 OTLP/gRPC (`opentelemetry.proto.collector.logs.v1.LogsService/Export`) to
 backplane's audit listener, `BACKPLANE_AUDIT_LISTEN` (`:4317`). It is internal:
 never publish it through the direct service listener. With `BACKPLANE_AUDIT_KEYS` (a JSON array of
@@ -196,7 +197,8 @@ keys, each at least 16 characters) the listener requires one as
 
 A call returns after the records are committed; any failure is `Unavailable`,
 and the Collector's persistent queue (`file_storage`, retries without a time
-limit) keeps them until backplane is back. Retries are deduplicated. Records
+limit) keeps them until backplane is back. Retries are deduplicated. Exception
+records go to the error store and are not audit. Records
 without the label, over 64 KiB, or containing text PostgreSQL cannot store
 (NUL or invalid UTF-8, including attribute keys and nested values) are counted
 in `partial_success.rejected`

@@ -9,6 +9,7 @@ package consolev1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	structpb "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
@@ -89,21 +90,32 @@ const (
 	ErrorField_ERROR_FIELD_GROUP_KEY   ErrorField = 8
 	// "sdk" or "otel-log"; IS and IS_NOT only.
 	ErrorField_ERROR_FIELD_ORIGIN ErrorField = 9
+	// The group (hex fingerprint); is / is_not.
+	ErrorField_ERROR_FIELD_FINGERPRINT ErrorField = 10
+	// "true" / "false": whether the application handled it; is / is_not.
+	ErrorField_ERROR_FIELD_HANDLED ErrorField = 11
+	// "proxy" / "trusted"; is / is_not.
+	ErrorField_ERROR_FIELD_INGEST   ErrorField = 12
+	ErrorField_ERROR_FIELD_INSTANCE ErrorField = 13
 )
 
 // Enum value maps for ErrorField.
 var (
 	ErrorField_name = map[int32]string{
-		0: "ERROR_FIELD_UNSPECIFIED",
-		1: "ERROR_FIELD_SERVICE",
-		2: "ERROR_FIELD_ENVIRONMENT",
-		3: "ERROR_FIELD_TYPE",
-		4: "ERROR_FIELD_MESSAGE",
-		5: "ERROR_FIELD_RELEASE",
-		6: "ERROR_FIELD_TRACE_ID",
-		7: "ERROR_FIELD_RUNTIME_ID",
-		8: "ERROR_FIELD_GROUP_KEY",
-		9: "ERROR_FIELD_ORIGIN",
+		0:  "ERROR_FIELD_UNSPECIFIED",
+		1:  "ERROR_FIELD_SERVICE",
+		2:  "ERROR_FIELD_ENVIRONMENT",
+		3:  "ERROR_FIELD_TYPE",
+		4:  "ERROR_FIELD_MESSAGE",
+		5:  "ERROR_FIELD_RELEASE",
+		6:  "ERROR_FIELD_TRACE_ID",
+		7:  "ERROR_FIELD_RUNTIME_ID",
+		8:  "ERROR_FIELD_GROUP_KEY",
+		9:  "ERROR_FIELD_ORIGIN",
+		10: "ERROR_FIELD_FINGERPRINT",
+		11: "ERROR_FIELD_HANDLED",
+		12: "ERROR_FIELD_INGEST",
+		13: "ERROR_FIELD_INSTANCE",
 	}
 	ErrorField_value = map[string]int32{
 		"ERROR_FIELD_UNSPECIFIED": 0,
@@ -116,6 +128,10 @@ var (
 		"ERROR_FIELD_RUNTIME_ID":  7,
 		"ERROR_FIELD_GROUP_KEY":   8,
 		"ERROR_FIELD_ORIGIN":      9,
+		"ERROR_FIELD_FINGERPRINT": 10,
+		"ERROR_FIELD_HANDLED":     11,
+		"ERROR_FIELD_INGEST":      12,
+		"ERROR_FIELD_INSTANCE":    13,
 	}
 )
 
@@ -214,6 +230,112 @@ func (ErrorOperator) EnumDescriptor() ([]byte, []int) {
 	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{2}
 }
 
+// Triage state of a group. Occurrences of a muted group are still stored
+// and counted; the group is hidden unless asked for.
+type ErrorGroupState int32
+
+const (
+	ErrorGroupState_ERROR_GROUP_STATE_UNSPECIFIED ErrorGroupState = 0
+	ErrorGroupState_ERROR_GROUP_STATE_OPEN        ErrorGroupState = 1
+	ErrorGroupState_ERROR_GROUP_STATE_RESOLVED    ErrorGroupState = 2
+	ErrorGroupState_ERROR_GROUP_STATE_MUTED       ErrorGroupState = 3
+)
+
+// Enum value maps for ErrorGroupState.
+var (
+	ErrorGroupState_name = map[int32]string{
+		0: "ERROR_GROUP_STATE_UNSPECIFIED",
+		1: "ERROR_GROUP_STATE_OPEN",
+		2: "ERROR_GROUP_STATE_RESOLVED",
+		3: "ERROR_GROUP_STATE_MUTED",
+	}
+	ErrorGroupState_value = map[string]int32{
+		"ERROR_GROUP_STATE_UNSPECIFIED": 0,
+		"ERROR_GROUP_STATE_OPEN":        1,
+		"ERROR_GROUP_STATE_RESOLVED":    2,
+		"ERROR_GROUP_STATE_MUTED":       3,
+	}
+)
+
+func (x ErrorGroupState) Enum() *ErrorGroupState {
+	p := new(ErrorGroupState)
+	*p = x
+	return p
+}
+
+func (x ErrorGroupState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ErrorGroupState) Descriptor() protoreflect.EnumDescriptor {
+	return file_backplanepb_console_v1_errors_proto_enumTypes[3].Descriptor()
+}
+
+func (ErrorGroupState) Type() protoreflect.EnumType {
+	return &file_backplanepb_console_v1_errors_proto_enumTypes[3]
+}
+
+func (x ErrorGroupState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ErrorGroupState.Descriptor instead.
+func (ErrorGroupState) EnumDescriptor() ([]byte, []int) {
+	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{3}
+}
+
+type ErrorGroupSort int32
+
+const (
+	ErrorGroupSort_ERROR_GROUP_SORT_UNSPECIFIED ErrorGroupSort = 0
+	ErrorGroupSort_ERROR_GROUP_SORT_LAST_SEEN   ErrorGroupSort = 1
+	ErrorGroupSort_ERROR_GROUP_SORT_COUNT       ErrorGroupSort = 2
+	ErrorGroupSort_ERROR_GROUP_SORT_FIRST_SEEN  ErrorGroupSort = 3
+)
+
+// Enum value maps for ErrorGroupSort.
+var (
+	ErrorGroupSort_name = map[int32]string{
+		0: "ERROR_GROUP_SORT_UNSPECIFIED",
+		1: "ERROR_GROUP_SORT_LAST_SEEN",
+		2: "ERROR_GROUP_SORT_COUNT",
+		3: "ERROR_GROUP_SORT_FIRST_SEEN",
+	}
+	ErrorGroupSort_value = map[string]int32{
+		"ERROR_GROUP_SORT_UNSPECIFIED": 0,
+		"ERROR_GROUP_SORT_LAST_SEEN":   1,
+		"ERROR_GROUP_SORT_COUNT":       2,
+		"ERROR_GROUP_SORT_FIRST_SEEN":  3,
+	}
+)
+
+func (x ErrorGroupSort) Enum() *ErrorGroupSort {
+	p := new(ErrorGroupSort)
+	*p = x
+	return p
+}
+
+func (x ErrorGroupSort) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ErrorGroupSort) Descriptor() protoreflect.EnumDescriptor {
+	return file_backplanepb_console_v1_errors_proto_enumTypes[4].Descriptor()
+}
+
+func (ErrorGroupSort) Type() protoreflect.EnumType {
+	return &file_backplanepb_console_v1_errors_proto_enumTypes[4]
+}
+
+func (x ErrorGroupSort) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ErrorGroupSort.Descriptor instead.
+func (ErrorGroupSort) EnumDescriptor() ([]byte, []int) {
+	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{4}
+}
+
 type ErrorRelation int32
 
 const (
@@ -256,11 +378,11 @@ func (x ErrorRelation) String() string {
 }
 
 func (ErrorRelation) Descriptor() protoreflect.EnumDescriptor {
-	return file_backplanepb_console_v1_errors_proto_enumTypes[3].Descriptor()
+	return file_backplanepb_console_v1_errors_proto_enumTypes[5].Descriptor()
 }
 
 func (ErrorRelation) Type() protoreflect.EnumType {
-	return &file_backplanepb_console_v1_errors_proto_enumTypes[3]
+	return &file_backplanepb_console_v1_errors_proto_enumTypes[5]
 }
 
 func (x ErrorRelation) Number() protoreflect.EnumNumber {
@@ -269,7 +391,7 @@ func (x ErrorRelation) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ErrorRelation.Descriptor instead.
 func (ErrorRelation) EnumDescriptor() ([]byte, []int) {
-	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{3}
+	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{5}
 }
 
 // ErrorOccurrence is one captured exception as the list shows it.
@@ -296,7 +418,18 @@ type ErrorOccurrence struct {
 	// SDK: the handler that caught it (manual, window.error, unhandledrejection).
 	Mechanism string `protobuf:"bytes,14,opt,name=mechanism,proto3" json:"mechanism,omitempty"`
 	// SDK: the application's grouping key, as given.
-	GroupKey      string `protobuf:"bytes,15,opt,name=group_key,json=groupKey,proto3" json:"group_key,omitempty"`
+	GroupKey string `protobuf:"bytes,15,opt,name=group_key,json=groupKey,proto3" json:"group_key,omitempty"`
+	// The group the occurrence belongs to: hex of its fingerprint.
+	Fingerprint string `protobuf:"bytes,16,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	// SDK: the exception was not handled by the application (window.error,
+	// unhandledrejection); false when handled or unknown.
+	Unhandled bool `protobuf:"varint,17,opt,name=unhandled,proto3" json:"unhandled,omitempty"`
+	// Where it came in: "proxy" (the public OTLP ingest: browsers) or
+	// "trusted" (the Collector's own senders).
+	Ingest     string                 `protobuf:"bytes,18,opt,name=ingest,proto3" json:"ingest,omitempty"`
+	ReceivedAt *timestamppb.Timestamp `protobuf:"bytes,19,opt,name=received_at,json=receivedAt,proto3" json:"received_at,omitempty"`
+	// The stored record was cut to the size limit (stack, envelope).
+	Truncated     bool `protobuf:"varint,20,opt,name=truncated,proto3" json:"truncated,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -434,6 +567,41 @@ func (x *ErrorOccurrence) GetGroupKey() string {
 		return x.GroupKey
 	}
 	return ""
+}
+
+func (x *ErrorOccurrence) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *ErrorOccurrence) GetUnhandled() bool {
+	if x != nil {
+		return x.Unhandled
+	}
+	return false
+}
+
+func (x *ErrorOccurrence) GetIngest() string {
+	if x != nil {
+		return x.Ingest
+	}
+	return ""
+}
+
+func (x *ErrorOccurrence) GetReceivedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ReceivedAt
+	}
+	return nil
+}
+
+func (x *ErrorOccurrence) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
 }
 
 type ErrorCondition struct {
@@ -1148,7 +1316,14 @@ type GetErrorResponse struct {
 	// Every stored field of the record but its body.
 	Fields map[string]string `protobuf:"bytes,6,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// invalid_payload, index_payload_mismatch, event_id_body_conflict, ...
-	Warnings      []string `protobuf:"bytes,7,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	Warnings []string `protobuf:"bytes,7,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	// The occurrence's group, counted over all time.
+	Group *ErrorGroup `protobuf:"bytes,8,opt,name=group,proto3" json:"group,omitempty"`
+	// Every attribute of the record and of its resource, as sent.
+	Attributes *structpb.Struct `protobuf:"bytes,9,opt,name=attributes,proto3" json:"attributes,omitempty"`
+	Resource   *structpb.Struct `protobuf:"bytes,10,opt,name=resource,proto3" json:"resource,omitempty"`
+	// The instrumentation scope that wrote the record ("name@version").
+	Scope         string `protobuf:"bytes,11,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1232,6 +1407,748 @@ func (x *GetErrorResponse) GetWarnings() []string {
 	return nil
 }
 
+func (x *GetErrorResponse) GetGroup() *ErrorGroup {
+	if x != nil {
+		return x.Group
+	}
+	return nil
+}
+
+func (x *GetErrorResponse) GetAttributes() *structpb.Struct {
+	if x != nil {
+		return x.Attributes
+	}
+	return nil
+}
+
+func (x *GetErrorResponse) GetResource() *structpb.Struct {
+	if x != nil {
+		return x.Resource
+	}
+	return nil
+}
+
+func (x *GetErrorResponse) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+// ErrorGroup is one fingerprint in one service: the same exception at the
+// same place, occurring over time.
+type ErrorGroup struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Hex of the fingerprint.
+	Fingerprint string `protobuf:"bytes,1,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	Service     string `protobuf:"bytes,2,opt,name=service,proto3" json:"service,omitempty"`
+	// The group's exception as first seen.
+	Type      string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	Message   string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	FirstSeen *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=first_seen,json=firstSeen,proto3" json:"first_seen,omitempty"`
+	LastSeen  *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=last_seen,json=lastSeen,proto3" json:"last_seen,omitempty"`
+	// Occurrences over all time, also those the burst limits did not store.
+	Count uint64 `protobuf:"varint,7,opt,name=count,proto3" json:"count,omitempty"`
+	// Occurrences stored over all time.
+	Stored uint64 `protobuf:"varint,8,opt,name=stored,proto3" json:"stored,omitempty"`
+	// Occurrences stored within the request's range.
+	CountInRange uint64 `protobuf:"varint,9,opt,name=count_in_range,json=countInRange,proto3" json:"count_in_range,omitempty"`
+	// Stored occurrences per bucket of the range (SearchErrorGroups: the
+	// sparkline; GetErrorGroup: the trend), ErrorHistogramResponse's step.
+	Trend []uint64 `protobuf:"varint,10,rep,packed,name=trend,proto3" json:"trend,omitempty"`
+	// The newest stored occurrence in the range: its ref, for GetError.
+	SampleRef string `protobuf:"bytes,11,opt,name=sample_ref,json=sampleRef,proto3" json:"sample_ref,omitempty"`
+	// The occurrence's origin in the group: sdk when any is.
+	Origin ErrorOrigin `protobuf:"varint,12,opt,name=origin,proto3,enum=backplane.console.v1.ErrorOrigin" json:"origin,omitempty"`
+	// An unhandled occurrence is among them.
+	Unhandled bool `protobuf:"varint,13,opt,name=unhandled,proto3" json:"unhandled,omitempty"`
+	// Environments and releases seen in the range, most frequent first.
+	Environments []string `protobuf:"bytes,14,rep,name=environments,proto3" json:"environments,omitempty"`
+	Releases     []string `protobuf:"bytes,15,rep,name=releases,proto3" json:"releases,omitempty"`
+	// The group started within the range.
+	New bool `protobuf:"varint,16,opt,name=new,proto3" json:"new,omitempty"`
+	// Triage state; open unless resolved or muted.
+	State ErrorGroupState `protobuf:"varint,17,opt,name=state,proto3,enum=backplane.console.v1.ErrorGroupState" json:"state,omitempty"`
+	// When, by whom and why the state was last set.
+	StateAt   *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=state_at,json=stateAt,proto3" json:"state_at,omitempty"`
+	StateBy   string                 `protobuf:"bytes,19,opt,name=state_by,json=stateBy,proto3" json:"state_by,omitempty"`
+	StateNote string                 `protobuf:"bytes,20,opt,name=state_note,json=stateNote,proto3" json:"state_note,omitempty"`
+	// Set when an occurrence reopened a resolved group: a regression.
+	RegressedAt   *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=regressed_at,json=regressedAt,proto3" json:"regressed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ErrorGroup) Reset() {
+	*x = ErrorGroup{}
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ErrorGroup) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ErrorGroup) ProtoMessage() {}
+
+func (x *ErrorGroup) ProtoReflect() protoreflect.Message {
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ErrorGroup.ProtoReflect.Descriptor instead.
+func (*ErrorGroup) Descriptor() ([]byte, []int) {
+	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ErrorGroup) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *ErrorGroup) GetService() string {
+	if x != nil {
+		return x.Service
+	}
+	return ""
+}
+
+func (x *ErrorGroup) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *ErrorGroup) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *ErrorGroup) GetFirstSeen() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FirstSeen
+	}
+	return nil
+}
+
+func (x *ErrorGroup) GetLastSeen() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastSeen
+	}
+	return nil
+}
+
+func (x *ErrorGroup) GetCount() uint64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *ErrorGroup) GetStored() uint64 {
+	if x != nil {
+		return x.Stored
+	}
+	return 0
+}
+
+func (x *ErrorGroup) GetCountInRange() uint64 {
+	if x != nil {
+		return x.CountInRange
+	}
+	return 0
+}
+
+func (x *ErrorGroup) GetTrend() []uint64 {
+	if x != nil {
+		return x.Trend
+	}
+	return nil
+}
+
+func (x *ErrorGroup) GetSampleRef() string {
+	if x != nil {
+		return x.SampleRef
+	}
+	return ""
+}
+
+func (x *ErrorGroup) GetOrigin() ErrorOrigin {
+	if x != nil {
+		return x.Origin
+	}
+	return ErrorOrigin_ERROR_ORIGIN_UNSPECIFIED
+}
+
+func (x *ErrorGroup) GetUnhandled() bool {
+	if x != nil {
+		return x.Unhandled
+	}
+	return false
+}
+
+func (x *ErrorGroup) GetEnvironments() []string {
+	if x != nil {
+		return x.Environments
+	}
+	return nil
+}
+
+func (x *ErrorGroup) GetReleases() []string {
+	if x != nil {
+		return x.Releases
+	}
+	return nil
+}
+
+func (x *ErrorGroup) GetNew() bool {
+	if x != nil {
+		return x.New
+	}
+	return false
+}
+
+func (x *ErrorGroup) GetState() ErrorGroupState {
+	if x != nil {
+		return x.State
+	}
+	return ErrorGroupState_ERROR_GROUP_STATE_UNSPECIFIED
+}
+
+func (x *ErrorGroup) GetStateAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StateAt
+	}
+	return nil
+}
+
+func (x *ErrorGroup) GetStateBy() string {
+	if x != nil {
+		return x.StateBy
+	}
+	return ""
+}
+
+func (x *ErrorGroup) GetStateNote() string {
+	if x != nil {
+		return x.StateNote
+	}
+	return ""
+}
+
+func (x *ErrorGroup) GetRegressedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RegressedAt
+	}
+	return nil
+}
+
+type SearchErrorGroupsRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Filter *ErrorFilter           `protobuf:"bytes,1,opt,name=filter,proto3" json:"filter,omitempty"`
+	// At most this many (default 50, at most 200).
+	PageSize uint32 `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	// From the previous response; empty: the first page.
+	PageCursor string         `protobuf:"bytes,3,opt,name=page_cursor,json=pageCursor,proto3" json:"page_cursor,omitempty"`
+	Sort       ErrorGroupSort `protobuf:"varint,4,opt,name=sort,proto3,enum=backplane.console.v1.ErrorGroupSort" json:"sort,omitempty"`
+	// States to list; none: open groups only.
+	States        []ErrorGroupState `protobuf:"varint,5,rep,packed,name=states,proto3,enum=backplane.console.v1.ErrorGroupState" json:"states,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchErrorGroupsRequest) Reset() {
+	*x = SearchErrorGroupsRequest{}
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchErrorGroupsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchErrorGroupsRequest) ProtoMessage() {}
+
+func (x *SearchErrorGroupsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchErrorGroupsRequest.ProtoReflect.Descriptor instead.
+func (*SearchErrorGroupsRequest) Descriptor() ([]byte, []int) {
+	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *SearchErrorGroupsRequest) GetFilter() *ErrorFilter {
+	if x != nil {
+		return x.Filter
+	}
+	return nil
+}
+
+func (x *SearchErrorGroupsRequest) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *SearchErrorGroupsRequest) GetPageCursor() string {
+	if x != nil {
+		return x.PageCursor
+	}
+	return ""
+}
+
+func (x *SearchErrorGroupsRequest) GetSort() ErrorGroupSort {
+	if x != nil {
+		return x.Sort
+	}
+	return ErrorGroupSort_ERROR_GROUP_SORT_UNSPECIFIED
+}
+
+func (x *SearchErrorGroupsRequest) GetStates() []ErrorGroupState {
+	if x != nil {
+		return x.States
+	}
+	return nil
+}
+
+type SearchErrorGroupsResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Groups         []*ErrorGroup          `protobuf:"bytes,1,rep,name=groups,proto3" json:"groups,omitempty"`
+	NextPageCursor string                 `protobuf:"bytes,2,opt,name=next_page_cursor,json=nextPageCursor,proto3" json:"next_page_cursor,omitempty"`
+	// The trend's bucket size.
+	StepMillis    int64 `protobuf:"varint,3,opt,name=step_millis,json=stepMillis,proto3" json:"step_millis,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchErrorGroupsResponse) Reset() {
+	*x = SearchErrorGroupsResponse{}
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchErrorGroupsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchErrorGroupsResponse) ProtoMessage() {}
+
+func (x *SearchErrorGroupsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchErrorGroupsResponse.ProtoReflect.Descriptor instead.
+func (*SearchErrorGroupsResponse) Descriptor() ([]byte, []int) {
+	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *SearchErrorGroupsResponse) GetGroups() []*ErrorGroup {
+	if x != nil {
+		return x.Groups
+	}
+	return nil
+}
+
+func (x *SearchErrorGroupsResponse) GetNextPageCursor() string {
+	if x != nil {
+		return x.NextPageCursor
+	}
+	return ""
+}
+
+func (x *SearchErrorGroupsResponse) GetStepMillis() int64 {
+	if x != nil {
+		return x.StepMillis
+	}
+	return 0
+}
+
+type GetErrorGroupRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Fingerprint string                 `protobuf:"bytes,1,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	Service     string                 `protobuf:"bytes,2,opt,name=service,proto3" json:"service,omitempty"`
+	// The range (and conditions) the counts and facets are over; absent:
+	// the last 24 hours.
+	Filter        *ErrorFilter `protobuf:"bytes,3,opt,name=filter,proto3" json:"filter,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetErrorGroupRequest) Reset() {
+	*x = GetErrorGroupRequest{}
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetErrorGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetErrorGroupRequest) ProtoMessage() {}
+
+func (x *GetErrorGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetErrorGroupRequest.ProtoReflect.Descriptor instead.
+func (*GetErrorGroupRequest) Descriptor() ([]byte, []int) {
+	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *GetErrorGroupRequest) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *GetErrorGroupRequest) GetService() string {
+	if x != nil {
+		return x.Service
+	}
+	return ""
+}
+
+func (x *GetErrorGroupRequest) GetFilter() *ErrorFilter {
+	if x != nil {
+		return x.Filter
+	}
+	return nil
+}
+
+type GetErrorGroupResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Group *ErrorGroup            `protobuf:"bytes,1,opt,name=group,proto3" json:"group,omitempty"`
+	// The trend's buckets, as ErrorHistogram's.
+	Buckets       []*ErrorBucket `protobuf:"bytes,2,rep,name=buckets,proto3" json:"buckets,omitempty"`
+	StepMillis    int64          `protobuf:"varint,3,opt,name=step_millis,json=stepMillis,proto3" json:"step_millis,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetErrorGroupResponse) Reset() {
+	*x = GetErrorGroupResponse{}
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetErrorGroupResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetErrorGroupResponse) ProtoMessage() {}
+
+func (x *GetErrorGroupResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetErrorGroupResponse.ProtoReflect.Descriptor instead.
+func (*GetErrorGroupResponse) Descriptor() ([]byte, []int) {
+	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *GetErrorGroupResponse) GetGroup() *ErrorGroup {
+	if x != nil {
+		return x.Group
+	}
+	return nil
+}
+
+func (x *GetErrorGroupResponse) GetBuckets() []*ErrorBucket {
+	if x != nil {
+		return x.Buckets
+	}
+	return nil
+}
+
+func (x *GetErrorGroupResponse) GetStepMillis() int64 {
+	if x != nil {
+		return x.StepMillis
+	}
+	return 0
+}
+
+type SetErrorGroupStateRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Fingerprint string                 `protobuf:"bytes,1,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	Service     string                 `protobuf:"bytes,2,opt,name=service,proto3" json:"service,omitempty"`
+	State       ErrorGroupState        `protobuf:"varint,3,opt,name=state,proto3,enum=backplane.console.v1.ErrorGroupState" json:"state,omitempty"`
+	// Why; kept with the state and in the audit entry.
+	Note          string `protobuf:"bytes,4,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetErrorGroupStateRequest) Reset() {
+	*x = SetErrorGroupStateRequest{}
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetErrorGroupStateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetErrorGroupStateRequest) ProtoMessage() {}
+
+func (x *SetErrorGroupStateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetErrorGroupStateRequest.ProtoReflect.Descriptor instead.
+func (*SetErrorGroupStateRequest) Descriptor() ([]byte, []int) {
+	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *SetErrorGroupStateRequest) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *SetErrorGroupStateRequest) GetService() string {
+	if x != nil {
+		return x.Service
+	}
+	return ""
+}
+
+func (x *SetErrorGroupStateRequest) GetState() ErrorGroupState {
+	if x != nil {
+		return x.State
+	}
+	return ErrorGroupState_ERROR_GROUP_STATE_UNSPECIFIED
+}
+
+func (x *SetErrorGroupStateRequest) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+type SetErrorGroupStateResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Group         *ErrorGroup            `protobuf:"bytes,1,opt,name=group,proto3" json:"group,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetErrorGroupStateResponse) Reset() {
+	*x = SetErrorGroupStateResponse{}
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetErrorGroupStateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetErrorGroupStateResponse) ProtoMessage() {}
+
+func (x *SetErrorGroupStateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetErrorGroupStateResponse.ProtoReflect.Descriptor instead.
+func (*SetErrorGroupStateResponse) Descriptor() ([]byte, []int) {
+	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *SetErrorGroupStateResponse) GetGroup() *ErrorGroup {
+	if x != nil {
+		return x.Group
+	}
+	return nil
+}
+
+type ErrorInfoRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ErrorInfoRequest) Reset() {
+	*x = ErrorInfoRequest{}
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ErrorInfoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ErrorInfoRequest) ProtoMessage() {}
+
+func (x *ErrorInfoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ErrorInfoRequest.ProtoReflect.Descriptor instead.
+func (*ErrorInfoRequest) Descriptor() ([]byte, []int) {
+	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{21}
+}
+
+type ErrorInfoResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// How long occurrences are kept; zero: for ever.
+	Retention *durationpb.Duration `protobuf:"bytes,1,opt,name=retention,proto3" json:"retention,omitempty"`
+	// Occurrences stored per group within a minute and within a day; past
+	// them the group only counts.
+	BurstPerMinute uint32 `protobuf:"varint,2,opt,name=burst_per_minute,json=burstPerMinute,proto3" json:"burst_per_minute,omitempty"`
+	BurstPerDay    uint32 `protobuf:"varint,3,opt,name=burst_per_day,json=burstPerDay,proto3" json:"burst_per_day,omitempty"`
+	// Bytes a stored record may take before its stack and envelope are cut.
+	MaxRecordBytes uint64 `protobuf:"varint,4,opt,name=max_record_bytes,json=maxRecordBytes,proto3" json:"max_record_bytes,omitempty"`
+	// The log store is configured: RelatedLogs and traces can be read.
+	RelatedAvailable bool `protobuf:"varint,5,opt,name=related_available,json=relatedAvailable,proto3" json:"related_available,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ErrorInfoResponse) Reset() {
+	*x = ErrorInfoResponse{}
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ErrorInfoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ErrorInfoResponse) ProtoMessage() {}
+
+func (x *ErrorInfoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ErrorInfoResponse.ProtoReflect.Descriptor instead.
+func (*ErrorInfoResponse) Descriptor() ([]byte, []int) {
+	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ErrorInfoResponse) GetRetention() *durationpb.Duration {
+	if x != nil {
+		return x.Retention
+	}
+	return nil
+}
+
+func (x *ErrorInfoResponse) GetBurstPerMinute() uint32 {
+	if x != nil {
+		return x.BurstPerMinute
+	}
+	return 0
+}
+
+func (x *ErrorInfoResponse) GetBurstPerDay() uint32 {
+	if x != nil {
+		return x.BurstPerDay
+	}
+	return 0
+}
+
+func (x *ErrorInfoResponse) GetMaxRecordBytes() uint64 {
+	if x != nil {
+		return x.MaxRecordBytes
+	}
+	return 0
+}
+
+func (x *ErrorInfoResponse) GetRelatedAvailable() bool {
+	if x != nil {
+		return x.RelatedAvailable
+	}
+	return false
+}
+
 type RelatedLogsRequest struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Ref      string                 `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
@@ -1247,7 +2164,7 @@ type RelatedLogsRequest struct {
 
 func (x *RelatedLogsRequest) Reset() {
 	*x = RelatedLogsRequest{}
-	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[14]
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1259,7 +2176,7 @@ func (x *RelatedLogsRequest) String() string {
 func (*RelatedLogsRequest) ProtoMessage() {}
 
 func (x *RelatedLogsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[14]
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1272,7 +2189,7 @@ func (x *RelatedLogsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RelatedLogsRequest.ProtoReflect.Descriptor instead.
 func (*RelatedLogsRequest) Descriptor() ([]byte, []int) {
-	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{14}
+	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *RelatedLogsRequest) GetRef() string {
@@ -1322,7 +2239,7 @@ type RelatedLogsResponse struct {
 
 func (x *RelatedLogsResponse) Reset() {
 	*x = RelatedLogsResponse{}
-	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[15]
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1334,7 +2251,7 @@ func (x *RelatedLogsResponse) String() string {
 func (*RelatedLogsResponse) ProtoMessage() {}
 
 func (x *RelatedLogsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[15]
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1347,7 +2264,7 @@ func (x *RelatedLogsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RelatedLogsResponse.ProtoReflect.Descriptor instead.
 func (*RelatedLogsResponse) Descriptor() ([]byte, []int) {
-	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{15}
+	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *RelatedLogsResponse) GetStatus() string {
@@ -1381,7 +2298,7 @@ type RelatedLog struct {
 
 func (x *RelatedLog) Reset() {
 	*x = RelatedLog{}
-	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[16]
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1393,7 +2310,7 @@ func (x *RelatedLog) String() string {
 func (*RelatedLog) ProtoMessage() {}
 
 func (x *RelatedLog) ProtoReflect() protoreflect.Message {
-	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[16]
+	mi := &file_backplanepb_console_v1_errors_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1406,7 +2323,7 @@ func (x *RelatedLog) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RelatedLog.ProtoReflect.Descriptor instead.
 func (*RelatedLog) Descriptor() ([]byte, []int) {
-	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{16}
+	return file_backplanepb_console_v1_errors_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *RelatedLog) GetTime() *timestamppb.Timestamp {
@@ -1427,7 +2344,7 @@ var File_backplanepb_console_v1_errors_proto protoreflect.FileDescriptor
 
 const file_backplanepb_console_v1_errors_proto_rawDesc = "" +
 	"\n" +
-	"#backplanepb/console/v1/errors.proto\x12\x14backplane.console.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd7\x03\n" +
+	"#backplanepb/console/v1/errors.proto\x12\x14backplane.console.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8a\x05\n" +
 	"\x0fErrorOccurrence\x12\x10\n" +
 	"\x03ref\x18\x01 \x01(\tR\x03ref\x129\n" +
 	"\x06origin\x18\x02 \x01(\x0e2!.backplane.console.v1.ErrorOriginR\x06origin\x12\x19\n" +
@@ -1445,7 +2362,13 @@ const file_backplanepb_console_v1_errors_proto_rawDesc = "" +
 	"\n" +
 	"runtime_id\x18\r \x01(\tR\truntimeId\x12\x1c\n" +
 	"\tmechanism\x18\x0e \x01(\tR\tmechanism\x12\x1b\n" +
-	"\tgroup_key\x18\x0f \x01(\tR\bgroupKey\"\x95\x01\n" +
+	"\tgroup_key\x18\x0f \x01(\tR\bgroupKey\x12 \n" +
+	"\vfingerprint\x18\x10 \x01(\tR\vfingerprint\x12\x1c\n" +
+	"\tunhandled\x18\x11 \x01(\bR\tunhandled\x12\x16\n" +
+	"\x06ingest\x18\x12 \x01(\tR\x06ingest\x12;\n" +
+	"\vreceived_at\x18\x13 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"receivedAt\x12\x1c\n" +
+	"\ttruncated\x18\x14 \x01(\bR\ttruncated\"\x95\x01\n" +
 	"\x0eErrorCondition\x126\n" +
 	"\x05field\x18\x01 \x01(\x0e2 .backplane.console.v1.ErrorFieldR\x05field\x123\n" +
 	"\x02op\x18\x02 \x01(\x0e2#.backplane.console.v1.ErrorOperatorR\x02op\x12\x16\n" +
@@ -1494,7 +2417,7 @@ const file_backplanepb_console_v1_errors_proto_rawDesc = "" +
 	"\x05count\x18\x02 \x01(\x04R\x05count\x127\n" +
 	"\tlast_seen\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\blastSeen\"#\n" +
 	"\x0fGetErrorRequest\x12\x10\n" +
-	"\x03ref\x18\x01 \x01(\tR\x03ref\"\xb1\x03\n" +
+	"\x03ref\x18\x01 \x01(\tR\x03ref\"\xed\x04\n" +
 	"\x10GetErrorResponse\x12E\n" +
 	"\n" +
 	"occurrence\x18\x01 \x01(\v2%.backplane.console.v1.ErrorOccurrenceR\n" +
@@ -1506,10 +2429,79 @@ const file_backplanepb_console_v1_errors_proto_rawDesc = "" +
 	"\benvelope\x18\x04 \x01(\v2\x17.google.protobuf.StructR\benvelope\x12'\n" +
 	"\x0fenvelope_status\x18\x05 \x01(\tR\x0eenvelopeStatus\x12J\n" +
 	"\x06fields\x18\x06 \x03(\v22.backplane.console.v1.GetErrorResponse.FieldsEntryR\x06fields\x12\x1a\n" +
-	"\bwarnings\x18\a \x03(\tR\bwarnings\x1a9\n" +
+	"\bwarnings\x18\a \x03(\tR\bwarnings\x126\n" +
+	"\x05group\x18\b \x01(\v2 .backplane.console.v1.ErrorGroupR\x05group\x127\n" +
+	"\n" +
+	"attributes\x18\t \x01(\v2\x17.google.protobuf.StructR\n" +
+	"attributes\x123\n" +
+	"\bresource\x18\n" +
+	" \x01(\v2\x17.google.protobuf.StructR\bresource\x12\x14\n" +
+	"\x05scope\x18\v \x01(\tR\x05scope\x1a9\n" +
 	"\vFieldsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe4\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8b\x06\n" +
+	"\n" +
+	"ErrorGroup\x12 \n" +
+	"\vfingerprint\x18\x01 \x01(\tR\vfingerprint\x12\x18\n" +
+	"\aservice\x18\x02 \x01(\tR\aservice\x12\x12\n" +
+	"\x04type\x18\x03 \x01(\tR\x04type\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\x129\n" +
+	"\n" +
+	"first_seen\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tfirstSeen\x127\n" +
+	"\tlast_seen\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\blastSeen\x12\x14\n" +
+	"\x05count\x18\a \x01(\x04R\x05count\x12\x16\n" +
+	"\x06stored\x18\b \x01(\x04R\x06stored\x12$\n" +
+	"\x0ecount_in_range\x18\t \x01(\x04R\fcountInRange\x12\x14\n" +
+	"\x05trend\x18\n" +
+	" \x03(\x04R\x05trend\x12\x1d\n" +
+	"\n" +
+	"sample_ref\x18\v \x01(\tR\tsampleRef\x129\n" +
+	"\x06origin\x18\f \x01(\x0e2!.backplane.console.v1.ErrorOriginR\x06origin\x12\x1c\n" +
+	"\tunhandled\x18\r \x01(\bR\tunhandled\x12\"\n" +
+	"\fenvironments\x18\x0e \x03(\tR\fenvironments\x12\x1a\n" +
+	"\breleases\x18\x0f \x03(\tR\breleases\x12\x10\n" +
+	"\x03new\x18\x10 \x01(\bR\x03new\x12;\n" +
+	"\x05state\x18\x11 \x01(\x0e2%.backplane.console.v1.ErrorGroupStateR\x05state\x125\n" +
+	"\bstate_at\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\astateAt\x12\x19\n" +
+	"\bstate_by\x18\x13 \x01(\tR\astateBy\x12\x1d\n" +
+	"\n" +
+	"state_note\x18\x14 \x01(\tR\tstateNote\x12=\n" +
+	"\fregressed_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\vregressedAt\"\x8c\x02\n" +
+	"\x18SearchErrorGroupsRequest\x129\n" +
+	"\x06filter\x18\x01 \x01(\v2!.backplane.console.v1.ErrorFilterR\x06filter\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\rR\bpageSize\x12\x1f\n" +
+	"\vpage_cursor\x18\x03 \x01(\tR\n" +
+	"pageCursor\x128\n" +
+	"\x04sort\x18\x04 \x01(\x0e2$.backplane.console.v1.ErrorGroupSortR\x04sort\x12=\n" +
+	"\x06states\x18\x05 \x03(\x0e2%.backplane.console.v1.ErrorGroupStateR\x06states\"\xa0\x01\n" +
+	"\x19SearchErrorGroupsResponse\x128\n" +
+	"\x06groups\x18\x01 \x03(\v2 .backplane.console.v1.ErrorGroupR\x06groups\x12(\n" +
+	"\x10next_page_cursor\x18\x02 \x01(\tR\x0enextPageCursor\x12\x1f\n" +
+	"\vstep_millis\x18\x03 \x01(\x03R\n" +
+	"stepMillis\"\x8d\x01\n" +
+	"\x14GetErrorGroupRequest\x12 \n" +
+	"\vfingerprint\x18\x01 \x01(\tR\vfingerprint\x12\x18\n" +
+	"\aservice\x18\x02 \x01(\tR\aservice\x129\n" +
+	"\x06filter\x18\x03 \x01(\v2!.backplane.console.v1.ErrorFilterR\x06filter\"\xad\x01\n" +
+	"\x15GetErrorGroupResponse\x126\n" +
+	"\x05group\x18\x01 \x01(\v2 .backplane.console.v1.ErrorGroupR\x05group\x12;\n" +
+	"\abuckets\x18\x02 \x03(\v2!.backplane.console.v1.ErrorBucketR\abuckets\x12\x1f\n" +
+	"\vstep_millis\x18\x03 \x01(\x03R\n" +
+	"stepMillis\"\xa8\x01\n" +
+	"\x19SetErrorGroupStateRequest\x12 \n" +
+	"\vfingerprint\x18\x01 \x01(\tR\vfingerprint\x12\x18\n" +
+	"\aservice\x18\x02 \x01(\tR\aservice\x12;\n" +
+	"\x05state\x18\x03 \x01(\x0e2%.backplane.console.v1.ErrorGroupStateR\x05state\x12\x12\n" +
+	"\x04note\x18\x04 \x01(\tR\x04note\"T\n" +
+	"\x1aSetErrorGroupStateResponse\x126\n" +
+	"\x05group\x18\x01 \x01(\v2 .backplane.console.v1.ErrorGroupR\x05group\"\x12\n" +
+	"\x10ErrorInfoRequest\"\xf1\x01\n" +
+	"\x11ErrorInfoResponse\x127\n" +
+	"\tretention\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\tretention\x12(\n" +
+	"\x10burst_per_minute\x18\x02 \x01(\rR\x0eburstPerMinute\x12\"\n" +
+	"\rburst_per_day\x18\x03 \x01(\rR\vburstPerDay\x12(\n" +
+	"\x10max_record_bytes\x18\x04 \x01(\x04R\x0emaxRecordBytes\x12+\n" +
+	"\x11related_available\x18\x05 \x01(\bR\x10relatedAvailable\"\xe4\x01\n" +
 	"\x12RelatedLogsRequest\x12\x10\n" +
 	"\x03ref\x18\x01 \x01(\tR\x03ref\x12?\n" +
 	"\brelation\x18\x02 \x01(\x0e2#.backplane.console.v1.ErrorRelationR\brelation\x120\n" +
@@ -1530,7 +2522,7 @@ const file_backplanepb_console_v1_errors_proto_rawDesc = "" +
 	"\vErrorOrigin\x12\x1c\n" +
 	"\x18ERROR_ORIGIN_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10ERROR_ORIGIN_SDK\x10\x01\x12\x19\n" +
-	"\x15ERROR_ORIGIN_OTEL_LOG\x10\x02*\x90\x02\n" +
+	"\x15ERROR_ORIGIN_OTEL_LOG\x10\x02*\xf8\x02\n" +
 	"\n" +
 	"ErrorField\x12\x1b\n" +
 	"\x17ERROR_FIELD_UNSPECIFIED\x10\x00\x12\x17\n" +
@@ -1542,7 +2534,12 @@ const file_backplanepb_console_v1_errors_proto_rawDesc = "" +
 	"\x14ERROR_FIELD_TRACE_ID\x10\x06\x12\x1a\n" +
 	"\x16ERROR_FIELD_RUNTIME_ID\x10\a\x12\x19\n" +
 	"\x15ERROR_FIELD_GROUP_KEY\x10\b\x12\x16\n" +
-	"\x12ERROR_FIELD_ORIGIN\x10\t*\xf4\x01\n" +
+	"\x12ERROR_FIELD_ORIGIN\x10\t\x12\x1b\n" +
+	"\x17ERROR_FIELD_FINGERPRINT\x10\n" +
+	"\x12\x17\n" +
+	"\x13ERROR_FIELD_HANDLED\x10\v\x12\x16\n" +
+	"\x12ERROR_FIELD_INGEST\x10\f\x12\x18\n" +
+	"\x14ERROR_FIELD_INSTANCE\x10\r*\xf4\x01\n" +
 	"\rErrorOperator\x12\x1e\n" +
 	"\x1aERROR_OPERATOR_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11ERROR_OPERATOR_IS\x10\x01\x12\x19\n" +
@@ -1551,19 +2548,33 @@ const file_backplanepb_console_v1_errors_proto_rawDesc = "" +
 	"\x1bERROR_OPERATOR_NOT_CONTAINS\x10\x04\x12\x19\n" +
 	"\x15ERROR_OPERATOR_PREFIX\x10\x05\x12\x19\n" +
 	"\x15ERROR_OPERATOR_EXISTS\x10\x06\x12\x1d\n" +
-	"\x19ERROR_OPERATOR_NOT_EXISTS\x10\a*\xad\x01\n" +
+	"\x19ERROR_OPERATOR_NOT_EXISTS\x10\a*\x8d\x01\n" +
+	"\x0fErrorGroupState\x12!\n" +
+	"\x1dERROR_GROUP_STATE_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16ERROR_GROUP_STATE_OPEN\x10\x01\x12\x1e\n" +
+	"\x1aERROR_GROUP_STATE_RESOLVED\x10\x02\x12\x1b\n" +
+	"\x17ERROR_GROUP_STATE_MUTED\x10\x03*\x8f\x01\n" +
+	"\x0eErrorGroupSort\x12 \n" +
+	"\x1cERROR_GROUP_SORT_UNSPECIFIED\x10\x00\x12\x1e\n" +
+	"\x1aERROR_GROUP_SORT_LAST_SEEN\x10\x01\x12\x1a\n" +
+	"\x16ERROR_GROUP_SORT_COUNT\x10\x02\x12\x1f\n" +
+	"\x1bERROR_GROUP_SORT_FIRST_SEEN\x10\x03*\xad\x01\n" +
 	"\rErrorRelation\x12\x1e\n" +
 	"\x1aERROR_RELATION_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18ERROR_RELATION_SAME_SPAN\x10\x01\x12\x1d\n" +
 	"\x19ERROR_RELATION_SAME_TRACE\x10\x02\x12\x1f\n" +
 	"\x1bERROR_RELATION_SAME_RUNTIME\x10\x03\x12\x1e\n" +
-	"\x1aERROR_RELATION_TIME_WINDOW\x10\x042\x85\x04\n" +
+	"\x1aERROR_RELATION_TIME_WINDOW\x10\x042\xbc\a\n" +
 	"\fErrorService\x12e\n" +
 	"\fSearchErrors\x12).backplane.console.v1.SearchErrorsRequest\x1a*.backplane.console.v1.SearchErrorsResponse\x12k\n" +
 	"\x0eErrorHistogram\x12+.backplane.console.v1.ErrorHistogramRequest\x1a,.backplane.console.v1.ErrorHistogramResponse\x12b\n" +
 	"\vErrorFacets\x12(.backplane.console.v1.ErrorFacetsRequest\x1a).backplane.console.v1.ErrorFacetsResponse\x12Y\n" +
 	"\bGetError\x12%.backplane.console.v1.GetErrorRequest\x1a&.backplane.console.v1.GetErrorResponse\x12b\n" +
-	"\vRelatedLogs\x12(.backplane.console.v1.RelatedLogsRequest\x1a).backplane.console.v1.RelatedLogsResponseBFZDgithub.com/backplane-labs/backplane/backplanepb/console/v1;consolev1b\x06proto3"
+	"\vRelatedLogs\x12(.backplane.console.v1.RelatedLogsRequest\x1a).backplane.console.v1.RelatedLogsResponse\x12t\n" +
+	"\x11SearchErrorGroups\x12..backplane.console.v1.SearchErrorGroupsRequest\x1a/.backplane.console.v1.SearchErrorGroupsResponse\x12h\n" +
+	"\rGetErrorGroup\x12*.backplane.console.v1.GetErrorGroupRequest\x1a+.backplane.console.v1.GetErrorGroupResponse\x12\\\n" +
+	"\tErrorInfo\x12&.backplane.console.v1.ErrorInfoRequest\x1a'.backplane.console.v1.ErrorInfoResponse\x12w\n" +
+	"\x12SetErrorGroupState\x12/.backplane.console.v1.SetErrorGroupStateRequest\x1a0.backplane.console.v1.SetErrorGroupStateResponseBFZDgithub.com/backplane-labs/backplane/backplanepb/console/v1;consolev1b\x06proto3"
 
 var (
 	file_backplanepb_console_v1_errors_proto_rawDescOnce sync.Once
@@ -1577,79 +2588,119 @@ func file_backplanepb_console_v1_errors_proto_rawDescGZIP() []byte {
 	return file_backplanepb_console_v1_errors_proto_rawDescData
 }
 
-var file_backplanepb_console_v1_errors_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_backplanepb_console_v1_errors_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_backplanepb_console_v1_errors_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
+var file_backplanepb_console_v1_errors_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_backplanepb_console_v1_errors_proto_goTypes = []any{
-	(ErrorOrigin)(0),               // 0: backplane.console.v1.ErrorOrigin
-	(ErrorField)(0),                // 1: backplane.console.v1.ErrorField
-	(ErrorOperator)(0),             // 2: backplane.console.v1.ErrorOperator
-	(ErrorRelation)(0),             // 3: backplane.console.v1.ErrorRelation
-	(*ErrorOccurrence)(nil),        // 4: backplane.console.v1.ErrorOccurrence
-	(*ErrorCondition)(nil),         // 5: backplane.console.v1.ErrorCondition
-	(*ErrorFilter)(nil),            // 6: backplane.console.v1.ErrorFilter
-	(*SearchErrorsRequest)(nil),    // 7: backplane.console.v1.SearchErrorsRequest
-	(*SearchErrorsResponse)(nil),   // 8: backplane.console.v1.SearchErrorsResponse
-	(*ErrorHistogramRequest)(nil),  // 9: backplane.console.v1.ErrorHistogramRequest
-	(*ErrorHistogramResponse)(nil), // 10: backplane.console.v1.ErrorHistogramResponse
-	(*ErrorBucket)(nil),            // 11: backplane.console.v1.ErrorBucket
-	(*ErrorFacetsRequest)(nil),     // 12: backplane.console.v1.ErrorFacetsRequest
-	(*ErrorFacetsResponse)(nil),    // 13: backplane.console.v1.ErrorFacetsResponse
-	(*ErrorFacet)(nil),             // 14: backplane.console.v1.ErrorFacet
-	(*ErrorFacetValue)(nil),        // 15: backplane.console.v1.ErrorFacetValue
-	(*GetErrorRequest)(nil),        // 16: backplane.console.v1.GetErrorRequest
-	(*GetErrorResponse)(nil),       // 17: backplane.console.v1.GetErrorResponse
-	(*RelatedLogsRequest)(nil),     // 18: backplane.console.v1.RelatedLogsRequest
-	(*RelatedLogsResponse)(nil),    // 19: backplane.console.v1.RelatedLogsResponse
-	(*RelatedLog)(nil),             // 20: backplane.console.v1.RelatedLog
-	nil,                            // 21: backplane.console.v1.GetErrorResponse.FieldsEntry
-	nil,                            // 22: backplane.console.v1.RelatedLog.FieldsEntry
-	(*timestamppb.Timestamp)(nil),  // 23: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),        // 24: google.protobuf.Struct
+	(ErrorOrigin)(0),                   // 0: backplane.console.v1.ErrorOrigin
+	(ErrorField)(0),                    // 1: backplane.console.v1.ErrorField
+	(ErrorOperator)(0),                 // 2: backplane.console.v1.ErrorOperator
+	(ErrorGroupState)(0),               // 3: backplane.console.v1.ErrorGroupState
+	(ErrorGroupSort)(0),                // 4: backplane.console.v1.ErrorGroupSort
+	(ErrorRelation)(0),                 // 5: backplane.console.v1.ErrorRelation
+	(*ErrorOccurrence)(nil),            // 6: backplane.console.v1.ErrorOccurrence
+	(*ErrorCondition)(nil),             // 7: backplane.console.v1.ErrorCondition
+	(*ErrorFilter)(nil),                // 8: backplane.console.v1.ErrorFilter
+	(*SearchErrorsRequest)(nil),        // 9: backplane.console.v1.SearchErrorsRequest
+	(*SearchErrorsResponse)(nil),       // 10: backplane.console.v1.SearchErrorsResponse
+	(*ErrorHistogramRequest)(nil),      // 11: backplane.console.v1.ErrorHistogramRequest
+	(*ErrorHistogramResponse)(nil),     // 12: backplane.console.v1.ErrorHistogramResponse
+	(*ErrorBucket)(nil),                // 13: backplane.console.v1.ErrorBucket
+	(*ErrorFacetsRequest)(nil),         // 14: backplane.console.v1.ErrorFacetsRequest
+	(*ErrorFacetsResponse)(nil),        // 15: backplane.console.v1.ErrorFacetsResponse
+	(*ErrorFacet)(nil),                 // 16: backplane.console.v1.ErrorFacet
+	(*ErrorFacetValue)(nil),            // 17: backplane.console.v1.ErrorFacetValue
+	(*GetErrorRequest)(nil),            // 18: backplane.console.v1.GetErrorRequest
+	(*GetErrorResponse)(nil),           // 19: backplane.console.v1.GetErrorResponse
+	(*ErrorGroup)(nil),                 // 20: backplane.console.v1.ErrorGroup
+	(*SearchErrorGroupsRequest)(nil),   // 21: backplane.console.v1.SearchErrorGroupsRequest
+	(*SearchErrorGroupsResponse)(nil),  // 22: backplane.console.v1.SearchErrorGroupsResponse
+	(*GetErrorGroupRequest)(nil),       // 23: backplane.console.v1.GetErrorGroupRequest
+	(*GetErrorGroupResponse)(nil),      // 24: backplane.console.v1.GetErrorGroupResponse
+	(*SetErrorGroupStateRequest)(nil),  // 25: backplane.console.v1.SetErrorGroupStateRequest
+	(*SetErrorGroupStateResponse)(nil), // 26: backplane.console.v1.SetErrorGroupStateResponse
+	(*ErrorInfoRequest)(nil),           // 27: backplane.console.v1.ErrorInfoRequest
+	(*ErrorInfoResponse)(nil),          // 28: backplane.console.v1.ErrorInfoResponse
+	(*RelatedLogsRequest)(nil),         // 29: backplane.console.v1.RelatedLogsRequest
+	(*RelatedLogsResponse)(nil),        // 30: backplane.console.v1.RelatedLogsResponse
+	(*RelatedLog)(nil),                 // 31: backplane.console.v1.RelatedLog
+	nil,                                // 32: backplane.console.v1.GetErrorResponse.FieldsEntry
+	nil,                                // 33: backplane.console.v1.RelatedLog.FieldsEntry
+	(*timestamppb.Timestamp)(nil),      // 34: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),            // 35: google.protobuf.Struct
+	(*durationpb.Duration)(nil),        // 36: google.protobuf.Duration
 }
 var file_backplanepb_console_v1_errors_proto_depIdxs = []int32{
 	0,  // 0: backplane.console.v1.ErrorOccurrence.origin:type_name -> backplane.console.v1.ErrorOrigin
-	23, // 1: backplane.console.v1.ErrorOccurrence.time:type_name -> google.protobuf.Timestamp
-	1,  // 2: backplane.console.v1.ErrorCondition.field:type_name -> backplane.console.v1.ErrorField
-	2,  // 3: backplane.console.v1.ErrorCondition.op:type_name -> backplane.console.v1.ErrorOperator
-	23, // 4: backplane.console.v1.ErrorFilter.start:type_name -> google.protobuf.Timestamp
-	23, // 5: backplane.console.v1.ErrorFilter.end:type_name -> google.protobuf.Timestamp
-	5,  // 6: backplane.console.v1.ErrorFilter.conditions:type_name -> backplane.console.v1.ErrorCondition
-	6,  // 7: backplane.console.v1.SearchErrorsRequest.filter:type_name -> backplane.console.v1.ErrorFilter
-	4,  // 8: backplane.console.v1.SearchErrorsResponse.occurrences:type_name -> backplane.console.v1.ErrorOccurrence
-	6,  // 9: backplane.console.v1.ErrorHistogramRequest.filter:type_name -> backplane.console.v1.ErrorFilter
-	11, // 10: backplane.console.v1.ErrorHistogramResponse.buckets:type_name -> backplane.console.v1.ErrorBucket
-	23, // 11: backplane.console.v1.ErrorBucket.start:type_name -> google.protobuf.Timestamp
-	6,  // 12: backplane.console.v1.ErrorFacetsRequest.filter:type_name -> backplane.console.v1.ErrorFilter
-	1,  // 13: backplane.console.v1.ErrorFacetsRequest.fields:type_name -> backplane.console.v1.ErrorField
-	14, // 14: backplane.console.v1.ErrorFacetsResponse.facets:type_name -> backplane.console.v1.ErrorFacet
-	1,  // 15: backplane.console.v1.ErrorFacet.field:type_name -> backplane.console.v1.ErrorField
-	15, // 16: backplane.console.v1.ErrorFacet.values:type_name -> backplane.console.v1.ErrorFacetValue
-	23, // 17: backplane.console.v1.ErrorFacetValue.last_seen:type_name -> google.protobuf.Timestamp
-	4,  // 18: backplane.console.v1.GetErrorResponse.occurrence:type_name -> backplane.console.v1.ErrorOccurrence
-	24, // 19: backplane.console.v1.GetErrorResponse.exception:type_name -> google.protobuf.Struct
-	24, // 20: backplane.console.v1.GetErrorResponse.envelope:type_name -> google.protobuf.Struct
-	21, // 21: backplane.console.v1.GetErrorResponse.fields:type_name -> backplane.console.v1.GetErrorResponse.FieldsEntry
-	3,  // 22: backplane.console.v1.RelatedLogsRequest.relation:type_name -> backplane.console.v1.ErrorRelation
-	23, // 23: backplane.console.v1.RelatedLogsRequest.start:type_name -> google.protobuf.Timestamp
-	23, // 24: backplane.console.v1.RelatedLogsRequest.end:type_name -> google.protobuf.Timestamp
-	20, // 25: backplane.console.v1.RelatedLogsResponse.logs:type_name -> backplane.console.v1.RelatedLog
-	23, // 26: backplane.console.v1.RelatedLog.time:type_name -> google.protobuf.Timestamp
-	22, // 27: backplane.console.v1.RelatedLog.fields:type_name -> backplane.console.v1.RelatedLog.FieldsEntry
-	7,  // 28: backplane.console.v1.ErrorService.SearchErrors:input_type -> backplane.console.v1.SearchErrorsRequest
-	9,  // 29: backplane.console.v1.ErrorService.ErrorHistogram:input_type -> backplane.console.v1.ErrorHistogramRequest
-	12, // 30: backplane.console.v1.ErrorService.ErrorFacets:input_type -> backplane.console.v1.ErrorFacetsRequest
-	16, // 31: backplane.console.v1.ErrorService.GetError:input_type -> backplane.console.v1.GetErrorRequest
-	18, // 32: backplane.console.v1.ErrorService.RelatedLogs:input_type -> backplane.console.v1.RelatedLogsRequest
-	8,  // 33: backplane.console.v1.ErrorService.SearchErrors:output_type -> backplane.console.v1.SearchErrorsResponse
-	10, // 34: backplane.console.v1.ErrorService.ErrorHistogram:output_type -> backplane.console.v1.ErrorHistogramResponse
-	13, // 35: backplane.console.v1.ErrorService.ErrorFacets:output_type -> backplane.console.v1.ErrorFacetsResponse
-	17, // 36: backplane.console.v1.ErrorService.GetError:output_type -> backplane.console.v1.GetErrorResponse
-	19, // 37: backplane.console.v1.ErrorService.RelatedLogs:output_type -> backplane.console.v1.RelatedLogsResponse
-	33, // [33:38] is the sub-list for method output_type
-	28, // [28:33] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	34, // 1: backplane.console.v1.ErrorOccurrence.time:type_name -> google.protobuf.Timestamp
+	34, // 2: backplane.console.v1.ErrorOccurrence.received_at:type_name -> google.protobuf.Timestamp
+	1,  // 3: backplane.console.v1.ErrorCondition.field:type_name -> backplane.console.v1.ErrorField
+	2,  // 4: backplane.console.v1.ErrorCondition.op:type_name -> backplane.console.v1.ErrorOperator
+	34, // 5: backplane.console.v1.ErrorFilter.start:type_name -> google.protobuf.Timestamp
+	34, // 6: backplane.console.v1.ErrorFilter.end:type_name -> google.protobuf.Timestamp
+	7,  // 7: backplane.console.v1.ErrorFilter.conditions:type_name -> backplane.console.v1.ErrorCondition
+	8,  // 8: backplane.console.v1.SearchErrorsRequest.filter:type_name -> backplane.console.v1.ErrorFilter
+	6,  // 9: backplane.console.v1.SearchErrorsResponse.occurrences:type_name -> backplane.console.v1.ErrorOccurrence
+	8,  // 10: backplane.console.v1.ErrorHistogramRequest.filter:type_name -> backplane.console.v1.ErrorFilter
+	13, // 11: backplane.console.v1.ErrorHistogramResponse.buckets:type_name -> backplane.console.v1.ErrorBucket
+	34, // 12: backplane.console.v1.ErrorBucket.start:type_name -> google.protobuf.Timestamp
+	8,  // 13: backplane.console.v1.ErrorFacetsRequest.filter:type_name -> backplane.console.v1.ErrorFilter
+	1,  // 14: backplane.console.v1.ErrorFacetsRequest.fields:type_name -> backplane.console.v1.ErrorField
+	16, // 15: backplane.console.v1.ErrorFacetsResponse.facets:type_name -> backplane.console.v1.ErrorFacet
+	1,  // 16: backplane.console.v1.ErrorFacet.field:type_name -> backplane.console.v1.ErrorField
+	17, // 17: backplane.console.v1.ErrorFacet.values:type_name -> backplane.console.v1.ErrorFacetValue
+	34, // 18: backplane.console.v1.ErrorFacetValue.last_seen:type_name -> google.protobuf.Timestamp
+	6,  // 19: backplane.console.v1.GetErrorResponse.occurrence:type_name -> backplane.console.v1.ErrorOccurrence
+	35, // 20: backplane.console.v1.GetErrorResponse.exception:type_name -> google.protobuf.Struct
+	35, // 21: backplane.console.v1.GetErrorResponse.envelope:type_name -> google.protobuf.Struct
+	32, // 22: backplane.console.v1.GetErrorResponse.fields:type_name -> backplane.console.v1.GetErrorResponse.FieldsEntry
+	20, // 23: backplane.console.v1.GetErrorResponse.group:type_name -> backplane.console.v1.ErrorGroup
+	35, // 24: backplane.console.v1.GetErrorResponse.attributes:type_name -> google.protobuf.Struct
+	35, // 25: backplane.console.v1.GetErrorResponse.resource:type_name -> google.protobuf.Struct
+	34, // 26: backplane.console.v1.ErrorGroup.first_seen:type_name -> google.protobuf.Timestamp
+	34, // 27: backplane.console.v1.ErrorGroup.last_seen:type_name -> google.protobuf.Timestamp
+	0,  // 28: backplane.console.v1.ErrorGroup.origin:type_name -> backplane.console.v1.ErrorOrigin
+	3,  // 29: backplane.console.v1.ErrorGroup.state:type_name -> backplane.console.v1.ErrorGroupState
+	34, // 30: backplane.console.v1.ErrorGroup.state_at:type_name -> google.protobuf.Timestamp
+	34, // 31: backplane.console.v1.ErrorGroup.regressed_at:type_name -> google.protobuf.Timestamp
+	8,  // 32: backplane.console.v1.SearchErrorGroupsRequest.filter:type_name -> backplane.console.v1.ErrorFilter
+	4,  // 33: backplane.console.v1.SearchErrorGroupsRequest.sort:type_name -> backplane.console.v1.ErrorGroupSort
+	3,  // 34: backplane.console.v1.SearchErrorGroupsRequest.states:type_name -> backplane.console.v1.ErrorGroupState
+	20, // 35: backplane.console.v1.SearchErrorGroupsResponse.groups:type_name -> backplane.console.v1.ErrorGroup
+	8,  // 36: backplane.console.v1.GetErrorGroupRequest.filter:type_name -> backplane.console.v1.ErrorFilter
+	20, // 37: backplane.console.v1.GetErrorGroupResponse.group:type_name -> backplane.console.v1.ErrorGroup
+	13, // 38: backplane.console.v1.GetErrorGroupResponse.buckets:type_name -> backplane.console.v1.ErrorBucket
+	3,  // 39: backplane.console.v1.SetErrorGroupStateRequest.state:type_name -> backplane.console.v1.ErrorGroupState
+	20, // 40: backplane.console.v1.SetErrorGroupStateResponse.group:type_name -> backplane.console.v1.ErrorGroup
+	36, // 41: backplane.console.v1.ErrorInfoResponse.retention:type_name -> google.protobuf.Duration
+	5,  // 42: backplane.console.v1.RelatedLogsRequest.relation:type_name -> backplane.console.v1.ErrorRelation
+	34, // 43: backplane.console.v1.RelatedLogsRequest.start:type_name -> google.protobuf.Timestamp
+	34, // 44: backplane.console.v1.RelatedLogsRequest.end:type_name -> google.protobuf.Timestamp
+	31, // 45: backplane.console.v1.RelatedLogsResponse.logs:type_name -> backplane.console.v1.RelatedLog
+	34, // 46: backplane.console.v1.RelatedLog.time:type_name -> google.protobuf.Timestamp
+	33, // 47: backplane.console.v1.RelatedLog.fields:type_name -> backplane.console.v1.RelatedLog.FieldsEntry
+	9,  // 48: backplane.console.v1.ErrorService.SearchErrors:input_type -> backplane.console.v1.SearchErrorsRequest
+	11, // 49: backplane.console.v1.ErrorService.ErrorHistogram:input_type -> backplane.console.v1.ErrorHistogramRequest
+	14, // 50: backplane.console.v1.ErrorService.ErrorFacets:input_type -> backplane.console.v1.ErrorFacetsRequest
+	18, // 51: backplane.console.v1.ErrorService.GetError:input_type -> backplane.console.v1.GetErrorRequest
+	29, // 52: backplane.console.v1.ErrorService.RelatedLogs:input_type -> backplane.console.v1.RelatedLogsRequest
+	21, // 53: backplane.console.v1.ErrorService.SearchErrorGroups:input_type -> backplane.console.v1.SearchErrorGroupsRequest
+	23, // 54: backplane.console.v1.ErrorService.GetErrorGroup:input_type -> backplane.console.v1.GetErrorGroupRequest
+	27, // 55: backplane.console.v1.ErrorService.ErrorInfo:input_type -> backplane.console.v1.ErrorInfoRequest
+	25, // 56: backplane.console.v1.ErrorService.SetErrorGroupState:input_type -> backplane.console.v1.SetErrorGroupStateRequest
+	10, // 57: backplane.console.v1.ErrorService.SearchErrors:output_type -> backplane.console.v1.SearchErrorsResponse
+	12, // 58: backplane.console.v1.ErrorService.ErrorHistogram:output_type -> backplane.console.v1.ErrorHistogramResponse
+	15, // 59: backplane.console.v1.ErrorService.ErrorFacets:output_type -> backplane.console.v1.ErrorFacetsResponse
+	19, // 60: backplane.console.v1.ErrorService.GetError:output_type -> backplane.console.v1.GetErrorResponse
+	30, // 61: backplane.console.v1.ErrorService.RelatedLogs:output_type -> backplane.console.v1.RelatedLogsResponse
+	22, // 62: backplane.console.v1.ErrorService.SearchErrorGroups:output_type -> backplane.console.v1.SearchErrorGroupsResponse
+	24, // 63: backplane.console.v1.ErrorService.GetErrorGroup:output_type -> backplane.console.v1.GetErrorGroupResponse
+	28, // 64: backplane.console.v1.ErrorService.ErrorInfo:output_type -> backplane.console.v1.ErrorInfoResponse
+	26, // 65: backplane.console.v1.ErrorService.SetErrorGroupState:output_type -> backplane.console.v1.SetErrorGroupStateResponse
+	57, // [57:66] is the sub-list for method output_type
+	48, // [48:57] is the sub-list for method input_type
+	48, // [48:48] is the sub-list for extension type_name
+	48, // [48:48] is the sub-list for extension extendee
+	0,  // [0:48] is the sub-list for field type_name
 }
 
 func init() { file_backplanepb_console_v1_errors_proto_init() }
@@ -1662,8 +2713,8 @@ func file_backplanepb_console_v1_errors_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_backplanepb_console_v1_errors_proto_rawDesc), len(file_backplanepb_console_v1_errors_proto_rawDesc)),
-			NumEnums:      4,
-			NumMessages:   19,
+			NumEnums:      6,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

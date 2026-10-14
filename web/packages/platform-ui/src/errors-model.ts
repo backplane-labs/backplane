@@ -1,16 +1,19 @@
 import { create, type JsonValue } from '@bufbuild/protobuf';
-import { timestampDate, timestampFromMs } from '@bufbuild/protobuf/wkt';
-import { ErrorField, ErrorFilterSchema, ErrorOperator, type ErrorFilter, type GetErrorResponse, type RelatedLog } from '@backplane-labs/backplane-api';
+import { timestampDate, timestampFromMs, type Duration, type Timestamp } from '@bufbuild/protobuf/wkt';
+import { ErrorConditionSchema, ErrorField, ErrorFilterSchema, ErrorOperator, ErrorOrigin, type ErrorFilter, type ErrorGroup, type GetErrorResponse, type RelatedLog } from '@backplane-labs/backplane-api';
 import type { ErrorCause, LogRecord, StackFrame } from '@backplane-labs/backplane-observability-ui';
 import type { FeedChip, FeedOp } from './feed.js';
 
 /** A filterable field of an error, as chips name it. */
-export type ErrorFieldName = 'service' | 'environment' | 'type' | 'message' | 'release' | 'trace_id' | 'runtime_id' | 'group_key' | 'origin';
-export const errorFieldNames: readonly ErrorFieldName[] = ['service', 'environment', 'type', 'message', 'release', 'trace_id', 'runtime_id', 'group_key', 'origin'];
+export type ErrorFieldName = 'service' | 'environment' | 'type' | 'message' | 'release' | 'trace_id' | 'runtime_id' | 'group_key' | 'origin' | 'fingerprint' | 'handled' | 'ingest' | 'instance';
+export const errorFieldNames: readonly ErrorFieldName[] = ['service', 'environment', 'type', 'message', 'release', 'trace_id', 'runtime_id', 'group_key', 'origin', 'fingerprint', 'handled', 'ingest', 'instance'];
 export const errorFieldEnum: Record<ErrorFieldName, ErrorField> = {
   service: ErrorField.SERVICE, environment: ErrorField.ENVIRONMENT, type: ErrorField.TYPE, message: ErrorField.MESSAGE, release: ErrorField.RELEASE,
   trace_id: ErrorField.TRACE_ID, runtime_id: ErrorField.RUNTIME_ID, group_key: ErrorField.GROUP_KEY, origin: ErrorField.ORIGIN,
+  fingerprint: ErrorField.FINGERPRINT, handled: ErrorField.HANDLED, ingest: ErrorField.INGEST, instance: ErrorField.INSTANCE,
 };
+/** Fields that take only is / is not (an enumeration or an exact id). */
+export const exactErrorFields: readonly ErrorFieldName[] = ['origin', 'fingerprint', 'handled', 'ingest', 'instance'];
 const opEnum: Partial<Record<FeedOp, ErrorOperator>> = {
   is: ErrorOperator.IS, is_not: ErrorOperator.IS_NOT, contains: ErrorOperator.CONTAINS, not_contains: ErrorOperator.NOT_CONTAINS,
   prefix: ErrorOperator.PREFIX, exists: ErrorOperator.EXISTS, not_exists: ErrorOperator.NOT_EXISTS,
@@ -26,6 +29,46 @@ export function errorFilterOf(chips: readonly FeedChip[], text: string, range: {
       field: errorFieldEnum[chip.key as ErrorFieldName], op: opEnum[chip.op], values: chip.values.map((value) => typeof value === 'string' ? value : JSON.stringify(value)),
     })),
   });
+}
+
+/** A group's address: its fingerprint in its service. */
+export interface ErrorGroupRef { fingerprint: string; service: string }
+
+/** The filter narrowed to one group. */
+export function groupFilterOf(filter: ErrorFilter, group: ErrorGroupRef): ErrorFilter {
+  return create(ErrorFilterSchema, { ...filter, conditions: [
+    ...filter.conditions.filter((condition) => condition.field !== ErrorField.FINGERPRINT && condition.field !== ErrorField.SERVICE),
+    create(ErrorConditionSchema, { field: ErrorField.FINGERPRINT, op: ErrorOperator.IS, values: [group.fingerprint] }),
+    create(ErrorConditionSchema, { field: ErrorField.SERVICE, op: ErrorOperator.IS, values: [group.service] }),
+  ] });
+}
+
+/** A retention as the copy says it: "90 days", "12 hours"; undefined when nothing ages out. */
+export function retentionText(value: Duration | undefined): string | undefined {
+  const seconds = value ? Number(value.seconds) : 0;
+  if (seconds <= 0) return undefined;
+  if (seconds >= 86_400) return `${Math.round(seconds / 86_400)} d`;
+  if (seconds >= 3600) return `${Math.round(seconds / 3600)} h`;
+  return `${Math.round(seconds / 60)} min`;
+}
+
+/** The occurrence as a text report for a ticket or a chat: its fields, its group and its stack. */
+export function reportOf(detail: GetErrorResponse, group?: ErrorGroup): string {
+  const o = detail.occurrence, when = (value: Timestamp | undefined) => value ? timestampDate(value).toISOString() : '';
+  if (!o) return '';
+  const lines = [`# ${o.type || 'Error'}: ${o.message}`, '',
+    `- service: ${o.service}${o.environment ? ` (${o.environment})` : ''}${o.release ? ` release ${o.release}` : ''}`,
+    `- time: ${when(o.time)}${o.receivedAt ? `, received ${when(o.receivedAt)}` : ''}`,
+    `- origin: ${o.origin === ErrorOrigin.SDK ? 'browser SDK' : 'OpenTelemetry log'}${o.ingest ? `, ingest ${o.ingest}` : ''}${o.mechanism ? `, mechanism ${o.mechanism}` : ''}${o.unhandled ? ', unhandled' : ''}`,
+    `- fingerprint: ${o.fingerprint}`, `- ref: ${o.ref}`];
+  const g = group ?? detail.group;
+  if (g) lines.push(`- group: ${g.count} occurrences since ${when(g.firstSeen)}, last ${when(g.lastSeen)}`);
+  if (o.traceId) lines.push(`- trace: ${o.traceId}${o.spanId ? ` span ${o.spanId}` : ''}`);
+  if (o.runtimeId) lines.push(`- runtime: ${o.runtimeId}`);
+  if (o.groupKey) lines.push(`- group key: ${o.groupKey}`);
+  if (detail.warnings.length) lines.push(`- warnings: ${detail.warnings.join(', ')}`);
+  if (detail.stacktrace) lines.push('', '## Stack', '', '```', detail.stacktrace, '```');
+  return lines.join('\n');
 }
 
 const v8 = /^\s*at (?:(.+?) \()?(.+?):(\d+):(\d+)\)?\s*$/;

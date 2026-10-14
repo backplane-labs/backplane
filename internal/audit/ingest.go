@@ -4,17 +4,14 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"net"
 	"strings"
 	"sync"
 	"time"
-	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
@@ -30,6 +27,8 @@ import (
 
 	"github.com/gopherex/xlog"
 
+	"github.com/backplane-labs/backplane/internal/apperrors"
+	"github.com/backplane-labs/backplane/internal/otlprecord"
 	"github.com/backplane-labs/backplane/internal/store"
 	"github.com/backplane-labs/backplane/internal/store/db"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
@@ -71,15 +70,35 @@ type Ingest struct {
 	listen  string
 	keys    [][]byte
 	records metric.Int64Counter
+	errors  ErrorSink
 
 	mu   sync.Mutex
 	ln   net.Listener
 	grpc *grpc.Server
 }
 
+// ErrorSink keeps the exception records the listener receives besides
+// audit: the error store.
+type ErrorSink interface {
+	Limits() apperrors.Limits
+	Save(ctx context.Context, records []apperrors.Record) (stored, counted int64, err error)
+	Count(ctx context.Context, outcome string, n int64)
+}
+
+// IngestOption configures NewIngest.
+type IngestOption func(*Ingest)
+
+// WithErrors installs the sink of exception records; without one they are
+// rejected like any unmarked record.
+func WithErrors(sink ErrorSink) IngestOption { return func(in *Ingest) { in.errors = sink } }
+
 // NewIngest serves the audit listener of settings under parent.
-func NewIngest(parent deps.Scope, st deps.Dependency[*store.Store], settings Settings) *Ingest {
+func NewIngest(parent deps.Scope, st deps.Dependency[*store.Store], settings Settings, opts ...IngestOption) *Ingest {
 	in := &Ingest{Component: deps.NewComponent(parent, "audit-ingest"), store: st, listen: settings.Listen}
+	for _, o := range opts {
+		o(in)
+	}
+
 	for _, key := range settings.Keys {
 		in.keys = append(in.keys, []byte(key.Reveal()))
 	}
@@ -178,13 +197,28 @@ func (in *Ingest) Export(
 		return nil, rpcError(codes.Unavailable, "audit database unavailable")
 	}
 
-	batch, rejected := Records(req, time.Now())
+	now := time.Now()
+	batch, rejected := Records(req, now)
 
 	stored, err := in.save(ctx, batch)
 	if err != nil {
 		in.Log().Warn("audit ingest failed", xlog.Err(err))
 
 		return nil, rpcError(codes.Unavailable, "audit database unavailable")
+	}
+
+	if in.errors != nil {
+		// Exception records are not audit: they go to the error store and
+		// do not count as rejected here.
+		errs, badErrs := apperrors.Records(req, now, in.errors.Limits())
+		if _, _, err := in.errors.Save(ctx, errs); err != nil {
+			in.Log().Warn("error ingest failed", xlog.Err(err))
+
+			return nil, rpcError(codes.Unavailable, "error database unavailable")
+		}
+
+		in.errors.Count(ctx, "rejected", badErrs)
+		rejected = max(rejected-int64(len(errs))-badErrs, 0)
 	}
 
 	in.count(ctx, "stored", stored)
@@ -346,10 +380,7 @@ func row(
 		action = body
 	}
 
-	severity := record.GetSeverityText()
-	if severity == "" && record.GetSeverityNumber() != logspb.SeverityNumber_SEVERITY_NUMBER_UNSPECIFIED {
-		severity = strings.TrimPrefix(record.GetSeverityNumber().String(), "SEVERITY_NUMBER_")
-	}
+	severity := otlprecord.SeverityText(record)
 
 	return db.InsertApplicationAuditParams{
 		ID:         uuid.Must(uuid.NewV7()),
@@ -388,151 +419,29 @@ func recordKey(record *logspb.LogRecord, resource *resourcepb.Resource, service 
 }
 
 func recordTime(record *logspb.LogRecord, now time.Time) time.Time {
-	for _, nanos := range []uint64{record.GetTimeUnixNano(), record.GetObservedTimeUnixNano()} {
-		if nanos > 0 && nanos <= uint64(maxTimestamp.UnixNano()) {
-			return time.Unix(0, int64(nanos)).UTC() //nolint:gosec // bounded above
-		}
-	}
-
-	return now.UTC()
+	return otlprecord.RecordTime(record, now)
 }
 
-//nolint:gochecknoglobals // a constant time
-var maxTimestamp = time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC)
-
 func bodyText(body *commonpb.AnyValue) (string, error) {
-	if body == nil {
-		return "", nil
-	}
-
-	if s, ok := body.GetValue().(*commonpb.AnyValue_StringValue); ok {
-		if !validText(s.StringValue) {
-			return "", errRecordText
-		}
-
-		return s.StringValue, nil
-	}
-
-	value, err := anyJSON(body)
-	if err != nil {
-		return "", err
-	}
-
-	encoded, err := json.Marshal(value)
-
-	return string(encoded), err
+	return otlprecord.BodyText(body) //nolint:wrapcheck // the record's own error
 }
 
 func stringAttr(attrs []*commonpb.KeyValue, key string) string {
-	for _, kv := range attrs {
-		if kv.GetKey() == key {
-			return kv.GetValue().GetStringValue()
-		}
-	}
-
-	return ""
+	return otlprecord.StringAttr(attrs, key)
 }
 
 func attributesJSON(attrs []*commonpb.KeyValue) (json.RawMessage, error) {
-	out := make(map[string]any, len(attrs))
-	for _, kv := range attrs {
-		if !validText(kv.GetKey()) {
-			return nil, errRecordText
-		}
-
-		value, err := anyJSON(kv.GetValue())
-		if err != nil {
-			return nil, err
-		}
-
-		out[kv.GetKey()] = value
-	}
-
-	encoded, err := json.Marshal(out)
-	if err != nil {
-		return nil, fmt.Errorf("audit attributes: %w", err)
-	}
-
-	return encoded, nil
+	return otlprecord.AttributesJSON(attrs) //nolint:wrapcheck // the record's own error
 }
 
-// PostgreSQL text and jsonb cannot store NUL or invalid UTF-8. Reject the
-// individual record before starting the batch's transaction.
-func validText(s string) bool { return utf8.ValidString(s) && !strings.ContainsRune(s, 0) }
+func validText(s string) bool { return otlprecord.ValidText(s) }
 
-var errRecordText = errors.New("audit record contains invalid PostgreSQL text")
-
-// anyJSON is an OTLP value as JSON: bytes as base64, a key-value list as an
-// object.
-func anyJSON(v *commonpb.AnyValue) (any, error) {
-	switch x := v.GetValue().(type) {
-	case *commonpb.AnyValue_StringValue:
-		if !validText(x.StringValue) {
-			return nil, errRecordText
-		}
-
-		return x.StringValue, nil
-	case *commonpb.AnyValue_BoolValue:
-		return x.BoolValue, nil
-	case *commonpb.AnyValue_IntValue:
-		return x.IntValue, nil
-	case *commonpb.AnyValue_DoubleValue:
-		return jsonNumber(x.DoubleValue), nil
-	case *commonpb.AnyValue_BytesValue:
-		return base64.StdEncoding.EncodeToString(x.BytesValue), nil
-	case *commonpb.AnyValue_ArrayValue:
-		out := make([]any, 0, len(x.ArrayValue.GetValues()))
-		for _, item := range x.ArrayValue.GetValues() {
-			value, err := anyJSON(item)
-			if err != nil {
-				return nil, err
-			}
-
-			out = append(out, value)
-		}
-
-		return out, nil
-	case *commonpb.AnyValue_KvlistValue:
-		return attributesJSON(x.KvlistValue.GetValues())
-	default:
-		return nil, nil //nolint:nilnil // an unset OTLP AnyValue is JSON null
-	}
-}
-
-// jsonNumber matches protobuf JSON's representation of non-finite doubles.
-func jsonNumber(value float64) any {
-	switch {
-	case math.IsNaN(value):
-		return "NaN"
-	case math.IsInf(value, 1):
-		return "Infinity"
-	case math.IsInf(value, -1):
-		return "-Infinity"
-	default:
-		return value
-	}
-}
+// errRecordText: the record cannot be stored as PostgreSQL text.
+var errRecordText = otlprecord.ErrInvalidText
 
 // cut bounds a field to maxFieldBytes on a rune boundary.
-func cut(s string) string {
-	limit := maxFieldBytes
-	if len(s) <= limit {
-		return s
-	}
+func cut(s string) string { return otlprecord.CutBytes(s, maxFieldBytes) }
 
-	for limit > 0 && !utf8.RuneStart(s[limit]) {
-		limit--
-	}
-
-	return s[:limit]
-}
-
-func cutRunes(s string, limit int) string {
-	if utf8.RuneCountInString(s) <= limit {
-		return s
-	}
-
-	return string([]rune(s)[:limit])
-}
+func cutRunes(s string, limit int) string { return otlprecord.CutRunes(s, limit) }
 
 var errIngestKeys = errors.New("audit.keys: at most 64, each at least 16 characters")

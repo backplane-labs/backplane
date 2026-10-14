@@ -10,6 +10,8 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+
+	"github.com/backplane-labs/backplane/internal/store/db"
 )
 
 const scheduleCommandTimeout = 10 * time.Second
@@ -94,7 +96,7 @@ func (st *State) scheduleCommand(ctx context.Context, req any, next grpc.UnaryHa
 		_ = transaction.Rollback(cleanup)
 	}()
 
-	if _, err = transaction.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", key); err != nil {
+	if err = db.New(transaction).LockScheduleCommand(ctx, key); err != nil {
 		return nil, status.Error(codes.Unavailable, "schedule command lock unavailable")
 	}
 

@@ -271,3 +271,85 @@ CREATE TABLE backplane.direct_run_step (
   closed_at    timestamptz,
   PRIMARY KEY (run_id, label)
 );
+
+-- Application errors (internal/apperrors): every exception record the
+-- deployment's Collector forwards to backplane's listener, kept whole —
+-- the exception, the record's attributes, its resource and the browser
+-- SDK's envelope (state and history) — for errors.retention. A group is
+-- one fingerprint (type, normalized message, top frames; the SDK's group
+-- key when it sends one) in one service: it counts every occurrence, also
+-- those the burst limits did not store.
+CREATE TABLE backplane.app_error_group (
+  fingerprint  bytea       NOT NULL,
+  service      text        NOT NULL,
+  type         text        NOT NULL DEFAULT '',
+  message      text        NOT NULL DEFAULT '',
+  first_seen   timestamptz NOT NULL,
+  last_seen    timestamptz NOT NULL,
+  count        bigint      NOT NULL DEFAULT 0,
+  stored       bigint      NOT NULL DEFAULT 0,
+  -- Burst windows: occurrences seen in the current minute and day.
+  minute_start timestamptz NOT NULL,
+  minute_count integer     NOT NULL DEFAULT 0,
+  day_start    timestamptz NOT NULL,
+  day_count    integer     NOT NULL DEFAULT 0,
+  -- Triage: open, resolved or muted, by whom and why; a resolved group
+  -- reopens on an occurrence after its resolution and remembers when.
+  state        text        NOT NULL DEFAULT 'open',
+  state_at     timestamptz,
+  state_by     text        NOT NULL DEFAULT '',
+  state_note   text        NOT NULL DEFAULT '',
+  regressed_at timestamptz,
+  PRIMARY KEY (fingerprint, service),
+  CHECK (state IN ('open', 'resolved', 'muted'))
+);
+
+CREATE INDEX app_error_group_last_seen_idx ON backplane.app_error_group (last_seen);
+CREATE INDEX app_error_group_service_idx ON backplane.app_error_group (service, last_seen);
+
+CREATE TABLE backplane.app_error (
+  id            uuid        PRIMARY KEY,
+  -- Deduplicates the Collector's retries: the SDK's event id, else a hash
+  -- of the record and its resource.
+  key           bytea       NOT NULL UNIQUE,
+  fingerprint   bytea       NOT NULL,
+  service       text        NOT NULL,
+  time          timestamptz NOT NULL,
+  received_at   timestamptz NOT NULL DEFAULT clock_timestamp(),
+  environment   text        NOT NULL DEFAULT '',
+  release       text        NOT NULL DEFAULT '',
+  instance      text        NOT NULL DEFAULT '',
+  -- sdk | otel_log
+  origin        text        NOT NULL,
+  -- proxy (the public OTLP ingest: browsers) | trusted (the Collector's own senders)
+  ingest        text        NOT NULL DEFAULT '',
+  event_id      text        NOT NULL DEFAULT '',
+  type          text        NOT NULL DEFAULT '',
+  message       text        NOT NULL DEFAULT '',
+  stacktrace    text        NOT NULL DEFAULT '',
+  severity      integer     NOT NULL DEFAULT 0,
+  severity_text text        NOT NULL DEFAULT '',
+  event_name    text        NOT NULL DEFAULT '',
+  mechanism     text        NOT NULL DEFAULT '',
+  -- NULL: the record does not say.
+  handled       boolean,
+  group_key     text        NOT NULL DEFAULT '',
+  trace_id      text        NOT NULL DEFAULT '',
+  span_id       text        NOT NULL DEFAULT '',
+  runtime_id    text        NOT NULL DEFAULT '',
+  scope         text        NOT NULL DEFAULT '',
+  -- The record's body: the SDK's envelope as sent, or {"text": ...}.
+  body          jsonb       NOT NULL DEFAULT 'null',
+  attributes    jsonb       NOT NULL DEFAULT '{}',
+  resource      jsonb       NOT NULL DEFAULT '{}',
+  truncated     boolean     NOT NULL DEFAULT false,
+  FOREIGN KEY (fingerprint, service) REFERENCES backplane.app_error_group (fingerprint, service) ON DELETE CASCADE
+);
+
+CREATE INDEX app_error_time_idx ON backplane.app_error (time DESC, id DESC);
+CREATE INDEX app_error_service_idx ON backplane.app_error (service, time DESC);
+CREATE INDEX app_error_group_idx ON backplane.app_error (fingerprint, service, time DESC);
+CREATE INDEX app_error_trace_idx ON backplane.app_error (trace_id) WHERE trace_id <> '';
+CREATE INDEX app_error_runtime_idx ON backplane.app_error (runtime_id) WHERE runtime_id <> '';
+CREATE INDEX app_error_type_idx ON backplane.app_error (type, time DESC);
+CREATE INDEX app_error_attributes_idx ON backplane.app_error USING gin (attributes jsonb_path_ops);

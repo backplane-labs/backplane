@@ -3,20 +3,27 @@ import { useBackplane, useConnection } from '@backplane-labs/backplane-react';
 import { Button } from '@backplane-labs/backplane-ui';
 import { usePlatformText } from './locales.js';
 
-export function usePlatformQuery<T>(key: string, read: (signal: AbortSignal) => Promise<T>) {
+/**
+ * A read keyed by what it asks for. With `keep`, a new key (a live refresh, a
+ * moved range) keeps showing the last value until the new one arrives, so a
+ * list or a drawer does not unmount into a skeleton on every tick.
+ */
+export function usePlatformQuery<T>(key: string, read: (signal: AbortSignal) => Promise<T>, options?: { keep?: boolean }) {
+  const keep = options?.keep ?? false;
   const owner = useBackplane(), connection = useConnection(), session = connection.session?.id ?? null;
   const latest = useRef(read); latest.current = read;
   const [refresh, setRefresh] = useState(0), [stored, setStored] = useState<{ owner: typeof owner; session: typeof session; key: string; connectionId?: typeof connection.connectionId; value?: T; error?: unknown; loading: boolean }>();
   useEffect(() => {
     const controller = new AbortController();
-    setStored((old) => old?.owner === owner && old.session === session && old.key === key
-      ? { ...old, loading: true } : { owner, session, key, loading: true });
+    setStored((old) => old?.owner === owner && old.session === session && (old.key === key || keep)
+      ? { ...old, key, error: undefined, loading: true } : { owner, session, key, loading: true });
     if (connection.connection === 'connected') void Promise.resolve().then(() => latest.current(controller.signal)).then((value) => {
       if (!controller.signal.aborted) setStored({ owner, session, key, connectionId: connection.connectionId, value, loading: false });
     }, (error) => { if (!controller.signal.aborted) setStored((old) => ({ ...old, owner, session, key, error, loading: false })); });
     return () => controller.abort();
   }, [owner, session, key, connection.connection, connection.connectionId, refresh]);
-  const visible = stored?.owner === owner && stored.session === session && stored.key === key ? stored : undefined;
+  // With keep, the render that changes the key still shows the last value: the effect re-keys it before the new read lands.
+  const visible = stored?.owner === owner && stored.session === session && (stored.key === key || keep) ? stored : undefined;
   return { value: visible?.value, error: visible?.error, loading: visible?.loading ?? true,
     stale: visible?.value !== undefined && (visible.error !== undefined || connection.connection !== 'connected' || visible.connectionId !== connection.connectionId), refresh: useCallback(() => setRefresh((value) => value + 1), []) };
 }

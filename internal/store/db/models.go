@@ -174,3 +174,55 @@ type BackplaneDirectRunStep struct {
 	ScheduledAt time.Time
 	ClosedAt    *time.Time
 }
+
+type BackplaneAppErrorGroup struct {
+	Fingerprint []byte
+	Service     string
+	Type        string
+	Message     string
+	FirstSeen   time.Time
+	LastSeen    time.Time
+	Count       int64
+	Stored      int64
+	MinuteStart time.Time
+	MinuteCount int32
+	DayStart    time.Time
+	DayCount    int32
+	State       string
+	StateAt     *time.Time
+	StateBy     string
+	StateNote   string
+	RegressedAt *time.Time
+}
+
+type BackplaneAppError struct {
+	ID           uuid.UUID
+	Key          []byte
+	Fingerprint  []byte
+	Service      string
+	Time         time.Time
+	ReceivedAt   time.Time
+	Environment  string
+	Release      string
+	Instance     string
+	Origin       string
+	Ingest       string
+	EventID      string
+	Type         string
+	Message      string
+	Stacktrace   string
+	Severity     int32
+	SeverityText string
+	EventName    string
+	Mechanism    string
+	Handled      *bool
+	GroupKey     string
+	TraceID      string
+	SpanID       string
+	RuntimeID    string
+	Scope        string
+	Body         json.RawMessage
+	Attributes   json.RawMessage
+	Resource     json.RawMessage
+	Truncated    bool
+}

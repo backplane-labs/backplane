@@ -1,7 +1,8 @@
-# Application audit (docs/audit-api.md): log records
-# marked backplane.audit=true go to backplane's OTLP audit listener, which
-# keeps them; logs still go wherever the main config sends them. Merge it
-# with the main config:
+# Application audit (docs/audit-api.md) and errors (docs/errors.md): log
+# records marked backplane.audit=true, and exception records (exception.*
+# attributes, event.name=exception, the browser SDK's app.debug.kind), go
+# to backplane's OTLP listener, which keeps them durably; logs still go
+# wherever the main config sends them. Merge it with the main config:
 #
 #   otelcol-contrib --config=otel-collector.yaml --config=otel-collector.audit.yaml
 #
@@ -25,13 +26,16 @@ processors:
       - key: backplane.ingest
         from_context: metadata.x-backplane-ingest
         action: upsert
-  filter/audit:
+  # Drops what is neither audit nor an exception; audit never from the
+  # public proxy, exceptions from it too (browsers report through it,
+  # marked backplane.ingest=proxy).
+  filter/backplane:
     error_mode: ignore
     logs:
       log_record:
-        - 'attributes["backplane.audit"] != true'
-        - 'attributes["backplane.ingest"] == "proxy"'
         - 'attributes["backplane.audit.origin"] == "platform"'
+        - 'attributes["backplane.audit"] == true and attributes["backplane.ingest"] == "proxy"'
+        - 'attributes["backplane.audit"] != true and attributes["exception.type"] == nil and attributes["exception.message"] == nil and attributes["exception.stacktrace"] == nil and attributes["event.name"] != "exception" and event_name != "exception" and attributes["app.debug.kind"] != "exception"'
 exporters:
   otlp_grpc/audit:
     endpoint: backplane:4317
@@ -44,7 +48,7 @@ exporters:
 service:
   extensions: [health_check, file_storage/audit]
   pipelines:
-    logs/audit:
+    logs/backplane:
       receivers: [otlp]
-      processors: [memory_limiter, attributes/ingest, filter/audit]
+      processors: [memory_limiter, attributes/ingest, filter/backplane]
       exporters: [otlp_grpc/audit]

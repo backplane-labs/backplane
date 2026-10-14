@@ -28,6 +28,8 @@ type AuditDetail struct {
 	Signal     string   `json:"signal,omitempty"`
 	Reason     string   `json:"reason,omitempty"`
 	Note       string   `json:"note,omitempty"`
+	// State an error group was set to.
+	State string `json:"state,omitempty"`
 }
 
 // AuditDraft is one semantic action or one phase of an external command. Actor

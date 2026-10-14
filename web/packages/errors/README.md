@@ -37,6 +37,7 @@ exception causes. `client.snapshot()` returns local state and history for an
 application's own bug reports without sending anything. `client.stats()` and
 `client.outbox.stats()` expose delivery diagnostics without user data.
 
-Errors live in the installation's log store, retained as long as its logs.
+Errors are stored by the platform, grouped by fingerprint and kept for its
+configured retention (90 days by default).
 See `docs/errors.md` in the Backplane repository for the wire format, the
 ingest and what the console shows.

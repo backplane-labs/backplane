@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { create } from '@bufbuild/protobuf';
 import { DurationSchema, TimestampSchema } from '@bufbuild/protobuf/wkt';
-import { AuditField, AuditOperator, AuditRecordSchema, AuditSource } from '@backplane-labs/backplane-api';
+import { AuditField, AuditOperator, AuditRecordSchema, AuditSource, ErrorField, ErrorOrigin, GetErrorResponseSchema } from '@backplane-labs/backplane-api';
 import { decodeChips, detailFacts, encodeChips, filterOf, humanActor, mergeRecords } from '../packages/platform-ui/src/audit-model';
 import { addValue, parseValue } from '../packages/platform-ui/src/feed';
-import { causesOf, errorFilterOf, historyOf, parseStack, stateOf } from '../packages/platform-ui/src/errors-model';
+import { causesOf, errorFilterOf, groupFilterOf, historyOf, parseStack, reportOf, retentionText, stateOf } from '../packages/platform-ui/src/errors-model';
 import { readFileSync } from 'node:fs';
 import { nativeJSON } from '../packages/platform-ui/src/serialization';
 import { tempoToSpans, parseTelemetryJSON, telemetryJSON, otlpId, decimalMillisToNanos } from '../packages/platform-ui/src/telemetry-model';
@@ -75,5 +75,17 @@ describe('errors', () => {
     expect(stateOf(envelope).map((source) => source.name)).toEqual(['editor', 'inline']);
     const cause = causesOf({ exception: envelope.exception, stacktrace: '', occurrence: undefined } as never);
     expect(cause).toMatchObject({ type: 'FixtureError', message: 'Synthetic fixture exception', frames: [{ function: 'fixture', file: 'synthetic.js' }] });
+  });
+
+  it('narrows a filter to a group, says the retention and writes a report', () => {
+    const filter = errorFilterOf([{ key: 'service', op: 'is', values: ['web'] }, { key: 'environment', op: 'is', values: ['prod'] }], '', { from: 0, to: 60_000 });
+    const narrowed = groupFilterOf(filter, { fingerprint: 'ab'.repeat(16), service: 'api' });
+    expect(narrowed.conditions.map((condition) => [condition.field, condition.values])).toEqual([[ErrorField.ENVIRONMENT, ['prod']], [ErrorField.FINGERPRINT, ['ab'.repeat(16)]], [ErrorField.SERVICE, ['api']]]);
+    expect(retentionText(undefined)).toBeUndefined(); expect(retentionText({ seconds: 7_776_000n, nanos: 0 } as never)).toBe('90 d'); expect(retentionText({ seconds: 7200n, nanos: 0 } as never)).toBe('2 h');
+    const detail = create(GetErrorResponseSchema, { occurrence: { ref: 'r1', origin: ErrorOrigin.OTEL_LOG, type: 'PaymentError', message: 'declined', service: 'api', environment: 'prod', fingerprint: 'ff', unhandled: true, time: { seconds: 60n, nanos: 0 } },
+      stacktrace: 'PaymentError: declined\n\tat charge', group: { fingerprint: 'ff', service: 'api', count: 9n, firstSeen: { seconds: 0n, nanos: 0 }, lastSeen: { seconds: 60n, nanos: 0 } }, warnings: ['truncated'] });
+    const report = reportOf(detail);
+    expect(report).toContain('# PaymentError: declined'); expect(report).toContain('- service: api (prod)'); expect(report).toContain('unhandled');
+    expect(report).toContain('- group: 9 occurrences since 1970-01-01T00:00:00.000Z'); expect(report).toContain('- warnings: truncated'); expect(report.endsWith('```')).toBe(true);
   });
 });

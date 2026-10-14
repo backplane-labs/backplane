@@ -1,7 +1,7 @@
 export { platformEnglish } from './locales.js';
 export { usePlatformQuery, usePlatformAction, ConnectionNotice, QueryState, MutationState } from './runtime.js';
 export { AuditExplorer, defaultAuditState, type AuditState } from './audit.js';
-export { ErrorsExplorer, defaultErrorsState, type ErrorsState } from './errors.js';
+export { ErrorsExplorer, defaultErrorsState, errorsSorts, errorsStates, type ErrorsState, type ErrorsSort, type ErrorsStates, type ErrorsView } from './errors.js';
 export { parseStack } from './errors-model.js';
 export { decodeChips, encodeChips, type AuditChip } from './audit-model.js';
 export { FeedFacets, FeedFilterBar, FeedHistogram, FeedTimeBar, useFresh, type FeedChip, type FeedFacet, type FeedOp, type FeedTarget } from './feed.js';

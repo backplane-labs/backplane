@@ -99,6 +99,18 @@ export function ErrorService_GetError(client: API.ErrorServiceClient, request: A
 export function ErrorService_RelatedLogs(client: API.ErrorServiceClient, request: API.RelatedLogsRequest, signal: AbortSignal) {
   return client.relatedLogs(request, { signal });
 }
+export function ErrorService_SearchErrorGroups(client: API.ErrorServiceClient, request: API.SearchErrorGroupsRequest, signal: AbortSignal) {
+  return client.searchErrorGroups(request, { signal });
+}
+export function ErrorService_GetErrorGroup(client: API.ErrorServiceClient, request: API.GetErrorGroupRequest, signal: AbortSignal) {
+  return client.getErrorGroup(request, { signal });
+}
+export function ErrorService_ErrorInfo(client: API.ErrorServiceClient, request: API.ErrorInfoRequest, signal: AbortSignal) {
+  return client.errorInfo(request, { signal });
+}
+export function ErrorService_SetErrorGroupState(client: API.ErrorServiceClient, request: API.SetErrorGroupStateRequest, signal: AbortSignal) {
+  return client.setErrorGroupState(request, { signal });
+}
 export function EventService_ListEvents(client: API.EventServiceClient, request: API.ListEventsRequest, signal: AbortSignal) {
   return client.listEvents(request, { signal });
 }

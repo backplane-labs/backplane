@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
+	"github.com/backplane-labs/backplane/internal/apperrors"
 	"github.com/backplane-labs/backplane/internal/audit"
 	"github.com/backplane-labs/backplane/internal/bindings"
 	"github.com/backplane-labs/backplane/internal/config"
@@ -72,6 +73,8 @@ type State struct {
 	// Obs reads deployment-owned stores; no dependency on their readiness.
 	Obs         *obs.Service
 	internalObs bool
+	// Errors keeps application errors durably and serves ErrorService.
+	Errors *apperrors.Service
 	// Audit serves durable control history and optionally exports OTel Logs.
 	Audit    *audit.Service
 	Platform *platform.Service
@@ -131,7 +134,6 @@ func NewState(root backplane.Root[Config]) (*State, error) {
 	}
 
 	st.Audit = audit.New(root, st.Store, auditOptions...)
-	st.AuditIngest = audit.NewIngest(root, st.Store, cfg.Audit)
 
 	st.Obs, err = obs.New(cfg.Obs, obs.WithRegistry(st.Registry))
 	if err != nil {
@@ -140,16 +142,15 @@ func NewState(root backplane.Root[Config]) (*State, error) {
 
 	root.OnStop(func(context.Context) error { st.Obs.Close(); return nil })
 
-	errorReader, err := st.Obs.Errors()
-	if err != nil {
-		return nil, err //nolint:wrapcheck // names the envelope schema
-	}
+	st.Errors = apperrors.New(root, st.Store, cfg.Errors, apperrors.WithRelated(st.Obs.Errors()),
+		apperrors.WithAuthor(sessionAuthor))
+	st.AuditIngest = audit.NewIngest(root, st.Store, cfg.Audit, audit.WithErrors(st.Errors))
 
 	st.Config = config.New(root, cfg.LiveConfig, client, st.Store, st.Registry, config.Author(sessionAuthor))
 
 	st.Bindings = bindings.New(root, st.Store, st.Registry, bindings.Author(sessionAuthor),
 		bindings.DefaultRuntime(cfg.Wiring.Resolve(cfg.Temporal.Enabled())))
-	consoleOptions = append(consoleOptions, st.runtime(root, cfg, errorReader.Register)...)
+	consoleOptions = append(consoleOptions, st.runtime(root, cfg, st.Errors.Register)...)
 	st.Console = console.New(root, cfg.consoleSettings(), console.NewPG(st.Store),
 		console.NewPGAttempts(st.Store, console.DefaultLoginLimits()), st.Registry, consoleOptions...)
 

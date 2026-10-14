@@ -49,13 +49,13 @@ export function AuditExplorer({ mode, service, state, onStateChange, onOpenTrace
       records.push(...page.records); next = page.nextPageCursor;
     }
     return { records, next };
-  });
-  const histogram = usePlatformQuery(`audit-histogram:${key}:${tick}`, (signal) => client.auditHistogram(create(AuditHistogramRequestSchema, { filter, buckets: 60 }), { signal }));
-  const fields = usePlatformQuery(`audit-fields:${key}:${tick}`, (signal) => client.auditFields(create(AuditFieldsRequestSchema, { filter }), { signal }));
+  }, { keep: true });
+  const histogram = usePlatformQuery(`audit-histogram:${key}:${tick}`, (signal) => client.auditHistogram(create(AuditHistogramRequestSchema, { filter, buckets: 60 }), { signal }), { keep: true });
+  const fields = usePlatformQuery(`audit-fields:${key}:${tick}`, (signal) => client.auditFields(create(AuditFieldsRequestSchema, { filter }), { signal }), { keep: true });
   const attributeNames = useMemo(() => (fields.value?.fields ?? []).map((field) => field.attribute).filter((name) => !hidden(name)), [fields.value]);
   const facetKeys = useMemo(() => [...facetFields.map(fieldKey), ...attributeNames.slice(0, 6).map(attributeKey)], [attributeNames]);
   const facets = usePlatformQuery(`audit-facets:${key}:${tick}:${facetKeys.join(',')}`, (signal) =>
-    client.auditFacets(create(AuditFacetsRequestSchema, { filter, targets: facetKeys.map(conditionOf), limit: 8 }), { signal }));
+    client.auditFacets(create(AuditFacetsRequestSchema, { filter, targets: facetKeys.map(conditionOf), limit: 8 }), { signal }), { keep: true });
   const facetValues = useMemo(() => (facets.value?.facets ?? []).map((facet) => {
     const facetKey = keyOf(facet.target), field = facetKey.startsWith('field:') ? facetKey.slice(6) as AuditFieldName : undefined;
     return { key: facetKey, label: field ? text(`auditField_${field}`) : facetKey.slice(5), mono: !field, total: Number(facet.total),

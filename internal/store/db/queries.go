@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type DBTX interface {
@@ -54,6 +55,275 @@ type InsertApplicationAuditParams struct {
 func (q *Queries) InsertApplicationAudit(ctx context.Context, arg InsertApplicationAuditParams) (int64, error) {
 	tag, err := q.db.Exec(ctx, insertApplicationAuditSQL, arg.ID, arg.Key, arg.Time, arg.Service, arg.Action, arg.Actor, arg.Subject, arg.Outcome, arg.Severity, arg.Body, arg.Attributes, arg.Resource, arg.TraceID, arg.SpanID)
 	return tag.RowsAffected(), err
+}
+
+const touchErrorGroupSQL = `-- Counts one occurrence in its group, creating it; the windows reset when
+-- the minute or the day changed. Returns the counts of the current windows:
+-- the caller stores the occurrence while they are within the burst limits.
+INSERT INTO backplane.app_error_group
+  (fingerprint, service, type, message, first_seen, last_seen, count, stored, minute_start, minute_count, day_start, day_count)
+VALUES ($1, $2, $3, $4, $5, $5, 1, 0, $6, 1, $7, 1)
+ON CONFLICT (fingerprint, service) DO UPDATE SET
+  count = backplane.app_error_group.count + 1,
+  first_seen = LEAST(backplane.app_error_group.first_seen, EXCLUDED.first_seen),
+  last_seen = GREATEST(backplane.app_error_group.last_seen, EXCLUDED.last_seen),
+  minute_start = CASE WHEN backplane.app_error_group.minute_start < EXCLUDED.minute_start THEN EXCLUDED.minute_start
+    ELSE backplane.app_error_group.minute_start END,
+  minute_count = CASE WHEN backplane.app_error_group.minute_start < EXCLUDED.minute_start THEN 1
+    ELSE backplane.app_error_group.minute_count + 1 END,
+  day_start = CASE WHEN backplane.app_error_group.day_start < EXCLUDED.day_start THEN EXCLUDED.day_start
+    ELSE backplane.app_error_group.day_start END,
+  day_count = CASE WHEN backplane.app_error_group.day_start < EXCLUDED.day_start THEN 1
+    ELSE backplane.app_error_group.day_count + 1 END,
+  -- An occurrence after a resolution reopens the group (a regression); a
+  -- late record from before it does not.
+  state = CASE WHEN backplane.app_error_group.state = 'resolved' AND EXCLUDED.last_seen > backplane.app_error_group.state_at
+    THEN 'open' ELSE backplane.app_error_group.state END,
+  regressed_at = CASE WHEN backplane.app_error_group.state = 'resolved' AND EXCLUDED.last_seen > backplane.app_error_group.state_at
+    THEN EXCLUDED.last_seen ELSE backplane.app_error_group.regressed_at END
+RETURNING minute_count, day_count;`
+
+type TouchErrorGroupParams struct {
+	Fingerprint []byte
+	Service     string
+	Type        string
+	Message     string
+	Time        time.Time
+	Minute      time.Time
+	Day         time.Time
+}
+
+type TouchErrorGroupRow struct {
+	MinuteCount int32
+	DayCount    int32
+}
+
+func (q *Queries) TouchErrorGroup(ctx context.Context, arg TouchErrorGroupParams) (TouchErrorGroupRow, error) {
+	row := q.db.QueryRow(ctx, touchErrorGroupSQL, arg.Fingerprint, arg.Service, arg.Type, arg.Message, arg.Time, arg.Minute, arg.Day)
+	var i TouchErrorGroupRow
+	err := row.Scan(&i.MinuteCount, &i.DayCount)
+	return i, err
+}
+
+const insertErrorSQL = `INSERT INTO backplane.app_error (id, key, fingerprint, service, time, environment, release, instance, origin, ingest,
+  event_id, type, message, stacktrace, severity, severity_text, event_name, mechanism, handled, group_key, trace_id,
+  span_id, runtime_id, scope, body, attributes, resource, truncated)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+  $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+  $21, $22, $23, $24, $25, $26, $27, $28)
+ON CONFLICT (key) DO NOTHING;`
+
+type InsertErrorParams struct {
+	ID           uuid.UUID
+	Key          []byte
+	Fingerprint  []byte
+	Service      string
+	Time         time.Time
+	Environment  string
+	Release      string
+	Instance     string
+	Origin       string
+	Ingest       string
+	EventID      string
+	Type         string
+	Message      string
+	Stacktrace   string
+	Severity     int32
+	SeverityText string
+	EventName    string
+	Mechanism    string
+	Handled      *bool
+	GroupKey     string
+	TraceID      string
+	SpanID       string
+	RuntimeID    string
+	Scope        string
+	Body         json.RawMessage
+	Attributes   json.RawMessage
+	Resource     json.RawMessage
+	Truncated    bool
+}
+
+func (q *Queries) InsertError(ctx context.Context, arg InsertErrorParams) (int64, error) {
+	tag, err := q.db.Exec(ctx, insertErrorSQL, arg.ID, arg.Key, arg.Fingerprint, arg.Service, arg.Time, arg.Environment, arg.Release, arg.Instance, arg.Origin, arg.Ingest, arg.EventID, arg.Type, arg.Message, arg.Stacktrace, arg.Severity, arg.SeverityText, arg.EventName, arg.Mechanism, arg.Handled, arg.GroupKey, arg.TraceID, arg.SpanID, arg.RuntimeID, arg.Scope, arg.Body, arg.Attributes, arg.Resource, arg.Truncated)
+	return tag.RowsAffected(), err
+}
+
+const countErrorStoredSQL = `UPDATE backplane.app_error_group SET stored = stored + 1 WHERE fingerprint = $1 AND service = $2;`
+
+type CountErrorStoredParams struct {
+	Fingerprint []byte
+	Service     string
+}
+
+func (q *Queries) CountErrorStored(ctx context.Context, arg CountErrorStoredParams) error {
+	_, err := q.db.Exec(ctx, countErrorStoredSQL, arg.Fingerprint, arg.Service)
+	return err
+}
+
+const uncountErrorDuplicateSQL = `-- A retried record was already stored: its touch counted it twice.
+UPDATE backplane.app_error_group SET count = GREATEST(count - 1, stored),
+  minute_count = GREATEST(minute_count - 1, 0), day_count = GREATEST(day_count - 1, 0)
+WHERE fingerprint = $1 AND service = $2;`
+
+type UncountErrorDuplicateParams struct {
+	Fingerprint []byte
+	Service     string
+}
+
+func (q *Queries) UncountErrorDuplicate(ctx context.Context, arg UncountErrorDuplicateParams) error {
+	_, err := q.db.Exec(ctx, uncountErrorDuplicateSQL, arg.Fingerprint, arg.Service)
+	return err
+}
+
+const getErrorSQL = `SELECT id, key, fingerprint, service, time, received_at, environment, release, instance, origin, ingest, event_id,
+  type, message, stacktrace, severity, severity_text, event_name, mechanism, handled, group_key, trace_id, span_id,
+  runtime_id, scope, body, attributes, resource, truncated
+FROM backplane.app_error WHERE id = $1;`
+
+type GetErrorRow struct {
+	ID           uuid.UUID
+	Key          []byte
+	Fingerprint  []byte
+	Service      string
+	Time         time.Time
+	ReceivedAt   time.Time
+	Environment  string
+	Release      string
+	Instance     string
+	Origin       string
+	Ingest       string
+	EventID      string
+	Type         string
+	Message      string
+	Stacktrace   string
+	Severity     int32
+	SeverityText string
+	EventName    string
+	Mechanism    string
+	Handled      *bool
+	GroupKey     string
+	TraceID      string
+	SpanID       string
+	RuntimeID    string
+	Scope        string
+	Body         json.RawMessage
+	Attributes   json.RawMessage
+	Resource     json.RawMessage
+	Truncated    bool
+}
+
+func (q *Queries) GetError(ctx context.Context, id uuid.UUID) (GetErrorRow, error) {
+	row := q.db.QueryRow(ctx, getErrorSQL, id)
+	var i GetErrorRow
+	err := row.Scan(&i.ID, &i.Key, &i.Fingerprint, &i.Service, &i.Time, &i.ReceivedAt, &i.Environment, &i.Release, &i.Instance, &i.Origin, &i.Ingest, &i.EventID, &i.Type, &i.Message, &i.Stacktrace, &i.Severity, &i.SeverityText, &i.EventName, &i.Mechanism, &i.Handled, &i.GroupKey, &i.TraceID, &i.SpanID, &i.RuntimeID, &i.Scope, &i.Body, &i.Attributes, &i.Resource, &i.Truncated)
+	return i, err
+}
+
+const getErrorGroupSQL = `SELECT fingerprint, service, type, message, first_seen, last_seen, count, stored, state, state_at, state_by, state_note, regressed_at
+FROM backplane.app_error_group WHERE fingerprint = $1 AND service = $2;`
+
+type GetErrorGroupParams struct {
+	Fingerprint []byte
+	Service     string
+}
+
+type GetErrorGroupRow struct {
+	Fingerprint []byte
+	Service     string
+	Type        string
+	Message     string
+	FirstSeen   time.Time
+	LastSeen    time.Time
+	Count       int64
+	Stored      int64
+	State       string
+	StateAt     *time.Time
+	StateBy     string
+	StateNote   string
+	RegressedAt *time.Time
+}
+
+func (q *Queries) GetErrorGroup(ctx context.Context, arg GetErrorGroupParams) (GetErrorGroupRow, error) {
+	row := q.db.QueryRow(ctx, getErrorGroupSQL, arg.Fingerprint, arg.Service)
+	var i GetErrorGroupRow
+	err := row.Scan(&i.Fingerprint, &i.Service, &i.Type, &i.Message, &i.FirstSeen, &i.LastSeen, &i.Count, &i.Stored, &i.State, &i.StateAt, &i.StateBy, &i.StateNote, &i.RegressedAt)
+	return i, err
+}
+
+const setErrorGroupStateSQL = `-- Triage: resolving or muting a group, or reopening it; a change clears
+-- the regression mark.
+UPDATE backplane.app_error_group
+SET state = $1, state_at = $2, state_by = $3, state_note = $4, regressed_at = NULL
+WHERE fingerprint = $5 AND service = $6
+RETURNING fingerprint, service, type, message, first_seen, last_seen, count, stored, state, state_at, state_by, state_note, regressed_at;`
+
+type SetErrorGroupStateParams struct {
+	State       string
+	At          *time.Time
+	By          string
+	Note        string
+	Fingerprint []byte
+	Service     string
+}
+
+type SetErrorGroupStateRow struct {
+	Fingerprint []byte
+	Service     string
+	Type        string
+	Message     string
+	FirstSeen   time.Time
+	LastSeen    time.Time
+	Count       int64
+	Stored      int64
+	State       string
+	StateAt     *time.Time
+	StateBy     string
+	StateNote   string
+	RegressedAt *time.Time
+}
+
+func (q *Queries) SetErrorGroupState(ctx context.Context, arg SetErrorGroupStateParams) (SetErrorGroupStateRow, error) {
+	row := q.db.QueryRow(ctx, setErrorGroupStateSQL, arg.State, arg.At, arg.By, arg.Note, arg.Fingerprint, arg.Service)
+	var i SetErrorGroupStateRow
+	err := row.Scan(&i.Fingerprint, &i.Service, &i.Type, &i.Message, &i.FirstSeen, &i.LastSeen, &i.Count, &i.Stored, &i.State, &i.StateAt, &i.StateBy, &i.StateNote, &i.RegressedAt)
+	return i, err
+}
+
+const expireErrorsSQL = `DELETE FROM backplane.app_error WHERE id IN (
+  SELECT id FROM backplane.app_error WHERE time < $1 ORDER BY time LIMIT $2
+);`
+
+type ExpireErrorsParams struct {
+	Cutoff    time.Time
+	BatchSize int64
+}
+
+func (q *Queries) ExpireErrors(ctx context.Context, arg ExpireErrorsParams) error {
+	_, err := q.db.Exec(ctx, expireErrorsSQL, arg.Cutoff, arg.BatchSize)
+	return err
+}
+
+const expireErrorGroupsSQL = `DELETE FROM backplane.app_error_group g
+WHERE g.last_seen < $1
+  AND NOT EXISTS (SELECT 1 FROM backplane.app_error e WHERE e.fingerprint = g.fingerprint AND e.service = g.service);`
+
+func (q *Queries) ExpireErrorGroups(ctx context.Context, cutoff time.Time) error {
+	_, err := q.db.Exec(ctx, expireErrorGroupsSQL, cutoff)
+	return err
+}
+
+const countExpiredErrorsSQL = `SELECT count(*)::bigint AS count FROM backplane.app_error WHERE time < $1;`
+
+type CountExpiredErrorsRow struct {
+	Count int64
+}
+
+func (q *Queries) CountExpiredErrors(ctx context.Context, cutoff time.Time) (CountExpiredErrorsRow, error) {
+	row := q.db.QueryRow(ctx, countExpiredErrorsSQL, cutoff)
+	var i CountExpiredErrorsRow
+	err := row.Scan(&i.Count)
+	return i, err
 }
 
 const createAuditClockSQL = `INSERT INTO backplane.audit_clock (singleton) VALUES (true) ON CONFLICT DO NOTHING;`
@@ -1052,6 +1322,15 @@ func (q *Queries) DeleteStaleSessions(ctx context.Context, arg DeleteStaleSessio
 	return tag.RowsAffected(), err
 }
 
+const lockScheduleCommandSQL = `-- Serializes the schedule commands of one declaration across replicas for
+-- the transaction.
+SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0));`
+
+func (q *Queries) LockScheduleCommand(ctx context.Context, key string) error {
+	_, err := q.db.Exec(ctx, lockScheduleCommandSQL, key)
+	return err
+}
+
 const claimDirectRunSQL = `-- A new run, or a failed run of the same id claimed again (a rule's event
 -- redelivered); no row when the id is running or completed already.
 INSERT INTO backplane.direct_run (id, kind, source, version, test, caller, status, input, program)
@@ -1420,6 +1699,3011 @@ const deleteExpiredLoginAttemptsSQL = `DELETE FROM backplane.console_login_attem
 func (q *Queries) DeleteExpiredLoginAttempts(ctx context.Context) (int64, error) {
 	tag, err := q.db.Exec(ctx, deleteExpiredLoginAttemptsSQL)
 	return tag.RowsAffected(), err
+}
+
+type SearchErrorsParams struct {
+	Start             time.Time
+	End               time.Time
+	ServiceIn         []string
+	ServiceNot        []string
+	ServicePrefix     []string
+	EnvironmentIn     []string
+	EnvironmentNot    []string
+	EnvironmentExists int32
+	ReleaseIn         []string
+	ReleaseNot        []string
+	ReleasePrefix     []string
+	ReleaseExists     int32
+	TypeIn            []string
+	TypeNot           []string
+	TypeLike          []string
+	TypeNotLike       []string
+	TypePrefix        []string
+	MessageIn         []string
+	MessageNot        []string
+	MessageLike       []string
+	MessageNotLike    []string
+	MessagePrefix     []string
+	TraceIn           []string
+	TraceNot          []string
+	TraceExists       int32
+	RuntimeIn         []string
+	RuntimeNot        []string
+	RuntimeExists     int32
+	GroupKeyIn        []string
+	GroupKeyNot       []string
+	GroupKeyExists    int32
+	OriginIn          []string
+	OriginNot         []string
+	FingerprintIn     [][]byte
+	FingerprintNot    [][]byte
+	Handled           int32
+	IngestIn          []string
+	IngestNot         []string
+	InstanceIn        []string
+	InstanceNot       []string
+	Text              string
+	TextInStack       bool
+	BeforeTime        time.Time
+	BeforeID          uuid.UUID
+	PageSize          int64
+}
+
+type SearchErrorsRow struct {
+	ID          uuid.UUID
+	Fingerprint []byte
+	Service     string
+	Time        time.Time
+	ReceivedAt  time.Time
+	Environment string
+	Release     string
+	Instance    string
+	Origin      string
+	Ingest      string
+	EventID     string
+	Type        string
+	Message     string
+	Severity    int32
+	Mechanism   string
+	Handled     *bool
+	GroupKey    string
+	TraceID     string
+	SpanID      string
+	RuntimeID   string
+	Truncated   bool
+}
+
+func (q *Queries) SearchErrors(ctx context.Context, arg SearchErrorsParams) ([]SearchErrorsRow, error) {
+	var b strings.Builder
+	var args []any
+	positions := make(map[uint32]int)
+	if positions[1] == 0 {
+		args = append(args, arg.Start)
+		positions[1] = len(args)
+	}
+	if positions[2] == 0 {
+		args = append(args, arg.End)
+		positions[2] = len(args)
+	}
+	if positions[3] == 0 {
+		args = append(args, arg.ServiceIn)
+		positions[3] = len(args)
+	}
+	if positions[4] == 0 {
+		args = append(args, arg.ServiceNot)
+		positions[4] = len(args)
+	}
+	if positions[5] == 0 {
+		args = append(args, arg.ServicePrefix)
+		positions[5] = len(args)
+	}
+	if positions[6] == 0 {
+		args = append(args, arg.EnvironmentIn)
+		positions[6] = len(args)
+	}
+	if positions[7] == 0 {
+		args = append(args, arg.EnvironmentNot)
+		positions[7] = len(args)
+	}
+	if positions[8] == 0 {
+		args = append(args, arg.EnvironmentExists)
+		positions[8] = len(args)
+	}
+	if positions[9] == 0 {
+		args = append(args, arg.ReleaseIn)
+		positions[9] = len(args)
+	}
+	if positions[10] == 0 {
+		args = append(args, arg.ReleaseNot)
+		positions[10] = len(args)
+	}
+	if positions[11] == 0 {
+		args = append(args, arg.ReleasePrefix)
+		positions[11] = len(args)
+	}
+	if positions[12] == 0 {
+		args = append(args, arg.ReleaseExists)
+		positions[12] = len(args)
+	}
+	if positions[13] == 0 {
+		args = append(args, arg.TypeIn)
+		positions[13] = len(args)
+	}
+	if positions[14] == 0 {
+		args = append(args, arg.TypeNot)
+		positions[14] = len(args)
+	}
+	if positions[15] == 0 {
+		args = append(args, arg.TypeLike)
+		positions[15] = len(args)
+	}
+	if positions[16] == 0 {
+		args = append(args, arg.TypeNotLike)
+		positions[16] = len(args)
+	}
+	if positions[17] == 0 {
+		args = append(args, arg.TypePrefix)
+		positions[17] = len(args)
+	}
+	if positions[18] == 0 {
+		args = append(args, arg.MessageIn)
+		positions[18] = len(args)
+	}
+	if positions[19] == 0 {
+		args = append(args, arg.MessageNot)
+		positions[19] = len(args)
+	}
+	if positions[20] == 0 {
+		args = append(args, arg.MessageLike)
+		positions[20] = len(args)
+	}
+	if positions[21] == 0 {
+		args = append(args, arg.MessageNotLike)
+		positions[21] = len(args)
+	}
+	if positions[22] == 0 {
+		args = append(args, arg.MessagePrefix)
+		positions[22] = len(args)
+	}
+	if positions[23] == 0 {
+		args = append(args, arg.TraceIn)
+		positions[23] = len(args)
+	}
+	if positions[24] == 0 {
+		args = append(args, arg.TraceNot)
+		positions[24] = len(args)
+	}
+	if positions[25] == 0 {
+		args = append(args, arg.TraceExists)
+		positions[25] = len(args)
+	}
+	if positions[26] == 0 {
+		args = append(args, arg.RuntimeIn)
+		positions[26] = len(args)
+	}
+	if positions[27] == 0 {
+		args = append(args, arg.RuntimeNot)
+		positions[27] = len(args)
+	}
+	if positions[28] == 0 {
+		args = append(args, arg.RuntimeExists)
+		positions[28] = len(args)
+	}
+	if positions[29] == 0 {
+		args = append(args, arg.GroupKeyIn)
+		positions[29] = len(args)
+	}
+	if positions[30] == 0 {
+		args = append(args, arg.GroupKeyNot)
+		positions[30] = len(args)
+	}
+	if positions[31] == 0 {
+		args = append(args, arg.GroupKeyExists)
+		positions[31] = len(args)
+	}
+	if positions[32] == 0 {
+		args = append(args, arg.OriginIn)
+		positions[32] = len(args)
+	}
+	if positions[33] == 0 {
+		args = append(args, arg.OriginNot)
+		positions[33] = len(args)
+	}
+	if positions[34] == 0 {
+		args = append(args, arg.FingerprintIn)
+		positions[34] = len(args)
+	}
+	if positions[35] == 0 {
+		args = append(args, arg.FingerprintNot)
+		positions[35] = len(args)
+	}
+	if positions[36] == 0 {
+		args = append(args, arg.Handled)
+		positions[36] = len(args)
+	}
+	if positions[37] == 0 {
+		args = append(args, arg.IngestIn)
+		positions[37] = len(args)
+	}
+	if positions[38] == 0 {
+		args = append(args, arg.IngestNot)
+		positions[38] = len(args)
+	}
+	if positions[39] == 0 {
+		args = append(args, arg.InstanceIn)
+		positions[39] = len(args)
+	}
+	if positions[40] == 0 {
+		args = append(args, arg.InstanceNot)
+		positions[40] = len(args)
+	}
+	if positions[41] == 0 {
+		args = append(args, arg.Text)
+		positions[41] = len(args)
+	}
+	if positions[42] == 0 {
+		args = append(args, arg.TextInStack)
+		positions[42] = len(args)
+	}
+	if positions[43] == 0 {
+		args = append(args, arg.BeforeTime)
+		positions[43] = len(args)
+	}
+	if positions[44] == 0 {
+		args = append(args, arg.BeforeID)
+		positions[44] = len(args)
+	}
+	if positions[45] == 0 {
+		args = append(args, arg.PageSize)
+		positions[45] = len(args)
+	}
+	b.WriteString(fmt.Sprintf("SELECT e.id, e.fingerprint, e.service, e.time, e.received_at, e.environment, e.release, e.instance, e.origin, e.ingest,\n  e.event_id, e.type, e.message, e.severity, e.mechanism, e.handled, e.group_key, e.trace_id, e.span_id, e.runtime_id,\n  e.truncated\nFROM backplane.app_error e\nWHERE e.time >= $%d AND e.time < $%d\n  AND (cardinality($%d::text[]) = 0 OR e.service = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.service = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.service LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.environment = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.environment = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.environment <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.release = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.release = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.release LIKE p || '%%'))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.release <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.type = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.type = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.message = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.message = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.trace_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.trace_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.trace_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.runtime_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.runtime_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.runtime_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.group_key = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.group_key = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.group_key <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.origin = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.origin = ANY($%d::text[])))\n  AND (cardinality($%d::bytea[]) = 0 OR e.fingerprint = ANY($%d::bytea[]))\n  AND (cardinality($%d::bytea[]) = 0 OR NOT (e.fingerprint = ANY($%d::bytea[])))\n  AND ($%d::int = 0 OR ($%d::int > 0 AND e.handled IS TRUE) OR ($%d::int < 0 AND e.handled IS FALSE))\n  AND (cardinality($%d::text[]) = 0 OR e.ingest = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.ingest = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR e.instance = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.instance = ANY($%d::text[])))\n  AND ($%d::text = '' OR e.message ILIKE '%%' || $%d::text || '%%' OR e.type ILIKE '%%' || $%d::text || '%%'\n    OR ($%d::bool AND e.stacktrace ILIKE '%%' || $%d::text || '%%'))\n  AND (e.time, e.id) < ($%d::timestamptz, $%d::uuid)\nORDER BY e.time DESC, e.id DESC\nLIMIT $%d;", positions[1], positions[2], positions[3], positions[3], positions[4], positions[4], positions[5], positions[5], positions[6], positions[6], positions[7], positions[7], positions[8], positions[8], positions[9], positions[9], positions[10], positions[10], positions[11], positions[11], positions[12], positions[12], positions[13], positions[13], positions[14], positions[14], positions[15], positions[15], positions[16], positions[16], positions[17], positions[17], positions[18], positions[18], positions[19], positions[19], positions[20], positions[20], positions[21], positions[21], positions[22], positions[22], positions[23], positions[23], positions[24], positions[24], positions[25], positions[25], positions[26], positions[26], positions[27], positions[27], positions[28], positions[28], positions[29], positions[29], positions[30], positions[30], positions[31], positions[31], positions[32], positions[32], positions[33], positions[33], positions[34], positions[34], positions[35], positions[35], positions[36], positions[36], positions[36], positions[37], positions[37], positions[38], positions[38], positions[39], positions[39], positions[40], positions[40], positions[41], positions[41], positions[41], positions[42], positions[41], positions[43], positions[44], positions[45]))
+	rows, err := q.db.Query(ctx, b.String(), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchErrorsRow
+	for rows.Next() {
+		var i SearchErrorsRow
+		if err := rows.Scan(&i.ID, &i.Fingerprint, &i.Service, &i.Time, &i.ReceivedAt, &i.Environment, &i.Release, &i.Instance, &i.Origin, &i.Ingest, &i.EventID, &i.Type, &i.Message, &i.Severity, &i.Mechanism, &i.Handled, &i.GroupKey, &i.TraceID, &i.SpanID, &i.RuntimeID, &i.Truncated); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, rows.Err()
+}
+
+type ErrorHistogramParams struct {
+	Step              pgtype.Interval
+	Start             time.Time
+	End               time.Time
+	ServiceIn         []string
+	ServiceNot        []string
+	ServicePrefix     []string
+	EnvironmentIn     []string
+	EnvironmentNot    []string
+	EnvironmentExists int32
+	ReleaseIn         []string
+	ReleaseNot        []string
+	ReleasePrefix     []string
+	ReleaseExists     int32
+	TypeIn            []string
+	TypeNot           []string
+	TypeLike          []string
+	TypeNotLike       []string
+	TypePrefix        []string
+	MessageIn         []string
+	MessageNot        []string
+	MessageLike       []string
+	MessageNotLike    []string
+	MessagePrefix     []string
+	TraceIn           []string
+	TraceNot          []string
+	TraceExists       int32
+	RuntimeIn         []string
+	RuntimeNot        []string
+	RuntimeExists     int32
+	GroupKeyIn        []string
+	GroupKeyNot       []string
+	GroupKeyExists    int32
+	OriginIn          []string
+	OriginNot         []string
+	FingerprintIn     [][]byte
+	FingerprintNot    [][]byte
+	Handled           int32
+	IngestIn          []string
+	IngestNot         []string
+	InstanceIn        []string
+	InstanceNot       []string
+	Text              string
+	TextInStack       bool
+}
+
+type ErrorHistogramRow struct {
+	Bucket *time.Time
+	Count  int64
+}
+
+func (q *Queries) ErrorHistogram(ctx context.Context, arg ErrorHistogramParams) ([]ErrorHistogramRow, error) {
+	var b strings.Builder
+	var args []any
+	positions := make(map[uint32]int)
+	if positions[1] == 0 {
+		args = append(args, arg.Step)
+		positions[1] = len(args)
+	}
+	if positions[2] == 0 {
+		args = append(args, arg.Start)
+		positions[2] = len(args)
+	}
+	if positions[3] == 0 {
+		args = append(args, arg.End)
+		positions[3] = len(args)
+	}
+	if positions[4] == 0 {
+		args = append(args, arg.ServiceIn)
+		positions[4] = len(args)
+	}
+	if positions[5] == 0 {
+		args = append(args, arg.ServiceNot)
+		positions[5] = len(args)
+	}
+	if positions[6] == 0 {
+		args = append(args, arg.ServicePrefix)
+		positions[6] = len(args)
+	}
+	if positions[7] == 0 {
+		args = append(args, arg.EnvironmentIn)
+		positions[7] = len(args)
+	}
+	if positions[8] == 0 {
+		args = append(args, arg.EnvironmentNot)
+		positions[8] = len(args)
+	}
+	if positions[9] == 0 {
+		args = append(args, arg.EnvironmentExists)
+		positions[9] = len(args)
+	}
+	if positions[10] == 0 {
+		args = append(args, arg.ReleaseIn)
+		positions[10] = len(args)
+	}
+	if positions[11] == 0 {
+		args = append(args, arg.ReleaseNot)
+		positions[11] = len(args)
+	}
+	if positions[12] == 0 {
+		args = append(args, arg.ReleasePrefix)
+		positions[12] = len(args)
+	}
+	if positions[13] == 0 {
+		args = append(args, arg.ReleaseExists)
+		positions[13] = len(args)
+	}
+	if positions[14] == 0 {
+		args = append(args, arg.TypeIn)
+		positions[14] = len(args)
+	}
+	if positions[15] == 0 {
+		args = append(args, arg.TypeNot)
+		positions[15] = len(args)
+	}
+	if positions[16] == 0 {
+		args = append(args, arg.TypeLike)
+		positions[16] = len(args)
+	}
+	if positions[17] == 0 {
+		args = append(args, arg.TypeNotLike)
+		positions[17] = len(args)
+	}
+	if positions[18] == 0 {
+		args = append(args, arg.TypePrefix)
+		positions[18] = len(args)
+	}
+	if positions[19] == 0 {
+		args = append(args, arg.MessageIn)
+		positions[19] = len(args)
+	}
+	if positions[20] == 0 {
+		args = append(args, arg.MessageNot)
+		positions[20] = len(args)
+	}
+	if positions[21] == 0 {
+		args = append(args, arg.MessageLike)
+		positions[21] = len(args)
+	}
+	if positions[22] == 0 {
+		args = append(args, arg.MessageNotLike)
+		positions[22] = len(args)
+	}
+	if positions[23] == 0 {
+		args = append(args, arg.MessagePrefix)
+		positions[23] = len(args)
+	}
+	if positions[24] == 0 {
+		args = append(args, arg.TraceIn)
+		positions[24] = len(args)
+	}
+	if positions[25] == 0 {
+		args = append(args, arg.TraceNot)
+		positions[25] = len(args)
+	}
+	if positions[26] == 0 {
+		args = append(args, arg.TraceExists)
+		positions[26] = len(args)
+	}
+	if positions[27] == 0 {
+		args = append(args, arg.RuntimeIn)
+		positions[27] = len(args)
+	}
+	if positions[28] == 0 {
+		args = append(args, arg.RuntimeNot)
+		positions[28] = len(args)
+	}
+	if positions[29] == 0 {
+		args = append(args, arg.RuntimeExists)
+		positions[29] = len(args)
+	}
+	if positions[30] == 0 {
+		args = append(args, arg.GroupKeyIn)
+		positions[30] = len(args)
+	}
+	if positions[31] == 0 {
+		args = append(args, arg.GroupKeyNot)
+		positions[31] = len(args)
+	}
+	if positions[32] == 0 {
+		args = append(args, arg.GroupKeyExists)
+		positions[32] = len(args)
+	}
+	if positions[33] == 0 {
+		args = append(args, arg.OriginIn)
+		positions[33] = len(args)
+	}
+	if positions[34] == 0 {
+		args = append(args, arg.OriginNot)
+		positions[34] = len(args)
+	}
+	if positions[35] == 0 {
+		args = append(args, arg.FingerprintIn)
+		positions[35] = len(args)
+	}
+	if positions[36] == 0 {
+		args = append(args, arg.FingerprintNot)
+		positions[36] = len(args)
+	}
+	if positions[37] == 0 {
+		args = append(args, arg.Handled)
+		positions[37] = len(args)
+	}
+	if positions[38] == 0 {
+		args = append(args, arg.IngestIn)
+		positions[38] = len(args)
+	}
+	if positions[39] == 0 {
+		args = append(args, arg.IngestNot)
+		positions[39] = len(args)
+	}
+	if positions[40] == 0 {
+		args = append(args, arg.InstanceIn)
+		positions[40] = len(args)
+	}
+	if positions[41] == 0 {
+		args = append(args, arg.InstanceNot)
+		positions[41] = len(args)
+	}
+	if positions[42] == 0 {
+		args = append(args, arg.Text)
+		positions[42] = len(args)
+	}
+	if positions[43] == 0 {
+		args = append(args, arg.TextInStack)
+		positions[43] = len(args)
+	}
+	b.WriteString(fmt.Sprintf("SELECT date_bin($%d::interval, e.time, $%d::timestamptz)::timestamptz AS bucket, count(*)::bigint AS count\nFROM backplane.app_error e\nWHERE e.time >= $%d AND e.time < $%d\n  AND (cardinality($%d::text[]) = 0 OR e.service = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.service = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.service LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.environment = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.environment = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.environment <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.release = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.release = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.release LIKE p || '%%'))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.release <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.type = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.type = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.message = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.message = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.trace_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.trace_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.trace_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.runtime_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.runtime_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.runtime_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.group_key = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.group_key = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.group_key <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.origin = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.origin = ANY($%d::text[])))\n  AND (cardinality($%d::bytea[]) = 0 OR e.fingerprint = ANY($%d::bytea[]))\n  AND (cardinality($%d::bytea[]) = 0 OR NOT (e.fingerprint = ANY($%d::bytea[])))\n  AND ($%d::int = 0 OR ($%d::int > 0 AND e.handled IS TRUE) OR ($%d::int < 0 AND e.handled IS FALSE))\n  AND (cardinality($%d::text[]) = 0 OR e.ingest = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.ingest = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR e.instance = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.instance = ANY($%d::text[])))\n  AND ($%d::text = '' OR e.message ILIKE '%%' || $%d::text || '%%' OR e.type ILIKE '%%' || $%d::text || '%%'\n    OR ($%d::bool AND e.stacktrace ILIKE '%%' || $%d::text || '%%'))\nGROUP BY bucket\nORDER BY bucket;", positions[1], positions[2], positions[2], positions[3], positions[4], positions[4], positions[5], positions[5], positions[6], positions[6], positions[7], positions[7], positions[8], positions[8], positions[9], positions[9], positions[10], positions[10], positions[11], positions[11], positions[12], positions[12], positions[13], positions[13], positions[14], positions[14], positions[15], positions[15], positions[16], positions[16], positions[17], positions[17], positions[18], positions[18], positions[19], positions[19], positions[20], positions[20], positions[21], positions[21], positions[22], positions[22], positions[23], positions[23], positions[24], positions[24], positions[25], positions[25], positions[26], positions[26], positions[27], positions[27], positions[28], positions[28], positions[29], positions[29], positions[30], positions[30], positions[31], positions[31], positions[32], positions[32], positions[33], positions[33], positions[34], positions[34], positions[35], positions[35], positions[36], positions[36], positions[37], positions[37], positions[37], positions[38], positions[38], positions[39], positions[39], positions[40], positions[40], positions[41], positions[41], positions[42], positions[42], positions[42], positions[43], positions[42]))
+	rows, err := q.db.Query(ctx, b.String(), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ErrorHistogramRow
+	for rows.Next() {
+		var i ErrorHistogramRow
+		if err := rows.Scan(&i.Bucket, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, rows.Err()
+}
+
+type ErrorFacetServiceParams struct {
+	Start             time.Time
+	End               time.Time
+	ServiceIn         []string
+	ServiceNot        []string
+	ServicePrefix     []string
+	EnvironmentIn     []string
+	EnvironmentNot    []string
+	EnvironmentExists int32
+	ReleaseIn         []string
+	ReleaseNot        []string
+	ReleasePrefix     []string
+	ReleaseExists     int32
+	TypeIn            []string
+	TypeNot           []string
+	TypeLike          []string
+	TypeNotLike       []string
+	TypePrefix        []string
+	MessageIn         []string
+	MessageNot        []string
+	MessageLike       []string
+	MessageNotLike    []string
+	MessagePrefix     []string
+	TraceIn           []string
+	TraceNot          []string
+	TraceExists       int32
+	RuntimeIn         []string
+	RuntimeNot        []string
+	RuntimeExists     int32
+	GroupKeyIn        []string
+	GroupKeyNot       []string
+	GroupKeyExists    int32
+	OriginIn          []string
+	OriginNot         []string
+	FingerprintIn     [][]byte
+	FingerprintNot    [][]byte
+	Handled           int32
+	IngestIn          []string
+	IngestNot         []string
+	InstanceIn        []string
+	InstanceNot       []string
+	Text              string
+	TextInStack       bool
+	PageSize          int64
+}
+
+type ErrorFacetServiceRow struct {
+	Value    string
+	Count    int64
+	LastSeen *time.Time
+}
+
+func (q *Queries) ErrorFacetService(ctx context.Context, arg ErrorFacetServiceParams) ([]ErrorFacetServiceRow, error) {
+	var b strings.Builder
+	var args []any
+	positions := make(map[uint32]int)
+	if positions[1] == 0 {
+		args = append(args, arg.Start)
+		positions[1] = len(args)
+	}
+	if positions[2] == 0 {
+		args = append(args, arg.End)
+		positions[2] = len(args)
+	}
+	if positions[3] == 0 {
+		args = append(args, arg.ServiceIn)
+		positions[3] = len(args)
+	}
+	if positions[4] == 0 {
+		args = append(args, arg.ServiceNot)
+		positions[4] = len(args)
+	}
+	if positions[5] == 0 {
+		args = append(args, arg.ServicePrefix)
+		positions[5] = len(args)
+	}
+	if positions[6] == 0 {
+		args = append(args, arg.EnvironmentIn)
+		positions[6] = len(args)
+	}
+	if positions[7] == 0 {
+		args = append(args, arg.EnvironmentNot)
+		positions[7] = len(args)
+	}
+	if positions[8] == 0 {
+		args = append(args, arg.EnvironmentExists)
+		positions[8] = len(args)
+	}
+	if positions[9] == 0 {
+		args = append(args, arg.ReleaseIn)
+		positions[9] = len(args)
+	}
+	if positions[10] == 0 {
+		args = append(args, arg.ReleaseNot)
+		positions[10] = len(args)
+	}
+	if positions[11] == 0 {
+		args = append(args, arg.ReleasePrefix)
+		positions[11] = len(args)
+	}
+	if positions[12] == 0 {
+		args = append(args, arg.ReleaseExists)
+		positions[12] = len(args)
+	}
+	if positions[13] == 0 {
+		args = append(args, arg.TypeIn)
+		positions[13] = len(args)
+	}
+	if positions[14] == 0 {
+		args = append(args, arg.TypeNot)
+		positions[14] = len(args)
+	}
+	if positions[15] == 0 {
+		args = append(args, arg.TypeLike)
+		positions[15] = len(args)
+	}
+	if positions[16] == 0 {
+		args = append(args, arg.TypeNotLike)
+		positions[16] = len(args)
+	}
+	if positions[17] == 0 {
+		args = append(args, arg.TypePrefix)
+		positions[17] = len(args)
+	}
+	if positions[18] == 0 {
+		args = append(args, arg.MessageIn)
+		positions[18] = len(args)
+	}
+	if positions[19] == 0 {
+		args = append(args, arg.MessageNot)
+		positions[19] = len(args)
+	}
+	if positions[20] == 0 {
+		args = append(args, arg.MessageLike)
+		positions[20] = len(args)
+	}
+	if positions[21] == 0 {
+		args = append(args, arg.MessageNotLike)
+		positions[21] = len(args)
+	}
+	if positions[22] == 0 {
+		args = append(args, arg.MessagePrefix)
+		positions[22] = len(args)
+	}
+	if positions[23] == 0 {
+		args = append(args, arg.TraceIn)
+		positions[23] = len(args)
+	}
+	if positions[24] == 0 {
+		args = append(args, arg.TraceNot)
+		positions[24] = len(args)
+	}
+	if positions[25] == 0 {
+		args = append(args, arg.TraceExists)
+		positions[25] = len(args)
+	}
+	if positions[26] == 0 {
+		args = append(args, arg.RuntimeIn)
+		positions[26] = len(args)
+	}
+	if positions[27] == 0 {
+		args = append(args, arg.RuntimeNot)
+		positions[27] = len(args)
+	}
+	if positions[28] == 0 {
+		args = append(args, arg.RuntimeExists)
+		positions[28] = len(args)
+	}
+	if positions[29] == 0 {
+		args = append(args, arg.GroupKeyIn)
+		positions[29] = len(args)
+	}
+	if positions[30] == 0 {
+		args = append(args, arg.GroupKeyNot)
+		positions[30] = len(args)
+	}
+	if positions[31] == 0 {
+		args = append(args, arg.GroupKeyExists)
+		positions[31] = len(args)
+	}
+	if positions[32] == 0 {
+		args = append(args, arg.OriginIn)
+		positions[32] = len(args)
+	}
+	if positions[33] == 0 {
+		args = append(args, arg.OriginNot)
+		positions[33] = len(args)
+	}
+	if positions[34] == 0 {
+		args = append(args, arg.FingerprintIn)
+		positions[34] = len(args)
+	}
+	if positions[35] == 0 {
+		args = append(args, arg.FingerprintNot)
+		positions[35] = len(args)
+	}
+	if positions[36] == 0 {
+		args = append(args, arg.Handled)
+		positions[36] = len(args)
+	}
+	if positions[37] == 0 {
+		args = append(args, arg.IngestIn)
+		positions[37] = len(args)
+	}
+	if positions[38] == 0 {
+		args = append(args, arg.IngestNot)
+		positions[38] = len(args)
+	}
+	if positions[39] == 0 {
+		args = append(args, arg.InstanceIn)
+		positions[39] = len(args)
+	}
+	if positions[40] == 0 {
+		args = append(args, arg.InstanceNot)
+		positions[40] = len(args)
+	}
+	if positions[41] == 0 {
+		args = append(args, arg.Text)
+		positions[41] = len(args)
+	}
+	if positions[42] == 0 {
+		args = append(args, arg.TextInStack)
+		positions[42] = len(args)
+	}
+	if positions[43] == 0 {
+		args = append(args, arg.PageSize)
+		positions[43] = len(args)
+	}
+	b.WriteString(fmt.Sprintf("SELECT e.service::text AS value, count(*)::bigint AS count, max(e.time) AS last_seen\nFROM backplane.app_error e\nWHERE e.time >= $%d AND e.time < $%d\n  AND (cardinality($%d::text[]) = 0 OR e.service = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.service = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.service LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.environment = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.environment = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.environment <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.release = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.release = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.release LIKE p || '%%'))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.release <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.type = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.type = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.message = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.message = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.trace_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.trace_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.trace_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.runtime_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.runtime_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.runtime_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.group_key = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.group_key = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.group_key <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.origin = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.origin = ANY($%d::text[])))\n  AND (cardinality($%d::bytea[]) = 0 OR e.fingerprint = ANY($%d::bytea[]))\n  AND (cardinality($%d::bytea[]) = 0 OR NOT (e.fingerprint = ANY($%d::bytea[])))\n  AND ($%d::int = 0 OR ($%d::int > 0 AND e.handled IS TRUE) OR ($%d::int < 0 AND e.handled IS FALSE))\n  AND (cardinality($%d::text[]) = 0 OR e.ingest = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.ingest = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR e.instance = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.instance = ANY($%d::text[])))\n  AND ($%d::text = '' OR e.message ILIKE '%%' || $%d::text || '%%' OR e.type ILIKE '%%' || $%d::text || '%%'\n    OR ($%d::bool AND e.stacktrace ILIKE '%%' || $%d::text || '%%'))\nGROUP BY e.service\nORDER BY count DESC, value\nLIMIT $%d;", positions[1], positions[2], positions[3], positions[3], positions[4], positions[4], positions[5], positions[5], positions[6], positions[6], positions[7], positions[7], positions[8], positions[8], positions[9], positions[9], positions[10], positions[10], positions[11], positions[11], positions[12], positions[12], positions[13], positions[13], positions[14], positions[14], positions[15], positions[15], positions[16], positions[16], positions[17], positions[17], positions[18], positions[18], positions[19], positions[19], positions[20], positions[20], positions[21], positions[21], positions[22], positions[22], positions[23], positions[23], positions[24], positions[24], positions[25], positions[25], positions[26], positions[26], positions[27], positions[27], positions[28], positions[28], positions[29], positions[29], positions[30], positions[30], positions[31], positions[31], positions[32], positions[32], positions[33], positions[33], positions[34], positions[34], positions[35], positions[35], positions[36], positions[36], positions[36], positions[37], positions[37], positions[38], positions[38], positions[39], positions[39], positions[40], positions[40], positions[41], positions[41], positions[41], positions[42], positions[41], positions[43]))
+	rows, err := q.db.Query(ctx, b.String(), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ErrorFacetServiceRow
+	for rows.Next() {
+		var i ErrorFacetServiceRow
+		if err := rows.Scan(&i.Value, &i.Count, &i.LastSeen); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, rows.Err()
+}
+
+type ErrorFacetTypeParams struct {
+	Start             time.Time
+	End               time.Time
+	ServiceIn         []string
+	ServiceNot        []string
+	ServicePrefix     []string
+	EnvironmentIn     []string
+	EnvironmentNot    []string
+	EnvironmentExists int32
+	ReleaseIn         []string
+	ReleaseNot        []string
+	ReleasePrefix     []string
+	ReleaseExists     int32
+	TypeIn            []string
+	TypeNot           []string
+	TypeLike          []string
+	TypeNotLike       []string
+	TypePrefix        []string
+	MessageIn         []string
+	MessageNot        []string
+	MessageLike       []string
+	MessageNotLike    []string
+	MessagePrefix     []string
+	TraceIn           []string
+	TraceNot          []string
+	TraceExists       int32
+	RuntimeIn         []string
+	RuntimeNot        []string
+	RuntimeExists     int32
+	GroupKeyIn        []string
+	GroupKeyNot       []string
+	GroupKeyExists    int32
+	OriginIn          []string
+	OriginNot         []string
+	FingerprintIn     [][]byte
+	FingerprintNot    [][]byte
+	Handled           int32
+	IngestIn          []string
+	IngestNot         []string
+	InstanceIn        []string
+	InstanceNot       []string
+	Text              string
+	TextInStack       bool
+	PageSize          int64
+}
+
+type ErrorFacetTypeRow struct {
+	Value    string
+	Count    int64
+	LastSeen *time.Time
+}
+
+func (q *Queries) ErrorFacetType(ctx context.Context, arg ErrorFacetTypeParams) ([]ErrorFacetTypeRow, error) {
+	var b strings.Builder
+	var args []any
+	positions := make(map[uint32]int)
+	if positions[1] == 0 {
+		args = append(args, arg.Start)
+		positions[1] = len(args)
+	}
+	if positions[2] == 0 {
+		args = append(args, arg.End)
+		positions[2] = len(args)
+	}
+	if positions[3] == 0 {
+		args = append(args, arg.ServiceIn)
+		positions[3] = len(args)
+	}
+	if positions[4] == 0 {
+		args = append(args, arg.ServiceNot)
+		positions[4] = len(args)
+	}
+	if positions[5] == 0 {
+		args = append(args, arg.ServicePrefix)
+		positions[5] = len(args)
+	}
+	if positions[6] == 0 {
+		args = append(args, arg.EnvironmentIn)
+		positions[6] = len(args)
+	}
+	if positions[7] == 0 {
+		args = append(args, arg.EnvironmentNot)
+		positions[7] = len(args)
+	}
+	if positions[8] == 0 {
+		args = append(args, arg.EnvironmentExists)
+		positions[8] = len(args)
+	}
+	if positions[9] == 0 {
+		args = append(args, arg.ReleaseIn)
+		positions[9] = len(args)
+	}
+	if positions[10] == 0 {
+		args = append(args, arg.ReleaseNot)
+		positions[10] = len(args)
+	}
+	if positions[11] == 0 {
+		args = append(args, arg.ReleasePrefix)
+		positions[11] = len(args)
+	}
+	if positions[12] == 0 {
+		args = append(args, arg.ReleaseExists)
+		positions[12] = len(args)
+	}
+	if positions[13] == 0 {
+		args = append(args, arg.TypeIn)
+		positions[13] = len(args)
+	}
+	if positions[14] == 0 {
+		args = append(args, arg.TypeNot)
+		positions[14] = len(args)
+	}
+	if positions[15] == 0 {
+		args = append(args, arg.TypeLike)
+		positions[15] = len(args)
+	}
+	if positions[16] == 0 {
+		args = append(args, arg.TypeNotLike)
+		positions[16] = len(args)
+	}
+	if positions[17] == 0 {
+		args = append(args, arg.TypePrefix)
+		positions[17] = len(args)
+	}
+	if positions[18] == 0 {
+		args = append(args, arg.MessageIn)
+		positions[18] = len(args)
+	}
+	if positions[19] == 0 {
+		args = append(args, arg.MessageNot)
+		positions[19] = len(args)
+	}
+	if positions[20] == 0 {
+		args = append(args, arg.MessageLike)
+		positions[20] = len(args)
+	}
+	if positions[21] == 0 {
+		args = append(args, arg.MessageNotLike)
+		positions[21] = len(args)
+	}
+	if positions[22] == 0 {
+		args = append(args, arg.MessagePrefix)
+		positions[22] = len(args)
+	}
+	if positions[23] == 0 {
+		args = append(args, arg.TraceIn)
+		positions[23] = len(args)
+	}
+	if positions[24] == 0 {
+		args = append(args, arg.TraceNot)
+		positions[24] = len(args)
+	}
+	if positions[25] == 0 {
+		args = append(args, arg.TraceExists)
+		positions[25] = len(args)
+	}
+	if positions[26] == 0 {
+		args = append(args, arg.RuntimeIn)
+		positions[26] = len(args)
+	}
+	if positions[27] == 0 {
+		args = append(args, arg.RuntimeNot)
+		positions[27] = len(args)
+	}
+	if positions[28] == 0 {
+		args = append(args, arg.RuntimeExists)
+		positions[28] = len(args)
+	}
+	if positions[29] == 0 {
+		args = append(args, arg.GroupKeyIn)
+		positions[29] = len(args)
+	}
+	if positions[30] == 0 {
+		args = append(args, arg.GroupKeyNot)
+		positions[30] = len(args)
+	}
+	if positions[31] == 0 {
+		args = append(args, arg.GroupKeyExists)
+		positions[31] = len(args)
+	}
+	if positions[32] == 0 {
+		args = append(args, arg.OriginIn)
+		positions[32] = len(args)
+	}
+	if positions[33] == 0 {
+		args = append(args, arg.OriginNot)
+		positions[33] = len(args)
+	}
+	if positions[34] == 0 {
+		args = append(args, arg.FingerprintIn)
+		positions[34] = len(args)
+	}
+	if positions[35] == 0 {
+		args = append(args, arg.FingerprintNot)
+		positions[35] = len(args)
+	}
+	if positions[36] == 0 {
+		args = append(args, arg.Handled)
+		positions[36] = len(args)
+	}
+	if positions[37] == 0 {
+		args = append(args, arg.IngestIn)
+		positions[37] = len(args)
+	}
+	if positions[38] == 0 {
+		args = append(args, arg.IngestNot)
+		positions[38] = len(args)
+	}
+	if positions[39] == 0 {
+		args = append(args, arg.InstanceIn)
+		positions[39] = len(args)
+	}
+	if positions[40] == 0 {
+		args = append(args, arg.InstanceNot)
+		positions[40] = len(args)
+	}
+	if positions[41] == 0 {
+		args = append(args, arg.Text)
+		positions[41] = len(args)
+	}
+	if positions[42] == 0 {
+		args = append(args, arg.TextInStack)
+		positions[42] = len(args)
+	}
+	if positions[43] == 0 {
+		args = append(args, arg.PageSize)
+		positions[43] = len(args)
+	}
+	b.WriteString(fmt.Sprintf("SELECT e.type::text AS value, count(*)::bigint AS count, max(e.time) AS last_seen\nFROM backplane.app_error e\nWHERE e.time >= $%d AND e.time < $%d\n  AND (cardinality($%d::text[]) = 0 OR e.service = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.service = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.service LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.environment = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.environment = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.environment <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.release = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.release = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.release LIKE p || '%%'))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.release <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.type = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.type = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.message = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.message = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.trace_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.trace_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.trace_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.runtime_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.runtime_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.runtime_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.group_key = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.group_key = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.group_key <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.origin = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.origin = ANY($%d::text[])))\n  AND (cardinality($%d::bytea[]) = 0 OR e.fingerprint = ANY($%d::bytea[]))\n  AND (cardinality($%d::bytea[]) = 0 OR NOT (e.fingerprint = ANY($%d::bytea[])))\n  AND ($%d::int = 0 OR ($%d::int > 0 AND e.handled IS TRUE) OR ($%d::int < 0 AND e.handled IS FALSE))\n  AND (cardinality($%d::text[]) = 0 OR e.ingest = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.ingest = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR e.instance = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.instance = ANY($%d::text[])))\n  AND ($%d::text = '' OR e.message ILIKE '%%' || $%d::text || '%%' OR e.type ILIKE '%%' || $%d::text || '%%'\n    OR ($%d::bool AND e.stacktrace ILIKE '%%' || $%d::text || '%%'))\nGROUP BY e.type\nORDER BY count DESC, value\nLIMIT $%d;", positions[1], positions[2], positions[3], positions[3], positions[4], positions[4], positions[5], positions[5], positions[6], positions[6], positions[7], positions[7], positions[8], positions[8], positions[9], positions[9], positions[10], positions[10], positions[11], positions[11], positions[12], positions[12], positions[13], positions[13], positions[14], positions[14], positions[15], positions[15], positions[16], positions[16], positions[17], positions[17], positions[18], positions[18], positions[19], positions[19], positions[20], positions[20], positions[21], positions[21], positions[22], positions[22], positions[23], positions[23], positions[24], positions[24], positions[25], positions[25], positions[26], positions[26], positions[27], positions[27], positions[28], positions[28], positions[29], positions[29], positions[30], positions[30], positions[31], positions[31], positions[32], positions[32], positions[33], positions[33], positions[34], positions[34], positions[35], positions[35], positions[36], positions[36], positions[36], positions[37], positions[37], positions[38], positions[38], positions[39], positions[39], positions[40], positions[40], positions[41], positions[41], positions[41], positions[42], positions[41], positions[43]))
+	rows, err := q.db.Query(ctx, b.String(), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ErrorFacetTypeRow
+	for rows.Next() {
+		var i ErrorFacetTypeRow
+		if err := rows.Scan(&i.Value, &i.Count, &i.LastSeen); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, rows.Err()
+}
+
+type ErrorFacetEnvironmentParams struct {
+	Start             time.Time
+	End               time.Time
+	ServiceIn         []string
+	ServiceNot        []string
+	ServicePrefix     []string
+	EnvironmentIn     []string
+	EnvironmentNot    []string
+	EnvironmentExists int32
+	ReleaseIn         []string
+	ReleaseNot        []string
+	ReleasePrefix     []string
+	ReleaseExists     int32
+	TypeIn            []string
+	TypeNot           []string
+	TypeLike          []string
+	TypeNotLike       []string
+	TypePrefix        []string
+	MessageIn         []string
+	MessageNot        []string
+	MessageLike       []string
+	MessageNotLike    []string
+	MessagePrefix     []string
+	TraceIn           []string
+	TraceNot          []string
+	TraceExists       int32
+	RuntimeIn         []string
+	RuntimeNot        []string
+	RuntimeExists     int32
+	GroupKeyIn        []string
+	GroupKeyNot       []string
+	GroupKeyExists    int32
+	OriginIn          []string
+	OriginNot         []string
+	FingerprintIn     [][]byte
+	FingerprintNot    [][]byte
+	Handled           int32
+	IngestIn          []string
+	IngestNot         []string
+	InstanceIn        []string
+	InstanceNot       []string
+	Text              string
+	TextInStack       bool
+	PageSize          int64
+}
+
+type ErrorFacetEnvironmentRow struct {
+	Value    string
+	Count    int64
+	LastSeen *time.Time
+}
+
+func (q *Queries) ErrorFacetEnvironment(ctx context.Context, arg ErrorFacetEnvironmentParams) ([]ErrorFacetEnvironmentRow, error) {
+	var b strings.Builder
+	var args []any
+	positions := make(map[uint32]int)
+	if positions[1] == 0 {
+		args = append(args, arg.Start)
+		positions[1] = len(args)
+	}
+	if positions[2] == 0 {
+		args = append(args, arg.End)
+		positions[2] = len(args)
+	}
+	if positions[3] == 0 {
+		args = append(args, arg.ServiceIn)
+		positions[3] = len(args)
+	}
+	if positions[4] == 0 {
+		args = append(args, arg.ServiceNot)
+		positions[4] = len(args)
+	}
+	if positions[5] == 0 {
+		args = append(args, arg.ServicePrefix)
+		positions[5] = len(args)
+	}
+	if positions[6] == 0 {
+		args = append(args, arg.EnvironmentIn)
+		positions[6] = len(args)
+	}
+	if positions[7] == 0 {
+		args = append(args, arg.EnvironmentNot)
+		positions[7] = len(args)
+	}
+	if positions[8] == 0 {
+		args = append(args, arg.EnvironmentExists)
+		positions[8] = len(args)
+	}
+	if positions[9] == 0 {
+		args = append(args, arg.ReleaseIn)
+		positions[9] = len(args)
+	}
+	if positions[10] == 0 {
+		args = append(args, arg.ReleaseNot)
+		positions[10] = len(args)
+	}
+	if positions[11] == 0 {
+		args = append(args, arg.ReleasePrefix)
+		positions[11] = len(args)
+	}
+	if positions[12] == 0 {
+		args = append(args, arg.ReleaseExists)
+		positions[12] = len(args)
+	}
+	if positions[13] == 0 {
+		args = append(args, arg.TypeIn)
+		positions[13] = len(args)
+	}
+	if positions[14] == 0 {
+		args = append(args, arg.TypeNot)
+		positions[14] = len(args)
+	}
+	if positions[15] == 0 {
+		args = append(args, arg.TypeLike)
+		positions[15] = len(args)
+	}
+	if positions[16] == 0 {
+		args = append(args, arg.TypeNotLike)
+		positions[16] = len(args)
+	}
+	if positions[17] == 0 {
+		args = append(args, arg.TypePrefix)
+		positions[17] = len(args)
+	}
+	if positions[18] == 0 {
+		args = append(args, arg.MessageIn)
+		positions[18] = len(args)
+	}
+	if positions[19] == 0 {
+		args = append(args, arg.MessageNot)
+		positions[19] = len(args)
+	}
+	if positions[20] == 0 {
+		args = append(args, arg.MessageLike)
+		positions[20] = len(args)
+	}
+	if positions[21] == 0 {
+		args = append(args, arg.MessageNotLike)
+		positions[21] = len(args)
+	}
+	if positions[22] == 0 {
+		args = append(args, arg.MessagePrefix)
+		positions[22] = len(args)
+	}
+	if positions[23] == 0 {
+		args = append(args, arg.TraceIn)
+		positions[23] = len(args)
+	}
+	if positions[24] == 0 {
+		args = append(args, arg.TraceNot)
+		positions[24] = len(args)
+	}
+	if positions[25] == 0 {
+		args = append(args, arg.TraceExists)
+		positions[25] = len(args)
+	}
+	if positions[26] == 0 {
+		args = append(args, arg.RuntimeIn)
+		positions[26] = len(args)
+	}
+	if positions[27] == 0 {
+		args = append(args, arg.RuntimeNot)
+		positions[27] = len(args)
+	}
+	if positions[28] == 0 {
+		args = append(args, arg.RuntimeExists)
+		positions[28] = len(args)
+	}
+	if positions[29] == 0 {
+		args = append(args, arg.GroupKeyIn)
+		positions[29] = len(args)
+	}
+	if positions[30] == 0 {
+		args = append(args, arg.GroupKeyNot)
+		positions[30] = len(args)
+	}
+	if positions[31] == 0 {
+		args = append(args, arg.GroupKeyExists)
+		positions[31] = len(args)
+	}
+	if positions[32] == 0 {
+		args = append(args, arg.OriginIn)
+		positions[32] = len(args)
+	}
+	if positions[33] == 0 {
+		args = append(args, arg.OriginNot)
+		positions[33] = len(args)
+	}
+	if positions[34] == 0 {
+		args = append(args, arg.FingerprintIn)
+		positions[34] = len(args)
+	}
+	if positions[35] == 0 {
+		args = append(args, arg.FingerprintNot)
+		positions[35] = len(args)
+	}
+	if positions[36] == 0 {
+		args = append(args, arg.Handled)
+		positions[36] = len(args)
+	}
+	if positions[37] == 0 {
+		args = append(args, arg.IngestIn)
+		positions[37] = len(args)
+	}
+	if positions[38] == 0 {
+		args = append(args, arg.IngestNot)
+		positions[38] = len(args)
+	}
+	if positions[39] == 0 {
+		args = append(args, arg.InstanceIn)
+		positions[39] = len(args)
+	}
+	if positions[40] == 0 {
+		args = append(args, arg.InstanceNot)
+		positions[40] = len(args)
+	}
+	if positions[41] == 0 {
+		args = append(args, arg.Text)
+		positions[41] = len(args)
+	}
+	if positions[42] == 0 {
+		args = append(args, arg.TextInStack)
+		positions[42] = len(args)
+	}
+	if positions[43] == 0 {
+		args = append(args, arg.PageSize)
+		positions[43] = len(args)
+	}
+	b.WriteString(fmt.Sprintf("SELECT e.environment::text AS value, count(*)::bigint AS count, max(e.time) AS last_seen\nFROM backplane.app_error e\nWHERE e.time >= $%d AND e.time < $%d\n  AND (cardinality($%d::text[]) = 0 OR e.service = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.service = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.service LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.environment = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.environment = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.environment <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.release = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.release = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.release LIKE p || '%%'))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.release <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.type = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.type = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.message = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.message = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.trace_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.trace_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.trace_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.runtime_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.runtime_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.runtime_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.group_key = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.group_key = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.group_key <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.origin = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.origin = ANY($%d::text[])))\n  AND (cardinality($%d::bytea[]) = 0 OR e.fingerprint = ANY($%d::bytea[]))\n  AND (cardinality($%d::bytea[]) = 0 OR NOT (e.fingerprint = ANY($%d::bytea[])))\n  AND ($%d::int = 0 OR ($%d::int > 0 AND e.handled IS TRUE) OR ($%d::int < 0 AND e.handled IS FALSE))\n  AND (cardinality($%d::text[]) = 0 OR e.ingest = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.ingest = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR e.instance = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.instance = ANY($%d::text[])))\n  AND ($%d::text = '' OR e.message ILIKE '%%' || $%d::text || '%%' OR e.type ILIKE '%%' || $%d::text || '%%'\n    OR ($%d::bool AND e.stacktrace ILIKE '%%' || $%d::text || '%%'))\nGROUP BY e.environment\nORDER BY count DESC, value\nLIMIT $%d;", positions[1], positions[2], positions[3], positions[3], positions[4], positions[4], positions[5], positions[5], positions[6], positions[6], positions[7], positions[7], positions[8], positions[8], positions[9], positions[9], positions[10], positions[10], positions[11], positions[11], positions[12], positions[12], positions[13], positions[13], positions[14], positions[14], positions[15], positions[15], positions[16], positions[16], positions[17], positions[17], positions[18], positions[18], positions[19], positions[19], positions[20], positions[20], positions[21], positions[21], positions[22], positions[22], positions[23], positions[23], positions[24], positions[24], positions[25], positions[25], positions[26], positions[26], positions[27], positions[27], positions[28], positions[28], positions[29], positions[29], positions[30], positions[30], positions[31], positions[31], positions[32], positions[32], positions[33], positions[33], positions[34], positions[34], positions[35], positions[35], positions[36], positions[36], positions[36], positions[37], positions[37], positions[38], positions[38], positions[39], positions[39], positions[40], positions[40], positions[41], positions[41], positions[41], positions[42], positions[41], positions[43]))
+	rows, err := q.db.Query(ctx, b.String(), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ErrorFacetEnvironmentRow
+	for rows.Next() {
+		var i ErrorFacetEnvironmentRow
+		if err := rows.Scan(&i.Value, &i.Count, &i.LastSeen); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, rows.Err()
+}
+
+type ErrorFacetReleaseParams struct {
+	Start             time.Time
+	End               time.Time
+	ServiceIn         []string
+	ServiceNot        []string
+	ServicePrefix     []string
+	EnvironmentIn     []string
+	EnvironmentNot    []string
+	EnvironmentExists int32
+	ReleaseIn         []string
+	ReleaseNot        []string
+	ReleasePrefix     []string
+	ReleaseExists     int32
+	TypeIn            []string
+	TypeNot           []string
+	TypeLike          []string
+	TypeNotLike       []string
+	TypePrefix        []string
+	MessageIn         []string
+	MessageNot        []string
+	MessageLike       []string
+	MessageNotLike    []string
+	MessagePrefix     []string
+	TraceIn           []string
+	TraceNot          []string
+	TraceExists       int32
+	RuntimeIn         []string
+	RuntimeNot        []string
+	RuntimeExists     int32
+	GroupKeyIn        []string
+	GroupKeyNot       []string
+	GroupKeyExists    int32
+	OriginIn          []string
+	OriginNot         []string
+	FingerprintIn     [][]byte
+	FingerprintNot    [][]byte
+	Handled           int32
+	IngestIn          []string
+	IngestNot         []string
+	InstanceIn        []string
+	InstanceNot       []string
+	Text              string
+	TextInStack       bool
+	PageSize          int64
+}
+
+type ErrorFacetReleaseRow struct {
+	Value    string
+	Count    int64
+	LastSeen *time.Time
+}
+
+func (q *Queries) ErrorFacetRelease(ctx context.Context, arg ErrorFacetReleaseParams) ([]ErrorFacetReleaseRow, error) {
+	var b strings.Builder
+	var args []any
+	positions := make(map[uint32]int)
+	if positions[1] == 0 {
+		args = append(args, arg.Start)
+		positions[1] = len(args)
+	}
+	if positions[2] == 0 {
+		args = append(args, arg.End)
+		positions[2] = len(args)
+	}
+	if positions[3] == 0 {
+		args = append(args, arg.ServiceIn)
+		positions[3] = len(args)
+	}
+	if positions[4] == 0 {
+		args = append(args, arg.ServiceNot)
+		positions[4] = len(args)
+	}
+	if positions[5] == 0 {
+		args = append(args, arg.ServicePrefix)
+		positions[5] = len(args)
+	}
+	if positions[6] == 0 {
+		args = append(args, arg.EnvironmentIn)
+		positions[6] = len(args)
+	}
+	if positions[7] == 0 {
+		args = append(args, arg.EnvironmentNot)
+		positions[7] = len(args)
+	}
+	if positions[8] == 0 {
+		args = append(args, arg.EnvironmentExists)
+		positions[8] = len(args)
+	}
+	if positions[9] == 0 {
+		args = append(args, arg.ReleaseIn)
+		positions[9] = len(args)
+	}
+	if positions[10] == 0 {
+		args = append(args, arg.ReleaseNot)
+		positions[10] = len(args)
+	}
+	if positions[11] == 0 {
+		args = append(args, arg.ReleasePrefix)
+		positions[11] = len(args)
+	}
+	if positions[12] == 0 {
+		args = append(args, arg.ReleaseExists)
+		positions[12] = len(args)
+	}
+	if positions[13] == 0 {
+		args = append(args, arg.TypeIn)
+		positions[13] = len(args)
+	}
+	if positions[14] == 0 {
+		args = append(args, arg.TypeNot)
+		positions[14] = len(args)
+	}
+	if positions[15] == 0 {
+		args = append(args, arg.TypeLike)
+		positions[15] = len(args)
+	}
+	if positions[16] == 0 {
+		args = append(args, arg.TypeNotLike)
+		positions[16] = len(args)
+	}
+	if positions[17] == 0 {
+		args = append(args, arg.TypePrefix)
+		positions[17] = len(args)
+	}
+	if positions[18] == 0 {
+		args = append(args, arg.MessageIn)
+		positions[18] = len(args)
+	}
+	if positions[19] == 0 {
+		args = append(args, arg.MessageNot)
+		positions[19] = len(args)
+	}
+	if positions[20] == 0 {
+		args = append(args, arg.MessageLike)
+		positions[20] = len(args)
+	}
+	if positions[21] == 0 {
+		args = append(args, arg.MessageNotLike)
+		positions[21] = len(args)
+	}
+	if positions[22] == 0 {
+		args = append(args, arg.MessagePrefix)
+		positions[22] = len(args)
+	}
+	if positions[23] == 0 {
+		args = append(args, arg.TraceIn)
+		positions[23] = len(args)
+	}
+	if positions[24] == 0 {
+		args = append(args, arg.TraceNot)
+		positions[24] = len(args)
+	}
+	if positions[25] == 0 {
+		args = append(args, arg.TraceExists)
+		positions[25] = len(args)
+	}
+	if positions[26] == 0 {
+		args = append(args, arg.RuntimeIn)
+		positions[26] = len(args)
+	}
+	if positions[27] == 0 {
+		args = append(args, arg.RuntimeNot)
+		positions[27] = len(args)
+	}
+	if positions[28] == 0 {
+		args = append(args, arg.RuntimeExists)
+		positions[28] = len(args)
+	}
+	if positions[29] == 0 {
+		args = append(args, arg.GroupKeyIn)
+		positions[29] = len(args)
+	}
+	if positions[30] == 0 {
+		args = append(args, arg.GroupKeyNot)
+		positions[30] = len(args)
+	}
+	if positions[31] == 0 {
+		args = append(args, arg.GroupKeyExists)
+		positions[31] = len(args)
+	}
+	if positions[32] == 0 {
+		args = append(args, arg.OriginIn)
+		positions[32] = len(args)
+	}
+	if positions[33] == 0 {
+		args = append(args, arg.OriginNot)
+		positions[33] = len(args)
+	}
+	if positions[34] == 0 {
+		args = append(args, arg.FingerprintIn)
+		positions[34] = len(args)
+	}
+	if positions[35] == 0 {
+		args = append(args, arg.FingerprintNot)
+		positions[35] = len(args)
+	}
+	if positions[36] == 0 {
+		args = append(args, arg.Handled)
+		positions[36] = len(args)
+	}
+	if positions[37] == 0 {
+		args = append(args, arg.IngestIn)
+		positions[37] = len(args)
+	}
+	if positions[38] == 0 {
+		args = append(args, arg.IngestNot)
+		positions[38] = len(args)
+	}
+	if positions[39] == 0 {
+		args = append(args, arg.InstanceIn)
+		positions[39] = len(args)
+	}
+	if positions[40] == 0 {
+		args = append(args, arg.InstanceNot)
+		positions[40] = len(args)
+	}
+	if positions[41] == 0 {
+		args = append(args, arg.Text)
+		positions[41] = len(args)
+	}
+	if positions[42] == 0 {
+		args = append(args, arg.TextInStack)
+		positions[42] = len(args)
+	}
+	if positions[43] == 0 {
+		args = append(args, arg.PageSize)
+		positions[43] = len(args)
+	}
+	b.WriteString(fmt.Sprintf("SELECT e.release::text AS value, count(*)::bigint AS count, max(e.time) AS last_seen\nFROM backplane.app_error e\nWHERE e.time >= $%d AND e.time < $%d\n  AND (cardinality($%d::text[]) = 0 OR e.service = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.service = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.service LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.environment = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.environment = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.environment <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.release = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.release = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.release LIKE p || '%%'))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.release <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.type = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.type = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.message = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.message = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.trace_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.trace_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.trace_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.runtime_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.runtime_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.runtime_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.group_key = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.group_key = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.group_key <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.origin = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.origin = ANY($%d::text[])))\n  AND (cardinality($%d::bytea[]) = 0 OR e.fingerprint = ANY($%d::bytea[]))\n  AND (cardinality($%d::bytea[]) = 0 OR NOT (e.fingerprint = ANY($%d::bytea[])))\n  AND ($%d::int = 0 OR ($%d::int > 0 AND e.handled IS TRUE) OR ($%d::int < 0 AND e.handled IS FALSE))\n  AND (cardinality($%d::text[]) = 0 OR e.ingest = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.ingest = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR e.instance = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.instance = ANY($%d::text[])))\n  AND ($%d::text = '' OR e.message ILIKE '%%' || $%d::text || '%%' OR e.type ILIKE '%%' || $%d::text || '%%'\n    OR ($%d::bool AND e.stacktrace ILIKE '%%' || $%d::text || '%%'))\nGROUP BY e.release\nORDER BY count DESC, value\nLIMIT $%d;", positions[1], positions[2], positions[3], positions[3], positions[4], positions[4], positions[5], positions[5], positions[6], positions[6], positions[7], positions[7], positions[8], positions[8], positions[9], positions[9], positions[10], positions[10], positions[11], positions[11], positions[12], positions[12], positions[13], positions[13], positions[14], positions[14], positions[15], positions[15], positions[16], positions[16], positions[17], positions[17], positions[18], positions[18], positions[19], positions[19], positions[20], positions[20], positions[21], positions[21], positions[22], positions[22], positions[23], positions[23], positions[24], positions[24], positions[25], positions[25], positions[26], positions[26], positions[27], positions[27], positions[28], positions[28], positions[29], positions[29], positions[30], positions[30], positions[31], positions[31], positions[32], positions[32], positions[33], positions[33], positions[34], positions[34], positions[35], positions[35], positions[36], positions[36], positions[36], positions[37], positions[37], positions[38], positions[38], positions[39], positions[39], positions[40], positions[40], positions[41], positions[41], positions[41], positions[42], positions[41], positions[43]))
+	rows, err := q.db.Query(ctx, b.String(), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ErrorFacetReleaseRow
+	for rows.Next() {
+		var i ErrorFacetReleaseRow
+		if err := rows.Scan(&i.Value, &i.Count, &i.LastSeen); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, rows.Err()
+}
+
+type ErrorFacetOriginParams struct {
+	Start             time.Time
+	End               time.Time
+	ServiceIn         []string
+	ServiceNot        []string
+	ServicePrefix     []string
+	EnvironmentIn     []string
+	EnvironmentNot    []string
+	EnvironmentExists int32
+	ReleaseIn         []string
+	ReleaseNot        []string
+	ReleasePrefix     []string
+	ReleaseExists     int32
+	TypeIn            []string
+	TypeNot           []string
+	TypeLike          []string
+	TypeNotLike       []string
+	TypePrefix        []string
+	MessageIn         []string
+	MessageNot        []string
+	MessageLike       []string
+	MessageNotLike    []string
+	MessagePrefix     []string
+	TraceIn           []string
+	TraceNot          []string
+	TraceExists       int32
+	RuntimeIn         []string
+	RuntimeNot        []string
+	RuntimeExists     int32
+	GroupKeyIn        []string
+	GroupKeyNot       []string
+	GroupKeyExists    int32
+	OriginIn          []string
+	OriginNot         []string
+	FingerprintIn     [][]byte
+	FingerprintNot    [][]byte
+	Handled           int32
+	IngestIn          []string
+	IngestNot         []string
+	InstanceIn        []string
+	InstanceNot       []string
+	Text              string
+	TextInStack       bool
+	PageSize          int64
+}
+
+type ErrorFacetOriginRow struct {
+	Value    string
+	Count    int64
+	LastSeen *time.Time
+}
+
+func (q *Queries) ErrorFacetOrigin(ctx context.Context, arg ErrorFacetOriginParams) ([]ErrorFacetOriginRow, error) {
+	var b strings.Builder
+	var args []any
+	positions := make(map[uint32]int)
+	if positions[1] == 0 {
+		args = append(args, arg.Start)
+		positions[1] = len(args)
+	}
+	if positions[2] == 0 {
+		args = append(args, arg.End)
+		positions[2] = len(args)
+	}
+	if positions[3] == 0 {
+		args = append(args, arg.ServiceIn)
+		positions[3] = len(args)
+	}
+	if positions[4] == 0 {
+		args = append(args, arg.ServiceNot)
+		positions[4] = len(args)
+	}
+	if positions[5] == 0 {
+		args = append(args, arg.ServicePrefix)
+		positions[5] = len(args)
+	}
+	if positions[6] == 0 {
+		args = append(args, arg.EnvironmentIn)
+		positions[6] = len(args)
+	}
+	if positions[7] == 0 {
+		args = append(args, arg.EnvironmentNot)
+		positions[7] = len(args)
+	}
+	if positions[8] == 0 {
+		args = append(args, arg.EnvironmentExists)
+		positions[8] = len(args)
+	}
+	if positions[9] == 0 {
+		args = append(args, arg.ReleaseIn)
+		positions[9] = len(args)
+	}
+	if positions[10] == 0 {
+		args = append(args, arg.ReleaseNot)
+		positions[10] = len(args)
+	}
+	if positions[11] == 0 {
+		args = append(args, arg.ReleasePrefix)
+		positions[11] = len(args)
+	}
+	if positions[12] == 0 {
+		args = append(args, arg.ReleaseExists)
+		positions[12] = len(args)
+	}
+	if positions[13] == 0 {
+		args = append(args, arg.TypeIn)
+		positions[13] = len(args)
+	}
+	if positions[14] == 0 {
+		args = append(args, arg.TypeNot)
+		positions[14] = len(args)
+	}
+	if positions[15] == 0 {
+		args = append(args, arg.TypeLike)
+		positions[15] = len(args)
+	}
+	if positions[16] == 0 {
+		args = append(args, arg.TypeNotLike)
+		positions[16] = len(args)
+	}
+	if positions[17] == 0 {
+		args = append(args, arg.TypePrefix)
+		positions[17] = len(args)
+	}
+	if positions[18] == 0 {
+		args = append(args, arg.MessageIn)
+		positions[18] = len(args)
+	}
+	if positions[19] == 0 {
+		args = append(args, arg.MessageNot)
+		positions[19] = len(args)
+	}
+	if positions[20] == 0 {
+		args = append(args, arg.MessageLike)
+		positions[20] = len(args)
+	}
+	if positions[21] == 0 {
+		args = append(args, arg.MessageNotLike)
+		positions[21] = len(args)
+	}
+	if positions[22] == 0 {
+		args = append(args, arg.MessagePrefix)
+		positions[22] = len(args)
+	}
+	if positions[23] == 0 {
+		args = append(args, arg.TraceIn)
+		positions[23] = len(args)
+	}
+	if positions[24] == 0 {
+		args = append(args, arg.TraceNot)
+		positions[24] = len(args)
+	}
+	if positions[25] == 0 {
+		args = append(args, arg.TraceExists)
+		positions[25] = len(args)
+	}
+	if positions[26] == 0 {
+		args = append(args, arg.RuntimeIn)
+		positions[26] = len(args)
+	}
+	if positions[27] == 0 {
+		args = append(args, arg.RuntimeNot)
+		positions[27] = len(args)
+	}
+	if positions[28] == 0 {
+		args = append(args, arg.RuntimeExists)
+		positions[28] = len(args)
+	}
+	if positions[29] == 0 {
+		args = append(args, arg.GroupKeyIn)
+		positions[29] = len(args)
+	}
+	if positions[30] == 0 {
+		args = append(args, arg.GroupKeyNot)
+		positions[30] = len(args)
+	}
+	if positions[31] == 0 {
+		args = append(args, arg.GroupKeyExists)
+		positions[31] = len(args)
+	}
+	if positions[32] == 0 {
+		args = append(args, arg.OriginIn)
+		positions[32] = len(args)
+	}
+	if positions[33] == 0 {
+		args = append(args, arg.OriginNot)
+		positions[33] = len(args)
+	}
+	if positions[34] == 0 {
+		args = append(args, arg.FingerprintIn)
+		positions[34] = len(args)
+	}
+	if positions[35] == 0 {
+		args = append(args, arg.FingerprintNot)
+		positions[35] = len(args)
+	}
+	if positions[36] == 0 {
+		args = append(args, arg.Handled)
+		positions[36] = len(args)
+	}
+	if positions[37] == 0 {
+		args = append(args, arg.IngestIn)
+		positions[37] = len(args)
+	}
+	if positions[38] == 0 {
+		args = append(args, arg.IngestNot)
+		positions[38] = len(args)
+	}
+	if positions[39] == 0 {
+		args = append(args, arg.InstanceIn)
+		positions[39] = len(args)
+	}
+	if positions[40] == 0 {
+		args = append(args, arg.InstanceNot)
+		positions[40] = len(args)
+	}
+	if positions[41] == 0 {
+		args = append(args, arg.Text)
+		positions[41] = len(args)
+	}
+	if positions[42] == 0 {
+		args = append(args, arg.TextInStack)
+		positions[42] = len(args)
+	}
+	if positions[43] == 0 {
+		args = append(args, arg.PageSize)
+		positions[43] = len(args)
+	}
+	b.WriteString(fmt.Sprintf("SELECT e.origin::text AS value, count(*)::bigint AS count, max(e.time) AS last_seen\nFROM backplane.app_error e\nWHERE e.time >= $%d AND e.time < $%d\n  AND (cardinality($%d::text[]) = 0 OR e.service = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.service = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.service LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.environment = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.environment = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.environment <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.release = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.release = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.release LIKE p || '%%'))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.release <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.type = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.type = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.message = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.message = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.trace_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.trace_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.trace_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.runtime_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.runtime_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.runtime_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.group_key = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.group_key = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.group_key <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.origin = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.origin = ANY($%d::text[])))\n  AND (cardinality($%d::bytea[]) = 0 OR e.fingerprint = ANY($%d::bytea[]))\n  AND (cardinality($%d::bytea[]) = 0 OR NOT (e.fingerprint = ANY($%d::bytea[])))\n  AND ($%d::int = 0 OR ($%d::int > 0 AND e.handled IS TRUE) OR ($%d::int < 0 AND e.handled IS FALSE))\n  AND (cardinality($%d::text[]) = 0 OR e.ingest = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.ingest = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR e.instance = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.instance = ANY($%d::text[])))\n  AND ($%d::text = '' OR e.message ILIKE '%%' || $%d::text || '%%' OR e.type ILIKE '%%' || $%d::text || '%%'\n    OR ($%d::bool AND e.stacktrace ILIKE '%%' || $%d::text || '%%'))\nGROUP BY e.origin\nORDER BY count DESC, value\nLIMIT $%d;", positions[1], positions[2], positions[3], positions[3], positions[4], positions[4], positions[5], positions[5], positions[6], positions[6], positions[7], positions[7], positions[8], positions[8], positions[9], positions[9], positions[10], positions[10], positions[11], positions[11], positions[12], positions[12], positions[13], positions[13], positions[14], positions[14], positions[15], positions[15], positions[16], positions[16], positions[17], positions[17], positions[18], positions[18], positions[19], positions[19], positions[20], positions[20], positions[21], positions[21], positions[22], positions[22], positions[23], positions[23], positions[24], positions[24], positions[25], positions[25], positions[26], positions[26], positions[27], positions[27], positions[28], positions[28], positions[29], positions[29], positions[30], positions[30], positions[31], positions[31], positions[32], positions[32], positions[33], positions[33], positions[34], positions[34], positions[35], positions[35], positions[36], positions[36], positions[36], positions[37], positions[37], positions[38], positions[38], positions[39], positions[39], positions[40], positions[40], positions[41], positions[41], positions[41], positions[42], positions[41], positions[43]))
+	rows, err := q.db.Query(ctx, b.String(), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ErrorFacetOriginRow
+	for rows.Next() {
+		var i ErrorFacetOriginRow
+		if err := rows.Scan(&i.Value, &i.Count, &i.LastSeen); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, rows.Err()
+}
+
+type ErrorFacetIngestParams struct {
+	Start             time.Time
+	End               time.Time
+	ServiceIn         []string
+	ServiceNot        []string
+	ServicePrefix     []string
+	EnvironmentIn     []string
+	EnvironmentNot    []string
+	EnvironmentExists int32
+	ReleaseIn         []string
+	ReleaseNot        []string
+	ReleasePrefix     []string
+	ReleaseExists     int32
+	TypeIn            []string
+	TypeNot           []string
+	TypeLike          []string
+	TypeNotLike       []string
+	TypePrefix        []string
+	MessageIn         []string
+	MessageNot        []string
+	MessageLike       []string
+	MessageNotLike    []string
+	MessagePrefix     []string
+	TraceIn           []string
+	TraceNot          []string
+	TraceExists       int32
+	RuntimeIn         []string
+	RuntimeNot        []string
+	RuntimeExists     int32
+	GroupKeyIn        []string
+	GroupKeyNot       []string
+	GroupKeyExists    int32
+	OriginIn          []string
+	OriginNot         []string
+	FingerprintIn     [][]byte
+	FingerprintNot    [][]byte
+	Handled           int32
+	IngestIn          []string
+	IngestNot         []string
+	InstanceIn        []string
+	InstanceNot       []string
+	Text              string
+	TextInStack       bool
+	PageSize          int64
+}
+
+type ErrorFacetIngestRow struct {
+	Value    string
+	Count    int64
+	LastSeen *time.Time
+}
+
+func (q *Queries) ErrorFacetIngest(ctx context.Context, arg ErrorFacetIngestParams) ([]ErrorFacetIngestRow, error) {
+	var b strings.Builder
+	var args []any
+	positions := make(map[uint32]int)
+	if positions[1] == 0 {
+		args = append(args, arg.Start)
+		positions[1] = len(args)
+	}
+	if positions[2] == 0 {
+		args = append(args, arg.End)
+		positions[2] = len(args)
+	}
+	if positions[3] == 0 {
+		args = append(args, arg.ServiceIn)
+		positions[3] = len(args)
+	}
+	if positions[4] == 0 {
+		args = append(args, arg.ServiceNot)
+		positions[4] = len(args)
+	}
+	if positions[5] == 0 {
+		args = append(args, arg.ServicePrefix)
+		positions[5] = len(args)
+	}
+	if positions[6] == 0 {
+		args = append(args, arg.EnvironmentIn)
+		positions[6] = len(args)
+	}
+	if positions[7] == 0 {
+		args = append(args, arg.EnvironmentNot)
+		positions[7] = len(args)
+	}
+	if positions[8] == 0 {
+		args = append(args, arg.EnvironmentExists)
+		positions[8] = len(args)
+	}
+	if positions[9] == 0 {
+		args = append(args, arg.ReleaseIn)
+		positions[9] = len(args)
+	}
+	if positions[10] == 0 {
+		args = append(args, arg.ReleaseNot)
+		positions[10] = len(args)
+	}
+	if positions[11] == 0 {
+		args = append(args, arg.ReleasePrefix)
+		positions[11] = len(args)
+	}
+	if positions[12] == 0 {
+		args = append(args, arg.ReleaseExists)
+		positions[12] = len(args)
+	}
+	if positions[13] == 0 {
+		args = append(args, arg.TypeIn)
+		positions[13] = len(args)
+	}
+	if positions[14] == 0 {
+		args = append(args, arg.TypeNot)
+		positions[14] = len(args)
+	}
+	if positions[15] == 0 {
+		args = append(args, arg.TypeLike)
+		positions[15] = len(args)
+	}
+	if positions[16] == 0 {
+		args = append(args, arg.TypeNotLike)
+		positions[16] = len(args)
+	}
+	if positions[17] == 0 {
+		args = append(args, arg.TypePrefix)
+		positions[17] = len(args)
+	}
+	if positions[18] == 0 {
+		args = append(args, arg.MessageIn)
+		positions[18] = len(args)
+	}
+	if positions[19] == 0 {
+		args = append(args, arg.MessageNot)
+		positions[19] = len(args)
+	}
+	if positions[20] == 0 {
+		args = append(args, arg.MessageLike)
+		positions[20] = len(args)
+	}
+	if positions[21] == 0 {
+		args = append(args, arg.MessageNotLike)
+		positions[21] = len(args)
+	}
+	if positions[22] == 0 {
+		args = append(args, arg.MessagePrefix)
+		positions[22] = len(args)
+	}
+	if positions[23] == 0 {
+		args = append(args, arg.TraceIn)
+		positions[23] = len(args)
+	}
+	if positions[24] == 0 {
+		args = append(args, arg.TraceNot)
+		positions[24] = len(args)
+	}
+	if positions[25] == 0 {
+		args = append(args, arg.TraceExists)
+		positions[25] = len(args)
+	}
+	if positions[26] == 0 {
+		args = append(args, arg.RuntimeIn)
+		positions[26] = len(args)
+	}
+	if positions[27] == 0 {
+		args = append(args, arg.RuntimeNot)
+		positions[27] = len(args)
+	}
+	if positions[28] == 0 {
+		args = append(args, arg.RuntimeExists)
+		positions[28] = len(args)
+	}
+	if positions[29] == 0 {
+		args = append(args, arg.GroupKeyIn)
+		positions[29] = len(args)
+	}
+	if positions[30] == 0 {
+		args = append(args, arg.GroupKeyNot)
+		positions[30] = len(args)
+	}
+	if positions[31] == 0 {
+		args = append(args, arg.GroupKeyExists)
+		positions[31] = len(args)
+	}
+	if positions[32] == 0 {
+		args = append(args, arg.OriginIn)
+		positions[32] = len(args)
+	}
+	if positions[33] == 0 {
+		args = append(args, arg.OriginNot)
+		positions[33] = len(args)
+	}
+	if positions[34] == 0 {
+		args = append(args, arg.FingerprintIn)
+		positions[34] = len(args)
+	}
+	if positions[35] == 0 {
+		args = append(args, arg.FingerprintNot)
+		positions[35] = len(args)
+	}
+	if positions[36] == 0 {
+		args = append(args, arg.Handled)
+		positions[36] = len(args)
+	}
+	if positions[37] == 0 {
+		args = append(args, arg.IngestIn)
+		positions[37] = len(args)
+	}
+	if positions[38] == 0 {
+		args = append(args, arg.IngestNot)
+		positions[38] = len(args)
+	}
+	if positions[39] == 0 {
+		args = append(args, arg.InstanceIn)
+		positions[39] = len(args)
+	}
+	if positions[40] == 0 {
+		args = append(args, arg.InstanceNot)
+		positions[40] = len(args)
+	}
+	if positions[41] == 0 {
+		args = append(args, arg.Text)
+		positions[41] = len(args)
+	}
+	if positions[42] == 0 {
+		args = append(args, arg.TextInStack)
+		positions[42] = len(args)
+	}
+	if positions[43] == 0 {
+		args = append(args, arg.PageSize)
+		positions[43] = len(args)
+	}
+	b.WriteString(fmt.Sprintf("SELECT e.ingest::text AS value, count(*)::bigint AS count, max(e.time) AS last_seen\nFROM backplane.app_error e\nWHERE e.time >= $%d AND e.time < $%d\n  AND (cardinality($%d::text[]) = 0 OR e.service = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.service = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.service LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.environment = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.environment = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.environment <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.release = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.release = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.release LIKE p || '%%'))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.release <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.type = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.type = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.message = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.message = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.trace_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.trace_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.trace_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.runtime_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.runtime_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.runtime_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.group_key = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.group_key = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.group_key <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.origin = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.origin = ANY($%d::text[])))\n  AND (cardinality($%d::bytea[]) = 0 OR e.fingerprint = ANY($%d::bytea[]))\n  AND (cardinality($%d::bytea[]) = 0 OR NOT (e.fingerprint = ANY($%d::bytea[])))\n  AND ($%d::int = 0 OR ($%d::int > 0 AND e.handled IS TRUE) OR ($%d::int < 0 AND e.handled IS FALSE))\n  AND (cardinality($%d::text[]) = 0 OR e.ingest = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.ingest = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR e.instance = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.instance = ANY($%d::text[])))\n  AND ($%d::text = '' OR e.message ILIKE '%%' || $%d::text || '%%' OR e.type ILIKE '%%' || $%d::text || '%%'\n    OR ($%d::bool AND e.stacktrace ILIKE '%%' || $%d::text || '%%'))\nGROUP BY e.ingest\nORDER BY count DESC, value\nLIMIT $%d;", positions[1], positions[2], positions[3], positions[3], positions[4], positions[4], positions[5], positions[5], positions[6], positions[6], positions[7], positions[7], positions[8], positions[8], positions[9], positions[9], positions[10], positions[10], positions[11], positions[11], positions[12], positions[12], positions[13], positions[13], positions[14], positions[14], positions[15], positions[15], positions[16], positions[16], positions[17], positions[17], positions[18], positions[18], positions[19], positions[19], positions[20], positions[20], positions[21], positions[21], positions[22], positions[22], positions[23], positions[23], positions[24], positions[24], positions[25], positions[25], positions[26], positions[26], positions[27], positions[27], positions[28], positions[28], positions[29], positions[29], positions[30], positions[30], positions[31], positions[31], positions[32], positions[32], positions[33], positions[33], positions[34], positions[34], positions[35], positions[35], positions[36], positions[36], positions[36], positions[37], positions[37], positions[38], positions[38], positions[39], positions[39], positions[40], positions[40], positions[41], positions[41], positions[41], positions[42], positions[41], positions[43]))
+	rows, err := q.db.Query(ctx, b.String(), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ErrorFacetIngestRow
+	for rows.Next() {
+		var i ErrorFacetIngestRow
+		if err := rows.Scan(&i.Value, &i.Count, &i.LastSeen); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, rows.Err()
+}
+
+type ErrorFacetInstanceParams struct {
+	Start             time.Time
+	End               time.Time
+	ServiceIn         []string
+	ServiceNot        []string
+	ServicePrefix     []string
+	EnvironmentIn     []string
+	EnvironmentNot    []string
+	EnvironmentExists int32
+	ReleaseIn         []string
+	ReleaseNot        []string
+	ReleasePrefix     []string
+	ReleaseExists     int32
+	TypeIn            []string
+	TypeNot           []string
+	TypeLike          []string
+	TypeNotLike       []string
+	TypePrefix        []string
+	MessageIn         []string
+	MessageNot        []string
+	MessageLike       []string
+	MessageNotLike    []string
+	MessagePrefix     []string
+	TraceIn           []string
+	TraceNot          []string
+	TraceExists       int32
+	RuntimeIn         []string
+	RuntimeNot        []string
+	RuntimeExists     int32
+	GroupKeyIn        []string
+	GroupKeyNot       []string
+	GroupKeyExists    int32
+	OriginIn          []string
+	OriginNot         []string
+	FingerprintIn     [][]byte
+	FingerprintNot    [][]byte
+	Handled           int32
+	IngestIn          []string
+	IngestNot         []string
+	InstanceIn        []string
+	InstanceNot       []string
+	Text              string
+	TextInStack       bool
+	PageSize          int64
+}
+
+type ErrorFacetInstanceRow struct {
+	Value    string
+	Count    int64
+	LastSeen *time.Time
+}
+
+func (q *Queries) ErrorFacetInstance(ctx context.Context, arg ErrorFacetInstanceParams) ([]ErrorFacetInstanceRow, error) {
+	var b strings.Builder
+	var args []any
+	positions := make(map[uint32]int)
+	if positions[1] == 0 {
+		args = append(args, arg.Start)
+		positions[1] = len(args)
+	}
+	if positions[2] == 0 {
+		args = append(args, arg.End)
+		positions[2] = len(args)
+	}
+	if positions[3] == 0 {
+		args = append(args, arg.ServiceIn)
+		positions[3] = len(args)
+	}
+	if positions[4] == 0 {
+		args = append(args, arg.ServiceNot)
+		positions[4] = len(args)
+	}
+	if positions[5] == 0 {
+		args = append(args, arg.ServicePrefix)
+		positions[5] = len(args)
+	}
+	if positions[6] == 0 {
+		args = append(args, arg.EnvironmentIn)
+		positions[6] = len(args)
+	}
+	if positions[7] == 0 {
+		args = append(args, arg.EnvironmentNot)
+		positions[7] = len(args)
+	}
+	if positions[8] == 0 {
+		args = append(args, arg.EnvironmentExists)
+		positions[8] = len(args)
+	}
+	if positions[9] == 0 {
+		args = append(args, arg.ReleaseIn)
+		positions[9] = len(args)
+	}
+	if positions[10] == 0 {
+		args = append(args, arg.ReleaseNot)
+		positions[10] = len(args)
+	}
+	if positions[11] == 0 {
+		args = append(args, arg.ReleasePrefix)
+		positions[11] = len(args)
+	}
+	if positions[12] == 0 {
+		args = append(args, arg.ReleaseExists)
+		positions[12] = len(args)
+	}
+	if positions[13] == 0 {
+		args = append(args, arg.TypeIn)
+		positions[13] = len(args)
+	}
+	if positions[14] == 0 {
+		args = append(args, arg.TypeNot)
+		positions[14] = len(args)
+	}
+	if positions[15] == 0 {
+		args = append(args, arg.TypeLike)
+		positions[15] = len(args)
+	}
+	if positions[16] == 0 {
+		args = append(args, arg.TypeNotLike)
+		positions[16] = len(args)
+	}
+	if positions[17] == 0 {
+		args = append(args, arg.TypePrefix)
+		positions[17] = len(args)
+	}
+	if positions[18] == 0 {
+		args = append(args, arg.MessageIn)
+		positions[18] = len(args)
+	}
+	if positions[19] == 0 {
+		args = append(args, arg.MessageNot)
+		positions[19] = len(args)
+	}
+	if positions[20] == 0 {
+		args = append(args, arg.MessageLike)
+		positions[20] = len(args)
+	}
+	if positions[21] == 0 {
+		args = append(args, arg.MessageNotLike)
+		positions[21] = len(args)
+	}
+	if positions[22] == 0 {
+		args = append(args, arg.MessagePrefix)
+		positions[22] = len(args)
+	}
+	if positions[23] == 0 {
+		args = append(args, arg.TraceIn)
+		positions[23] = len(args)
+	}
+	if positions[24] == 0 {
+		args = append(args, arg.TraceNot)
+		positions[24] = len(args)
+	}
+	if positions[25] == 0 {
+		args = append(args, arg.TraceExists)
+		positions[25] = len(args)
+	}
+	if positions[26] == 0 {
+		args = append(args, arg.RuntimeIn)
+		positions[26] = len(args)
+	}
+	if positions[27] == 0 {
+		args = append(args, arg.RuntimeNot)
+		positions[27] = len(args)
+	}
+	if positions[28] == 0 {
+		args = append(args, arg.RuntimeExists)
+		positions[28] = len(args)
+	}
+	if positions[29] == 0 {
+		args = append(args, arg.GroupKeyIn)
+		positions[29] = len(args)
+	}
+	if positions[30] == 0 {
+		args = append(args, arg.GroupKeyNot)
+		positions[30] = len(args)
+	}
+	if positions[31] == 0 {
+		args = append(args, arg.GroupKeyExists)
+		positions[31] = len(args)
+	}
+	if positions[32] == 0 {
+		args = append(args, arg.OriginIn)
+		positions[32] = len(args)
+	}
+	if positions[33] == 0 {
+		args = append(args, arg.OriginNot)
+		positions[33] = len(args)
+	}
+	if positions[34] == 0 {
+		args = append(args, arg.FingerprintIn)
+		positions[34] = len(args)
+	}
+	if positions[35] == 0 {
+		args = append(args, arg.FingerprintNot)
+		positions[35] = len(args)
+	}
+	if positions[36] == 0 {
+		args = append(args, arg.Handled)
+		positions[36] = len(args)
+	}
+	if positions[37] == 0 {
+		args = append(args, arg.IngestIn)
+		positions[37] = len(args)
+	}
+	if positions[38] == 0 {
+		args = append(args, arg.IngestNot)
+		positions[38] = len(args)
+	}
+	if positions[39] == 0 {
+		args = append(args, arg.InstanceIn)
+		positions[39] = len(args)
+	}
+	if positions[40] == 0 {
+		args = append(args, arg.InstanceNot)
+		positions[40] = len(args)
+	}
+	if positions[41] == 0 {
+		args = append(args, arg.Text)
+		positions[41] = len(args)
+	}
+	if positions[42] == 0 {
+		args = append(args, arg.TextInStack)
+		positions[42] = len(args)
+	}
+	if positions[43] == 0 {
+		args = append(args, arg.PageSize)
+		positions[43] = len(args)
+	}
+	b.WriteString(fmt.Sprintf("SELECT e.instance::text AS value, count(*)::bigint AS count, max(e.time) AS last_seen\nFROM backplane.app_error e\nWHERE e.time >= $%d AND e.time < $%d\n  AND (cardinality($%d::text[]) = 0 OR e.service = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.service = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.service LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.environment = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.environment = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.environment <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.release = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.release = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.release LIKE p || '%%'))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.release <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.type = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.type = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.message = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.message = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.trace_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.trace_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.trace_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.runtime_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.runtime_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.runtime_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.group_key = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.group_key = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.group_key <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.origin = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.origin = ANY($%d::text[])))\n  AND (cardinality($%d::bytea[]) = 0 OR e.fingerprint = ANY($%d::bytea[]))\n  AND (cardinality($%d::bytea[]) = 0 OR NOT (e.fingerprint = ANY($%d::bytea[])))\n  AND ($%d::int = 0 OR ($%d::int > 0 AND e.handled IS TRUE) OR ($%d::int < 0 AND e.handled IS FALSE))\n  AND (cardinality($%d::text[]) = 0 OR e.ingest = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.ingest = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR e.instance = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.instance = ANY($%d::text[])))\n  AND ($%d::text = '' OR e.message ILIKE '%%' || $%d::text || '%%' OR e.type ILIKE '%%' || $%d::text || '%%'\n    OR ($%d::bool AND e.stacktrace ILIKE '%%' || $%d::text || '%%'))\nGROUP BY e.instance\nORDER BY count DESC, value\nLIMIT $%d;", positions[1], positions[2], positions[3], positions[3], positions[4], positions[4], positions[5], positions[5], positions[6], positions[6], positions[7], positions[7], positions[8], positions[8], positions[9], positions[9], positions[10], positions[10], positions[11], positions[11], positions[12], positions[12], positions[13], positions[13], positions[14], positions[14], positions[15], positions[15], positions[16], positions[16], positions[17], positions[17], positions[18], positions[18], positions[19], positions[19], positions[20], positions[20], positions[21], positions[21], positions[22], positions[22], positions[23], positions[23], positions[24], positions[24], positions[25], positions[25], positions[26], positions[26], positions[27], positions[27], positions[28], positions[28], positions[29], positions[29], positions[30], positions[30], positions[31], positions[31], positions[32], positions[32], positions[33], positions[33], positions[34], positions[34], positions[35], positions[35], positions[36], positions[36], positions[36], positions[37], positions[37], positions[38], positions[38], positions[39], positions[39], positions[40], positions[40], positions[41], positions[41], positions[41], positions[42], positions[41], positions[43]))
+	rows, err := q.db.Query(ctx, b.String(), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ErrorFacetInstanceRow
+	for rows.Next() {
+		var i ErrorFacetInstanceRow
+		if err := rows.Scan(&i.Value, &i.Count, &i.LastSeen); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, rows.Err()
+}
+
+type ErrorFacetHandledParams struct {
+	Start             time.Time
+	End               time.Time
+	ServiceIn         []string
+	ServiceNot        []string
+	ServicePrefix     []string
+	EnvironmentIn     []string
+	EnvironmentNot    []string
+	EnvironmentExists int32
+	ReleaseIn         []string
+	ReleaseNot        []string
+	ReleasePrefix     []string
+	ReleaseExists     int32
+	TypeIn            []string
+	TypeNot           []string
+	TypeLike          []string
+	TypeNotLike       []string
+	TypePrefix        []string
+	MessageIn         []string
+	MessageNot        []string
+	MessageLike       []string
+	MessageNotLike    []string
+	MessagePrefix     []string
+	TraceIn           []string
+	TraceNot          []string
+	TraceExists       int32
+	RuntimeIn         []string
+	RuntimeNot        []string
+	RuntimeExists     int32
+	GroupKeyIn        []string
+	GroupKeyNot       []string
+	GroupKeyExists    int32
+	OriginIn          []string
+	OriginNot         []string
+	FingerprintIn     [][]byte
+	FingerprintNot    [][]byte
+	Handled           int32
+	IngestIn          []string
+	IngestNot         []string
+	InstanceIn        []string
+	InstanceNot       []string
+	Text              string
+	TextInStack       bool
+	PageSize          int64
+}
+
+type ErrorFacetHandledRow struct {
+	Value    string
+	Count    int64
+	LastSeen *time.Time
+}
+
+func (q *Queries) ErrorFacetHandled(ctx context.Context, arg ErrorFacetHandledParams) ([]ErrorFacetHandledRow, error) {
+	var b strings.Builder
+	var args []any
+	positions := make(map[uint32]int)
+	if positions[1] == 0 {
+		args = append(args, arg.Start)
+		positions[1] = len(args)
+	}
+	if positions[2] == 0 {
+		args = append(args, arg.End)
+		positions[2] = len(args)
+	}
+	if positions[3] == 0 {
+		args = append(args, arg.ServiceIn)
+		positions[3] = len(args)
+	}
+	if positions[4] == 0 {
+		args = append(args, arg.ServiceNot)
+		positions[4] = len(args)
+	}
+	if positions[5] == 0 {
+		args = append(args, arg.ServicePrefix)
+		positions[5] = len(args)
+	}
+	if positions[6] == 0 {
+		args = append(args, arg.EnvironmentIn)
+		positions[6] = len(args)
+	}
+	if positions[7] == 0 {
+		args = append(args, arg.EnvironmentNot)
+		positions[7] = len(args)
+	}
+	if positions[8] == 0 {
+		args = append(args, arg.EnvironmentExists)
+		positions[8] = len(args)
+	}
+	if positions[9] == 0 {
+		args = append(args, arg.ReleaseIn)
+		positions[9] = len(args)
+	}
+	if positions[10] == 0 {
+		args = append(args, arg.ReleaseNot)
+		positions[10] = len(args)
+	}
+	if positions[11] == 0 {
+		args = append(args, arg.ReleasePrefix)
+		positions[11] = len(args)
+	}
+	if positions[12] == 0 {
+		args = append(args, arg.ReleaseExists)
+		positions[12] = len(args)
+	}
+	if positions[13] == 0 {
+		args = append(args, arg.TypeIn)
+		positions[13] = len(args)
+	}
+	if positions[14] == 0 {
+		args = append(args, arg.TypeNot)
+		positions[14] = len(args)
+	}
+	if positions[15] == 0 {
+		args = append(args, arg.TypeLike)
+		positions[15] = len(args)
+	}
+	if positions[16] == 0 {
+		args = append(args, arg.TypeNotLike)
+		positions[16] = len(args)
+	}
+	if positions[17] == 0 {
+		args = append(args, arg.TypePrefix)
+		positions[17] = len(args)
+	}
+	if positions[18] == 0 {
+		args = append(args, arg.MessageIn)
+		positions[18] = len(args)
+	}
+	if positions[19] == 0 {
+		args = append(args, arg.MessageNot)
+		positions[19] = len(args)
+	}
+	if positions[20] == 0 {
+		args = append(args, arg.MessageLike)
+		positions[20] = len(args)
+	}
+	if positions[21] == 0 {
+		args = append(args, arg.MessageNotLike)
+		positions[21] = len(args)
+	}
+	if positions[22] == 0 {
+		args = append(args, arg.MessagePrefix)
+		positions[22] = len(args)
+	}
+	if positions[23] == 0 {
+		args = append(args, arg.TraceIn)
+		positions[23] = len(args)
+	}
+	if positions[24] == 0 {
+		args = append(args, arg.TraceNot)
+		positions[24] = len(args)
+	}
+	if positions[25] == 0 {
+		args = append(args, arg.TraceExists)
+		positions[25] = len(args)
+	}
+	if positions[26] == 0 {
+		args = append(args, arg.RuntimeIn)
+		positions[26] = len(args)
+	}
+	if positions[27] == 0 {
+		args = append(args, arg.RuntimeNot)
+		positions[27] = len(args)
+	}
+	if positions[28] == 0 {
+		args = append(args, arg.RuntimeExists)
+		positions[28] = len(args)
+	}
+	if positions[29] == 0 {
+		args = append(args, arg.GroupKeyIn)
+		positions[29] = len(args)
+	}
+	if positions[30] == 0 {
+		args = append(args, arg.GroupKeyNot)
+		positions[30] = len(args)
+	}
+	if positions[31] == 0 {
+		args = append(args, arg.GroupKeyExists)
+		positions[31] = len(args)
+	}
+	if positions[32] == 0 {
+		args = append(args, arg.OriginIn)
+		positions[32] = len(args)
+	}
+	if positions[33] == 0 {
+		args = append(args, arg.OriginNot)
+		positions[33] = len(args)
+	}
+	if positions[34] == 0 {
+		args = append(args, arg.FingerprintIn)
+		positions[34] = len(args)
+	}
+	if positions[35] == 0 {
+		args = append(args, arg.FingerprintNot)
+		positions[35] = len(args)
+	}
+	if positions[36] == 0 {
+		args = append(args, arg.Handled)
+		positions[36] = len(args)
+	}
+	if positions[37] == 0 {
+		args = append(args, arg.IngestIn)
+		positions[37] = len(args)
+	}
+	if positions[38] == 0 {
+		args = append(args, arg.IngestNot)
+		positions[38] = len(args)
+	}
+	if positions[39] == 0 {
+		args = append(args, arg.InstanceIn)
+		positions[39] = len(args)
+	}
+	if positions[40] == 0 {
+		args = append(args, arg.InstanceNot)
+		positions[40] = len(args)
+	}
+	if positions[41] == 0 {
+		args = append(args, arg.Text)
+		positions[41] = len(args)
+	}
+	if positions[42] == 0 {
+		args = append(args, arg.TextInStack)
+		positions[42] = len(args)
+	}
+	if positions[43] == 0 {
+		args = append(args, arg.PageSize)
+		positions[43] = len(args)
+	}
+	b.WriteString(fmt.Sprintf("SELECT CASE WHEN e.handled IS TRUE THEN 'true' ELSE 'false' END::text AS value,\n  count(*)::bigint AS count, max(e.time) AS last_seen\nFROM backplane.app_error e\nWHERE e.time >= $%d AND e.time < $%d AND e.handled IS NOT NULL\n  AND (cardinality($%d::text[]) = 0 OR e.service = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.service = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.service LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.environment = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.environment = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.environment <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.release = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.release = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.release LIKE p || '%%'))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.release <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.type = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.type = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.message = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.message = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.trace_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.trace_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.trace_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.runtime_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.runtime_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.runtime_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.group_key = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.group_key = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.group_key <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.origin = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.origin = ANY($%d::text[])))\n  AND (cardinality($%d::bytea[]) = 0 OR e.fingerprint = ANY($%d::bytea[]))\n  AND (cardinality($%d::bytea[]) = 0 OR NOT (e.fingerprint = ANY($%d::bytea[])))\n  AND ($%d::int = 0 OR ($%d::int > 0 AND e.handled IS TRUE) OR ($%d::int < 0 AND e.handled IS FALSE))\n  AND (cardinality($%d::text[]) = 0 OR e.ingest = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.ingest = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR e.instance = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.instance = ANY($%d::text[])))\n  AND ($%d::text = '' OR e.message ILIKE '%%' || $%d::text || '%%' OR e.type ILIKE '%%' || $%d::text || '%%'\n    OR ($%d::bool AND e.stacktrace ILIKE '%%' || $%d::text || '%%'))\nGROUP BY 1\nORDER BY count DESC, value\nLIMIT $%d;", positions[1], positions[2], positions[3], positions[3], positions[4], positions[4], positions[5], positions[5], positions[6], positions[6], positions[7], positions[7], positions[8], positions[8], positions[9], positions[9], positions[10], positions[10], positions[11], positions[11], positions[12], positions[12], positions[13], positions[13], positions[14], positions[14], positions[15], positions[15], positions[16], positions[16], positions[17], positions[17], positions[18], positions[18], positions[19], positions[19], positions[20], positions[20], positions[21], positions[21], positions[22], positions[22], positions[23], positions[23], positions[24], positions[24], positions[25], positions[25], positions[26], positions[26], positions[27], positions[27], positions[28], positions[28], positions[29], positions[29], positions[30], positions[30], positions[31], positions[31], positions[32], positions[32], positions[33], positions[33], positions[34], positions[34], positions[35], positions[35], positions[36], positions[36], positions[36], positions[37], positions[37], positions[38], positions[38], positions[39], positions[39], positions[40], positions[40], positions[41], positions[41], positions[41], positions[42], positions[41], positions[43]))
+	rows, err := q.db.Query(ctx, b.String(), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ErrorFacetHandledRow
+	for rows.Next() {
+		var i ErrorFacetHandledRow
+		if err := rows.Scan(&i.Value, &i.Count, &i.LastSeen); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, rows.Err()
+}
+
+type SearchErrorGroupsParams struct {
+	Start             time.Time
+	End               time.Time
+	ServiceIn         []string
+	ServiceNot        []string
+	ServicePrefix     []string
+	EnvironmentIn     []string
+	EnvironmentNot    []string
+	EnvironmentExists int32
+	ReleaseIn         []string
+	ReleaseNot        []string
+	ReleasePrefix     []string
+	ReleaseExists     int32
+	TypeIn            []string
+	TypeNot           []string
+	TypeLike          []string
+	TypeNotLike       []string
+	TypePrefix        []string
+	MessageIn         []string
+	MessageNot        []string
+	MessageLike       []string
+	MessageNotLike    []string
+	MessagePrefix     []string
+	TraceIn           []string
+	TraceNot          []string
+	TraceExists       int32
+	RuntimeIn         []string
+	RuntimeNot        []string
+	RuntimeExists     int32
+	GroupKeyIn        []string
+	GroupKeyNot       []string
+	GroupKeyExists    int32
+	OriginIn          []string
+	OriginNot         []string
+	FingerprintIn     [][]byte
+	FingerprintNot    [][]byte
+	Handled           int32
+	IngestIn          []string
+	IngestNot         []string
+	InstanceIn        []string
+	InstanceNot       []string
+	Text              string
+	TextInStack       bool
+	StateIn           []string
+	Sort              int32
+	PageSize          int64
+	PageOffset        int64
+}
+
+type SearchErrorGroupsRow struct {
+	Fingerprint  []byte
+	Service      string
+	Type         string
+	Message      string
+	FirstSeen    time.Time
+	LastSeen     time.Time
+	Count        int64
+	Stored       int64
+	State        string
+	StateAt      *time.Time
+	StateBy      string
+	StateNote    string
+	RegressedAt  *time.Time
+	CountInRange int64
+	NewestTime   *time.Time
+	NewestID     *uuid.UUID
+	AnySdk       *bool
+	AnyUnhandled *bool
+	Environments []string
+	Releases     []string
+}
+
+func (q *Queries) SearchErrorGroups(ctx context.Context, arg SearchErrorGroupsParams) ([]SearchErrorGroupsRow, error) {
+	var b strings.Builder
+	var args []any
+	positions := make(map[uint32]int)
+	if positions[1] == 0 {
+		args = append(args, arg.Start)
+		positions[1] = len(args)
+	}
+	if positions[2] == 0 {
+		args = append(args, arg.End)
+		positions[2] = len(args)
+	}
+	if positions[3] == 0 {
+		args = append(args, arg.ServiceIn)
+		positions[3] = len(args)
+	}
+	if positions[4] == 0 {
+		args = append(args, arg.ServiceNot)
+		positions[4] = len(args)
+	}
+	if positions[5] == 0 {
+		args = append(args, arg.ServicePrefix)
+		positions[5] = len(args)
+	}
+	if positions[6] == 0 {
+		args = append(args, arg.EnvironmentIn)
+		positions[6] = len(args)
+	}
+	if positions[7] == 0 {
+		args = append(args, arg.EnvironmentNot)
+		positions[7] = len(args)
+	}
+	if positions[8] == 0 {
+		args = append(args, arg.EnvironmentExists)
+		positions[8] = len(args)
+	}
+	if positions[9] == 0 {
+		args = append(args, arg.ReleaseIn)
+		positions[9] = len(args)
+	}
+	if positions[10] == 0 {
+		args = append(args, arg.ReleaseNot)
+		positions[10] = len(args)
+	}
+	if positions[11] == 0 {
+		args = append(args, arg.ReleasePrefix)
+		positions[11] = len(args)
+	}
+	if positions[12] == 0 {
+		args = append(args, arg.ReleaseExists)
+		positions[12] = len(args)
+	}
+	if positions[13] == 0 {
+		args = append(args, arg.TypeIn)
+		positions[13] = len(args)
+	}
+	if positions[14] == 0 {
+		args = append(args, arg.TypeNot)
+		positions[14] = len(args)
+	}
+	if positions[15] == 0 {
+		args = append(args, arg.TypeLike)
+		positions[15] = len(args)
+	}
+	if positions[16] == 0 {
+		args = append(args, arg.TypeNotLike)
+		positions[16] = len(args)
+	}
+	if positions[17] == 0 {
+		args = append(args, arg.TypePrefix)
+		positions[17] = len(args)
+	}
+	if positions[18] == 0 {
+		args = append(args, arg.MessageIn)
+		positions[18] = len(args)
+	}
+	if positions[19] == 0 {
+		args = append(args, arg.MessageNot)
+		positions[19] = len(args)
+	}
+	if positions[20] == 0 {
+		args = append(args, arg.MessageLike)
+		positions[20] = len(args)
+	}
+	if positions[21] == 0 {
+		args = append(args, arg.MessageNotLike)
+		positions[21] = len(args)
+	}
+	if positions[22] == 0 {
+		args = append(args, arg.MessagePrefix)
+		positions[22] = len(args)
+	}
+	if positions[23] == 0 {
+		args = append(args, arg.TraceIn)
+		positions[23] = len(args)
+	}
+	if positions[24] == 0 {
+		args = append(args, arg.TraceNot)
+		positions[24] = len(args)
+	}
+	if positions[25] == 0 {
+		args = append(args, arg.TraceExists)
+		positions[25] = len(args)
+	}
+	if positions[26] == 0 {
+		args = append(args, arg.RuntimeIn)
+		positions[26] = len(args)
+	}
+	if positions[27] == 0 {
+		args = append(args, arg.RuntimeNot)
+		positions[27] = len(args)
+	}
+	if positions[28] == 0 {
+		args = append(args, arg.RuntimeExists)
+		positions[28] = len(args)
+	}
+	if positions[29] == 0 {
+		args = append(args, arg.GroupKeyIn)
+		positions[29] = len(args)
+	}
+	if positions[30] == 0 {
+		args = append(args, arg.GroupKeyNot)
+		positions[30] = len(args)
+	}
+	if positions[31] == 0 {
+		args = append(args, arg.GroupKeyExists)
+		positions[31] = len(args)
+	}
+	if positions[32] == 0 {
+		args = append(args, arg.OriginIn)
+		positions[32] = len(args)
+	}
+	if positions[33] == 0 {
+		args = append(args, arg.OriginNot)
+		positions[33] = len(args)
+	}
+	if positions[34] == 0 {
+		args = append(args, arg.FingerprintIn)
+		positions[34] = len(args)
+	}
+	if positions[35] == 0 {
+		args = append(args, arg.FingerprintNot)
+		positions[35] = len(args)
+	}
+	if positions[36] == 0 {
+		args = append(args, arg.Handled)
+		positions[36] = len(args)
+	}
+	if positions[37] == 0 {
+		args = append(args, arg.IngestIn)
+		positions[37] = len(args)
+	}
+	if positions[38] == 0 {
+		args = append(args, arg.IngestNot)
+		positions[38] = len(args)
+	}
+	if positions[39] == 0 {
+		args = append(args, arg.InstanceIn)
+		positions[39] = len(args)
+	}
+	if positions[40] == 0 {
+		args = append(args, arg.InstanceNot)
+		positions[40] = len(args)
+	}
+	if positions[41] == 0 {
+		args = append(args, arg.Text)
+		positions[41] = len(args)
+	}
+	if positions[42] == 0 {
+		args = append(args, arg.TextInStack)
+		positions[42] = len(args)
+	}
+	if positions[43] == 0 {
+		args = append(args, arg.StateIn)
+		positions[43] = len(args)
+	}
+	if positions[44] == 0 {
+		args = append(args, arg.Sort)
+		positions[44] = len(args)
+	}
+	if positions[45] == 0 {
+		args = append(args, arg.PageSize)
+		positions[45] = len(args)
+	}
+	if positions[46] == 0 {
+		args = append(args, arg.PageOffset)
+		positions[46] = len(args)
+	}
+	b.WriteString(fmt.Sprintf("-- Groups with stored occurrences in the range: counts over the range, the\n-- group's totals, the newest occurrence and what was seen, sorted as asked\n-- (1: last seen, 2: count in range, 3: first seen).\nSELECT g.fingerprint, g.service, g.type, g.message, g.first_seen, g.last_seen, g.count, g.stored,\n  g.state, g.state_at, g.state_by, g.state_note, g.regressed_at,\n  r.count_in_range, r.newest_time, r.newest_id, r.any_sdk, r.any_unhandled, r.environments, r.releases\nFROM (\n  SELECT e.fingerprint, e.service, count(*)::bigint AS count_in_range, max(e.time) AS newest_time,\n    ((array_agg(e.id ORDER BY e.time DESC, e.id DESC))[1])::uuid AS newest_id,\n    bool_or(e.origin = 'sdk') AS any_sdk, bool_or(e.handled IS FALSE) AS any_unhandled,\n    (SELECT array_agg(v ORDER BY c DESC, v) FROM (SELECT x.environment AS v, count(*) AS c FROM unnest(array_agg(e.environment)) AS x(environment)\n      WHERE x.environment <> '' GROUP BY x.environment LIMIT 5) AS envs)::text[] AS environments,\n    (SELECT array_agg(v ORDER BY c DESC, v) FROM (SELECT x.release AS v, count(*) AS c FROM unnest(array_agg(e.release)) AS x(release)\n      WHERE x.release <> '' GROUP BY x.release LIMIT 5) AS rels)::text[] AS releases\n  FROM backplane.app_error e\n  WHERE e.time >= $%d AND e.time < $%d\n  AND (cardinality($%d::text[]) = 0 OR e.service = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.service = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.service LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.environment = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.environment = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.environment <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.release = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.release = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.release LIKE p || '%%'))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.release <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.type = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.type = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.message = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.message = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.trace_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.trace_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.trace_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.runtime_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.runtime_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.runtime_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.group_key = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.group_key = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.group_key <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.origin = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.origin = ANY($%d::text[])))\n  AND (cardinality($%d::bytea[]) = 0 OR e.fingerprint = ANY($%d::bytea[]))\n  AND (cardinality($%d::bytea[]) = 0 OR NOT (e.fingerprint = ANY($%d::bytea[])))\n  AND ($%d::int = 0 OR ($%d::int > 0 AND e.handled IS TRUE) OR ($%d::int < 0 AND e.handled IS FALSE))\n  AND (cardinality($%d::text[]) = 0 OR e.ingest = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.ingest = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR e.instance = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.instance = ANY($%d::text[])))\n  AND ($%d::text = '' OR e.message ILIKE '%%' || $%d::text || '%%' OR e.type ILIKE '%%' || $%d::text || '%%'\n    OR ($%d::bool AND e.stacktrace ILIKE '%%' || $%d::text || '%%'))\n  GROUP BY e.fingerprint, e.service\n) r\nJOIN backplane.app_error_group g ON g.fingerprint = r.fingerprint AND g.service = r.service\nWHERE cardinality($%d::text[]) = 0 OR g.state = ANY($%d::text[])\nORDER BY\n  CASE WHEN $%d::int = 2 THEN r.count_in_range END DESC,\n  CASE WHEN $%d::int = 3 THEN g.first_seen END DESC,\n  r.newest_time DESC, g.fingerprint DESC\nLIMIT $%d OFFSET $%d;", positions[1], positions[2], positions[3], positions[3], positions[4], positions[4], positions[5], positions[5], positions[6], positions[6], positions[7], positions[7], positions[8], positions[8], positions[9], positions[9], positions[10], positions[10], positions[11], positions[11], positions[12], positions[12], positions[13], positions[13], positions[14], positions[14], positions[15], positions[15], positions[16], positions[16], positions[17], positions[17], positions[18], positions[18], positions[19], positions[19], positions[20], positions[20], positions[21], positions[21], positions[22], positions[22], positions[23], positions[23], positions[24], positions[24], positions[25], positions[25], positions[26], positions[26], positions[27], positions[27], positions[28], positions[28], positions[29], positions[29], positions[30], positions[30], positions[31], positions[31], positions[32], positions[32], positions[33], positions[33], positions[34], positions[34], positions[35], positions[35], positions[36], positions[36], positions[36], positions[37], positions[37], positions[38], positions[38], positions[39], positions[39], positions[40], positions[40], positions[41], positions[41], positions[41], positions[42], positions[41], positions[43], positions[43], positions[44], positions[44], positions[45], positions[46]))
+	rows, err := q.db.Query(ctx, b.String(), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchErrorGroupsRow
+	for rows.Next() {
+		var i SearchErrorGroupsRow
+		if err := rows.Scan(&i.Fingerprint, &i.Service, &i.Type, &i.Message, &i.FirstSeen, &i.LastSeen, &i.Count, &i.Stored, &i.State, &i.StateAt, &i.StateBy, &i.StateNote, &i.RegressedAt, &i.CountInRange, &i.NewestTime, &i.NewestID, &i.AnySdk, &i.AnyUnhandled, &i.Environments, &i.Releases); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, rows.Err()
+}
+
+type ErrorGroupTrendsParams struct {
+	Step              pgtype.Interval
+	Start             time.Time
+	End               time.Time
+	ServiceIn         []string
+	ServiceNot        []string
+	ServicePrefix     []string
+	EnvironmentIn     []string
+	EnvironmentNot    []string
+	EnvironmentExists int32
+	ReleaseIn         []string
+	ReleaseNot        []string
+	ReleasePrefix     []string
+	ReleaseExists     int32
+	TypeIn            []string
+	TypeNot           []string
+	TypeLike          []string
+	TypeNotLike       []string
+	TypePrefix        []string
+	MessageIn         []string
+	MessageNot        []string
+	MessageLike       []string
+	MessageNotLike    []string
+	MessagePrefix     []string
+	TraceIn           []string
+	TraceNot          []string
+	TraceExists       int32
+	RuntimeIn         []string
+	RuntimeNot        []string
+	RuntimeExists     int32
+	GroupKeyIn        []string
+	GroupKeyNot       []string
+	GroupKeyExists    int32
+	OriginIn          []string
+	OriginNot         []string
+	FingerprintIn     [][]byte
+	FingerprintNot    [][]byte
+	Handled           int32
+	IngestIn          []string
+	IngestNot         []string
+	InstanceIn        []string
+	InstanceNot       []string
+	Text              string
+	TextInStack       bool
+	Fingerprints      [][]byte
+}
+
+type ErrorGroupTrendsRow struct {
+	Fingerprint []byte
+	Service     string
+	Bucket      *time.Time
+	Count       int64
+}
+
+func (q *Queries) ErrorGroupTrends(ctx context.Context, arg ErrorGroupTrendsParams) ([]ErrorGroupTrendsRow, error) {
+	var b strings.Builder
+	var args []any
+	positions := make(map[uint32]int)
+	if positions[1] == 0 {
+		args = append(args, arg.Step)
+		positions[1] = len(args)
+	}
+	if positions[2] == 0 {
+		args = append(args, arg.Start)
+		positions[2] = len(args)
+	}
+	if positions[3] == 0 {
+		args = append(args, arg.End)
+		positions[3] = len(args)
+	}
+	if positions[4] == 0 {
+		args = append(args, arg.ServiceIn)
+		positions[4] = len(args)
+	}
+	if positions[5] == 0 {
+		args = append(args, arg.ServiceNot)
+		positions[5] = len(args)
+	}
+	if positions[6] == 0 {
+		args = append(args, arg.ServicePrefix)
+		positions[6] = len(args)
+	}
+	if positions[7] == 0 {
+		args = append(args, arg.EnvironmentIn)
+		positions[7] = len(args)
+	}
+	if positions[8] == 0 {
+		args = append(args, arg.EnvironmentNot)
+		positions[8] = len(args)
+	}
+	if positions[9] == 0 {
+		args = append(args, arg.EnvironmentExists)
+		positions[9] = len(args)
+	}
+	if positions[10] == 0 {
+		args = append(args, arg.ReleaseIn)
+		positions[10] = len(args)
+	}
+	if positions[11] == 0 {
+		args = append(args, arg.ReleaseNot)
+		positions[11] = len(args)
+	}
+	if positions[12] == 0 {
+		args = append(args, arg.ReleasePrefix)
+		positions[12] = len(args)
+	}
+	if positions[13] == 0 {
+		args = append(args, arg.ReleaseExists)
+		positions[13] = len(args)
+	}
+	if positions[14] == 0 {
+		args = append(args, arg.TypeIn)
+		positions[14] = len(args)
+	}
+	if positions[15] == 0 {
+		args = append(args, arg.TypeNot)
+		positions[15] = len(args)
+	}
+	if positions[16] == 0 {
+		args = append(args, arg.TypeLike)
+		positions[16] = len(args)
+	}
+	if positions[17] == 0 {
+		args = append(args, arg.TypeNotLike)
+		positions[17] = len(args)
+	}
+	if positions[18] == 0 {
+		args = append(args, arg.TypePrefix)
+		positions[18] = len(args)
+	}
+	if positions[19] == 0 {
+		args = append(args, arg.MessageIn)
+		positions[19] = len(args)
+	}
+	if positions[20] == 0 {
+		args = append(args, arg.MessageNot)
+		positions[20] = len(args)
+	}
+	if positions[21] == 0 {
+		args = append(args, arg.MessageLike)
+		positions[21] = len(args)
+	}
+	if positions[22] == 0 {
+		args = append(args, arg.MessageNotLike)
+		positions[22] = len(args)
+	}
+	if positions[23] == 0 {
+		args = append(args, arg.MessagePrefix)
+		positions[23] = len(args)
+	}
+	if positions[24] == 0 {
+		args = append(args, arg.TraceIn)
+		positions[24] = len(args)
+	}
+	if positions[25] == 0 {
+		args = append(args, arg.TraceNot)
+		positions[25] = len(args)
+	}
+	if positions[26] == 0 {
+		args = append(args, arg.TraceExists)
+		positions[26] = len(args)
+	}
+	if positions[27] == 0 {
+		args = append(args, arg.RuntimeIn)
+		positions[27] = len(args)
+	}
+	if positions[28] == 0 {
+		args = append(args, arg.RuntimeNot)
+		positions[28] = len(args)
+	}
+	if positions[29] == 0 {
+		args = append(args, arg.RuntimeExists)
+		positions[29] = len(args)
+	}
+	if positions[30] == 0 {
+		args = append(args, arg.GroupKeyIn)
+		positions[30] = len(args)
+	}
+	if positions[31] == 0 {
+		args = append(args, arg.GroupKeyNot)
+		positions[31] = len(args)
+	}
+	if positions[32] == 0 {
+		args = append(args, arg.GroupKeyExists)
+		positions[32] = len(args)
+	}
+	if positions[33] == 0 {
+		args = append(args, arg.OriginIn)
+		positions[33] = len(args)
+	}
+	if positions[34] == 0 {
+		args = append(args, arg.OriginNot)
+		positions[34] = len(args)
+	}
+	if positions[35] == 0 {
+		args = append(args, arg.FingerprintIn)
+		positions[35] = len(args)
+	}
+	if positions[36] == 0 {
+		args = append(args, arg.FingerprintNot)
+		positions[36] = len(args)
+	}
+	if positions[37] == 0 {
+		args = append(args, arg.Handled)
+		positions[37] = len(args)
+	}
+	if positions[38] == 0 {
+		args = append(args, arg.IngestIn)
+		positions[38] = len(args)
+	}
+	if positions[39] == 0 {
+		args = append(args, arg.IngestNot)
+		positions[39] = len(args)
+	}
+	if positions[40] == 0 {
+		args = append(args, arg.InstanceIn)
+		positions[40] = len(args)
+	}
+	if positions[41] == 0 {
+		args = append(args, arg.InstanceNot)
+		positions[41] = len(args)
+	}
+	if positions[42] == 0 {
+		args = append(args, arg.Text)
+		positions[42] = len(args)
+	}
+	if positions[43] == 0 {
+		args = append(args, arg.TextInStack)
+		positions[43] = len(args)
+	}
+	if positions[44] == 0 {
+		args = append(args, arg.Fingerprints)
+		positions[44] = len(args)
+	}
+	b.WriteString(fmt.Sprintf("-- Stored occurrences per bucket of the range for the given groups.\nSELECT e.fingerprint, e.service, date_bin($%d::interval, e.time, $%d::timestamptz)::timestamptz AS bucket, count(*)::bigint AS count\nFROM backplane.app_error e\nWHERE e.time >= $%d AND e.time < $%d\n  AND (cardinality($%d::text[]) = 0 OR e.service = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.service = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.service LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.environment = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.environment = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.environment <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.release = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.release = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.release LIKE p || '%%'))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.release <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.type = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.type = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.type LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.message = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.message = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message ILIKE '%%' || p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($%d::text[]) p WHERE e.message LIKE p || '%%'))\n  AND (cardinality($%d::text[]) = 0 OR e.trace_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.trace_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.trace_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.runtime_id = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.runtime_id = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.runtime_id <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.group_key = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.group_key = ANY($%d::text[])))\n  AND ($%d::int = 0 OR ($%d::int > 0) = (e.group_key <> ''))\n  AND (cardinality($%d::text[]) = 0 OR e.origin = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.origin = ANY($%d::text[])))\n  AND (cardinality($%d::bytea[]) = 0 OR e.fingerprint = ANY($%d::bytea[]))\n  AND (cardinality($%d::bytea[]) = 0 OR NOT (e.fingerprint = ANY($%d::bytea[])))\n  AND ($%d::int = 0 OR ($%d::int > 0 AND e.handled IS TRUE) OR ($%d::int < 0 AND e.handled IS FALSE))\n  AND (cardinality($%d::text[]) = 0 OR e.ingest = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.ingest = ANY($%d::text[])))\n  AND (cardinality($%d::text[]) = 0 OR e.instance = ANY($%d::text[]))\n  AND (cardinality($%d::text[]) = 0 OR NOT (e.instance = ANY($%d::text[])))\n  AND ($%d::text = '' OR e.message ILIKE '%%' || $%d::text || '%%' OR e.type ILIKE '%%' || $%d::text || '%%'\n    OR ($%d::bool AND e.stacktrace ILIKE '%%' || $%d::text || '%%'))\n  AND e.fingerprint = ANY($%d::bytea[])\nGROUP BY e.fingerprint, e.service, bucket\nORDER BY e.fingerprint, e.service, bucket;", positions[1], positions[2], positions[2], positions[3], positions[4], positions[4], positions[5], positions[5], positions[6], positions[6], positions[7], positions[7], positions[8], positions[8], positions[9], positions[9], positions[10], positions[10], positions[11], positions[11], positions[12], positions[12], positions[13], positions[13], positions[14], positions[14], positions[15], positions[15], positions[16], positions[16], positions[17], positions[17], positions[18], positions[18], positions[19], positions[19], positions[20], positions[20], positions[21], positions[21], positions[22], positions[22], positions[23], positions[23], positions[24], positions[24], positions[25], positions[25], positions[26], positions[26], positions[27], positions[27], positions[28], positions[28], positions[29], positions[29], positions[30], positions[30], positions[31], positions[31], positions[32], positions[32], positions[33], positions[33], positions[34], positions[34], positions[35], positions[35], positions[36], positions[36], positions[37], positions[37], positions[37], positions[38], positions[38], positions[39], positions[39], positions[40], positions[40], positions[41], positions[41], positions[42], positions[42], positions[42], positions[43], positions[42], positions[44]))
+	rows, err := q.db.Query(ctx, b.String(), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ErrorGroupTrendsRow
+	for rows.Next() {
+		var i ErrorGroupTrendsRow
+		if err := rows.Scan(&i.Fingerprint, &i.Service, &i.Bucket, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, rows.Err()
 }
 
 type SearchAuditParams struct {

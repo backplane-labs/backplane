@@ -26,9 +26,11 @@ The proxy treats signal payloads as opaque bytes. It never parses or re-encodes
 OTLP messages, reserves attribute names, injects storage metadata, duplicates
 records or archives metric points. It marks every forwarded request with the
 header `X-Backplane-Ingest: proxy` (replacing any the client sent): the
-Collector's application audit pipeline drops audit records that came this way,
-so browsers and public ingest keys cannot write audit
-([audit-api.md](audit-api.md#application-audit)). Gzip is decoded only to enforce the body
+Collector's backplane pipeline drops audit records that came this way, so
+browsers and public ingest keys cannot write audit
+([audit-api.md](audit-api.md#application-audit)); exception records from the
+proxy are stored as errors marked `ingest=proxy` ([errors.md](errors.md)).
+Gzip is decoded only to enforce the body
 budget; the uncompressed payload is forwarded unchanged. Protocol validation,
 redaction, enrichment, batching and export belong to the external OTel pipeline.
 

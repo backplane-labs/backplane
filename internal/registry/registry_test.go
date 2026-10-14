@@ -3,6 +3,10 @@ package registry_test
 import (
 	"context"
 	"errors"
+	"fmt"
+	"maps"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -173,14 +177,32 @@ func TestChanges(t *testing.T) {
 	})
 
 	// An unchanged query result publishes nothing.
-	before := r.Current().Index
+	before := r.Current()
 
 	f.change(func() {})
 	time.Sleep(300 * time.Millisecond)
 
-	if r.Current().Index != before {
-		t.Fatalf("index moved without a change: %d -> %d", before, r.Current().Index)
+	if after := r.Current(); after.Index != before.Index {
+		t.Fatalf("index moved without a change: %d -> %d\nbefore %s\nafter  %s", before.Index, after.Index, dump(before), dump(after))
 	}
+}
+
+// dump is a snapshot's content, one line per service, for a failure.
+func dump(c registry.Catalog) string {
+	var b strings.Builder
+
+	for _, name := range slices.Sorted(maps.Keys(c.Services)) {
+		svc := c.Services[name]
+		fmt.Fprintf(&b, "%s manifests=%d instances=", name, len(svc.Manifests))
+
+		for _, in := range svc.Instances {
+			fmt.Fprintf(&b, "[%s reg=%t ok=%t %s:%d state=%t] ", in.ID, in.Registered, in.Healthy, in.Address, in.Port, in.State != nil)
+		}
+
+		b.WriteString("; ")
+	}
+
+	return b.String()
 }
 
 func TestConsulDown(t *testing.T) {
