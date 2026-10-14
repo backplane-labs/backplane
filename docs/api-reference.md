@@ -247,7 +247,7 @@ const response = await client.cancelBindingRun(request, { signal });
 
 ### CallHook
 
-Raises a hook as its service would: the Nexus operation <Name> of <service>.Hooks on endpoint <service>, handled by its binding.
+Raises a hook as its service would, handled by its binding: by the direct runtime when the binding runs there (or the hook is unbound), else as the Nexus operation <Name> of <service>.Hooks on endpoint <service>. A Temporal binding without Temporal is a precondition failure.
 
 - Path: `/backplane.console.v1.CallService/CallHook`.
 - Input: `CallHookRequest`; output: `CallHookResponse`; mode: unary.
@@ -261,7 +261,7 @@ const response = await client.callHook(request, { signal });
 
 ### RunActivity
 
-Executes an activity by name on its service's task queue with the ActivityCall envelope: a Temporal activity, or a child workflow for an activity of kind WORKFLOW.
+Executes an activity by name with the ActivityCall envelope: an activity of kind ACTIVITY is called on its service over the direct transport, retried per max_attempts; one of kind WORKFLOW runs as a Temporal child workflow and needs Temporal (else a precondition failure).
 
 - Path: `/backplane.console.v1.CallService/RunActivity`.
 - Input: `RunActivityRequest`; output: `RunActivityResponse`; mode: unary.

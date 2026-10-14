@@ -28,15 +28,19 @@ export function usePlatformQuery<T>(key: string, read: (signal: AbortSignal) => 
     stale: visible?.value !== undefined && (visible.error !== undefined || connection.connection !== 'connected' || visible.connectionId !== connection.connectionId), refresh: useCallback(() => setRefresh((value) => value + 1), []) };
 }
 
-/** A mutation runs once; callers must explicitly decide how to recover uncertain outcomes. */
+/**
+ * A mutation runs once; callers must explicitly decide how to recover
+ * uncertain outcomes. `cancel` abandons the pending run: its outcome is
+ * dropped and `cancelled` says so until the next run.
+ */
 export function usePlatformAction<T>() {
   const owner = useBackplane(), connection = useConnection(), session = connection.session?.id ?? null;
   const active = useRef<AbortController | null>(null);
-  const [state, setState] = useState<{ owner: typeof owner; session: typeof session; pending: boolean; value?: T; error?: unknown }>();
+  const [state, setState] = useState<{ owner: typeof owner; session: typeof session; pending: boolean; startedAt?: number; value?: T; error?: unknown; cancelled?: boolean }>();
   useEffect(() => () => { active.current?.abort(); active.current = null; }, [owner, session]);
   const run = async (execute: (signal: AbortSignal) => Promise<T>) => {
     if (active.current || connection.connection !== 'connected') return undefined;
-    const controller = new AbortController(); active.current = controller; setState({ owner, session, pending: true });
+    const controller = new AbortController(); active.current = controller; setState({ owner, session, pending: true, startedAt: Date.now() });
     try {
       const value = await execute(controller.signal);
       if (controller.signal.aborted) return undefined;
@@ -44,8 +48,12 @@ export function usePlatformAction<T>() {
     } catch (error) { if (!controller.signal.aborted) setState({ owner, session, pending: false, error }); return undefined; }
     finally { if (active.current === controller) active.current = null; }
   };
+  const cancel = useCallback(() => {
+    if (!active.current) return;
+    active.current.abort(); active.current = null; setState({ owner, session, pending: false, cancelled: true });
+  }, [owner, session]);
   const visible = state?.owner === owner && state.session === session ? state : undefined;
-  return { pending: visible?.pending ?? false, value: visible?.value, error: visible?.error, run, disabled: connection.connection !== 'connected' };
+  return { pending: visible?.pending ?? false, startedAt: visible?.startedAt, value: visible?.value, error: visible?.error, cancelled: visible?.cancelled ?? false, run, cancel, disabled: connection.connection !== 'connected' };
 }
 
 export function ConnectionNotice() {

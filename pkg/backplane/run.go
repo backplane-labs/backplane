@@ -15,6 +15,7 @@ import (
 
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/build"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 )
 
@@ -169,15 +170,21 @@ func (c *core) work(m *backplanev1.Manifest, listeners *window) {
 		n.Budget(listeners.derive)
 	}
 
-	if len(m.GetHooks()) > 0 && c.temporal == nil {
+	// Hook calls go through Temporal's Nexus or directly to backplane
+	// (hookTransport); only the first needs Temporal here.
+	if len(m.GetHooks()) > 0 && c.temporal == nil && c.cfg.Hooks.Resolve(false, c.directHooks()) == config.HooksTemporal {
 		c.log.Warn("hooks declared but Temporal is not configured: calls fail as unavailable")
 	}
 
-	// Hook calls have their own worker (the hooks node ahead of the tree).
+	// Activities are served over the platform port (ActivityService) on
+	// any runtime; the Temporal worker adds Temporal bindings and the
+	// service's own workflows.
 	switch {
 	case len(m.GetActivities()) == 0 && len(c.env.WorkerRegistrations()) == 0:
+	case c.temporal == nil && len(c.env.WorkerRegistrations()) > 0:
+		c.log.Warn("workflows registered but Temporal is not configured: they are unavailable")
 	case c.temporal == nil:
-		c.log.Warn("activities or workflows declared but Temporal is not configured: they are unavailable")
+		c.log.Info("activities served over the platform port only: Temporal is not configured")
 	case !c.cfg.Temporal.Worker.Enabled:
 		c.log.Info("temporal worker disabled on this replica: other replicas serve the task queue")
 	default:

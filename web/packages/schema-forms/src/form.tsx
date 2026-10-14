@@ -8,7 +8,7 @@ import {
   type ValidationError,
 } from '@gopherex/schemapb';
 import { Button, Input, Textarea, Checkbox, SelectControl, Field, FieldLabel, FieldDescription, FieldError, Badge } from '@backplane-labs/backplane-ui';
-import { decodeValue, emptyValue, encodeValue, evaluateForm, fieldSchema, parseScalar, pathKey, scalarText, setValue, valueAt, type FieldPath } from './model.js';
+import { decodeValue, emptyValue, encodeValue, evaluateForm, fieldSchema, parseScalar, pathKey, scaffoldForm, scaffoldValue, scalarText, setValue, valueAt, type FieldPath } from './model.js';
 import { schemaFormsEnglish } from './locales.js';
 
 const stack: CSSProperties = { display: 'grid', gap: 16 };
@@ -44,7 +44,7 @@ export function SchemaForm(props: SchemaFormProps) {
 
 function FormBody({ engine, initialValues = {}, onSubmit, onDirtyChange, ...props }: SchemaFormProps & { engine: Engine }) {
   const t = useText();
-  const [baseline, setBaseline] = useState(() => evaluateForm(engine, initialValues).resolved);
+  const [baseline, setBaseline] = useState(() => evaluateForm(engine, scaffoldForm(engine.schema, initialValues)).resolved);
   const [values, setValues] = useState(baseline);
   const [invalidEditors, setInvalidEditors] = useState(new Set<string>());
   const [resetEpoch, setResetEpoch] = useState(0);
@@ -120,7 +120,7 @@ function FormField({ field, path, context, depth = 0 }: { field: Schema_Field; p
   let control: ReactNode;
   if (value === undefined || value === null) {
     control = <div style={row}><span>{t(value === null ? 'null' : 'absent')}</span>
-      {!disabled && <Button type="button" variant="outline" onClick={() => set(emptyValue(field))}>{t('add')}</Button>}
+      {!disabled && <Button type="button" variant="outline" onClick={() => set(scaffoldValue(context.engine.schema, field))}>{t('add')}</Button>}
     </div>;
   } else if (field.secret) {
     control = <SecretControl {...aria} title={title} value={value} field={field} onChange={set} path={path} context={context} />;

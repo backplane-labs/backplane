@@ -50,7 +50,7 @@ export function ServicePage({ mode, services, index }: { mode: ThemeMode; servic
       }} />}
       {tab === 'configuration' && <ConfigurationPanel service={service} mode={mode} />}
       {tab === 'automation' && <AutomationPanel service={service} mode={mode} onOpenWiring={(target) => navigate(wiringLink(target))} />}
-      {tab === 'operations' && <FeatureGate feature="workflows"><ServiceOperations service={service} mode={mode} /></FeatureGate>}
+      {tab === 'operations' && <ServiceOperations service={service} mode={mode} />}
       {tab === 'events' && <FeatureGate feature="events"><EventStreams service={service} mode={mode} /></FeatureGate>}
       {tab === 'workflows' && <FeatureGate feature="workflows"><WorkflowsPanel service={service} mode={mode} /></FeatureGate>}
       {tab === 'telemetry' && <ExploreRoute service={service} mode={mode} defaultSignal="metrics" />}

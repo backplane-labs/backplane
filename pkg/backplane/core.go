@@ -156,11 +156,15 @@ func (c *core) connect() {
 	c.hookTransport()
 }
 
+// directHooks reports whether the direct hook transport is possible:
+// Consul is configured and a discovery driver is installed.
+func (c *core) directHooks() bool { return c.cfg.Consul.Enabled() && c.opts.discovery != nil }
+
 // hookTransport installs the caller hook calls go through: Temporal's
 // Nexus, or backplane's HookService over gRPC with its replicas found
 // through the installed discovery (the direct transport).
 func (c *core) hookTransport() {
-	switch c.cfg.Hooks.Resolve(c.temporal != nil, c.cfg.Consul.Enabled() && c.opts.discovery != nil) {
+	switch c.cfg.Hooks.Resolve(c.temporal != nil, c.directHooks()) {
 	case config.HooksTemporal:
 		if c.temporal == nil {
 			c.log.Warn("hooks.transport is temporal but temporal is not configured: hook calls are unavailable")

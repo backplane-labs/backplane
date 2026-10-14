@@ -39,8 +39,8 @@ func Declare[In, Out any](
 
 	w := &backplanev1.Workflow{
 		Name:   name,
-		Input:  decl.Schema[In](e.Service, "workflow_"+name+"_in"),
-		Output: decl.Schema[Out](e.Service, "workflow_"+name+"_out"),
+		Input:  decl.Schema[In](scope, e.Service, "workflow_"+name+"_in"),
+		Output: decl.Schema[Out](scope, e.Service, "workflow_"+name+"_out"),
 	}
 	for _, opt := range opts {
 		opt(w)

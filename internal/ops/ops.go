@@ -27,6 +27,7 @@ import (
 	"slices"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"go.temporal.io/api/serviceerror"
@@ -98,6 +99,24 @@ func WithTemporal(fn TemporalFunc, queue string) Option {
 	return func(o *Ops) { o.temporal, o.queue = fn, queue }
 }
 
+// Direct is the direct runtime: hook calls answered by bindings that run
+// in backplane's process and activities called over the services'
+// platform ports, no Temporal needed.
+type Direct interface {
+	// Runtime of the hook's active binding (direct for an unbound hook).
+	Runtime(ctx context.Context, hook string) (consolev1.Runtime, error)
+	// RaiseHook answers a hook call; the run id names a direct run.
+	RaiseHook(ctx context.Context, call *backplanev1.HookCall) (*backplanev1.HookResult, string, error)
+	// CallActivity calls one activity once, bounded by timeout.
+	CallActivity(
+		ctx context.Context, call *backplanev1.ActivityCall, timeout time.Duration,
+	) (*backplanev1.ActivityResult, error)
+}
+
+// WithDirect installs the direct runtime: console calls of direct
+// bindings and of activities go through it instead of Temporal.
+func WithDirect(d Direct) Option { return func(o *Ops) { o.direct = d } }
+
 // Namespace is the Temporal namespace of the client (default "default"):
 // the calls that go to Temporal's API directly name it.
 func Namespace(ns string) Option { return func(o *Ops) { o.namespace = ns } }
@@ -116,11 +135,16 @@ type Ops struct {
 	temporal  TemporalFunc
 	queue     string
 	namespace string
+	direct    Direct
 	author    func(ctx context.Context) string
 	// unordered: visibility refused ORDER BY once (SQL visibility); runs
 	// are listed in its own order from then on.
 	unordered atomic.Bool
 }
+
+// SetDirect installs the direct runtime after construction (it is built
+// after the console's components).
+func (o *Ops) SetDirect(d Direct) { o.direct = d }
 
 // New creates the component under parent, reading declarations from src.
 func New(parent deps.Scope, src registry.Source, opts ...Option) *Ops {
@@ -324,6 +348,8 @@ func (o *Ops) status(ctx context.Context, err error) error {
 	switch {
 	case errors.Is(err, ErrInput):
 		code = codes.InvalidArgument
+	case errors.Is(err, ErrPrecondition): // before the dependency it names
+		code = codes.FailedPrecondition
 	case errors.Is(err, ErrNotSynced), errors.Is(err, ErrUnavailable), errors.Is(err, ErrNotSettled),
 		errors.Is(err, jetstream.ErrNoStreamResponse):
 		code = codes.Unavailable
@@ -331,8 +357,6 @@ func (o *Ops) status(ctx context.Context, err error) error {
 		errors.Is(err, jetstream.ErrStreamNotFound), errors.Is(err, jetstream.ErrConsumerNotFound),
 		errors.Is(err, jetstream.ErrMsgNotFound):
 		code = codes.NotFound
-	case errors.Is(err, ErrPrecondition):
-		code = codes.FailedPrecondition
 	case errors.Is(err, ErrExists):
 		code = codes.AlreadyExists
 	case errors.Is(err, context.Canceled):

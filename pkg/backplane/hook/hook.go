@@ -88,8 +88,8 @@ func Declare[Req, Res any](scope deps.Scope, name string, opts ...Option) Ref[Re
 
 	h := &backplanev1.Hook{
 		Name:        name,
-		Input:       decl.Schema[Req](e.Service, "hook_"+name+"_in"),
-		Output:      decl.Schema[Res](e.Service, "hook_"+name+"_out"),
+		Input:       decl.Schema[Req](scope, e.Service, "hook_"+name+"_in"),
+		Output:      decl.Schema[Res](scope, e.Service, "hook_"+name+"_out"),
 		Required:    o.required,
 		Description: o.description,
 	}

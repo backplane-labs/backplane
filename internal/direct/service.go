@@ -330,16 +330,52 @@ func (s *Service) Cancel(id string) bool {
 	return ok
 }
 
+// CallActivity calls one activity over the direct transport (the SDK's
+// ActivityService on the service's platform port), bounded by timeout.
+func (s *Service) CallActivity(
+	ctx context.Context, call *backplanev1.ActivityCall, timeout time.Duration,
+) (*backplanev1.ActivityResult, error) {
+	return s.caller.Call(ctx, call, timeout) //nolint:wrapcheck // read by Readable and Retryable
+}
+
+// Runtime is the runtime the active binding of hook runs on; a hook
+// without a binding answers directly ({} or NoBinding), so it is direct.
+func (s *Service) Runtime(ctx context.Context, hook string) (consolev1.Runtime, error) {
+	b, version, err := s.bindings.Active(ctx, hook)
+	if errors.Is(err, bindings.ErrNoBinding) {
+		return consolev1.Runtime_RUNTIME_DIRECT, nil
+	}
+
+	if err != nil {
+		return consolev1.Runtime_RUNTIME_UNSPECIFIED, fmt.Errorf("binding of %s: %w", hook, err)
+	}
+
+	prog, err := s.Program(hook, b, version)
+	if err != nil {
+		return consolev1.Runtime_RUNTIME_UNSPECIFIED, fmt.Errorf("binding of %s: %w", hook, err)
+	}
+
+	return prog.Runtime(), nil
+}
+
 // CallHook answers one hook call: the run of its binding on the binding's
 // runtime, {} for an optional hook without one, or a failure. The error is
 // a *Failure (NoBindingType, HookFailedType, the run's), ErrTemporalRuntime
 // or the context's.
 func (s *Service) CallHook(ctx context.Context, call *backplanev1.HookCall) (*backplanev1.HookResult, error) {
+	res, _, err := s.RaiseHook(ctx, call)
+
+	return res, err
+}
+
+// RaiseHook is CallHook that also names the run it made on the direct
+// runtime ("" otherwise: no binding, or a Temporal run).
+func (s *Service) RaiseHook(ctx context.Context, call *backplanev1.HookCall) (*backplanev1.HookResult, string, error) {
 	hook := call.GetHook()
 
 	payload := call.GetPayload()
 	if len(payload) > 0 && !json.Valid(payload) {
-		return nil, failure("input of "+hook+" is not JSON", wire.HookFailedType)
+		return nil, "", failure("input of "+hook+" is not JSON", wire.HookFailedType)
 	}
 
 	b, version, err := s.bindings.Active(ctx, hook)
@@ -347,31 +383,33 @@ func (s *Service) CallHook(ctx context.Context, call *backplanev1.HookCall) (*ba
 	switch {
 	case errors.Is(err, bindings.ErrNoBinding):
 		if s.Required(hook, call.GetInstance()) {
-			return nil, failure("no binding for "+hook, wire.NoBindingType)
+			return nil, "", failure("no binding for "+hook, wire.NoBindingType)
 		}
 
-		return &backplanev1.HookResult{Payload: []byte("{}")}, nil
+		return &backplanev1.HookResult{Payload: []byte("{}")}, "", nil
 	case err != nil:
-		return nil, &Failure{Msg: "binding of " + hook + ": " + err.Error(), Type: wire.HookFailedType, Retryable: true}
+		return nil, "", &Failure{Msg: "binding of " + hook + ": " + err.Error(), Type: wire.HookFailedType, Retryable: true}
 	}
 
 	prog, err := s.Program(hook, b, version)
 	if err != nil {
 		var invalid *bindings.InvalidError
 		if errors.As(err, &invalid) {
-			return nil, failure(fmt.Sprintf("binding %s@%d does not compile against the current manifests: %v",
+			return nil, "", failure(fmt.Sprintf("binding %s@%d does not compile against the current manifests: %v",
 				hook, version, err), wire.HookFailedType)
 		}
 
-		return nil, &Failure{Msg: "binding of " + hook + ": " + err.Error(), Type: wire.HookFailedType, Retryable: true}
+		return nil, "", &Failure{Msg: "binding of " + hook + ": " + err.Error(), Type: wire.HookFailedType, Retryable: true}
 	}
 
 	if prog.Runtime() != consolev1.Runtime_RUNTIME_DIRECT {
 		if s.temporal == nil {
-			return nil, ErrTemporalRuntime
+			return nil, "", ErrTemporalRuntime
 		}
 
-		return s.temporal.RunBinding(ctx, hook, prog, version, call) //nolint:wrapcheck // the runner's error as is
+		res, err := s.temporal.RunBinding(ctx, hook, prog, version, call)
+
+		return res, "", err //nolint:wrapcheck // the runner's error as is
 	}
 
 	if d := call.GetDeadline().AsDuration(); d > 0 {
@@ -391,10 +429,10 @@ func (s *Service) CallHook(ctx context.Context, call *backplanev1.HookCall) (*ba
 		Trace: call.GetTrace(),
 	}, false)
 	if err != nil {
-		return nil, err
+		return nil, id, err
 	}
 
-	return &backplanev1.HookResult{Payload: out}, nil
+	return &backplanev1.HookResult{Payload: out}, id, nil
 }
 
 // identity is "<hook>@<version>" ("@draft" for an unsaved definition).

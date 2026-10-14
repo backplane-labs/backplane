@@ -33,7 +33,7 @@ A failed module does not hide other services or prevent platform administration.
 | `…/api` | Service API reference, schemas, types and bundled files |
 | `…/configuration` | Settings, instance rollout, revisions, diff and rollback |
 | `…/automation` | Hooks, bindings and event rules, with links to Wiring |
-| `…/operations` | Call hooks, run activities, publish test events and start workflows |
+| `…/operations` | Call hooks, run activities, publish test events and start workflows. A hook or activity runs where its target runs: on the direct runtime without Temporal (a binding backplane executes itself, an activity called on the service), or as a Temporal run. Input is a form or JSON scaffolded from the declared schema; a running call shows its elapsed time and can be cancelled; a failure shows the handler's message and error type |
 | `…/events` | Streams, subscribers, messages and dead letters |
 | `…/workflows` | Workflows, runs and administrative schedules |
 | `…/telemetry` | Explore scoped to the service's telemetry selectors |

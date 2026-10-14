@@ -27,6 +27,7 @@ import (
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/direct"
 	"github.com/backplane-labs/backplane/internal/redact"
 	"github.com/backplane-labs/backplane/internal/wire"
 )
@@ -235,11 +236,23 @@ func HookWorkflowID(service, name, key string) string {
 // hook/<service>/<Name>/<key> (the SDK's and the console's alike).
 func hookRunPrefix(service string) string { return "hook/" + service + "/" }
 
-// CallHook implements CallService.
+// CallHook implements CallService: through the direct runtime when the
+// hook's binding runs there (or it has none), else as a Temporal run.
 func (a CallAPI) CallHook(ctx context.Context, req *consolev1.CallHookRequest) (*consolev1.CallHookResponse, error) {
 	opts, call, err := a.hookCall(ctx, req)
 	if err != nil {
 		return nil, a.o.status(ctx, err)
+	}
+
+	if a.o.direct != nil {
+		runtime, err := a.o.direct.Runtime(ctx, req.GetHook())
+		if err != nil {
+			return nil, a.o.status(ctx, fmt.Errorf("%w: %w", ErrPrecondition, err))
+		}
+
+		if runtime != consolev1.Runtime_RUNTIME_TEMPORAL {
+			return a.callHookDirect(ctx, req, call, opts.WorkflowExecutionTimeout)
+		}
 	}
 
 	c, err := a.o.client()
@@ -262,6 +275,37 @@ func (a CallAPI) CallHook(ctx context.Context, req *consolev1.CallHookRequest) (
 	if out.GetError() == "" {
 		h, _ := a.o.redactor().Hook(req.GetHook())
 		setOutput(out, redact.Mask(h.GetOutput(), res.GetPayload()))
+	}
+
+	a.o.audit(ctx, "hook.call", req.GetHook(), xlog.String("workflow_id", out.GetWorkflowId()),
+		xlog.String("error", out.GetError()))
+
+	return &consolev1.CallHookResponse{Result: out}, nil
+}
+
+// callHookDirect raises the hook through the direct runtime and reports
+// the outcome as a CallResult; the run, when there is one, is a direct run.
+func (a CallAPI) callHookDirect(
+	ctx context.Context, req *consolev1.CallHookRequest, call *backplanev1.HookCall, timeout time.Duration,
+) (*consolev1.CallHookResponse, error) {
+	start := time.Now()
+
+	wctx, cancel := context.WithTimeout(ctx, timeout+waitSlack)
+	defer cancel()
+
+	res, runID, err := a.o.direct.RaiseHook(wctx, call)
+	out := &consolev1.CallResult{WorkflowId: runID, RunId: runID, Took: durationpb.New(time.Since(start))}
+
+	switch {
+	case err == nil:
+		h, _ := a.o.redactor().Hook(req.GetHook())
+		setOutput(out, redact.Mask(h.GetOutput(), res.GetPayload()))
+	case errors.Is(err, direct.ErrTemporalRuntime), errors.Is(err, direct.ErrNotSynced):
+		return nil, a.o.status(ctx, fmt.Errorf("%w: %w", ErrPrecondition, err))
+	case ctx.Err() != nil:
+		return nil, a.o.status(ctx, ctx.Err())
+	default:
+		out.Error, out.ErrorType = direct.Readable(err)
 	}
 
 	a.o.audit(ctx, "hook.call", req.GetHook(), xlog.String("workflow_id", out.GetWorkflowId()),
@@ -341,7 +385,9 @@ func endpoint(ctx context.Context, c client.Client, service string) error {
 	return nil
 }
 
-// RunActivity implements CallService.
+// RunActivity implements CallService: an activity is called over the
+// direct transport (the service's platform port), a workflow-kind one
+// runs as a Temporal child workflow.
 func (a CallAPI) RunActivity(
 	ctx context.Context, req *consolev1.RunActivityRequest,
 ) (*consolev1.RunActivityResponse, error) {
@@ -350,8 +396,16 @@ func (a CallAPI) RunActivity(
 		return nil, a.o.status(ctx, err)
 	}
 
+	if a.o.direct != nil && !in.Workflow {
+		return a.runActivityDirect(ctx, req, in)
+	}
+
 	c, err := a.o.client()
 	if err != nil {
+		if in.Workflow {
+			err = fmt.Errorf("%w: %s is a workflow and needs Temporal: %w", ErrPrecondition, req.GetActivity(), err)
+		}
+
 		return nil, a.o.status(ctx, err)
 	}
 
@@ -379,6 +433,62 @@ func (a CallAPI) RunActivity(
 
 	return &consolev1.RunActivityResponse{Result: out}, nil
 }
+
+// runActivityDirect calls the activity on its service up to MaxAttempts
+// times while the failure is retryable, with a growing pause between.
+func (a CallAPI) runActivityDirect(
+	ctx context.Context, req *consolev1.RunActivityRequest, in ActivityRun,
+) (*consolev1.RunActivityResponse, error) {
+	id := wire.DirectRunPrefix + "console/activity/" + in.Service + "/" + in.Name + "/" + uuid.NewString()
+	carrier := propagation.MapCarrier{}
+	otel.GetTextMapPropagator().Inject(ctx, carrier)
+
+	call := &backplanev1.ActivityCall{
+		Activity: in.Service + "." + in.Name, Payload: in.Payload, Binding: consoleBinding, Step: in.Step,
+		Key: id, Trace: carrier,
+	}
+	start := time.Now()
+
+	var (
+		res *backplanev1.ActivityResult
+		err error
+	)
+
+	for attempt := int32(1); attempt <= max(in.MaxAttempts, 1); attempt++ {
+		call.Attempt = attempt
+
+		res, err = a.o.direct.CallActivity(ctx, call, in.StartToClose)
+		if err == nil || !direct.Retryable(err) || attempt == max(in.MaxAttempts, 1) {
+			break
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, a.o.status(ctx, ctx.Err())
+		case <-time.After(min(time.Second<<uint(attempt-1), directRetryCeil)):
+		}
+	}
+
+	out := &consolev1.CallResult{WorkflowId: id, RunId: id, Took: durationpb.New(time.Since(start))}
+
+	switch {
+	case err == nil:
+		act, _ := a.o.redactor().Activity(req.GetActivity())
+		setOutput(out, redact.Mask(act.GetOutput(), res.GetPayload()))
+	case ctx.Err() != nil:
+		return nil, a.o.status(ctx, ctx.Err())
+	default:
+		out.Error, out.ErrorType = direct.Readable(err)
+	}
+
+	a.o.audit(ctx, "activity.run", req.GetActivity(), xlog.String("workflow_id", out.GetWorkflowId()),
+		xlog.String("error", out.GetError()))
+
+	return &consolev1.RunActivityResponse{Result: out}, nil
+}
+
+// directRetryCeil bounds the pause between direct attempts.
+const directRetryCeil = 10 * time.Second
 
 // activityRun is the input of RunActivityWorkflow for req, with the
 // declared defaults.

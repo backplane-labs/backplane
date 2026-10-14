@@ -1,7 +1,7 @@
 import { fromJsonString, toJsonString } from '@bufbuild/protobuf';
 import { DurationSchema, TimestampSchema } from '@bufbuild/protobuf/wkt';
 import {
-  Engine, ValueSchema, fromNative, toNative, refDefKey,
+  Engine, ValueSchema, defaultValue, fromNative, toNative, refDefKey,
   type Native, type NativeStruct, type Schema, type Schema_Field, type Value,
 } from '@gopherex/schemapb';
 
@@ -95,6 +95,34 @@ export function fieldSchema(root: Schema, field: Schema_Field, value: Native | u
     default: return undefined;
   }
 }
+
+/**
+ * The value a field starts with: its default, else an empty value of its
+ * kind; an object's required children are filled the same way, so a form
+ * opens with every required input present instead of a "set value" button.
+ */
+export function scaffoldValue(root: Schema, field: Schema_Field): Native {
+  const preset = defaultValue(field);
+  if (preset !== undefined) return field.kind.case === 'object' || field.kind.case === 'ref' ? scaffoldStruct(root, field, preset as NativeStruct) : preset;
+  if (field.kind.case === 'object' || field.kind.case === 'ref') return scaffoldStruct(root, field, {});
+  return emptyValue(field);
+}
+function scaffoldStruct(root: Schema, field: Schema_Field, value: NativeStruct): NativeStruct {
+  const nested = fieldSchema(root, field, value);
+  return nested ? scaffoldFields(root, nested, value) : value;
+}
+/** Fills the required fields of schema that values lack. */
+export function scaffoldFields(root: Schema, schema: Schema, values: NativeStruct): NativeStruct {
+  const result = { ...values };
+  for (const field of schema.fields) {
+    if (!Object.hasOwn(result, field.name) && field.required && field.kind.case !== 'computed') {
+      Object.defineProperty(result, field.name, { value: scaffoldValue(root, field), enumerable: true, writable: true, configurable: true });
+    }
+  }
+  return result;
+}
+/** The form's starting values: initial values with the required fields filled. */
+export function scaffoldForm(schema: Schema, values: NativeStruct): NativeStruct { return scaffoldFields(schema, schema, values); }
 
 export function emptyValue(field: Schema_Field): Native {
   switch (field.kind.case) {

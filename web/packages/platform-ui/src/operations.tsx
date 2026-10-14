@@ -1,16 +1,17 @@
 import { nativeJSON } from './serialization.js';
 export { nativeJSON } from './serialization.js';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { create, toJsonString } from '@bufbuild/protobuf';
-import { structToNative, type Schema } from '@gopherex/schemapb';
+import { Engine, structToNative, type Schema } from '@gopherex/schemapb';
 import * as api from '@backplane-labs/backplane-api';
 import { useClient } from '@backplane-labs/backplane-react';
-import { Button, EmptyState, SelectControl, Panel, StatusBadge } from '@backplane-labs/backplane-ui';
+import { Button, Duration, EmptyState, SelectControl, Panel, StatusBadge } from '@backplane-labs/backplane-ui';
 import { CodeEditor, JSONViewer } from '@backplane-labs/backplane-editors';
 import { SchemaForm } from '@backplane-labs/backplane-schema-forms';
-import { Link2, Play, Radio, TerminalSquare, Workflow, Zap } from 'lucide-react';
+import { Link2, Play, Radio, Square, TerminalSquare, Workflow, Zap } from 'lucide-react';
 import { QueryState, usePlatformAction, usePlatformQuery } from './runtime.js';
 import { usePlatformText } from './locales.js';
+import { payloadCompletions, payloadDiagnostics, scaffoldJSON } from './operations-model.js';
 
 export type OperationKind = 'hook' | 'activity' | 'event' | 'workflow';
 export function OperationSelector({ service, kind, value, onChange }: { service: string; kind: OperationKind; value: string; onChange: (value: string) => void }) {
@@ -22,28 +23,33 @@ export function OperationSelector({ service, kind, value, onChange }: { service:
 }
 
 const kinds: { kind: OperationKind; icon: typeof Link2 }[] = [{ kind: 'hook', icon: Link2 }, { kind: 'activity', icon: Zap }, { kind: 'event', icon: Radio }, { kind: 'workflow', icon: Workflow }];
-type Outcome = { ok: boolean; body: string; took: number };
+type Outcome = { ok: boolean; body: string; took: number; error?: string; errorType?: string };
+const failureText = (error: unknown) => error instanceof Error ? error.message : String(error);
 
 /** Call a hook, run an activity, publish a test event or start a workflow of one service. */
 export function ServiceOperations({ service, mode }: { service: string; mode: 'dark' | 'light' }) {
   const catalog = useClient(api.CatalogServiceClient), calls = useClient(api.CallServiceClient), events = useClient(api.EventServiceClient), workflows = useClient(api.WorkflowServiceClient), text = usePlatformText();
   const state = usePlatformQuery(`operations:${service}`, (signal) => catalog.getService(create(api.GetServiceRequestSchema, { name: service }), { signal }));
-  const [kind, setKind] = useState<OperationKind>('hook'), [name, setName] = useState(''), [input, setInput] = useState('{}');
+  const [kind, setKind] = useState<OperationKind>('hook'), [name, setName] = useState(''), [editor, setEditor] = useState<'form' | 'json'>('form');
   const action = usePlatformAction<Outcome>();
   const options = useMemo<{ name: string; description?: string; input?: Schema }[]>(() => {
     const manifest = state.value?.latest; if (!manifest) return [];
     return kind === 'event' ? manifest.events.map((event) => ({ name: event.name, description: event.description, input: event.schema })) : kind === 'hook' ? manifest.hooks : kind === 'activity' ? manifest.activities : manifest.workflows;
   }, [state.value, kind]);
   const selected = options.find((option) => option.name === name) ?? options[0];
+  const engine = useMemo(() => { try { return selected?.input ? Engine.compile(selected.input) : undefined; } catch { return undefined; } }, [selected?.input]);
   const execute = async (payload: string, signal: AbortSignal): Promise<Outcome> => {
     const started = performance.now(), target = selected!.name;
     const body = kind === 'hook' ? toJsonString(api.CallHookResponseSchema, await calls.callHook(create(api.CallHookRequestSchema, { hook: `${service}.${target}`, input: payload }), { signal }), { prettySpaces: 2 })
       : kind === 'activity' ? toJsonString(api.RunActivityResponseSchema, await calls.runActivity(create(api.RunActivityRequestSchema, { activity: `${service}.${target}`, input: payload }), { signal }), { prettySpaces: 2 })
       : kind === 'event' ? toJsonString(api.PublishTestEventResponseSchema, await events.publishTestEvent(create(api.PublishTestEventRequestSchema, { event: `${service}.${target}`, payload }), { signal }), { prettySpaces: 2 })
       : toJsonString(api.StartWorkflowResponseSchema, await workflows.startWorkflow(create(api.StartWorkflowRequestSchema, { service, workflow: target, input: payload }), { signal }), { prettySpaces: 2 });
-    const parsed = JSON.parse(body) as { result?: { error?: string } };
-    return { ok: !parsed.result?.error, body, took: performance.now() - started };
+    const parsed = JSON.parse(body) as { result?: { error?: string; errorType?: string } };
+    return { ok: !parsed.result?.error, body, took: performance.now() - started, error: parsed.result?.error, errorType: parsed.result?.errorType };
   };
+  const key = `${service}:${kind}:${selected?.name ?? ''}`;
+  const pending = action.pending && <><Duration since={action.startedAt ? new Date(action.startedAt) : undefined} className="text-xs text-info" />
+    <Button size="sm" variant="outline" onClick={action.cancel}><Square />{text('cancelCall')}</Button></>;
   return <QueryState state={state}><div className="grid h-full min-h-0 gap-4 xl:grid-rows-[minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
     <Panel fill title={<><TerminalSquare className="size-4 text-muted-foreground" />{text('operations')}</>} flush>
       <div className="grid grid-cols-4 gap-1 border-b border-border p-2" role="group" aria-label={text('selectAction')}>
@@ -57,16 +63,39 @@ export function ServiceOperations({ service, mode }: { service: string; mode: 'd
       </button>)}
     </Panel>
     <div className="flex min-h-0 min-w-0 flex-col gap-4 overflow-auto">
-      {selected && <Panel title={<span className="font-mono">{kind === 'workflow' ? selected.name : `${service}.${selected.name}`}</span>} description={text(`operationHelp_${kind}`)}>
-        {selected.input ? <SchemaForm key={`${service}:${kind}:${selected.name}`} schema={selected.input} label={text('input')} submitLabel={text('execute')} disabled={action.disabled || action.pending} onSubmit={async (baked, signal) => {
+      {selected && <Panel title={<span className="font-mono">{kind === 'workflow' ? selected.name : `${service}.${selected.name}`}</span>} description={text(`operationHelp_${kind}`)}
+        actions={<>{pending}{engine && <div role="group" aria-label={text('inputEditor')} className="inline-flex rounded-md border border-border p-0.5">
+          {(['form', 'json'] as const).map((entry) => <button key={entry} type="button" aria-pressed={editor === entry} disabled={action.pending} onClick={() => setEditor(entry)}
+            className="rounded px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground aria-pressed:bg-primary/10 aria-pressed:text-foreground">{text(entry === 'form' ? 'inputForm' : 'inputJSON')}</button>)}
+        </div>}</>}>
+        {engine && editor === 'form' ? <SchemaForm key={key} schema={selected.input!} label={text('input')} submitLabel={text('execute')} disabled={action.disabled || action.pending} onSubmit={async (baked, signal) => {
           const response = await action.run((abort) => execute(nativeJSON(structToNative(baked.values)), AbortSignal.any([signal, abort])));
           if (response === undefined) throw new Error('Operation outcome is unavailable');
-        }} /> : <div className="grid gap-3"><CodeEditor label={text('input')} value={input} onChange={setInput} language="json" mode={mode} disabled={action.pending} height={160} />
-          <div><Button size="sm" disabled={action.pending || action.disabled} onClick={() => void action.run((signal) => execute(input, signal))}><Play />{action.pending ? text('pending') : text('execute')}</Button></div></div>}
+        }} /> : <PayloadEditor key={key} engine={engine} mode={mode} disabled={action.disabled || action.pending} pending={action.pending} onExecute={(payload) => void action.run((signal) => execute(payload, signal))} />}
       </Panel>}
+      {action.cancelled && <p role="status" className="m-0 text-sm text-muted-foreground">{text('callCancelled')}</p>}
       {(action.value || action.error !== undefined) && <Panel title={text('output')} actions={action.value && <><StatusBadge tone={action.value.ok ? 'success' : 'danger'}>{text(action.value.ok ? 'succeeded' : 'failed')}</StatusBadge><span className="text-xs text-muted-foreground">{Math.round(action.value.took)}ms</span></>}>
-        {action.error !== undefined ? <p className="m-0 text-sm text-destructive" role="alert">{text('mutationFailed')}</p> : <JSONViewer label={text('output')} value={action.value!.body} mode={mode} />}
+        {action.error !== undefined ? <p className="m-0 text-sm text-destructive" role="alert">{text('callFailed', { message: failureText(action.error) })}</p> : <div className="grid gap-3">
+          {action.value!.error && <p className="m-0 text-sm text-destructive" role="alert"><span className="font-medium">{text('handlerFailed')}</span>{action.value!.errorType && <span className="ml-2 font-mono text-xs text-muted-foreground">{action.value!.errorType}</span>}<br />{action.value!.error}</p>}
+          <JSONViewer label={text('output')} value={action.value!.body} mode={mode} /></div>}
       </Panel>}
     </div>
   </div></QueryState>;
+}
+
+/** JSON payload editor: scaffolded from the schema, with key completion and schema diagnostics when there is one. */
+function PayloadEditor({ engine, mode, disabled, pending, onExecute }: { engine?: Engine; mode: 'dark' | 'light'; disabled: boolean; pending: boolean; onExecute: (payload: string) => void }) {
+  const text = usePlatformText();
+  const [input, setInput] = useState(() => engine ? scaffoldJSON(engine) : '{}');
+  const [blocking, setBlocking] = useState(false);
+  useEffect(() => { setBlocking(engine ? payloadDiagnostics(engine, input).blocking : false); }, [engine, input]);
+  const submit = () => { if (!disabled && !blocking) onExecute(input); };
+  return <div className="grid gap-3">
+    <CodeEditor label={text('input')} value={input} onChange={setInput} language="json" mode={mode} disabled={disabled} height={Math.min(360, Math.max(160, input.split('\n').length * 22 + 40))} onSubmit={submit}
+      complete={engine ? async ({ value, position }) => payloadCompletions(engine.schema, value, position) : undefined}
+      validate={engine ? async (value) => payloadDiagnostics(engine, value).diagnostics : undefined} />
+    {!engine && <p className="m-0 text-xs text-muted-foreground">{text('inputSchemaNone')}</p>}
+    <div className="flex items-center gap-3"><Button size="sm" disabled={disabled || blocking} onClick={submit}><Play />{pending ? text('pending') : text('execute')}</Button>
+      {blocking && <span className="text-xs text-muted-foreground">{text('inputInvalid')}</span>}</div>
+  </div>;
 }

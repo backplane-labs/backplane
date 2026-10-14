@@ -127,7 +127,11 @@ func Readable(err error) (string, string) {
 	case errors.Is(err, context.Canceled):
 		return canceledMsg, ""
 	default:
-		return err.Error(), ""
+		// A call's status error: its message and CallFailure detail, not
+		// the "rpc error: code = ..." rendering.
+		f = callFailure(err)
+
+		return f.Msg, f.Type
 	}
 }
 
@@ -136,12 +140,11 @@ const canceledMsg = "canceled"
 
 // Retryable reports whether a retry of the run may succeed.
 func Retryable(err error) bool {
-	var f *Failure
-	if errors.As(err, &f) {
-		return f.Retryable
+	if errors.Is(err, context.Canceled) {
+		return false
 	}
 
-	return !errors.Is(err, context.Canceled)
+	return callFailure(err).Retryable
 }
 
 // Status is a run's error as a HookService status: the CallFailure detail

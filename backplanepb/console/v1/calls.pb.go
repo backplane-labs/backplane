@@ -247,7 +247,10 @@ type RunActivityRequest struct {
 	Input string `protobuf:"bytes,2,opt,name=input,proto3" json:"input,omitempty"`
 	// Start-to-close of one attempt; zero: the declared one, else 1m.
 	StartToClose *durationpb.Duration `protobuf:"bytes,3,opt,name=start_to_close,json=startToClose,proto3" json:"start_to_close,omitempty"`
-	// Attempts; 0: one (no retry).
+	// Attempts while the failure is retryable; 0: one (no retry). An
+	// activity runs over the direct transport (the service's platform port)
+	// with a growing pause between attempts; a workflow-kind activity runs
+	// as a Temporal child workflow with Temporal's retry policy.
 	MaxAttempts int32 `protobuf:"varint,4,opt,name=max_attempts,json=maxAttempts,proto3" json:"max_attempts,omitempty"`
 	// ActivityCall.step, for diagnostics; empty: "console".
 	Step          string `protobuf:"bytes,5,opt,name=step,proto3" json:"step,omitempty"`

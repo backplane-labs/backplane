@@ -157,7 +157,10 @@ export type RunActivityRequest = Message<"backplane.console.v1.RunActivityReques
   startToClose?: Duration | undefined;
 
   /**
-   * Attempts; 0: one (no retry).
+   * Attempts while the failure is retryable; 0: one (no retry). An
+   * activity runs over the direct transport (the service's platform port)
+   * with a growing pause between attempts; a workflow-kind activity runs
+   * as a Temporal child workflow with Temporal's retry policy.
    *
    * @generated from field: int32 max_attempts = 4;
    */
@@ -197,17 +200,23 @@ export const RunActivityResponseSchema: GenMessage<RunActivityResponse> = /*@__P
 
 /**
  * CallService runs a hook or an activity from the console with a JSON
- * input (§9, §7.2) and waits for the result. Both run as short workflows
- * on backplane's own task queue (backplane is a service on its SDK), with
- * memo source = console:<session>: the run is in Temporal with its input,
- * output and error like any other.
+ * input (§9, §7.2) and waits for the result. A call runs where its target
+ * runs: over the direct runtime (a binding backplane executes itself, an
+ * activity called on the service's platform port) it is a direct run,
+ * id direct/console/...; over Temporal it is a short workflow on
+ * backplane's own task queue with memo source = console:<session>, in
+ * Temporal with its input, output and error like any other. Either way
+ * the call is audited as hook.call or activity.run.
  *
  * @generated from service backplane.console.v1.CallService
  */
 export const CallService: GenService<{
   /**
-   * Raises a hook as its service would: the Nexus operation <Name> of
-   * <service>.Hooks on endpoint <service>, handled by its binding.
+   * Raises a hook as its service would, handled by its binding: by the
+   * direct runtime when the binding runs there (or the hook is unbound),
+   * else as the Nexus operation <Name> of <service>.Hooks on endpoint
+   * <service>. A Temporal binding without Temporal is a precondition
+   * failure.
    *
    * @generated from rpc backplane.console.v1.CallService.CallHook
    */
@@ -217,9 +226,11 @@ export const CallService: GenService<{
     output: typeof CallHookResponseSchema;
   },
   /**
-   * Executes an activity by name on its service's task queue with the
-   * ActivityCall envelope: a Temporal activity, or a child workflow for an
-   * activity of kind WORKFLOW.
+   * Executes an activity by name with the ActivityCall envelope: an
+   * activity of kind ACTIVITY is called on its service over the direct
+   * transport, retried per max_attempts; one of kind WORKFLOW runs as a
+   * Temporal child workflow and needs Temporal (else a precondition
+   * failure).
    *
    * @generated from rpc backplane.console.v1.CallService.RunActivity
    */

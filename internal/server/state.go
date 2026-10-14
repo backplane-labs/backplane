@@ -186,6 +186,7 @@ func (st *State) runtime(root backplane.Root[Config],
 ) []console.Option {
 	st.Direct = direct.New(root, st.Bindings, st.Registry, st.Store, cfg.InternalSecret.Reveal(),
 		direct.Author(sessionAuthor), direct.RunTimeout(cfg.Direct.RunTimeout), direct.Retention(cfg.Direct.Retention))
+	st.Ops.SetDirect(st.Direct)
 
 	registerBindings := st.Direct.RegisterBindings(st.Bindings.BindingAPI(), st.Bindings, nil)
 	registerRules := func(r grpc.ServiceRegistrar) { consolev1.RegisterRuleServiceServer(r, st.Bindings.RuleAPI()) }

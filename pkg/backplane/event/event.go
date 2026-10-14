@@ -98,7 +98,7 @@ func Declare[T any](scope deps.Scope, name string, opts ...DeclareOption) Ref[T]
 
 	e, _ := decl.Env(scope, "event "+name)
 
-	ev := &backplanev1.Event{Name: name, Schema: decl.Schema[T](e.Service, "event_"+name)}
+	ev := &backplanev1.Event{Name: name, Schema: decl.Schema[T](scope, e.Service, "event_"+name)}
 	for _, o := range opts {
 		o.applyDeclare(ev)
 	}

@@ -12,7 +12,9 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	sp "github.com/gopherex/schemapb/go/schemapb"
+	"github.com/gopherex/xlog"
 
+	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
@@ -35,9 +37,18 @@ func Env(scope any, what string) (*env.Env, *node.Node) {
 
 // Schema reflects T under <service>/<name>@1.0.0, or nil when T cannot be
 // described: the declaration stays, the payload is plain JSON.
-func Schema[T any](service, name string) *sp.Schema {
+// Schema reflects T as the manifest's schema of name. A type schemapb
+// cannot reflect (an unsupported field, a malformed schemapb tag) leaves
+// the payload plain JSON: the console shows no form for it, so the
+// author is told on scope's log.
+func Schema[T any](scope deps.Scope, service, name string) *sp.Schema {
 	s, err := sp.ReflectType[T](sp.ID(sp.Namespace(service), sp.SchemaName(name), sp.Ver(1, 0, 0)))
 	if err != nil {
+		if scope != nil {
+			scope.Log().Warn("payload schema not reflected: the console gets plain JSON for it",
+				xlog.String("schema", name), xlog.Err(err))
+		}
+
 		return nil
 	}
 

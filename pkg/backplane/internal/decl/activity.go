@@ -27,8 +27,8 @@ func Activity[Req, Res any](
 	a := &backplanev1.Activity{
 		Name:   name,
 		Kind:   kind,
-		Input:  Schema[Req](e.Service, "activity_"+name+"_in"),
-		Output: Schema[Res](e.Service, "activity_"+name+"_out"),
+		Input:  Schema[Req](scope, e.Service, "activity_"+name+"_in"),
+		Output: Schema[Res](scope, e.Service, "activity_"+name+"_out"),
 	}
 	for _, opt := range opts {
 		opt.apply(a)

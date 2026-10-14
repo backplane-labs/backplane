@@ -29,6 +29,9 @@ export function RunStatusFilter({ value, onChange }: { value: api.RunStatus; onC
   </div>;
 }
 
+/** The first 8 characters of a run id's own part: a direct run's id is its workflow id, a path ending in a uuid. */
+export function shortRunId(runId: string): string { return (runId.split('/').pop() ?? runId).slice(0, 8); }
+
 /** Dense run table; a row opens the run. */
 export function RunTable({ runs, onOpen, loading, empty }: { runs: api.Run[]; onOpen: (run: api.Run) => void; loading?: boolean; empty?: ReactNode }) {
   const text = usePlatformText();
@@ -42,7 +45,7 @@ export function RunTable({ runs, onOpen, loading, empty }: { runs: api.Run[]; on
       onClick={() => onOpen(run)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); onOpen(run); } }}>
       <td className="h-10 px-3"><RunStatusBadge status={run.status} /></td>
       <td className="max-w-80 px-3"><div className="truncate font-mono text-xs" title={run.workflowId}>{run.workflowId}</div><div className="truncate text-2xs text-muted-foreground">{run.workflowType}</div></td>
-      <td className="px-3 font-mono text-2xs text-muted-foreground" title={run.runId}>{run.runId.slice(0, 8)}</td>
+      <td className="px-3 font-mono text-2xs text-muted-foreground" title={run.runId}>{shortRunId(run.runId)}</td>
       <td className="px-3 text-xs text-muted-foreground"><Timestamp value={date(run.startTime)} /></td>
       <td className="px-3 text-xs">{run.startTime ? run.closeTime ? <Duration milliseconds={date(run.closeTime)!.getTime() - date(run.startTime)!.getTime()} /> : <Duration since={date(run.startTime)} className="text-info" /> : '—'}</td>
       <td className="px-3 font-mono text-xs text-muted-foreground">{run.historyLength.toString()}</td>
