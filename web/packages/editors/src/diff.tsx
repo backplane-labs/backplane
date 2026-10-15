@@ -12,7 +12,7 @@ export default function Diff({ label, before, after, mode, language = 'text', he
   const beforeLabel = `${label}: ${text('before')}`, afterLabel = `${label}: ${text('after')}`;
   useEffect(() => {
     if (!host.current) return;
-    const extensions = [EditorState.readOnly.of(true), lineNumbers(), languageExtension(language), editorHighlight(mode), editorTheme(mode, height)];
+    const extensions = [EditorState.readOnly.of(true), lineNumbers(), languageExtension(language), editorHighlight(mode), editorTheme(mode, height, 'fixed')];
     const view = new MergeView({ parent: host.current,
       a: { doc: before, extensions: [...extensions, EditorView.contentAttributes.of({ 'aria-label': beforeLabel, 'aria-readonly': 'true' })] },
       b: { doc: after, extensions: [...extensions, EditorView.contentAttributes.of({ 'aria-label': afterLabel, 'aria-readonly': 'true' })] },

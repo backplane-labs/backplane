@@ -29,12 +29,23 @@ export function editorHighlight(mode: 'dark' | 'light') {
     { tag: tags.invalid, color: c.destructive, textDecoration: 'underline wavy' },
   ]));
 }
-export function editorTheme(mode: 'dark' | 'light', height: number | 'fill' = 160) {
+/** maxGrowth is how tall a growing editor gets before it scrolls. */
+const maxGrowth = 480;
+
+/**
+ * editorTheme styles an editor. 'fill' takes the container's height; a number
+ * is the least height, and the editor grows with its text up to maxGrowth
+ * (or the number, if larger). A fixed editor keeps the number; a fitting one
+ * (a viewer) has no least height and is as tall as its text.
+ */
+export function editorTheme(mode: 'dark' | 'light', height: number | 'fill' = 160, size: 'grow' | 'fixed' | 'fit' = 'grow') {
   const c = tokens[mode];
+  const box: Record<string, string> = height === 'fill' ? { height: '100%' } : size === 'fixed' ? { height: `${height}px` }
+    : { ...(size === 'grow' && { minHeight: `${height}px` }), maxHeight: `${Math.max(height, maxGrowth)}px` };
   return EditorView.theme({
-    '&': { backgroundColor: c.background, color: c.foreground, height: height === 'fill' ? '100%' : `${height}px`, fontFamily: typography.fontFamilyMonospace,
+    '&': { backgroundColor: c.background, color: c.foreground, ...box, fontFamily: typography.fontFamilyMonospace,
       fontSize: '13px', border: `1px solid ${c.border}`, borderRadius: '6px', overflow: 'hidden' },
-    '.cm-scroller': { overflow: 'auto', fontFamily: 'inherit', lineHeight: '1.6' }, '.cm-content': { padding: '8px 4px', caretColor: c.foreground },
+    '.cm-scroller': { overflow: 'auto', fontFamily: 'inherit', lineHeight: '1.6', flexGrow: '1' }, '.cm-content': { padding: '8px 4px', caretColor: c.foreground },
     '.cm-gutters': { backgroundColor: c.background, color: c['muted-foreground'], border: 'none', borderRight: `1px solid ${c.border}` },
     '.cm-lineNumbers .cm-gutterElement': { padding: '0 8px 0 12px', minWidth: '32px' },
     '.cm-activeLineGutter': { backgroundColor: c.muted, color: c.foreground },
@@ -64,6 +75,17 @@ export function formatDocument(view: EditorView, language?: string): boolean {
   try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch { return false; }
   if (pretty !== text) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: pretty } });
   return true;
+}
+
+/** viewSettings is what follows the props: language, theme, read-only state and gutters. */
+function viewSettings(props: CodeEditorProps) {
+  return [
+    languageExtension(props.language ?? 'text'), editorHighlight(props.mode), editorTheme(props.mode, props.inline ? 38 : props.height, props.inline ? 'fixed' : props.readOnly ? 'fit' : 'grow'),
+    EditorState.readOnly.of(!!props.readOnly || !!props.disabled), EditorView.editable.of(!props.disabled),
+    EditorView.contentAttributes.of({ 'aria-label': props.label, 'aria-readonly': String(!!props.readOnly), 'aria-disabled': String(!!props.disabled), tabindex: props.disabled ? '-1' : '0' }),
+    // Long values wrap: a narrow panel shows all of a line instead of cutting it.
+    props.inline ? [] : [lineNumbers(), foldGutter(), highlightActiveLine(), lintGutter(), EditorView.lineWrapping],
+  ];
 }
 
 export default function Editor(props: CodeEditorProps) {
@@ -106,7 +128,7 @@ export default function Editor(props: CodeEditorProps) {
     };
     const view = new EditorView({ parent: host.current, state: EditorState.create({ doc: shown(latest.current), extensions: [
       history(), drawSelection(), bracketMatching(), closeBrackets(), indentOnInput(),
-      settings.current.of([]), externalDiagnostics.current.of([]),
+      settings.current.of(viewSettings(latest.current)), externalDiagnostics.current.of([]),
       keymap.of([{ key: 'Mod-Enter', run: () => { if (!latest.current.disabled) latest.current.onSubmit?.(); return true; } },
         { key: 'Shift-Alt-f', run: (view) => formatDocument(view, latest.current.language) },
         ...closeBracketsKeymap, ...completionKeymap, ...foldKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
@@ -129,12 +151,7 @@ export default function Editor(props: CodeEditorProps) {
   }, []);
   useEffect(() => {
     const view = viewRef.current; if (!view) return;
-    view.dispatch({ effects: settings.current.reconfigure([
-      languageExtension(props.language ?? 'text'), editorHighlight(props.mode), editorTheme(props.mode, props.inline ? 38 : props.height),
-      EditorState.readOnly.of(!!props.readOnly || !!props.disabled), EditorView.editable.of(!props.disabled),
-      EditorView.contentAttributes.of({ 'aria-label': props.label, 'aria-readonly': String(!!props.readOnly), 'aria-disabled': String(!!props.disabled), tabindex: props.disabled ? '-1' : '0' }),
-      props.inline ? [] : [lineNumbers(), foldGutter(), highlightActiveLine(), lintGutter()],
-    ]) });
+    view.dispatch({ effects: settings.current.reconfigure(viewSettings(props)) });
   }, [props.language, props.mode, props.inline, props.height, props.readOnly, props.disabled, props.label]);
   useEffect(() => {
     const view = viewRef.current, text = shown(props); if (view && view.state.doc.toString() !== text) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text }, annotations: Transaction.remote.of(true) });

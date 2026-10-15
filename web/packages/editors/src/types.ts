@@ -6,7 +6,7 @@ export interface EditorCompletion { label: string; detail?: string; type?: 'vari
 export interface EditorCompletionResult { from: number; options: readonly EditorCompletion[] }
 export interface CodeEditorProps {
   label: string; value: string; onChange?: (value: string) => void; language?: EditorLanguage;
-  /** Pixels, or 'fill': the editor takes its container's height. */
+  /** The least height in pixels (the editor grows with its text, then scrolls), or 'fill': the container's height. */
   mode: 'dark' | 'light'; readOnly?: boolean; disabled?: boolean; inline?: boolean; height?: number | 'fill';
   onSubmit?: () => void; diagnostics?: readonly EditorDiagnostic[];
   complete?: (request: { value: string; position: number; language: EditorLanguage; signal: AbortSignal; explicit: boolean }) => Promise<readonly EditorCompletion[] | EditorCompletionResult | null>;

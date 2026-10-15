@@ -127,7 +127,7 @@ function RunDetail({ workflowId, runId, mode, children, source, onOpenRun }: { w
       <KeyValueList items={memo.filter(([key]) => key !== 'source').map(([key, value]) => ({ key, label: <span className="font-mono text-xs">{key}</span>, value: memoText(value), mono: true }))} /></div>}
     {detail.failure && <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive" role="alert"><div className="font-medium">{detail.failureType || text('failure')}</div><pre className="m-0 mt-1 font-mono text-xs whitespace-pre-wrap">{detail.failure}</pre></div>}
     {children}
-    <div className="grid gap-3 lg:grid-cols-2">
+    <div className="grid gap-3">
       <div className="min-w-0"><div className="mb-1.5 text-xs text-muted-foreground">{text('input')}</div><JSONViewer label={text('input')} value={detail.input || 'null'} mode={mode} /></div>
       <div className="min-w-0"><div className="mb-1.5 text-xs text-muted-foreground">{text('output')}</div><JSONViewer label={text('output')} value={detail.result || 'null'} mode={mode} /></div>
     </div>
