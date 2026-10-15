@@ -354,7 +354,14 @@ func (e *execution) attempts(
 			return nil, err //nolint:wrapcheck // read by stepFailure
 		}
 
-		delay := max(wait, failed.RetryAfter)
+		// The handler's RetryAfter is honored up to the policy's maximum
+		// interval: an activity cannot park a run (and its for-each slot)
+		// for longer than the binding allows. A wait that would outlive the
+		// run's deadline is not started: the failure stands now.
+		delay := min(max(wait, failed.RetryAfter), max(plan.Retry.MaxInterval, wait))
+		if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) < delay {
+			return nil, err //nolint:wrapcheck // read by stepFailure
+		}
 
 		timer := time.NewTimer(delay)
 		select {

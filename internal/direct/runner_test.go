@@ -400,7 +400,7 @@ steps:
   send:
     activity: smtp.Send
     input: {to: "'x'"}
-    retry: {attempts: 3, initialInterval: 0.010s, maxInterval: 0.020s, backoff: 2}
+    retry: {attempts: 3, initialInterval: 0.010s, maxInterval: 0.100s, backoff: 2}
   each:
     activity: template.Exec
     forEach: "[1, 2, 3]"
@@ -464,6 +464,29 @@ result: {}
 
 	if itemCalls[1] != 3 || itemCalls[2] != 1 {
 		t.Fatalf("items retried %v", itemCalls)
+	}
+
+	// A RetryAfter beyond the policy's maximum interval is capped, and a
+	// wait past the run's deadline is not started.
+	long := 0
+	f = newFake(map[string]handler{
+		"smtp.Send": func(context.Context, map[string]any) (any, error) {
+			long++
+
+			return nil, retryAfter("slow", time.Hour)
+		},
+		"template.Exec": func(context.Context, map[string]any) (any, error) { return map[string]any{}, nil },
+	})
+
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+
+	start = time.Now()
+
+	if _, err := direct.NewRunner(f).Execute(ctx, direct.Run{
+		ID: "r", Kind: direct.KindBinding, Program: p, Payload: []byte(`{}`),
+	}, nil); err == nil || long != 3 || time.Since(start) > time.Second {
+		t.Fatalf("capped retry-after: %v calls %d took %v", err, long, time.Since(start))
 	}
 
 	// Final failures are not retried.
