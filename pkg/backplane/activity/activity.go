@@ -16,6 +16,7 @@ package activity
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -124,6 +125,24 @@ func RetryAfter(err error, d time.Duration) error {
 	}
 
 	return env.RetryAfterError{Err: err, Delay: d}
+}
+
+// IsNonRetryable reports whether err was marked final with NonRetryable.
+func IsNonRetryable(err error) bool {
+	var final env.NonRetryableError
+
+	return errors.As(err, &final)
+}
+
+// RetryAfterOf is the delay RetryAfter asked for; false when err carries
+// none.
+func RetryAfterOf(err error) (time.Duration, bool) {
+	var later env.RetryAfterError
+	if !errors.As(err, &later) {
+		return 0, false
+	}
+
+	return later.Delay, true
 }
 
 // NonRetryable marks err as final: the binding does not retry the activity

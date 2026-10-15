@@ -3,6 +3,8 @@ package activity_test
 import (
 	"context"
 	"errors"
+	"fmt"
+	"time"
 	"strings"
 	"testing"
 
@@ -111,5 +113,23 @@ func TestHandleSchema(t *testing.T) {
 	out, err := backplanetest.Activity[Order, Receipt](t.Context(), h, "Relay", Order{Items: 4})
 	if err != nil || out.Total != 4 {
 		t.Fatalf("invoke: %v %v", out, err)
+	}
+}
+
+func TestErrorMarks(t *testing.T) {
+	t.Parallel()
+
+	base := errors.New("x")
+
+	if !activity.IsNonRetryable(fmt.Errorf("wrapped: %w", activity.NonRetryable(base))) || activity.IsNonRetryable(base) {
+		t.Fatal("non-retryable")
+	}
+
+	if d, ok := activity.RetryAfterOf(fmt.Errorf("w: %w", activity.RetryAfter(base, time.Second))); !ok || d != time.Second {
+		t.Fatal("retry after")
+	}
+
+	if _, ok := activity.RetryAfterOf(base); ok {
+		t.Fatal("plain error carries a delay")
 	}
 }
