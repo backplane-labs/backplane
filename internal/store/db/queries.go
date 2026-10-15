@@ -1343,26 +1343,41 @@ func (q *Queries) LockScheduleCommand(ctx context.Context, key string) error {
 	return err
 }
 
+const putDirectProgramSQL = `-- The program a run is about to reference; one row per content.
+INSERT INTO backplane.direct_program (hash, spec) VALUES ($1, $2)
+ON CONFLICT (hash) DO NOTHING;`
+
+type PutDirectProgramParams struct {
+	Hash string
+	Spec json.RawMessage
+}
+
+func (q *Queries) PutDirectProgram(ctx context.Context, arg PutDirectProgramParams) error {
+	_, err := q.db.Exec(ctx, putDirectProgramSQL, arg.Hash, arg.Spec)
+	return err
+}
+
 const claimDirectRunSQL = `-- A new run, or a failed run of the same id claimed again (a rule's event
 -- redelivered); no row when the id is running or completed already.
-INSERT INTO backplane.direct_run (id, kind, source, version, test, caller, status, input, program)
+INSERT INTO backplane.direct_run (id, kind, source, version, test, caller, status, input, program_hash)
 VALUES ($1, $2, $3, $4, $5, $6, 'running', $7, $8)
 ON CONFLICT (id) DO UPDATE SET
   status = 'running', attempt = backplane.direct_run.attempt + 1, started_at = clock_timestamp(),
-  closed_at = NULL, result = NULL, error = '', error_type = '', input = EXCLUDED.input, program = EXCLUDED.program,
+  closed_at = NULL, result = NULL, error = '', error_type = '', incomplete = false,
+  input = EXCLUDED.input, program_hash = EXCLUDED.program_hash,
   version = EXCLUDED.version, caller = EXCLUDED.caller
 WHERE backplane.direct_run.status = 'failed'
 RETURNING id, attempt, started_at;`
 
 type ClaimDirectRunParams struct {
-	ID      string
-	Kind    string
-	Source  string
-	Version int64
-	Test    bool
-	Caller  string
-	Input   json.RawMessage
-	Program json.RawMessage
+	ID          string
+	Kind        string
+	Source      string
+	Version     int64
+	Test        bool
+	Caller      string
+	Input       json.RawMessage
+	ProgramHash string
 }
 
 type ClaimDirectRunRow struct {
@@ -1372,55 +1387,74 @@ type ClaimDirectRunRow struct {
 }
 
 func (q *Queries) ClaimDirectRun(ctx context.Context, arg ClaimDirectRunParams) (ClaimDirectRunRow, error) {
-	row := q.db.QueryRow(ctx, claimDirectRunSQL, arg.ID, arg.Kind, arg.Source, arg.Version, arg.Test, arg.Caller, arg.Input, arg.Program)
+	row := q.db.QueryRow(ctx, claimDirectRunSQL, arg.ID, arg.Kind, arg.Source, arg.Version, arg.Test, arg.Caller, arg.Input, arg.ProgramHash)
 	var i ClaimDirectRunRow
 	err := row.Scan(&i.ID, &i.Attempt, &i.StartedAt)
 	return i, err
 }
 
 const finishDirectRunSQL = `UPDATE backplane.direct_run
-SET status = $1, result = $2, error = $3, error_type = $4, closed_at = clock_timestamp()
-WHERE id = $5;`
+SET status = $1, result = $2, error = $3, error_type = $4, incomplete = $5,
+  closed_at = clock_timestamp()
+WHERE id = $6;`
 
 type FinishDirectRunParams struct {
-	Status    string
-	Result    json.RawMessage
-	Error     string
-	ErrorType string
-	ID        string
+	Status     string
+	Result     json.RawMessage
+	Error      string
+	ErrorType  string
+	Incomplete bool
+	ID         string
 }
 
 func (q *Queries) FinishDirectRun(ctx context.Context, arg FinishDirectRunParams) error {
-	_, err := q.db.Exec(ctx, finishDirectRunSQL, arg.Status, arg.Result, arg.Error, arg.ErrorType, arg.ID)
+	_, err := q.db.Exec(ctx, finishDirectRunSQL, arg.Status, arg.Result, arg.Error, arg.ErrorType, arg.Incomplete, arg.ID)
 	return err
 }
 
-const getDirectRunSQL = `SELECT id, kind, source, version, test, caller, status, attempt, input, result, error, error_type, program,
-  started_at, closed_at
+const sweepDirectRunsSQL = `-- Runs still running past cutoff: their end was never recorded (the
+-- record was lost, or the replica died). Closed as failed, incomplete.
+UPDATE backplane.direct_run
+SET status = 'failed', error = $1, incomplete = true, closed_at = clock_timestamp()
+WHERE status = 'running' AND started_at < $2;`
+
+type SweepDirectRunsParams struct {
+	Error  string
+	Cutoff time.Time
+}
+
+func (q *Queries) SweepDirectRuns(ctx context.Context, arg SweepDirectRunsParams) (int64, error) {
+	tag, err := q.db.Exec(ctx, sweepDirectRunsSQL, arg.Error, arg.Cutoff)
+	return tag.RowsAffected(), err
+}
+
+const getDirectRunSQL = `SELECT id, kind, source, version, test, caller, status, attempt, input, result, error, error_type, program_hash,
+  incomplete, started_at, closed_at
 FROM backplane.direct_run WHERE id = $1;`
 
 type GetDirectRunRow struct {
-	ID        string
-	Kind      string
-	Source    string
-	Version   int64
-	Test      bool
-	Caller    string
-	Status    string
-	Attempt   int32
-	Input     json.RawMessage
-	Result    json.RawMessage
-	Error     string
-	ErrorType string
-	Program   json.RawMessage
-	StartedAt time.Time
-	ClosedAt  *time.Time
+	ID          string
+	Kind        string
+	Source      string
+	Version     int64
+	Test        bool
+	Caller      string
+	Status      string
+	Attempt     int32
+	Input       json.RawMessage
+	Result      json.RawMessage
+	Error       string
+	ErrorType   string
+	ProgramHash string
+	Incomplete  bool
+	StartedAt   time.Time
+	ClosedAt    *time.Time
 }
 
 func (q *Queries) GetDirectRun(ctx context.Context, id string) (GetDirectRunRow, error) {
 	row := q.db.QueryRow(ctx, getDirectRunSQL, id)
 	var i GetDirectRunRow
-	err := row.Scan(&i.ID, &i.Kind, &i.Source, &i.Version, &i.Test, &i.Caller, &i.Status, &i.Attempt, &i.Input, &i.Result, &i.Error, &i.ErrorType, &i.Program, &i.StartedAt, &i.ClosedAt)
+	err := row.Scan(&i.ID, &i.Kind, &i.Source, &i.Version, &i.Test, &i.Caller, &i.Status, &i.Attempt, &i.Input, &i.Result, &i.Error, &i.ErrorType, &i.ProgramHash, &i.Incomplete, &i.StartedAt, &i.ClosedAt)
 	return i, err
 }
 
@@ -1562,6 +1596,15 @@ type ExpireDirectRunsParams struct {
 
 func (q *Queries) ExpireDirectRuns(ctx context.Context, arg ExpireDirectRunsParams) error {
 	_, err := q.db.Exec(ctx, expireDirectRunsSQL, arg.Cutoff, arg.BatchSize)
+	return err
+}
+
+const expireDirectProgramsSQL = `-- Programs no run references any more.
+DELETE FROM backplane.direct_program p
+WHERE NOT EXISTS (SELECT 1 FROM backplane.direct_run r WHERE r.program_hash = p.hash);`
+
+func (q *Queries) ExpireDirectPrograms(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, expireDirectProgramsSQL)
 	return err
 }
 

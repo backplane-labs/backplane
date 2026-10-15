@@ -74,6 +74,10 @@ type Runs struct {
 	runs  chan write
 	steps chan write
 	drops func()
+
+	mu sync.Mutex
+	// stored are the program hashes this process has written.
+	stored map[string]bool
 }
 
 // NewRuns creates the recorder over the store; drops is told of every
@@ -86,6 +90,7 @@ func NewRuns(st deps.Dependency[*store.Store], log *xlog.Logger, drops func()) *
 	return &Runs{
 		st: st, log: log, drops: drops,
 		runs: make(chan write, runQueueSize), steps: make(chan write, stepQueueSize),
+		stored: map[string]bool{},
 	}
 }
 
@@ -236,11 +241,14 @@ func (r *Runs) enqueue(w write) {
 	}
 }
 
-func (r *Runs) enqueueStep(w write) {
+func (r *Runs) enqueueStep(w write) bool {
 	select {
 	case r.steps <- w:
+		return true
 	default:
 		r.drops()
+
+		return false
 	}
 }
 
@@ -253,8 +261,37 @@ type Start struct {
 	Test    bool
 	Caller  string
 	// Input is the run's payload, masked by prog before it is stored.
-	Input   []byte
-	Program []byte
+	Input []byte
+	// Program is the marshaled program the run runs, ProgramHash its
+	// Program.Hash: the run references the program by it.
+	Program     []byte
+	ProgramHash string
+}
+
+// program is the record of a run's program: one row per content. A hash
+// already stored (by this process) is not sent again; a store that lost
+// the write keeps it unknown, so the next run sends it again.
+func (r *Runs) program(s Start) write {
+	r.mu.Lock()
+	known := r.stored[s.ProgramHash]
+	r.mu.Unlock()
+
+	if known {
+		return nil
+	}
+
+	return func(ctx context.Context, q *db.Queries) error {
+		params := db.PutDirectProgramParams{Hash: s.ProgramHash, Spec: jsonb(s.Program)}
+		if err := q.PutDirectProgram(ctx, params); err != nil {
+			return fmt.Errorf("program %s: %w", s.ProgramHash, err)
+		}
+
+		r.mu.Lock()
+		r.stored[s.ProgramHash] = true
+		r.mu.Unlock()
+
+		return nil
+	}
 }
 
 // Claim records the start of a run, synchronously: false (and no error)
@@ -266,9 +303,17 @@ func (r *Runs) Claim(ctx context.Context, s Start, prog *redact.Program) (bool, 
 		return false, fmt.Errorf("direct runs: %w", deps.ErrNotReady)
 	}
 
-	_, err := r.st.Get().Q.ClaimDirectRun(ctx, db.ClaimDirectRunParams{
+	queries := r.st.Get().Q
+
+	if put := r.program(s); put != nil {
+		if err := put(ctx, queries); err != nil {
+			return false, fmt.Errorf("direct runs: claim %s: %w", s.ID, err)
+		}
+	}
+
+	_, err := queries.ClaimDirectRun(ctx, db.ClaimDirectRunParams{
 		ID: s.ID, Kind: string(s.Kind), Source: s.Source, Version: s.Version, Test: s.Test, Caller: s.Caller,
-		Input: jsonb(prog.MaskInput(s.Input)), Program: jsonb(s.Program),
+		Input: jsonb(prog.MaskInput(s.Input)), ProgramHash: s.ProgramHash,
 	})
 
 	switch {
@@ -286,10 +331,14 @@ func (r *Runs) Claim(ctx context.Context, s Start, prog *redact.Program) (bool, 
 func (r *Runs) Begin(s Start, prog *redact.Program) {
 	input := jsonb(prog.MaskInput(s.Input))
 
+	if put := r.program(s); put != nil {
+		r.enqueue(put)
+	}
+
 	r.enqueue(func(ctx context.Context, q *db.Queries) error {
 		_, err := q.ClaimDirectRun(ctx, db.ClaimDirectRunParams{
 			ID: s.ID, Kind: string(s.Kind), Source: s.Source, Version: s.Version, Test: s.Test, Caller: s.Caller,
-			Input: input, Program: jsonb(s.Program),
+			Input: input, ProgramHash: s.ProgramHash,
 		})
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("begin %s: %w", s.ID, err)
@@ -300,8 +349,8 @@ func (r *Runs) Begin(s Start, prog *redact.Program) {
 }
 
 // Finish records the end of a run: its result masked by prog, or its
-// error.
-func (r *Runs) Finish(id string, prog *redact.Program, result []byte, err error) {
+// error; incomplete marks a record missing step records (Recorder.Incomplete).
+func (r *Runs) Finish(id string, prog *redact.Program, result []byte, err error, incomplete bool) {
 	status := statusCompleted
 	msg, typ := Readable(err)
 
@@ -316,13 +365,22 @@ func (r *Runs) Finish(id string, prog *redact.Program, result []byte, err error)
 
 	r.enqueue(func(ctx context.Context, q *db.Queries) error {
 		return q.FinishDirectRun(ctx, db.FinishDirectRunParams{
-			ID: id, Status: status, Result: masked, Error: msg, ErrorType: typ,
+			ID: id, Status: status, Result: masked, Error: msg, ErrorType: typ, Incomplete: incomplete,
 		})
 	})
 }
 
-// Recorder is the Recorder of one run: steps masked by its program.
-func (r *Runs) Recorder(id string, prog *redact.Program) Recorder { //nolint:ireturn // the runner's interface
+// RunRecorder is the Recorder of one run that also knows whether every
+// step record it was given reached the queue.
+type RunRecorder interface {
+	Recorder
+	// Incomplete: a step record was dropped; the run's record is not the
+	// whole run.
+	Incomplete() bool
+}
+
+// Recorder is the RunRecorder of one run: steps masked by its program.
+func (r *Runs) Recorder(id string, prog *redact.Program) RunRecorder { //nolint:ireturn // the runner's interface
 	return &recorder{runs: r, id: id, prog: prog}
 }
 
@@ -331,8 +389,25 @@ type recorder struct {
 	id   string
 	prog *redact.Program
 
-	mu  sync.Mutex
-	seq int32
+	mu      sync.Mutex
+	seq     int32
+	dropped bool
+}
+
+func (rc *recorder) Incomplete() bool {
+	rc.mu.Lock()
+	defer rc.mu.Unlock()
+
+	return rc.dropped
+}
+
+// record queues a step record; a full queue is remembered.
+func (rc *recorder) record(w write) {
+	if !rc.runs.enqueueStep(w) {
+		rc.mu.Lock()
+		rc.dropped = true
+		rc.mu.Unlock()
+	}
 }
 
 func (rc *recorder) Scheduled(
@@ -351,7 +426,7 @@ func (rc *recorder) Scheduled(
 	seq := rc.seq
 	rc.mu.Unlock()
 
-	rc.runs.enqueueStep(func(ctx context.Context, q *db.Queries) error {
+	rc.record(func(ctx context.Context, q *db.Queries) error {
 		return q.UpsertDirectRunStep(ctx, db.UpsertDirectRunStepParams{
 			RunID: rc.id, Label: label, Seq: seq, Step: step, Parent: parent, Item: itemPtr, Activity: activity,
 			Status: statusScheduled, Input: masked, ScheduledAt: when,
@@ -363,7 +438,7 @@ func (rc *recorder) Completed(label string, output []byte, when time.Time) {
 	st, _ := rc.prog.Step(label)
 	masked := jsonb(st.MaskOutput(output))
 
-	rc.runs.enqueueStep(func(ctx context.Context, q *db.Queries) error {
+	rc.record(func(ctx context.Context, q *db.Queries) error {
 		return q.UpsertDirectRunStep(ctx, db.UpsertDirectRunStepParams{
 			RunID: rc.id, Label: label, Status: statusCompleted, Output: masked, ClosedAt: &when, ScheduledAt: when,
 		})
@@ -382,7 +457,7 @@ func (rc *recorder) Failed(label, msg, typ string, when time.Time) {
 		}
 	}
 
-	rc.runs.enqueueStep(func(ctx context.Context, q *db.Queries) error {
+	rc.record(func(ctx context.Context, q *db.Queries) error {
 		return q.UpsertDirectRunStep(ctx, db.UpsertDirectRunStepParams{
 			RunID: rc.id, Label: label, Status: status, Error: msg, ErrorType: typ, ClosedAt: &when, ScheduledAt: when,
 		})
@@ -415,7 +490,30 @@ func (r *Runs) Expire(ctx context.Context, cutoff time.Time) error {
 		return fmt.Errorf("direct runs: expire: %w", err)
 	}
 
+	if err := r.st.Get().Q.ExpireDirectPrograms(ctx); err != nil {
+		return fmt.Errorf("direct runs: expire programs: %w", err)
+	}
+
 	return nil
+}
+
+// unrecordedMsg is the error of a run the sweeper closed.
+const unrecordedMsg = "the run's end was not recorded"
+
+// Sweep closes the runs still running since before cutoff: their end was
+// never recorded (the record was lost, or the replica died with the run).
+// They end failed and incomplete; how many.
+func (r *Runs) Sweep(ctx context.Context, cutoff time.Time) (int64, error) {
+	if !r.ready() {
+		return 0, fmt.Errorf("direct runs: %w", deps.ErrNotReady)
+	}
+
+	n, err := r.st.Get().Q.SweepDirectRuns(ctx, db.SweepDirectRunsParams{Error: unrecordedMsg, Cutoff: cutoff})
+	if err != nil {
+		return 0, fmt.Errorf("direct runs: sweep: %w", err)
+	}
+
+	return n, nil
 }
 
 // Info is what a run is: for the console's binding and rule run RPCs.

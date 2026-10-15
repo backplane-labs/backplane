@@ -314,13 +314,13 @@ INSERT INTO service_data.widgets VALUES ('service-owned');`)
 func TestPGLoginMigrationKeepsExistingSessions(t *testing.T) {
 	t.Parallel()
 	st := pgStoreWithSetup(t, func(ctx context.Context, conn *pgx.Conn) {
-		initial, err := os.ReadFile("../store/migrations/20260930173422479_init.sql")
+		initial, err := os.ReadFile("../store/migrations/20261015130420587_init.sql")
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		legacy, err := postgres.Open(ctx, xlog.NewJSON(), postgres.Config{DSN: config.Secret(conn.Config().ConnString())},
-			postgres.Schema(store.Schema), postgres.Migrations(fstest.MapFS{"20260930173422479_init.sql": {Data: initial}}))
+			postgres.Schema(store.Schema), postgres.Migrations(fstest.MapFS{"20261015130420587_init.sql": {Data: initial}}))
 		if err != nil {
 			t.Fatal(err)
 		}

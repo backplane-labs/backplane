@@ -225,6 +225,16 @@ CREATE VIEW backplane.audit_feed AS
 -- dedup of a rule's event (one run per
 -- event id; a failed run may be claimed again by a redelivery). Retention
 -- is deployment-controlled (direct.retention).
+-- The programs direct runs ran, by content: a run keeps the definition it
+-- ran (whatever the binding says now) without carrying its own copy.
+CREATE TABLE backplane.direct_program (
+  -- hex SHA-256 of spec
+  hash       text        PRIMARY KEY,
+  -- The marshaled bindings.Program.
+  spec       json        NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+
 CREATE TABLE backplane.direct_run (
   id         text        PRIMARY KEY,
   -- binding | rule
@@ -242,7 +252,11 @@ CREATE TABLE backplane.direct_run (
   result     json,
   error      text        NOT NULL DEFAULT '',
   error_type text        NOT NULL DEFAULT '',
-  program    json        NOT NULL,
+  program_hash text      NOT NULL REFERENCES backplane.direct_program (hash),
+  -- The record is not the whole run: step records were lost to a full
+  -- write queue, or the run's end was never recorded and the sweeper
+  -- closed it.
+  incomplete boolean     NOT NULL DEFAULT false,
   started_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   closed_at  timestamptz
 );

@@ -2,6 +2,8 @@ package bindings
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -137,6 +139,7 @@ type Program struct {
 	// raw is the spec marshaled, masks what the console hides of a run by
 	// it: both derived once here, read on every run (Spec, Masks).
 	raw    []byte
+	hash   string
 	masks  *redact.Program
 	env    *cel.Env
 	input  *shape
@@ -195,7 +198,12 @@ func newProgram(s spec) (*Program, error) {
 		return nil, fmt.Errorf("bindings: program: %w", err)
 	}
 
-	p := &Program{spec: s, raw: raw, masks: redact.ParseProgram(raw), env: env, input: b.of(in, "bp.input")}
+	sum := sha256.Sum256(raw)
+
+	p := &Program{
+		spec: s, raw: raw, hash: hex.EncodeToString(sum[:]), masks: redact.ParseProgram(raw),
+		env: env, input: b.of(in, "bp.input"),
+	}
 
 	if s.When != "" {
 		if p.when, err = program(env, s.When); err != nil {
@@ -365,6 +373,9 @@ func (p *Program) MarshalJSON() ([]byte, error) { return bytes.Clone(p.raw), nil
 // Spec is MarshalJSON's bytes without the copy: read, never written. A
 // for-each body (KindBody) has none.
 func (p *Program) Spec() []byte { return p.raw }
+
+// Hash names the program by its content: hex SHA-256 of Spec.
+func (p *Program) Hash() string { return p.hash }
 
 // Masks is what the console hides of a run of the program: the secrets
 // of its input, calls and result. Shared: read only.

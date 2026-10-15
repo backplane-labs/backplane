@@ -154,6 +154,12 @@ CREATE TABLE "backplane"."console_session" (
   "user_agent" text NOT NULL,
   PRIMARY KEY ("id")
 );
+CREATE TABLE "backplane"."direct_program" (
+  "hash" text NOT NULL,
+  "spec" json NOT NULL,
+  "created_at" timestamptz NOT NULL DEFAULT clock_timestamp(),
+  PRIMARY KEY ("hash")
+);
 CREATE TABLE "backplane"."direct_run" (
   "id" text NOT NULL,
   "kind" text NOT NULL,
@@ -167,7 +173,8 @@ CREATE TABLE "backplane"."direct_run" (
   "result" json,
   "error" text NOT NULL DEFAULT ''::text,
   "error_type" text NOT NULL DEFAULT ''::text,
-  "program" json NOT NULL,
+  "program_hash" text NOT NULL,
+  "incomplete" bool NOT NULL DEFAULT false,
   "started_at" timestamptz NOT NULL DEFAULT clock_timestamp(),
   "closed_at" timestamptz,
   PRIMARY KEY ("id")
@@ -267,6 +274,7 @@ ALTER TABLE "backplane"."binding_current" ADD CONSTRAINT "binding_current_hook_v
 ALTER TABLE "backplane"."binding_version" ADD CONSTRAINT "binding_version_hook_rollback_of_fkey" FOREIGN KEY ("hook", "rollback_of") REFERENCES "backplane"."binding_version" ("hook", "version");
 ALTER TABLE "backplane"."config_current" ADD CONSTRAINT "config_current_service_revision_fkey" FOREIGN KEY ("service", "revision") REFERENCES "backplane"."config_revision" ("service", "revision");
 ALTER TABLE "backplane"."config_revision" ADD CONSTRAINT "config_revision_service_rollback_of_fkey" FOREIGN KEY ("service", "rollback_of") REFERENCES "backplane"."config_revision" ("service", "revision");
+ALTER TABLE "backplane"."direct_run" ADD CONSTRAINT "direct_run_program_hash_fkey" FOREIGN KEY ("program_hash") REFERENCES "backplane"."direct_program" ("hash");
 ALTER TABLE "backplane"."direct_run_step" ADD CONSTRAINT "direct_run_step_run_id_fkey" FOREIGN KEY ("run_id") REFERENCES "backplane"."direct_run" ("id") ON DELETE CASCADE;
 ALTER TABLE "backplane"."rule_current" ADD CONSTRAINT "rule_current_rule_id_fkey" FOREIGN KEY ("rule_id") REFERENCES "backplane"."rule" ("id");
 ALTER TABLE "backplane"."rule_current" ADD CONSTRAINT "rule_current_rule_id_version_fkey" FOREIGN KEY ("rule_id", "version") REFERENCES "backplane"."rule_version" ("rule_id", "version");
@@ -317,6 +325,7 @@ ALTER TABLE "backplane"."rule_version" DROP CONSTRAINT "rule_version_rule_id_fke
 ALTER TABLE "backplane"."rule_current" DROP CONSTRAINT "rule_current_rule_id_version_fkey";
 ALTER TABLE "backplane"."rule_current" DROP CONSTRAINT "rule_current_rule_id_fkey";
 ALTER TABLE "backplane"."direct_run_step" DROP CONSTRAINT "direct_run_step_run_id_fkey";
+ALTER TABLE "backplane"."direct_run" DROP CONSTRAINT "direct_run_program_hash_fkey";
 ALTER TABLE "backplane"."config_revision" DROP CONSTRAINT "config_revision_service_rollback_of_fkey";
 ALTER TABLE "backplane"."config_current" DROP CONSTRAINT "config_current_service_revision_fkey";
 ALTER TABLE "backplane"."binding_version" DROP CONSTRAINT "binding_version_hook_rollback_of_fkey";
@@ -371,6 +380,7 @@ DROP TABLE "backplane"."rule";
 DROP TABLE "backplane"."installation";
 DROP TABLE "backplane"."direct_run_step";
 DROP TABLE "backplane"."direct_run";
+DROP TABLE "backplane"."direct_program";
 DROP TABLE "backplane"."console_session";
 DROP TABLE "backplane"."console_login_state";
 DROP TABLE "backplane"."console_login_attempt";

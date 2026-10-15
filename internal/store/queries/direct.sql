@@ -1,25 +1,39 @@
 -- Runs of the direct runtime (internal/direct).
 
+-- name: PutDirectProgram :exec
+-- The program a run is about to reference; one row per content.
+INSERT INTO backplane.direct_program (hash, spec) VALUES (@hash, @spec)
+ON CONFLICT (hash) DO NOTHING;
+
 -- name: ClaimDirectRun :one
 -- A new run, or a failed run of the same id claimed again (a rule's event
 -- redelivered); no row when the id is running or completed already.
-INSERT INTO backplane.direct_run (id, kind, source, version, test, caller, status, input, program)
-VALUES (@id, @kind, @source, @version, @test, @caller, 'running', @input, @program)
+INSERT INTO backplane.direct_run (id, kind, source, version, test, caller, status, input, program_hash)
+VALUES (@id, @kind, @source, @version, @test, @caller, 'running', @input, @program_hash)
 ON CONFLICT (id) DO UPDATE SET
   status = 'running', attempt = backplane.direct_run.attempt + 1, started_at = clock_timestamp(),
-  closed_at = NULL, result = NULL, error = '', error_type = '', input = EXCLUDED.input, program = EXCLUDED.program,
+  closed_at = NULL, result = NULL, error = '', error_type = '', incomplete = false,
+  input = EXCLUDED.input, program_hash = EXCLUDED.program_hash,
   version = EXCLUDED.version, caller = EXCLUDED.caller
 WHERE backplane.direct_run.status = 'failed'
 RETURNING id, attempt, started_at;
 
 -- name: FinishDirectRun :exec
 UPDATE backplane.direct_run
-SET status = @status, result = @result, error = @error, error_type = @error_type, closed_at = clock_timestamp()
+SET status = @status, result = @result, error = @error, error_type = @error_type, incomplete = @incomplete,
+  closed_at = clock_timestamp()
 WHERE id = @id;
 
+-- name: SweepDirectRuns :execrows
+-- Runs still running past cutoff: their end was never recorded (the
+-- record was lost, or the replica died). Closed as failed, incomplete.
+UPDATE backplane.direct_run
+SET status = 'failed', error = @error, incomplete = true, closed_at = clock_timestamp()
+WHERE status = 'running' AND started_at < @cutoff;
+
 -- name: GetDirectRun :one
-SELECT id, kind, source, version, test, caller, status, attempt, input, result, error, error_type, program,
-  started_at, closed_at
+SELECT id, kind, source, version, test, caller, status, attempt, input, result, error, error_type, program_hash,
+  incomplete, started_at, closed_at
 FROM backplane.direct_run WHERE id = @id;
 
 -- name: ListDirectRuns :many
@@ -52,3 +66,8 @@ WHERE id IN (
   WHERE started_at < @cutoff AND status <> 'running'
   ORDER BY started_at LIMIT @batch_size
 );
+
+-- name: ExpireDirectPrograms :exec
+-- Programs no run references any more.
+DELETE FROM backplane.direct_program p
+WHERE NOT EXISTS (SELECT 1 FROM backplane.direct_run r WHERE r.program_hash = p.hash);

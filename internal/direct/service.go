@@ -34,6 +34,8 @@ const (
 	DefaultRetention = 7 * 24 * time.Hour
 	// retentionTick is how often expired runs are deleted.
 	retentionTick = time.Hour
+	// sweepTick is how often unrecorded runs are closed.
+	sweepTick = time.Minute
 )
 
 // Errors.
@@ -135,6 +137,7 @@ func New(
 
 	s.Go(s.runs.Write)
 	s.Go(s.expire)
+	s.Go(s.sweep)
 	s.Go(s.prune)
 	s.OnStop(func(context.Context) error {
 		if s.acts != nil {
@@ -171,6 +174,35 @@ func (s *Service) expire(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-tick.C:
+		}
+	}
+}
+
+// sweep closes the runs whose end was never recorded, every sweepTick: a
+// run older than twice its timeout is not running anywhere (the runner
+// ended it by then) and the record of that was lost.
+func (s *Service) sweep(ctx context.Context) error {
+	if s.runTimeout <= 0 {
+		return nil
+	}
+
+	tick := time.NewTicker(sweepTick)
+	defer tick.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-tick.C:
+		}
+
+		n, err := s.runs.Sweep(ctx, time.Now().Add(-2*s.runTimeout))
+
+		switch {
+		case err != nil && ctx.Err() == nil:
+			s.Log().Warn("direct runs sweep retry", xlog.Err(err))
+		case n > 0:
+			s.Log().Warn("direct runs closed unrecorded", xlog.Int64("runs", n))
 		}
 	}
 }
@@ -273,7 +305,7 @@ func (s *Service) Required(hook, instance string) bool {
 // ErrAlreadyStarted), runs within ctx, and ends. The run can be canceled
 // by id while it runs.
 func (s *Service) Execute(ctx context.Context, start Start, run Run, claim bool) ([]byte, error) {
-	start.Program = run.Program.Spec()
+	start.Program, start.ProgramHash = run.Program.Spec(), run.Program.Hash()
 	masks := run.Program.Masks()
 
 	if claim {
@@ -303,8 +335,9 @@ func (s *Service) Execute(ctx context.Context, start Start, run Run, claim bool)
 	}()
 
 	began := time.Now()
-	out, err := s.runner.Execute(ctx, run, s.runs.Recorder(start.ID, masks))
-	s.runs.Finish(start.ID, masks, out, err)
+	rec := s.runs.Recorder(start.ID, masks)
+	out, err := s.runner.Execute(ctx, run, rec)
+	s.runs.Finish(start.ID, masks, out, err, rec.Incomplete())
 	s.metrics.run(ctx, start.Kind, err, time.Since(began))
 
 	return out, err
