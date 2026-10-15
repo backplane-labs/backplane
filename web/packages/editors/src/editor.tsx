@@ -50,6 +50,12 @@ export function editorTheme(mode: 'dark' | 'light', height: number | 'fill' = 16
   }, { dark: mode === 'dark' });
 }
 
+/** shown is the text a viewer displays: read-only JSON without diagnostics reads pretty-printed. */
+function shown(props: CodeEditorProps): string {
+  if (!props.readOnly || props.language !== 'json' || props.diagnostics?.length) return props.value;
+  try { return JSON.stringify(JSON.parse(props.value), null, 2); } catch { return props.value; }
+}
+
 /** formatDocument pretty-prints JSON in place (two spaces); false for other languages or invalid JSON. */
 export function formatDocument(view: EditorView, language?: string): boolean {
   if (language !== 'json' || view.state.readOnly) return false;
@@ -98,7 +104,7 @@ export default function Editor(props: CodeEditorProps) {
       } catch { if (!disposed && !controller.signal.aborted) setFailure('validationFailed'); return []; }
       finally { requests.delete(controller); }
     };
-    const view = new EditorView({ parent: host.current, state: EditorState.create({ doc: latest.current.value, extensions: [
+    const view = new EditorView({ parent: host.current, state: EditorState.create({ doc: shown(latest.current), extensions: [
       history(), drawSelection(), bracketMatching(), closeBrackets(), indentOnInput(),
       settings.current.of([]), externalDiagnostics.current.of([]),
       keymap.of([{ key: 'Mod-Enter', run: () => { if (!latest.current.disabled) latest.current.onSubmit?.(); return true; } },
@@ -131,8 +137,8 @@ export default function Editor(props: CodeEditorProps) {
     ]) });
   }, [props.language, props.mode, props.inline, props.height, props.readOnly, props.disabled, props.label]);
   useEffect(() => {
-    const view = viewRef.current; if (view && view.state.doc.toString() !== props.value) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: props.value }, annotations: Transaction.remote.of(true) });
-  }, [props.value]);
+    const view = viewRef.current, text = shown(props); if (view && view.state.doc.toString() !== text) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text }, annotations: Transaction.remote.of(true) });
+  }, [props.value, props.readOnly, props.language]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const view = viewRef.current; if (view && props.diagnostics) view.dispatch(setDiagnostics(view.state, boundDiagnostics(props.diagnostics, view.state.doc.length))); }, [props.diagnostics, props.value]);
   useEffect(() => {
     const view = viewRef.current, reveal = props.reveal; if (!view || !reveal) return;
