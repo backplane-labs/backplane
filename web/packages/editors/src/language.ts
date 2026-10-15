@@ -1,4 +1,5 @@
 import { StreamLanguage, type StreamParser } from '@codemirror/language';
+import { html } from '@codemirror/lang-html';
 import { json } from '@codemirror/lang-json';
 import { yaml } from '@codemirror/lang-yaml';
 import type { EditorLanguage, QueryLanguage } from './types.js';
@@ -29,4 +30,4 @@ export function queryParser(language: QueryLanguage): StreamParser<{ quote: stri
     stream.next(); return null;
   } };
 }
-export function languageExtension(language: EditorLanguage) { return language === 'json' ? json() : language === 'yaml' ? yaml() : language === 'text' ? [] : StreamLanguage.define(queryParser(language)); }
+export function languageExtension(language: EditorLanguage) { return language === 'json' ? json() : language === 'yaml' ? yaml() : language === 'html' ? html() : language === 'text' ? [] : StreamLanguage.define(queryParser(language)); }

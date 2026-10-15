@@ -20,11 +20,12 @@ export function editorHighlight(mode: 'dark' | 'light') {
   // YAML read at a glance; punctuation and comments step back.
   return syntaxHighlighting(HighlightStyle.define([
     { tag: [tags.propertyName, tags.definition(tags.propertyName), tags.attributeName], color: c['chart-2'] },
-    { tag: [tags.string, tags.special(tags.string), tags.content], color: c['chart-1'] },
+    { tag: [tags.string, tags.special(tags.string), tags.content, tags.attributeValue], color: c['chart-1'] },
+    { tag: [tags.tagName], color: c['chart-4'] },
     { tag: [tags.number, tags.integer, tags.float], color: c['chart-3'] },
     { tag: [tags.bool, tags.null, tags.atom, tags.keyword], color: c['chart-5'] },
     { tag: [tags.comment, tags.lineComment, tags.blockComment], color: c['muted-foreground'], fontStyle: 'italic' },
-    { tag: [tags.punctuation, tags.separator, tags.bracket, tags.squareBracket, tags.brace, tags.meta], color: c['muted-foreground'] },
+    { tag: [tags.punctuation, tags.separator, tags.bracket, tags.squareBracket, tags.brace, tags.angleBracket, tags.meta], color: c['muted-foreground'] },
     { tag: [tags.variableName, tags.operator, tags.typeName], color: c.foreground },
     { tag: tags.invalid, color: c.destructive, textDecoration: 'underline wavy' },
   ]));
@@ -126,7 +127,7 @@ export default function Editor(props: CodeEditorProps) {
       try {
         const answer = latest.current.complete
           ? await latest.current.complete({ value: context.state.doc.toString(), position: context.pos, language, signal: controller.signal, explicit: context.explicit })
-          : language === 'json' || language === 'yaml' || language === 'text' ? [] : queryKeywords[language].map((label) => ({ label, type: 'keyword' as const }));
+          : language === 'json' || language === 'yaml' || language === 'html' || language === 'text' ? [] : queryKeywords[language].map((label) => ({ label, type: 'keyword' as const }));
         if (disposed || controller.signal.aborted || context.aborted || !answer) return null;
         const result = 'from' in answer ? answer : { from: word?.from ?? context.pos, options: answer };
         setFailure(null); return { from: result.from, options: [...result.options].slice(0, 500), validFor: /^[\w]*$/ };

@@ -1,5 +1,5 @@
 export type QueryLanguage = 'cel' | 'promql' | 'metricsql' | 'logsql' | 'traceql';
-export type EditorLanguage = QueryLanguage | 'json' | 'yaml' | 'text';
+export type EditorLanguage = QueryLanguage | 'json' | 'yaml' | 'html' | 'text';
 export interface EditorDiagnostic { from: number; to: number; severity: 'error' | 'warning' | 'info' | 'hint'; message: string }
 export interface EditorCompletion { label: string; detail?: string; type?: 'variable' | 'function' | 'keyword' | 'property'; apply?: string }
 /** Completions that replace the text from `from` (UTF-16 offset) to the cursor. */
