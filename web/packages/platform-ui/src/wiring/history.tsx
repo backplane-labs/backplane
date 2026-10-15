@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { create } from '@bufbuild/protobuf';
 import * as api from '@backplane-labs/backplane-api';
 import { useClient } from '@backplane-labs/backplane-react';
@@ -89,6 +89,8 @@ export function TestRun({ subject, draft, dirty, schema, mode, onRun }: {
   const bindings = useClient(api.BindingServiceClient), rules = useClient(api.RuleServiceClient), text = usePlatformText();
   const action = usePlatformAction<{ violations: api.Violation[]; result?: api.CallResult; matched?: boolean; error?: string }>();
   const [input, setInput] = useState('{}'), [dryRun, setDryRun] = useState(false), [useDraft, setUseDraft] = useState(true);
+  // Open scaffolded from the schema, never on a bare {}; an edited input stays.
+  useEffect(() => { if (schema) setInput((current) => current.trim() === '{}' ? JSON.stringify(exampleOf(shapeOf(schema)), null, 2) : current); }, [schema]);
   const fromDraft = (dirty || (subject.kind === 'rule' && !subject.id)) && useDraft;
   const run = () => void action.run(async (signal) => {
     const response = subject.kind === 'binding'
