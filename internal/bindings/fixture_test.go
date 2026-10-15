@@ -58,7 +58,7 @@ type (
 	}
 )
 
-func schemaOf[T any](t *testing.T, service, name string) *sp.Schema {
+func schemaOf[T any](t testing.TB, service, name string) *sp.Schema {
 	t.Helper()
 
 	s, err := sp.ReflectType[T](sp.ID(sp.Namespace(service), sp.SchemaName(name), sp.Ver(1, 0, 0)))
@@ -72,7 +72,7 @@ func schemaOf[T any](t *testing.T, service, name string) *sp.Schema {
 // manifests is an installation: iam calls SendEmail and publishes
 // UserRegistered; template, smtp and billing implement activities
 // (billing without schemas).
-func manifests(t *testing.T) bindings.Manifests {
+func manifests(t testing.TB) bindings.Manifests {
 	t.Helper()
 
 	return bindings.Manifests{
@@ -126,7 +126,7 @@ steps:
 result: {message_id: send.id}
 `
 
-func mustBinding(t *testing.T, text string) bindings.Binding {
+func mustBinding(t testing.TB, text string) bindings.Binding {
 	t.Helper()
 
 	b, err := bindings.BindingYAML(text)
@@ -137,7 +137,7 @@ func mustBinding(t *testing.T, text string) bindings.Binding {
 	return b
 }
 
-func mustRule(t *testing.T, text string) bindings.Rule {
+func mustRule(t testing.TB, text string) bindings.Rule {
 	t.Helper()
 
 	r, err := bindings.RuleYAML(text)
@@ -148,7 +148,7 @@ func mustRule(t *testing.T, text string) bindings.Rule {
 	return r
 }
 
-func mustCompile(t *testing.T, b bindings.Binding) *bindings.Program {
+func mustCompile(t testing.TB, b bindings.Binding) *bindings.Program {
 	t.Helper()
 
 	p, err := bindings.CompileBinding(b, manifests(t))

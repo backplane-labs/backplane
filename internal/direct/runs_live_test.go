@@ -49,7 +49,7 @@ func secretInstallation(t *testing.T) bindings.Manifests {
 
 // live is a direct runtime over a scratch PostgreSQL database
 // (BACKPLANE_TEST_PG, skipped without) and a fake activity transport.
-func live(t *testing.T, acts map[string]handler, fakeB *fakeBindings) (*direct.Service, *fake) {
+func live(t testing.TB, acts map[string]handler, fakeB *fakeBindings) (*direct.Service, *fake) {
 	t.Helper()
 
 	dsn := os.Getenv("BACKPLANE_TEST_PG")

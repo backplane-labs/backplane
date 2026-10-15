@@ -60,7 +60,7 @@ func (f *fakeTemporal) RunBinding(
 	return &backplanev1.HookResult{Payload: []byte(`{"by":"temporal"}`)}, nil
 }
 
-func binding(t *testing.T, text string) bindings.Binding {
+func binding(t testing.TB, text string) bindings.Binding {
 	t.Helper()
 
 	b, err := bindings.BindingYAML(text)

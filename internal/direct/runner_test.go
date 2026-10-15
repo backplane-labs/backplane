@@ -54,7 +54,7 @@ func catalog() bindings.Catalog {
 	return bindings.WithDefaults(installation(), bindings.Defaults{Runtime: consolev1.Runtime_RUNTIME_DIRECT})
 }
 
-func program(t *testing.T, text string) *bindings.Program {
+func program(t testing.TB, text string) *bindings.Program {
 	t.Helper()
 
 	b, err := bindings.BindingYAML(text)
@@ -70,7 +70,7 @@ func program(t *testing.T, text string) *bindings.Program {
 	return p
 }
 
-func rule(t *testing.T, text string) *bindings.Program {
+func rule(t testing.TB, text string) *bindings.Program {
 	t.Helper()
 
 	r, err := bindings.RuleYAML(text)

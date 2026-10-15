@@ -29,7 +29,7 @@ import (
 // live is the Manager over PostgreSQL (BACKPLANE_TEST_PG, skipped
 // without) and a registry Hub holding the fixture manifests, iam renamed
 // to a random service so runs do not see each other's versions.
-func live(t *testing.T) (*bindings.Manager, string) {
+func live(t testing.TB) (*bindings.Manager, string) {
 	t.Helper()
 
 	m, iam, _ := liveHub(t)
@@ -39,7 +39,7 @@ func live(t *testing.T) (*bindings.Manager, string) {
 
 // liveHub is live with its Hub and services: publishing changed manifests
 // is a deploy.
-func liveHub(t *testing.T, also ...func(root deps.Scope, m *bindings.Manager)) (*bindings.Manager, string, hubServices) {
+func liveHub(t testing.TB, also ...func(root deps.Scope, m *bindings.Manager)) (*bindings.Manager, string, hubServices) {
 	t.Helper()
 
 	dsn := os.Getenv("BACKPLANE_TEST_PG")
