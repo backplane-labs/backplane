@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 	"strings"
 	"testing"
+	"time"
 
 	sp "github.com/gopherex/schemapb/go/schemapb"
 
