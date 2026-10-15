@@ -14,7 +14,10 @@ import (
 // Answer makes fn answer ref's calls, from Call and, in Workflows, from
 // workflows.CallHook; unanswered hooks fail with hook.ErrUnavailable as in
 // production without a transport (workflows.CallHook: hook.ErrNoBinding).
+// An answered hook is bound (hook.Ref.Bound), an unanswered one is not, and
+// BindingChanges signals when Answer binds one.
 func Answer[Req, Res any](h *Harness, ref hook.Ref[Req, Res], fn func(ctx context.Context, in Req) (Res, error)) {
+	h.bind(ref.Name())
 	h.rec.answer(ref.Name(), func(ctx context.Context, in []byte) ([]byte, error) {
 		var req Req
 		if err := decl.Decode(in, &req); err != nil {

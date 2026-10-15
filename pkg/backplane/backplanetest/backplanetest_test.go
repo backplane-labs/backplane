@@ -227,3 +227,35 @@ func TestHarnessReactOptions(t *testing.T) {
 		t.Fatalf("want the Timeout to end the handler, got %v", err)
 	}
 }
+
+// An unanswered hook is not bound; Answer binds it and signals the change.
+func TestHarnessBound(t *testing.T) {
+	t.Parallel()
+
+	h := backplanetest.New(t, backplanetest.Name("bound"))
+	root := h.Root()
+	lookup := hook.Declare[LookupIn, LookupOut](root, "Lookup")
+
+	if lookup.Bound() {
+		t.Fatal("bound before Answer")
+	}
+
+	changes := lookup.BindingChanges(t.Context())
+
+	backplanetest.Answer(h, lookup, func(context.Context, LookupIn) (LookupOut, error) { return LookupOut{}, nil })
+
+	select {
+	case <-changes:
+	case <-time.After(time.Second):
+		t.Fatal("no change signal")
+	}
+
+	if !lookup.Bound() {
+		t.Fatal("not bound after Answer")
+	}
+
+	var unset hook.Ref[LookupIn, LookupOut]
+	if unset.Bound() {
+		t.Fatal("an undeclared Ref is bound")
+	}
+}

@@ -154,6 +154,40 @@ func (c *core) connect() {
 	}
 
 	c.hookTransport()
+	c.watchBound()
+}
+
+// boundWatcher is a discovery that also follows the service's bound hooks
+// (the Consul driver's).
+type boundWatcher interface {
+	WatchBound(ctx context.Context, service string, fn func(hooks []string)) error
+}
+
+// watchBound follows backplane's published bound hooks of this service so
+// hook.Ref.Bound answers locally; without Consul they stay unknown (bound).
+func (c *core) watchBound() {
+	if !c.directHooks() {
+		return
+	}
+
+	find, err := c.opts.discovery(c.cfg, c.log)
+	if err != nil {
+		c.log.Warn("bound hooks watch", xlog.Err(err))
+
+		return
+	}
+
+	w, ok := find.(boundWatcher)
+	if !ok {
+		return
+	}
+
+	n := c.svc.Child("bound-hooks", node.System, false)
+	n.OnStart(func(context.Context) error {
+		n.Go(func(ctx context.Context) error { return w.WatchBound(ctx, c.id.Service, c.env.SetBound) })
+
+		return nil
+	})
 }
 
 // directHooks reports whether the direct hook transport is possible:

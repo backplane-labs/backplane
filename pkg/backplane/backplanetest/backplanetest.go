@@ -20,6 +20,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -100,6 +103,9 @@ type Harness struct {
 	env    *env.Env
 	rec    *recorder
 	budget time.Duration
+
+	mu    sync.Mutex
+	bound []string // answered hooks, short names
 }
 
 // New creates a harness for a service named "test", or as Name says.
@@ -116,12 +122,22 @@ func New(tb testing.TB, opts ...Option) *Harness {
 	rec := newRecorder()
 	e.SetBroker(rec)
 	e.SetCaller(rec)
+	e.SetBound([]string{})
 
 	svc := node.New(o.service, testlog.Discard(), e)
 
 	return &Harness{
 		t: tb, svc: svc, app: svc.Child(o.service, node.Root, false), env: e, rec: rec, budget: o.budget,
 	}
+}
+
+// bind marks the hook (full name) bound.
+func (h *Harness) bind(full string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.bound = append(h.bound, strings.TrimPrefix(full, h.env.Service+"."))
+	h.env.SetBound(slices.Clone(h.bound))
 }
 
 // Service is the harness's service name.

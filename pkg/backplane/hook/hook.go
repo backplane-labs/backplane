@@ -141,6 +141,29 @@ func (r Ref[Req, Res]) Name() string {
 	return r.env.Service + "." + r.name
 }
 
+// Bound reports whether the hook may have a binding in force: false only
+// when backplane's published set of this service's bound hooks is known
+// and lacks it, so Call would end in ErrNoBinding. A service skips work
+// it would do only for a bound hook (configuring a webhook, building a
+// payload); the set follows saves in Wiring within seconds. Unknown —
+// no Consul, not watched yet — counts as bound.
+func (r Ref[Req, Res]) Bound() bool { return r.env != nil && r.env.Bound(r.name) }
+
+// BindingChanges signals after every change of the service's bound hooks
+// until ctx ends, one pending signal at most: re-read Bound of the hooks
+// that matter.
+func (r Ref[Req, Res]) BindingChanges(ctx context.Context) <-chan struct{} {
+	if r.env == nil {
+		ch := make(chan struct{})
+
+		context.AfterFunc(ctx, func() { close(ch) })
+
+		return ch
+	}
+
+	return r.env.BoundChanges(ctx)
+}
+
 // Call raises the hook and waits for the bound implementation. The
 // deadline is the earliest of ctx's and the call's own: Timeout, else the
 // declared DefaultTimeout, else — when ctx has none — the platform default.

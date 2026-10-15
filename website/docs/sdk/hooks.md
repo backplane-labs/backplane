@@ -32,6 +32,12 @@ In a Temporal workflow use `workflows.CallHook(ctx, ref, input, options...)`. Wo
 
 The hello example records the delivered greeting and emits `Greeted` after both bound and local execution. Side effects that describe the final result must run on both paths. An HTTP idempotency key can deduplicate hook execution without automatically deduplicating the whole HTTP handler or its later event emission.
 
+## Skip work for an unbound hook
+
+`ref.Bound()` reports whether a binding may be in force. Backplane publishes each service's bound hooks to Consul KV (`backplane/bindings/<service>`) and the SDK watches its own key, so the answer is local and follows saves in Wiring within seconds. It is `false` only when the published set is known and lacks the hook; without Consul it is `true` and `Call` decides. `ref.BindingChanges(ctx)` signals each change.
+
+Use it to avoid work that matters only for a bound hook — configuring a third-party webhook, building an expensive payload — not as a substitute for handling `hook.ErrNoBinding`: a binding can be deleted between the check and the call. In `backplanetest`, a hook is bound once `Answer` serves it.
+
 ## Operator control
 
 Bindings are revisioned definitions. Operators map the hook input to activity inputs with CEL, compose multiple steps and define a result. Use [Wiring](../guides/wiring.md) to analyze, test and publish them. Retrying a request after a lost response can duplicate side effects; inspect its operation/run state before repeating it.

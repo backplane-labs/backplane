@@ -150,6 +150,7 @@ func NewState(root backplane.Root[Config]) (*State, error) {
 
 	st.Bindings = bindings.New(root, st.Store, st.Registry, bindings.Author(sessionAuthor),
 		bindings.DefaultRuntime(cfg.Wiring.Resolve(cfg.Temporal.Enabled())))
+	bindings.NewPublisher(root, st.Bindings, client)
 	consoleOptions = append(consoleOptions, st.runtime(root, cfg, st.Errors.Register)...)
 	st.Console = console.New(root, cfg.consoleSettings(), console.NewPG(st.Store),
 		console.NewPGAttempts(st.Store, console.DefaultLoginLimits()), st.Registry, consoleOptions...)

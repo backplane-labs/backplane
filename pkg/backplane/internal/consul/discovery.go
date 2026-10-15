@@ -2,6 +2,7 @@ package consul
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"strconv"
@@ -69,4 +70,65 @@ func (d *Discovery) Backplanes(ctx context.Context) ([]string, error) {
 	d.addrs, d.fetched = addrs, time.Now()
 
 	return append([]string(nil), addrs...), nil
+}
+
+// boundPrefix mirrors backplane's internal/bindings.BoundPrefix: the
+// published bound hooks of each service.
+const boundPrefix = "backplane/bindings/"
+
+// boundRetry bounds the wait after a failed watch query.
+const boundRetry = 5 * time.Second
+
+// WatchBound calls fn with service's bound hooks (short names; empty when
+// none) now and after every change, until ctx ends. A failed query is
+// retried; fn keeps the last set meanwhile.
+func (d *Discovery) WatchBound(ctx context.Context, service string, fn func(hooks []string)) error {
+	key := boundPrefix + service
+
+	var (
+		index uint64
+		last  string
+		seen  bool
+	)
+
+	for ctx.Err() == nil {
+		q := (&api.QueryOptions{WaitIndex: index, WaitTime: time.Minute}).WithContext(ctx)
+
+		pair, meta, err := d.client.KV().Get(key, q)
+		if err != nil {
+			select {
+			case <-ctx.Done():
+			case <-time.After(boundRetry):
+			}
+
+			continue
+		}
+
+		// A lower index means the KV store was reset: start over; an index
+		// must stay above zero or the query never blocks.
+		index = max(meta.LastIndex, 1)
+		if meta.LastIndex < index {
+			index = 1
+		}
+
+		raw := "[]"
+		if pair != nil {
+			raw = string(pair.Value)
+		}
+
+		if seen && raw == last {
+			continue
+		}
+
+		hooks := []string{}
+		if err := json.Unmarshal([]byte(raw), &hooks); err != nil {
+			continue
+		}
+
+		seen, last = true, raw
+
+		fn(hooks)
+	}
+
+	return nil
 }

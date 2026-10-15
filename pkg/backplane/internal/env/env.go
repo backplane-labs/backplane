@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"sync"
 	"time"
 
@@ -91,11 +92,16 @@ type Env struct {
 	workflows  func() (any, error)
 
 	hookTimeout time.Duration // platform default of a hook call
+
+	// bound is the service's hooks with a binding in force (short names),
+	// nil until backplane's set is known.
+	bound     map[string]bool
+	boundSubs map[chan struct{}]struct{}
 }
 
 // New creates the env of service.
 func New(service string, m *manifest.Builder) *Env {
-	return &Env{Service: service, Manifest: m, activities: map[string]Handler{}}
+	return &Env{Service: service, Manifest: m, activities: map[string]Handler{}, boundSubs: map[chan struct{}]struct{}{}}
 }
 
 // Of returns the env of the tree n belongs to.
@@ -234,4 +240,61 @@ func (e *Env) WorkflowClient() (any, error) {
 	}
 
 	return fn()
+}
+
+// SetBound installs the service's hooks with a binding in force (names
+// without the service prefix) and signals BoundChanges when it differs;
+// nil returns to unknown.
+func (e *Env) SetBound(hooks []string) {
+	var set map[string]bool
+	if hooks != nil {
+		set = make(map[string]bool, len(hooks))
+		for _, h := range hooks {
+			set[h] = true
+		}
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if (set == nil) == (e.bound == nil) && maps.Equal(set, e.bound) {
+		return
+	}
+
+	e.bound = set
+
+	for ch := range e.boundSubs {
+		select {
+		case ch <- struct{}{}:
+		default:
+		}
+	}
+}
+
+// Bound reports whether hook (its short name) may have a binding: false
+// only when backplane's set is known and lacks it.
+func (e *Env) Bound(hook string) bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	return e.bound == nil || e.bound[hook]
+}
+
+// BoundChanges signals after every change of the bound set until ctx
+// ends; one pending signal at most.
+func (e *Env) BoundChanges(ctx context.Context) <-chan struct{} {
+	ch := make(chan struct{}, 1)
+
+	e.mu.Lock()
+	e.boundSubs[ch] = struct{}{}
+	e.mu.Unlock()
+
+	context.AfterFunc(ctx, func() {
+		e.mu.Lock()
+		delete(e.boundSubs, ch)
+		e.mu.Unlock()
+		close(ch)
+	})
+
+	return ch
 }
