@@ -183,11 +183,7 @@ func (c *core) watchBound() {
 	}
 
 	n := c.svc.Child("bound-hooks", node.System, false)
-	n.OnStart(func(context.Context) error {
-		n.Go(func(ctx context.Context) error { return w.WatchBound(ctx, c.id.Service, c.env.SetBound) })
-
-		return nil
-	})
+	n.Go(func(ctx context.Context) error { return w.WatchBound(ctx, c.id.Service, c.env.SetBound) })
 }
 
 // directHooks reports whether the direct hook transport is possible:
