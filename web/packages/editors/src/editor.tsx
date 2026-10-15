@@ -3,7 +3,8 @@ import { Compartment, EditorState, Transaction } from '@codemirror/state';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection, hoverTooltip } from '@codemirror/view';
 import { tags } from '@lezer/highlight';
 import { history, historyKeymap, defaultKeymap, indentWithTab } from '@codemirror/commands';
-import { syntaxHighlighting, HighlightStyle, bracketMatching } from '@codemirror/language';
+import { syntaxHighlighting, HighlightStyle, bracketMatching, foldGutter, foldKeymap, indentOnInput } from '@codemirror/language';
+import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { autocompletion, completionKeymap, type CompletionContext } from '@codemirror/autocomplete';
 import { linter, lintGutter, setDiagnostics, type Diagnostic } from '@codemirror/lint';
 import { jsonParseLinter } from '@codemirror/lang-json';
@@ -15,18 +16,30 @@ import type { CodeEditorProps } from './types.js';
 
 export function editorHighlight(mode: 'dark' | 'light') {
   const c = tokens[mode];
+  // Keys, strings, numbers and literals each get their own color: JSON and
+  // YAML read at a glance; punctuation and comments step back.
   return syntaxHighlighting(HighlightStyle.define([
-    { tag: tags.keyword, color: c.info }, { tag: [tags.string, tags.number, tags.bool, tags.null], color: c.link },
-    { tag: tags.comment, color: c['muted-foreground'] }, { tag: [tags.variableName, tags.propertyName, tags.operator], color: c.foreground },
-    { tag: tags.invalid, color: c.destructive },
+    { tag: [tags.propertyName, tags.definition(tags.propertyName), tags.attributeName], color: c['chart-2'] },
+    { tag: [tags.string, tags.special(tags.string), tags.content], color: c['chart-1'] },
+    { tag: [tags.number, tags.integer, tags.float], color: c['chart-3'] },
+    { tag: [tags.bool, tags.null, tags.atom, tags.keyword], color: c['chart-5'] },
+    { tag: [tags.comment, tags.lineComment, tags.blockComment], color: c['muted-foreground'], fontStyle: 'italic' },
+    { tag: [tags.punctuation, tags.separator, tags.bracket, tags.squareBracket, tags.brace, tags.meta], color: c['muted-foreground'] },
+    { tag: [tags.variableName, tags.operator, tags.typeName], color: c.foreground },
+    { tag: tags.invalid, color: c.destructive, textDecoration: 'underline wavy' },
   ]));
 }
 export function editorTheme(mode: 'dark' | 'light', height: number | 'fill' = 160) {
   const c = tokens[mode];
   return EditorView.theme({
-    '&': { backgroundColor: c.background, color: c.foreground, height: height === 'fill' ? '100%' : `${height}px`, fontFamily: typography.fontFamilyMonospace },
-    '.cm-scroller': { overflow: 'auto', fontFamily: 'inherit' }, '.cm-content': { padding: '8px', caretColor: c.foreground },
-    '.cm-gutters': { backgroundColor: c.muted, color: c['muted-foreground'], borderColor: c.border },
+    '&': { backgroundColor: c.background, color: c.foreground, height: height === 'fill' ? '100%' : `${height}px`, fontFamily: typography.fontFamilyMonospace,
+      fontSize: '13px', border: `1px solid ${c.border}`, borderRadius: '6px', overflow: 'hidden' },
+    '.cm-scroller': { overflow: 'auto', fontFamily: 'inherit', lineHeight: '1.6' }, '.cm-content': { padding: '8px 4px', caretColor: c.foreground },
+    '.cm-gutters': { backgroundColor: c.background, color: c['muted-foreground'], border: 'none', borderRight: `1px solid ${c.border}` },
+    '.cm-lineNumbers .cm-gutterElement': { padding: '0 8px 0 12px', minWidth: '32px' },
+    '.cm-activeLineGutter': { backgroundColor: c.muted, color: c.foreground },
+    '.cm-foldGutter .cm-gutterElement': { padding: '0 4px', cursor: 'pointer' },
+    '.cm-matchingBracket': { backgroundColor: c.accent, outline: `1px solid ${c.border}` },
     '&.cm-focused': { outline: `2px solid ${c.ring}`, outlineOffset: '2px' },
     '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': { backgroundColor: c.accent },
     '.cm-activeLine': { backgroundColor: c.muted }, '.cm-cursor': { borderLeftColor: c.foreground },
@@ -35,6 +48,16 @@ export function editorTheme(mode: 'dark' | 'light', height: number | 'fill' = 16
     '.cm-tooltip-hover': { padding: '4px 8px', fontSize: '12px' },
     '.cm-completionDetail': { color: c['muted-foreground'], fontStyle: 'normal', marginLeft: '8px' },
   }, { dark: mode === 'dark' });
+}
+
+/** formatDocument pretty-prints JSON in place (two spaces); false for other languages or invalid JSON. */
+export function formatDocument(view: EditorView, language?: string): boolean {
+  if (language !== 'json' || view.state.readOnly) return false;
+  const text = view.state.doc.toString();
+  let pretty: string;
+  try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch { return false; }
+  if (pretty !== text) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: pretty } });
+  return true;
 }
 
 export default function Editor(props: CodeEditorProps) {
@@ -76,9 +99,11 @@ export default function Editor(props: CodeEditorProps) {
       finally { requests.delete(controller); }
     };
     const view = new EditorView({ parent: host.current, state: EditorState.create({ doc: latest.current.value, extensions: [
-      history(), drawSelection(), bracketMatching(),
+      history(), drawSelection(), bracketMatching(), closeBrackets(), indentOnInput(),
       settings.current.of([]), externalDiagnostics.current.of([]),
-      keymap.of([{ key: 'Mod-Enter', run: () => { if (!latest.current.disabled) latest.current.onSubmit?.(); return true; } }, ...completionKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
+      keymap.of([{ key: 'Mod-Enter', run: () => { if (!latest.current.disabled) latest.current.onSubmit?.(); return true; } },
+        { key: 'Shift-Alt-f', run: (view) => formatDocument(view, latest.current.language) },
+        ...closeBracketsKeymap, ...completionKeymap, ...foldKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
       autocompletion({ override: [complete] }), linter(validate, { delay: 300 }),
       hoverTooltip((view, pos) => {
         const content = latest.current.hover?.(pos, view.state.doc.toString()); if (!content) return null;
@@ -102,7 +127,7 @@ export default function Editor(props: CodeEditorProps) {
       languageExtension(props.language ?? 'text'), editorHighlight(props.mode), editorTheme(props.mode, props.inline ? 38 : props.height),
       EditorState.readOnly.of(!!props.readOnly || !!props.disabled), EditorView.editable.of(!props.disabled),
       EditorView.contentAttributes.of({ 'aria-label': props.label, 'aria-readonly': String(!!props.readOnly), 'aria-disabled': String(!!props.disabled), tabindex: props.disabled ? '-1' : '0' }),
-      props.inline ? [] : [lineNumbers(), highlightActiveLine(), lintGutter()],
+      props.inline ? [] : [lineNumbers(), foldGutter(), highlightActiveLine(), lintGutter()],
     ]) });
   }, [props.language, props.mode, props.inline, props.height, props.readOnly, props.disabled, props.label]);
   useEffect(() => {
@@ -116,7 +141,13 @@ export default function Editor(props: CodeEditorProps) {
   }, [props.reveal?.key]); // eslint-disable-line react-hooks/exhaustive-deps -- a reveal is keyed, not compared.
   const fill = props.height === 'fill';
   return <div style={fill ? { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 } : undefined}>
-    <div ref={host} style={{ border: '1px solid var(--border)', borderRadius: 4, ...(fill ? { flex: '1 1 auto', minHeight: 0 } : {}) }} />
+    <div style={{ position: 'relative', ...(fill ? { flex: '1 1 auto', minHeight: 0 } : {}) }}>
+      <div ref={host} style={fill ? { height: '100%' } : undefined} />
+      {props.language === 'json' && !props.readOnly && !props.disabled && !props.inline && <button type="button" title={text('formatHint')}
+        onClick={() => { const view = viewRef.current; if (view) formatDocument(view, 'json'); }}
+        style={{ position: 'absolute', top: 6, right: 8, zIndex: 2, fontSize: 11, padding: '2px 8px', borderRadius: 4, cursor: 'pointer',
+          border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--muted-foreground)' }}>{text('format')}</button>}
+    </div>
     {!props.hideMessages && <small style={{ color: 'var(--muted-foreground)' }}>{text('escapeTab')}</small>}
     {failure && <p role="status">{text(failure)}</p>}
     {!props.hideMessages && !!messages.length && <ul aria-label={text('diagnostics')}>{messages.map((message, index) => <li key={index}>{message.message}</li>)}</ul>}
