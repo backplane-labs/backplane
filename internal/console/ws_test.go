@@ -521,8 +521,21 @@ func TestConsoleKeepsAvailableVersionDuringRollout(t *testing.T) {
 	}})
 	plugins.Reset()
 
+	// Not ready but serving: the module stays available (the bundle and
+	// the relay fall back to it, and an operator needs the module most
+	// when its service is not ready).
+	if err := call(t.Context(), cc, consolev1.CatalogService_ListPlugins_FullMethodName, &consolev1.ListPluginsRequest{}, &plugins); err != nil || !plugins.GetPlugins()[0].GetAvailable() {
+		t.Fatalf("serving unready instance: %v %v", &plugins, err)
+	}
+
+	// No instance serving it: unavailable.
+	e.hub.Publish(map[string]registry.Service{"hello": {
+		Name: "hello", Manifests: map[string]*backplanev1.Manifest{"2.0.0": next},
+	}})
+	plugins.Reset()
+
 	if err := call(t.Context(), cc, consolev1.CatalogService_ListPlugins_FullMethodName, &consolev1.ListPluginsRequest{}, &plugins); err != nil || plugins.GetPlugins()[0].GetAvailable() {
-		t.Fatalf("unhealthy plugin reported available: %v %v", &plugins, err)
+		t.Fatalf("plugin without instances reported available: %v %v", &plugins, err)
 	}
 }
 
