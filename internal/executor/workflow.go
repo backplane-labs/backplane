@@ -2,11 +2,13 @@ package executor
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/otel/propagation"
@@ -122,8 +124,8 @@ func (r *runner) run() (*backplanev1.HookResult, error) {
 
 // start reads the program and the input into the first scope.
 func (r *runner) start() (bindings.Scope, error) {
-	prog := new(bindings.Program)
-	if err := json.Unmarshal(r.in.Program, prog); err != nil {
+	prog, err := programs.of(r.in.Program)
+	if err != nil {
 		return bindings.Scope{}, failure(fmt.Sprintf("transform failed at program: %v", err), wire.TransformFailedType)
 	}
 
@@ -134,10 +136,7 @@ func (r *runner) start() (bindings.Scope, error) {
 		payload = []byte("{}")
 	}
 
-	var (
-		scope bindings.Scope
-		err   error
-	)
+	var scope bindings.Scope
 
 	switch {
 	case prog.Kind() == bindings.KindRule && r.in.Kind == KindRule:
@@ -772,4 +771,58 @@ func (w w3c) Inject(ctx context.Context, carrier propagation.TextMapCarrier) {
 
 func (w w3c) Extract(ctx context.Context, carrier propagation.TextMapCarrier) context.Context {
 	return w.Baggage.Extract(w.TraceContext.Extract(ctx, carrier), carrier)
+}
+
+// programCacheSize bounds the programs kept built: the bindings and rules
+// a worker runs, not every version ever.
+const programCacheSize = 512
+
+// programs are the programs built from their marshaled form, by content:
+// a workflow run and every replay of it rebuild the same program (every
+// expression compiled again) from the same bytes, so one build serves
+// them all. A Program is immutable and its evaluation pure: sharing it
+// across workflows changes nothing of what a run computes.
+//
+//nolint:gochecknoglobals // one cache per worker process
+var programs = &programCache{byHash: map[[sha256.Size]byte]*bindings.Program{}}
+
+type programCache struct {
+	mu     sync.Mutex
+	byHash map[[sha256.Size]byte]*bindings.Program
+	// order is the keys oldest first: what goes when the cache is full.
+	order [][sha256.Size]byte
+}
+
+func (c *programCache) of(raw []byte) (*bindings.Program, error) {
+	key := sha256.Sum256(raw)
+
+	c.mu.Lock()
+	prog, ok := c.byHash[key]
+	c.mu.Unlock()
+
+	if ok {
+		return prog, nil
+	}
+
+	prog = new(bindings.Program)
+	if err := json.Unmarshal(raw, prog); err != nil {
+		return nil, err //nolint:wrapcheck // prefixed by bindings
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if have, built := c.byHash[key]; built {
+		return have, nil
+	}
+
+	if len(c.order) >= programCacheSize {
+		delete(c.byHash, c.order[0])
+		c.order = c.order[1:]
+	}
+
+	c.byHash[key] = prog
+	c.order = append(c.order, key)
+
+	return prog, nil
 }
