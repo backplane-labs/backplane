@@ -108,7 +108,7 @@ export function FeedFacets({ facets, chips, onAdd, decorate }: {
           return <button key={JSON.stringify(entry.value)} type="button" title={text('facetHelp')} aria-pressed={kept(chips, facet.key, entry.value)} onClick={(event) => onAdd(facet.key, entry.value, event.altKey)}
             className="relative flex h-6 items-center gap-1.5 overflow-hidden rounded-sm px-1.5 text-left text-xs hover:bg-raised aria-pressed:bg-primary/10">
             <span className="absolute inset-y-0 left-0 bg-primary/10" style={{ width: `${Math.round(share * 100)}%` }} />
-            {extra?.prefix}<span className="relative min-w-0 flex-1 truncate font-mono">{extra?.label ?? valueLabel(entry.value)}</span>
+            {extra?.prefix}<span className="relative min-w-0 flex-1 truncate font-mono" title={valueLabel(entry.value)}>{extra?.label ?? valueLabel(entry.value)}</span>
             <span className="relative text-2xs text-muted-foreground tabular-nums">{entry.count}</span>
           </button>; })}
       </div>; })}</div>

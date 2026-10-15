@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Compartment, EditorState, Transaction } from '@codemirror/state';
-import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection, hoverTooltip } from '@codemirror/view';
+import { Compartment, EditorState, RangeSetBuilder, Transaction } from '@codemirror/state';
+import { Decoration, EditorView, ViewPlugin, keymap, lineNumbers, highlightActiveLine, drawSelection, hoverTooltip, type DecorationSet, type ViewUpdate } from '@codemirror/view';
 import { tags } from '@lezer/highlight';
 import { history, historyKeymap, defaultKeymap, indentWithTab } from '@codemirror/commands';
 import { syntaxHighlighting, HighlightStyle, bracketMatching, foldGutter, foldKeymap, indentOnInput } from '@codemirror/language';
@@ -77,6 +77,27 @@ export function formatDocument(view: EditorView, language?: string): boolean {
   return true;
 }
 
+/** hangingIndent continues a wrapped line two columns under its own indentation instead of at the margin. */
+const hangingIndent = ViewPlugin.fromClass(class {
+  decorations: DecorationSet;
+  constructor(view: EditorView) { this.decorations = this.build(view); }
+  update(update: ViewUpdate) { if (update.docChanged || update.viewportChanged) this.decorations = this.build(update.view); }
+  build(view: EditorView): DecorationSet {
+    const builder = new RangeSetBuilder<Decoration>();
+    let last = -1;
+    for (const { from, to } of view.visibleRanges) for (let pos = from; pos <= to;) {
+      const line = view.state.doc.lineAt(pos);
+      if (line.from > last) {
+        const columns = (/^[ \t]*/.exec(line.text)?.[0].length ?? 0) + 2;
+        builder.add(line.from, line.from, Decoration.line({ attributes: { style: `padding-left: calc(${columns}ch + 6px); text-indent: -${columns}ch` } }));
+        last = line.from;
+      }
+      pos = line.to + 1;
+    }
+    return builder.finish();
+  }
+}, { decorations: (plugin) => plugin.decorations });
+
 /** viewSettings is what follows the props: language, theme, read-only state and gutters. */
 function viewSettings(props: CodeEditorProps) {
   return [
@@ -84,7 +105,7 @@ function viewSettings(props: CodeEditorProps) {
     EditorState.readOnly.of(!!props.readOnly || !!props.disabled), EditorView.editable.of(!props.disabled),
     EditorView.contentAttributes.of({ 'aria-label': props.label, 'aria-readonly': String(!!props.readOnly), 'aria-disabled': String(!!props.disabled), tabindex: props.disabled ? '-1' : '0' }),
     // Long values wrap: a narrow panel shows all of a line instead of cutting it.
-    props.inline ? [] : [lineNumbers(), foldGutter(), highlightActiveLine(), lintGutter(), EditorView.lineWrapping],
+    props.inline ? [] : [lineNumbers(), foldGutter(), highlightActiveLine(), lintGutter(), EditorView.lineWrapping, hangingIndent],
   ];
 }
 

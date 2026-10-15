@@ -12,8 +12,8 @@ export function EntityCard({ icon, title, subtitle, status, actions, footer, cla
     <header className="flex items-start gap-2.5 px-3 pt-3">
       {icon && <span className="grid size-8 shrink-0 place-items-center rounded-md border border-border bg-raised text-link [&_svg:not([class*=size-])]:size-4">{icon}</span>}
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2"><div className="min-w-0 truncate text-sm font-medium text-foreground">{title}</div>{status && <div className="ml-auto shrink-0">{status}</div>}</div>
-        {subtitle && <div className="mt-0.5 truncate text-xs text-muted-foreground">{subtitle}</div>}
+        <div className="flex items-center gap-2"><div className="min-w-0 truncate text-sm font-medium text-foreground" title={typeof title === 'string' ? title : undefined}>{title}</div>{status && <div className="ml-auto shrink-0">{status}</div>}</div>
+        {subtitle && <div className="mt-0.5 truncate text-xs text-muted-foreground" title={typeof subtitle === 'string' ? subtitle : undefined}>{subtitle}</div>}
       </div>
       {actions && <div className="flex shrink-0 items-center gap-1">{actions}</div>}
     </header>
