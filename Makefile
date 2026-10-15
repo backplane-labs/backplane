@@ -292,6 +292,10 @@ run-formatter: formatter ## Run formatter against the local stack on :8082 / :94
 	BACKPLANE_TEMPORAL_ADDR=localhost:7233 BACKPLANE_PUBLIC_PORT=8082 \
 	BACKPLANE_INTERNAL_PORT=9420 "$(BIN)/formatter"
 
+bind: ## Save binding definitions from YAML files through the console API (FILES=a.yaml b.yaml)
+	BACKPLANE_ADMIN_TOKEN="$${BACKPLANE_ADMIN_TOKEN:-$(DEV_ADMIN_TOKEN)}" \
+		go run ./examples/demo/cmd/bind $(FILES)
+
 setup-example: ## Save hello -> formatter binding and event rule through the console API
 	BACKPLANE_ADMIN_TOKEN="$${BACKPLANE_ADMIN_TOKEN:-$(DEV_ADMIN_TOKEN)}" \
 		go run ./examples/demo/cmd/setup
