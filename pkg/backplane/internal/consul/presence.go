@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"slices"
 	"strconv"
 	"strings"
@@ -341,8 +342,19 @@ func (p *Presence) ensureRegistered(ctx context.Context, force bool) error {
 	p.regMu.Lock()
 	defer p.regMu.Unlock()
 
-	if !p.register || !p.serving || (p.registered && !force) {
+	if !p.register || !p.serving {
 		return nil
+	}
+
+	if p.registered && !force {
+		// Consul's agent drops a service whose check stays critical past
+		// deregister_after; a readiness outage must not remove the
+		// instance for good.
+		if !p.reaped(ctx) {
+			return nil
+		}
+
+		p.log.Warn("consul dropped the catalog registration, registering again")
 	}
 
 	if err := p.registerService(ctx); err != nil {
@@ -356,6 +368,16 @@ func (p *Presence) ensureRegistered(ctx context.Context, force bool) error {
 	p.registered = true
 
 	return nil
+}
+
+// reaped reports whether the local agent no longer knows the service; an
+// unreachable agent counts as knowing it.
+func (p *Presence) reaped(ctx context.Context) bool {
+	_, _, err := p.client.Agent().Service(p.id.Instance, query(ctx))
+
+	var status api.StatusError
+
+	return errors.As(err, &status) && status.Code == http.StatusNotFound
 }
 
 // holdsState reports whether our session holds the instance state key; an

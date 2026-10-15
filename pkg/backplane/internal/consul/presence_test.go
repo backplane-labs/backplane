@@ -168,6 +168,7 @@ type fakeConsul struct {
 	failRegisters int
 	registrations []api.AgentServiceRegistration
 	deregisters   int
+	reaped        bool   // the agent dropped the service, as after deregister_after
 	manifestOnCAS []byte // a competing process wins the next manifest creation
 }
 
@@ -189,6 +190,18 @@ func newFake(t *testing.T) (*fakeConsul, *api.Client) {
 	mux.HandleFunc("PUT /v1/session/destroy/{id}", f.destroy)
 	mux.HandleFunc("GET /v1/session/info/{id}", f.info)
 	mux.HandleFunc("PUT /v1/agent/service/register", f.register)
+	mux.HandleFunc("GET /v1/agent/service/{id}", func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+
+		if len(f.registrations) == 0 || f.reaped {
+			http.NotFound(w, r)
+
+			return
+		}
+
+		_ = json.NewEncoder(w).Encode(api.AgentService{ID: r.PathValue("id")})
+	})
 	mux.HandleFunc("PUT /v1/agent/service/deregister/{id}", func(http.ResponseWriter, *http.Request) {
 		f.with(func(f *fakeConsul) { f.deregisters++ })
 	})
@@ -364,6 +377,7 @@ func (f *fakeConsul) register(w http.ResponseWriter, r *http.Request) {
 	var reg api.AgentServiceRegistration
 	if err := json.NewDecoder(r.Body).Decode(&reg); err == nil {
 		f.registrations = append(f.registrations, reg)
+		f.reaped = false
 	}
 }
 

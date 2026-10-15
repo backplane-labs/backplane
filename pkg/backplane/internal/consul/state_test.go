@@ -179,6 +179,22 @@ func TestRegistrationRetried(t *testing.T) {
 	}
 }
 
+// An instance the agent dropped — its check critical past deregister_after
+// — registers again on the next renew.
+func TestReapedRegistrationRestored(t *testing.T) {
+	t.Parallel()
+
+	f, c := newFake(t)
+
+	start(t, consul.Params{Client: c, Identity: testID, Register: true})
+
+	eventually(t, "registered", func() bool { return len(f.registered()) == 1 })
+
+	f.with(func(f *fakeConsul) { f.reaped = true })
+
+	eventually(t, "registered again", func() bool { return len(f.registered()) == 2 })
+}
+
 type nodesAndTransports struct {
 	mu    sync.Mutex
 	ready bool
