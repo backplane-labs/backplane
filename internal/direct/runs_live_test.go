@@ -49,33 +49,33 @@ func secretInstallation(t *testing.T) bindings.Manifests {
 
 // live is a direct runtime over a scratch PostgreSQL database
 // (BACKPLANE_TEST_PG, skipped without) and a fake activity transport.
-func live(t testing.TB, acts map[string]handler, fakeB *fakeBindings) (*direct.Service, *fake) {
-	t.Helper()
+func live(tb testing.TB, acts map[string]handler, fakeB *fakeBindings) (*direct.Service, *fake) {
+	tb.Helper()
 
 	dsn := os.Getenv("BACKPLANE_TEST_PG")
 	if dsn == "" {
-		t.Skip("BACKPLANE_TEST_PG not set")
+		tb.Skip("BACKPLANE_TEST_PG not set")
 	}
 
-	ctx := t.Context()
+	ctx := tb.Context()
 
 	admin, err := pgx.Connect(ctx, dsn)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	name := "backplane_direct_" + strings.ReplaceAll(uuid.NewString(), "-", "")
 	if _, err = admin.Exec(ctx, "CREATE DATABASE "+pgx.Identifier{name}.Sanitize()); err != nil {
 		admin.Close(ctx)
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
-	t.Cleanup(func() {
+	tb.Cleanup(func() {
 		cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
 		if _, err := admin.Exec(cleanup, "DROP DATABASE "+pgx.Identifier{name}.Sanitize()+" WITH (FORCE)"); err != nil {
-			t.Error(err)
+			tb.Error(err)
 		}
 
 		admin.Close(cleanup)
@@ -88,13 +88,13 @@ func live(t testing.TB, acts map[string]handler, fakeB *fakeBindings) (*direct.S
 
 	f := newFake(acts)
 
-	h := backplanetest.New(t, backplanetest.Name("backplane"))
+	h := backplanetest.New(tb, backplanetest.Name("backplane"))
 	st := deps.NewDependency(h.Root(), store.New(postgres.Config{DSN: config.Secret(scratch)}))
 	s := direct.New(h.Root(), fakeB, hub, st, "secret", direct.WithCaller(f), direct.Retention(time.Hour))
 	h.Start()
 
 	if err := backplanetest.Ready(h); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	return s, f

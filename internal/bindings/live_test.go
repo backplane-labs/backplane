@@ -29,33 +29,33 @@ import (
 // live is the Manager over PostgreSQL (BACKPLANE_TEST_PG, skipped
 // without) and a registry Hub holding the fixture manifests, iam renamed
 // to a random service so runs do not see each other's versions.
-func live(t testing.TB) (*bindings.Manager, string) {
-	t.Helper()
+func live(tb testing.TB) (*bindings.Manager, string) {
+	tb.Helper()
 
-	m, iam, _ := liveHub(t)
+	m, iam, _ := liveHub(tb)
 
 	return m, iam
 }
 
 // liveHub is live with its Hub and services: publishing changed manifests
 // is a deploy.
-func liveHub(t testing.TB, also ...func(root deps.Scope, m *bindings.Manager)) (*bindings.Manager, string, hubServices) {
-	t.Helper()
+func liveHub(tb testing.TB, also ...func(root deps.Scope, m *bindings.Manager)) (*bindings.Manager, string, hubServices) {
+	tb.Helper()
 
 	dsn := os.Getenv("BACKPLANE_TEST_PG")
 	if dsn == "" {
-		t.Skip("BACKPLANE_TEST_PG not set")
+		tb.Skip("BACKPLANE_TEST_PG not set")
 	}
 
 	b := make([]byte, 4)
 	if _, err := rand.Read(b); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	iam := "iam-" + hex.EncodeToString(b)
 	services := map[string]registry.Service{}
 
-	for _, m := range manifests(t) {
+	for _, m := range manifests(tb) {
 		if m.GetService() == "iam" {
 			m = proto.CloneOf(m)
 			m.Service = iam
@@ -69,7 +69,7 @@ func liveHub(t testing.TB, also ...func(root deps.Scope, m *bindings.Manager)) (
 	hub := registry.NewHub()
 	hub.Publish(services)
 
-	h := backplanetest.New(t, backplanetest.Name("backplane"))
+	h := backplanetest.New(tb, backplanetest.Name("backplane"))
 	st := deps.NewDependency(h.Root(), store.New(postgres.Config{DSN: sdkconfig.Secret(dsn)}))
 	m := bindings.New(h.Root(), st, hub, bindings.PollInterval(100*time.Millisecond))
 
@@ -80,10 +80,10 @@ func liveHub(t testing.TB, also ...func(root deps.Scope, m *bindings.Manager)) (
 	h.Start()
 
 	if err := backplanetest.Ready(h); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
-	t.Cleanup(func() {
+	tb.Cleanup(func() {
 		ctx := context.Background()
 		pool := st.Get().Pool
 		_, _ = pool.Exec(ctx, "DELETE FROM backplane.binding_current WHERE hook LIKE $1", iam+".%")

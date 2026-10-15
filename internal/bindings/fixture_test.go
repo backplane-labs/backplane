@@ -58,12 +58,12 @@ type (
 	}
 )
 
-func schemaOf[T any](t testing.TB, service, name string) *sp.Schema {
-	t.Helper()
+func schemaOf[T any](tb testing.TB, service, name string) *sp.Schema {
+	tb.Helper()
 
 	s, err := sp.ReflectType[T](sp.ID(sp.Namespace(service), sp.SchemaName(name), sp.Ver(1, 0, 0)))
 	if err != nil {
-		t.Fatalf("reflect %s/%s: %v", service, name, err)
+		tb.Fatalf("reflect %s/%s: %v", service, name, err)
 	}
 
 	return s
@@ -72,25 +72,25 @@ func schemaOf[T any](t testing.TB, service, name string) *sp.Schema {
 // manifests is an installation: iam calls SendEmail and publishes
 // UserRegistered; template, smtp and billing implement activities
 // (billing without schemas).
-func manifests(t testing.TB) bindings.Manifests {
-	t.Helper()
+func manifests(tb testing.TB) bindings.Manifests {
+	tb.Helper()
 
 	return bindings.Manifests{
 		{
 			Service: "iam", Version: "1.0.0",
 			Hooks: []*backplanev1.Hook{{
 				Name: "SendEmail", Required: true,
-				Input:  schemaOf[email](t, "iam", "SendEmail.input"),
-				Output: schemaOf[sent](t, "iam", "SendEmail.output"),
+				Input:  schemaOf[email](tb, "iam", "SendEmail.input"),
+				Output: schemaOf[sent](tb, "iam", "SendEmail.output"),
 			}, {Name: "Audit"}},
-			Events: []*backplanev1.Event{{Name: "UserRegistered", Schema: schemaOf[registered](t, "iam", "UserRegistered")}},
+			Events: []*backplanev1.Event{{Name: "UserRegistered", Schema: schemaOf[registered](tb, "iam", "UserRegistered")}},
 		},
 		{
 			Service: "template", Version: "1.0.0",
 			Activities: []*backplanev1.Activity{{
 				Name: "Exec", Kind: backplanev1.ActivityKind_ACTIVITY_KIND_ACTIVITY,
-				Input:        schemaOf[execIn](t, "template", "Exec.input"),
-				Output:       schemaOf[execOut](t, "template", "Exec.output"),
+				Input:        schemaOf[execIn](tb, "template", "Exec.input"),
+				Output:       schemaOf[execOut](tb, "template", "Exec.output"),
 				StartToClose: durationpb.New(5 * time.Second), Retry: &backplanev1.ActivityRetry{Attempts: 2},
 			}},
 		},
@@ -98,12 +98,12 @@ func manifests(t testing.TB) bindings.Manifests {
 			Service: "smtp", Version: "1.0.0",
 			Activities: []*backplanev1.Activity{{
 				Name: "Send", Kind: backplanev1.ActivityKind_ACTIVITY_KIND_ACTIVITY,
-				Input:     schemaOf[sendIn](t, "smtp", "Send.input"),
-				Output:    schemaOf[sendOut](t, "smtp", "Send.output"),
+				Input:     schemaOf[sendIn](tb, "smtp", "Send.input"),
+				Output:    schemaOf[sendOut](tb, "smtp", "Send.output"),
 				Heartbeat: durationpb.New(3 * time.Second),
 			}, {
 				Name: "Recall", Kind: backplanev1.ActivityKind_ACTIVITY_KIND_WORKFLOW,
-				Input: schemaOf[recallIn](t, "smtp", "Recall.input"),
+				Input: schemaOf[recallIn](tb, "smtp", "Recall.input"),
 			}},
 		},
 		{
@@ -126,34 +126,34 @@ steps:
 result: {message_id: send.id}
 `
 
-func mustBinding(t testing.TB, text string) bindings.Binding {
-	t.Helper()
+func mustBinding(tb testing.TB, text string) bindings.Binding {
+	tb.Helper()
 
 	b, err := bindings.BindingYAML(text)
 	if err != nil {
-		t.Fatalf("binding: %v", err)
+		tb.Fatalf("binding: %v", err)
 	}
 
 	return b
 }
 
-func mustRule(t testing.TB, text string) bindings.Rule {
-	t.Helper()
+func mustRule(tb testing.TB, text string) bindings.Rule {
+	tb.Helper()
 
 	r, err := bindings.RuleYAML(text)
 	if err != nil {
-		t.Fatalf("rule: %v", err)
+		tb.Fatalf("rule: %v", err)
 	}
 
 	return r
 }
 
-func mustCompile(t testing.TB, b bindings.Binding) *bindings.Program {
-	t.Helper()
+func mustCompile(tb testing.TB, b bindings.Binding) *bindings.Program {
+	tb.Helper()
 
-	p, err := bindings.CompileBinding(b, manifests(t))
+	p, err := bindings.CompileBinding(b, manifests(tb))
 	if err != nil {
-		t.Fatalf("compile: %v", err)
+		tb.Fatalf("compile: %v", err)
 	}
 
 	return p

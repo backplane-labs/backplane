@@ -3,6 +3,7 @@ package bindings_test
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -14,18 +15,18 @@ import (
 
 // chainBinding is a binding of n steps, each reading the one before.
 func chainBinding(hook string, n int) string {
-	var sb strings.Builder
+	var text strings.Builder
 
-	sb.WriteString("hook: " + hook + "\nsteps:\n")
-	sb.WriteString("  s0: {activity: billing.Charge, input: {v: req.to}}\n")
+	text.WriteString("hook: " + hook + "\nsteps:\n")
+	text.WriteString("  s0: {activity: billing.Charge, input: {v: req.to}}\n")
 
 	for i := 1; i < n; i++ {
-		fmt.Fprintf(&sb, "  s%d: {activity: billing.Charge, input: {v: s%d.v}}\n", i, i-1)
+		fmt.Fprintf(&text, "  s%d: {activity: billing.Charge, input: {v: s%d.v}}\n", i, i-1)
 	}
 
-	fmt.Fprintf(&sb, "result: {message_id: s%d.v}\n", n-1)
+	fmt.Fprintf(&text, "result: {message_id: s%d.v}\n", n-1)
 
-	return sb.String()
+	return text.String()
 }
 
 func BenchmarkBindingYAML(b *testing.B) {
@@ -37,18 +38,18 @@ func BenchmarkBindingYAML(b *testing.B) {
 }
 
 func BenchmarkCompileBinding(b *testing.B) {
-	ms := manifests(b)
+	installation := manifests(b)
 
-	for _, bc := range []struct{ name, text string }{
+	for _, bench := range []struct{ name, text string }{
 		{"send-email", sendEmail},
 		{"for-each", forEachBinding},
 		{"chain-20", chainBinding("iam.SendEmail", 20)},
 	} {
-		def := mustBinding(b, bc.text)
+		def := mustBinding(b, bench.text)
 
-		b.Run(bc.name, func(b *testing.B) {
+		b.Run(bench.name, func(b *testing.B) {
 			for b.Loop() {
-				if _, err := bindings.CompileBinding(def, ms); err != nil {
+				if _, err := bindings.CompileBinding(def, installation); err != nil {
 					b.Fatal(err)
 				}
 			}
@@ -59,19 +60,19 @@ func BenchmarkCompileBinding(b *testing.B) {
 // BenchmarkProgramJSON is a program's trip to a workflow: marshaled into
 // its input, rebuilt (every expression compiled again) on its side.
 func BenchmarkProgramJSON(b *testing.B) {
-	for _, bc := range []struct{ name, text string }{
+	for _, bench := range []struct{ name, text string }{
 		{"send-email", sendEmail},
 		{"for-each", forEachBinding},
 		{"chain-20", chainBinding("iam.SendEmail", 20)},
 	} {
-		p := mustCompile(b, mustBinding(b, bc.text))
+		p := mustCompile(b, mustBinding(b, bench.text))
 
 		data, err := json.Marshal(p)
 		if err != nil {
 			b.Fatal(err)
 		}
 
-		b.Run(bc.name+"/marshal", func(b *testing.B) {
+		b.Run(bench.name+"/marshal", func(b *testing.B) {
 			b.SetBytes(int64(len(data)))
 
 			for b.Loop() {
@@ -81,7 +82,7 @@ func BenchmarkProgramJSON(b *testing.B) {
 			}
 		})
 
-		b.Run(bc.name+"/unmarshal", func(b *testing.B) {
+		b.Run(bench.name+"/unmarshal", func(b *testing.B) {
 			b.SetBytes(int64(len(data)))
 
 			for b.Loop() {
@@ -205,8 +206,8 @@ result: {message_id: send.id}
 		recipients := make([]map[string]string, 0, n)
 
 		for i := range n {
-			data[fmt.Sprintf("k%04d", i)] = fmt.Sprint(i)
-			recipients = append(recipients, map[string]string{"email": fmt.Sprintf("u%d@b.c", i), "name": fmt.Sprint(i)})
+			data[fmt.Sprintf("k%04d", i)] = strconv.Itoa(i)
+			recipients = append(recipients, map[string]string{"email": fmt.Sprintf("u%d@b.c", i), "name": strconv.Itoa(i)})
 		}
 
 		input, err := json.Marshal(map[string]any{"to": "a@b.c", "data": data, "recipients": recipients})

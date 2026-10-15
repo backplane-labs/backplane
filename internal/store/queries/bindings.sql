@@ -91,9 +91,17 @@ ORDER BY version DESC
 LIMIT @page_size;
 
 -- name: BindingsStamp :one
-SELECT (SELECT count(*) FROM backplane.binding_version)::bigint AS bindings,
-       (SELECT count(*) FROM backplane.rule_version)::bigint AS rules,
+-- A number that moves on every save: the sum of the versions in force
+-- (each save raises one) plus the rows (a first save adds one). Read from
+-- the small "current" tables, not the versions.
+SELECT (SELECT COALESCE(sum(version), 0) + count(*) FROM backplane.binding_current)::bigint AS bindings,
+       (SELECT COALESCE(sum(version), 0) + count(*) FROM backplane.rule_current)::bigint AS rules,
        (SELECT COALESCE(max(updated_at), 'epoch'::timestamptz) FROM backplane.rule)::timestamptz AS rules_updated_at;
+
+-- name: NotifyBindings :exec
+-- Tells every replica listening on the channel that bindings or rules
+-- changed (Manager.Changes).
+SELECT pg_notify('backplane_bindings', '');
 
 -- name: GetRuleEvent :one
 -- The event of the rule's latest definition (a delete keeps the one before it).

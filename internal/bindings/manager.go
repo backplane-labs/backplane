@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gopherex/xlog"
@@ -66,6 +67,11 @@ type Manager struct {
 	// defaults of definitions: what Catalog carries to compile.
 	defaults Defaults
 
+	// snap is the bindings in force (nil until the store answered once):
+	// what Active reads. See snapshot.go.
+	snap      atomic.Pointer[snapshot]
+	refreshMu sync.Mutex
+
 	mu    sync.Mutex
 	stamp string // what the last poll saw
 }
@@ -82,14 +88,17 @@ func New(parent deps.Scope, st deps.Dependency[*store.Store], src registry.Sourc
 		o(m)
 	}
 
+	m.observe(m.Meter())
 	m.Go(m.watch)
+	m.Go(m.listen)
+	m.Go(m.follow)
 
 	return m
 }
 
 // Changes signals after every save, delete, pause and resume — here or on
-// another replica (seen within the poll interval) — until ctx ends; one
-// pending signal at most. Manifests change through the registry's own
+// another replica (told through PostgreSQL's LISTEN/NOTIFY, and seen by
+// the poll at the latest) — until ctx ends; one pending signal at most. Manifests change through the registry's own
 // Changes.
 func (m *Manager) Changes(ctx context.Context) <-chan struct{} { return m.changes.subscribe(ctx) }
 
@@ -106,7 +115,8 @@ func (m *Manager) Catalog() (Catalog, error) {
 // Defaults are the installation's defaults of definitions.
 func (m *Manager) Defaults() Defaults { return m.defaults }
 
-// watch polls the store for writes of other replicas.
+// watch polls the store for writes of other replicas: what the listener
+// missed while its connection was down.
 func (m *Manager) watch(ctx context.Context) error {
 	tick := time.NewTicker(m.poll)
 	defer tick.Stop()

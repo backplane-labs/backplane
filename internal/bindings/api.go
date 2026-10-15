@@ -349,6 +349,10 @@ func follow[M proto.Message](
 
 	for {
 		msg, err := view()
+		if err != nil && ctx.Err() != nil {
+			return nil //nolint:nilerr // the stream ended
+		}
+
 		if err != nil && !errors.Is(err, ErrNotSynced) {
 			return m.status(err)
 		}

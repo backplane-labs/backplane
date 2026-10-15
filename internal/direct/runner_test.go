@@ -54,33 +54,33 @@ func catalog() bindings.Catalog {
 	return bindings.WithDefaults(installation(), bindings.Defaults{Runtime: consolev1.Runtime_RUNTIME_DIRECT})
 }
 
-func program(t testing.TB, text string) *bindings.Program {
-	t.Helper()
+func program(tb testing.TB, text string) *bindings.Program {
+	tb.Helper()
 
 	b, err := bindings.BindingYAML(text)
 	if err != nil {
-		t.Fatalf("binding: %v", err)
+		tb.Fatalf("binding: %v", err)
 	}
 
 	p, err := bindings.CompileBinding(b, catalog())
 	if err != nil {
-		t.Fatalf("compile: %v", err)
+		tb.Fatalf("compile: %v", err)
 	}
 
 	return p
 }
 
-func rule(t testing.TB, text string) *bindings.Program {
-	t.Helper()
+func rule(tb testing.TB, text string) *bindings.Program {
+	tb.Helper()
 
 	r, err := bindings.RuleYAML(text)
 	if err != nil {
-		t.Fatalf("rule: %v", err)
+		tb.Fatalf("rule: %v", err)
 	}
 
 	p, err := bindings.CompileRule(r, catalog())
 	if err != nil {
-		t.Fatalf("compile: %v", err)
+		tb.Fatalf("compile: %v", err)
 	}
 
 	return p

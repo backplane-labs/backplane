@@ -44,7 +44,7 @@ func BenchmarkRunnerExecute(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	for _, bc := range []struct {
+	for _, bench := range []struct {
 		name, text string
 		input      []byte
 	}{
@@ -68,11 +68,11 @@ steps:
 result: {id: "string(charge.size())"}
 `, forEachInput},
 	} {
-		p := program(b, bc.text)
+		p := program(b, bench.text)
 		r := direct.NewRunner(echo{out: []byte(`{"id":"x"}`)})
-		run := direct.Run{ID: "bench", Kind: direct.KindBinding, Program: p, Payload: bc.input, Identity: "iam.SendEmail@1"}
+		run := direct.Run{ID: "bench", Kind: direct.KindBinding, Program: p, Payload: bench.input, Identity: "iam.SendEmail@1"}
 
-		b.Run(bc.name+"/serial", func(b *testing.B) {
+		b.Run(bench.name+"/serial", func(b *testing.B) {
 			for b.Loop() {
 				if _, err := r.Execute(b.Context(), run, nil); err != nil {
 					b.Fatal(err)
@@ -80,7 +80,7 @@ result: {id: "string(charge.size())"}
 			}
 		})
 
-		b.Run(bc.name+"/parallel", func(b *testing.B) {
+		b.Run(bench.name+"/parallel", func(b *testing.B) {
 			ctx := b.Context()
 
 			b.RunParallel(func(pb *testing.PB) {

@@ -182,9 +182,23 @@ func (m *Manager) Current(ctx context.Context, hook string) (BindingVersion, boo
 }
 
 // Active is the binding in force for the hook and its version:
-// ErrNoBinding when never saved or deleted. The executor's lookup.
+// ErrNoBinding when never saved or deleted. The executor's lookup: it
+// answers from the snapshot, which a save on this replica refreshes before
+// it returns and one on another replica within its notification (the poll
+// interval at worst); the store is read only before the first snapshot.
 func (m *Manager) Active(ctx context.Context, hook string) (Binding, int64, error) {
-	v, ok, err := m.Current(ctx, hook)
+	var (
+		v   BindingVersion
+		ok  bool
+		err error
+	)
+
+	if s := m.snap.Load(); s != nil {
+		v, ok = s.byHook[hook]
+	} else {
+		v, ok, err = m.Current(ctx, hook)
+	}
+
 	if err != nil {
 		return Binding{}, 0, err
 	}
@@ -393,7 +407,7 @@ func (m *Manager) insertBinding(
 		return BindingVersion{}, fmt.Errorf("bindings: save %s: %w", hook, err)
 	}
 
-	m.changes.notify()
+	m.changed(ctx)
 
 	return bindingRow(saved).version()
 }
@@ -611,7 +625,7 @@ func (m *Manager) PauseRule(ctx context.Context, id uuid.UUID, paused bool, base
 
 	m.Log().Info("rule paused", xlog.String("rule", id.String()), xlog.Bool("paused", paused),
 		xlog.String("author", m.author(ctx)))
-	m.changes.notify()
+	m.changed(ctx)
 
 	return m.Rule(ctx, id)
 }
@@ -718,7 +732,7 @@ func (m *Manager) insertRule(
 		return RuleVersion{}, fmt.Errorf("bindings: save rule: %w", err)
 	}
 
-	m.changes.notify()
+	m.changed(ctx)
 
 	return ruleVersionRow(saved).version()
 }

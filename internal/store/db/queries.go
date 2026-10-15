@@ -974,13 +974,16 @@ func (q *Queries) ListRuleVersions(ctx context.Context, arg ListRuleVersionsPara
 	return items, nil
 }
 
-const bindingsStampSQL = `SELECT (SELECT count(*) FROM backplane.binding_version)::bigint AS bindings,
-       (SELECT count(*) FROM backplane.rule_version)::bigint AS rules,
+const bindingsStampSQL = `-- A number that moves on every save: the sum of the versions in force
+-- (each save raises one) plus the rows (a first save adds one). Read from
+-- the small "current" tables, not the versions.
+SELECT (SELECT COALESCE(sum(version), 0) + count(*) FROM backplane.binding_current)::bigint AS bindings,
+       (SELECT COALESCE(sum(version), 0) + count(*) FROM backplane.rule_current)::bigint AS rules,
        (SELECT COALESCE(max(updated_at), 'epoch'::timestamptz) FROM backplane.rule)::timestamptz AS rules_updated_at;`
 
 type BindingsStampRow struct {
-	Bindings       int64
-	Rules          int64
+	Bindings       *int64
+	Rules          *int64
 	RulesUpdatedAt *time.Time
 }
 
@@ -989,6 +992,15 @@ func (q *Queries) BindingsStamp(ctx context.Context) (BindingsStampRow, error) {
 	var i BindingsStampRow
 	err := row.Scan(&i.Bindings, &i.Rules, &i.RulesUpdatedAt)
 	return i, err
+}
+
+const notifyBindingsSQL = `-- Tells every replica listening on the channel that bindings or rules
+-- changed (Manager.Changes).
+SELECT pg_notify('backplane_bindings', '');`
+
+func (q *Queries) NotifyBindings(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, notifyBindingsSQL)
+	return err
 }
 
 const getRuleEventSQL = `-- The event of the rule's latest definition (a delete keeps the one before it).
