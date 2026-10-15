@@ -287,12 +287,14 @@ func (x *ActivityResult) GetPayload() []byte {
 }
 
 // CallFailure is the detail of a failed direct call (a gRPC status
-// detail): the type the binding knows (backplane.NonRetryable, ...) and
-// whether retrying can help.
+// detail): the type the binding knows (backplane.NonRetryable, ...),
+// whether retrying can help, and how long to wait before the next attempt
+// when the handler said so (activity.RetryAfter).
 type CallFailure struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
 	Retryable     bool                   `protobuf:"varint,2,opt,name=retryable,proto3" json:"retryable,omitempty"`
+	RetryAfter    *durationpb.Duration   `protobuf:"bytes,3,opt,name=retry_after,json=retryAfter,proto3" json:"retry_after,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -339,6 +341,13 @@ func (x *CallFailure) GetRetryable() bool {
 		return x.Retryable
 	}
 	return false
+}
+
+func (x *CallFailure) GetRetryAfter() *durationpb.Duration {
+	if x != nil {
+		return x.RetryAfter
+	}
+	return nil
 }
 
 type RunRequest struct {
@@ -460,10 +469,12 @@ const file_backplanepb_v1_call_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"*\n" +
 	"\x0eActivityResult\x12\x18\n" +
-	"\apayload\x18\x01 \x01(\fR\apayload\"?\n" +
+	"\apayload\x18\x01 \x01(\fR\apayload\"{\n" +
 	"\vCallFailure\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x1c\n" +
-	"\tretryable\x18\x02 \x01(\bR\tretryable\"<\n" +
+	"\tretryable\x18\x02 \x01(\bR\tretryable\x12:\n" +
+	"\vretry_after\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\n" +
+	"retryAfter\"<\n" +
 	"\n" +
 	"RunRequest\x12.\n" +
 	"\x04call\x18\x01 \x01(\v2\x1a.backplane.v1.ActivityCallR\x04call\"C\n" +
@@ -501,15 +512,16 @@ var file_backplanepb_v1_call_proto_depIdxs = []int32{
 	7, // 0: backplane.v1.HookCall.trace:type_name -> backplane.v1.HookCall.TraceEntry
 	9, // 1: backplane.v1.HookCall.deadline:type_name -> google.protobuf.Duration
 	8, // 2: backplane.v1.ActivityCall.trace:type_name -> backplane.v1.ActivityCall.TraceEntry
-	2, // 3: backplane.v1.RunRequest.call:type_name -> backplane.v1.ActivityCall
-	3, // 4: backplane.v1.RunResponse.result:type_name -> backplane.v1.ActivityResult
-	5, // 5: backplane.v1.ActivityService.Run:input_type -> backplane.v1.RunRequest
-	6, // 6: backplane.v1.ActivityService.Run:output_type -> backplane.v1.RunResponse
-	6, // [6:7] is the sub-list for method output_type
-	5, // [5:6] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	9, // 3: backplane.v1.CallFailure.retry_after:type_name -> google.protobuf.Duration
+	2, // 4: backplane.v1.RunRequest.call:type_name -> backplane.v1.ActivityCall
+	3, // 5: backplane.v1.RunResponse.result:type_name -> backplane.v1.ActivityResult
+	5, // 6: backplane.v1.ActivityService.Run:input_type -> backplane.v1.RunRequest
+	6, // 7: backplane.v1.ActivityService.Run:output_type -> backplane.v1.RunResponse
+	7, // [7:8] is the sub-list for method output_type
+	6, // [6:7] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_backplanepb_v1_call_proto_init() }

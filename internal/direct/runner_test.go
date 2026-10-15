@@ -14,6 +14,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
@@ -101,6 +102,15 @@ type fake struct {
 
 func newFake(acts map[string]handler) *fake { return &fake{acts: acts} }
 
+type callKey struct{}
+
+// callOf is the call a handler serves.
+func callOf(ctx context.Context) *backplanev1.ActivityCall {
+	c, _ := ctx.Value(callKey{}).(*backplanev1.ActivityCall)
+
+	return c
+}
+
 func (f *fake) Call(
 	ctx context.Context, call *backplanev1.ActivityCall, timeout time.Duration,
 ) (*backplanev1.ActivityResult, error) {
@@ -128,6 +138,8 @@ func (f *fake) Call(
 	if err := json.Unmarshal(call.GetPayload(), &in); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "input: %v", err)
 	}
+
+	ctx = context.WithValue(ctx, callKey{}, call)
 
 	out, err := h(ctx, in)
 	if err != nil {
@@ -202,6 +214,13 @@ func (r *recorder) list() []string {
 func nonRetryable(msg string) error {
 	st, _ := status.New(codes.FailedPrecondition, msg).WithDetails(
 		&backplanev1.CallFailure{Type: wire.NonRetryableType, Retryable: false})
+
+	return st.Err()
+}
+
+func retryAfter(msg string, d time.Duration) error {
+	st, _ := status.New(codes.Unavailable, msg).WithDetails(
+		&backplanev1.CallFailure{Retryable: true, RetryAfter: durationpb.New(d)})
 
 	return st.Err()
 }
@@ -366,6 +385,98 @@ result: {skipped: skipped, done: steps.skipped.skipped}
 	}, nil)
 	if !errors.As(err, &failure) || !failure.Retryable || !direct.Retryable(err) {
 		t.Fatalf("retryable error %#v", err)
+	}
+}
+
+// A step is retried by its policy while the failure is retryable: the
+// same key, a growing attempt, at least the delay the handler asked for;
+// a final failure is not retried; a for-each item is retried alone.
+func TestExecuteRetries(t *testing.T) {
+	t.Parallel()
+
+	p := program(t, `
+hook: iam.SendEmail
+steps:
+  send:
+    activity: smtp.Send
+    input: {to: "'x'"}
+    retry: {attempts: 3, initialInterval: 0.010s, maxInterval: 0.020s, backoff: 2}
+  each:
+    activity: template.Exec
+    forEach: "[1, 2, 3]"
+    input: {name: "'n'"}
+    retry: {attempts: 2, initialInterval: 0.010s}
+result: {}
+`)
+
+	var (
+		lock sync.Mutex
+		seen []*backplanev1.ActivityCall
+	)
+
+	itemCalls := map[int32]int{}
+	f := newFake(map[string]handler{
+		"smtp.Send": func(ctx context.Context, _ map[string]any) (any, error) {
+			lock.Lock()
+			defer lock.Unlock()
+
+			seen = append(seen, callOf(ctx))
+			if len(seen) == 1 {
+				return nil, retryAfter("smtp.Send: slow down", 60*time.Millisecond)
+			}
+
+			if len(seen) == 2 {
+				return nil, retryable("smtp.Send: busy")
+			}
+
+			return map[string]any{}, nil
+		},
+		"template.Exec": func(ctx context.Context, _ map[string]any) (any, error) {
+			lock.Lock()
+			defer lock.Unlock()
+
+			call := callOf(ctx)
+			itemCalls[call.GetAttempt()]++
+
+			if call.GetStep() == "each[1]" && call.GetAttempt() == 1 {
+				return nil, retryable("busy")
+			}
+
+			return map[string]any{}, nil
+		},
+	})
+
+	start := time.Now()
+
+	if _, err := direct.NewRunner(f).Execute(t.Context(), direct.Run{
+		ID: "r", Kind: direct.KindBinding, Program: p, Payload: []byte(`{}`),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(seen) != 3 || seen[0].GetAttempt() != 1 || seen[2].GetAttempt() != 3 || seen[0].GetKey() != seen[2].GetKey() {
+		t.Fatalf("send calls %v", seen)
+	}
+
+	if time.Since(start) < 60*time.Millisecond {
+		t.Fatal("retry-after not waited")
+	}
+
+	if itemCalls[1] != 3 || itemCalls[2] != 1 {
+		t.Fatalf("items retried %v", itemCalls)
+	}
+
+	// Final failures are not retried.
+	calls := 0
+	f = newFake(map[string]handler{
+		"smtp.Send":     func(context.Context, map[string]any) (any, error) { calls++; return nil, nonRetryable("refused") },
+		"template.Exec": func(context.Context, map[string]any) (any, error) { return map[string]any{}, nil },
+	})
+
+	if _, err := direct.NewRunner(f).Execute(t.Context(), direct.Run{
+		ID: "r", Kind: direct.KindBinding, Program: p, Payload: []byte(`{}`),
+	}, nil); err == nil || calls != 1 {
+		t.Fatalf("final retried: %v %d", err, calls)
 	}
 }
 
@@ -603,7 +714,7 @@ steps:
 
 	slices.Sort(paths)
 
-	want := []string{"/steps/archive/activity", "/steps/send/heartbeat", "/steps/send/retry", "/steps/send/undo"}
+	want := []string{"/steps/archive/activity", "/steps/send/heartbeat", "/steps/send/undo"}
 	if !slices.Equal(paths, want) {
 		t.Fatalf("violations %v (all: %v)", paths, vs)
 	}

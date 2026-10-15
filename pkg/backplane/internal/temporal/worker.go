@@ -227,11 +227,16 @@ func activityError(full string, err error) error {
 		marked env.NonRetryableError
 	)
 
+	var later env.RetryAfterError
+
 	switch {
 	case errors.As(err, &app):
 		return err
 	case errors.As(err, &marked):
 		return final(full+": "+err.Error(), NonRetryableType)
+	case errors.As(err, &later):
+		return temporal.NewApplicationErrorWithOptions(full+": "+err.Error(), "", //nolint:wrapcheck // Temporal's own type
+			temporal.ApplicationErrorOptions{NextRetryDelay: later.Delay, Cause: err})
 	default:
 		return fmt.Errorf("%s: %w", full, err)
 	}

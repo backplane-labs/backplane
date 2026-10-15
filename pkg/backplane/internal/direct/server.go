@@ -17,6 +17,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/gopherex/xlog"
 
@@ -117,6 +118,7 @@ func (s *Server) handle(ctx context.Context, full string, h env.Handler, in []by
 func Status(err error) error {
 	var (
 		nonRetryable env.NonRetryableError
+		later        env.RetryAfterError
 		code         = codes.Unavailable
 		failure      = &backplanev1.CallFailure{Retryable: true}
 	)
@@ -124,6 +126,8 @@ func Status(err error) error {
 	switch {
 	case errors.As(err, &nonRetryable):
 		code, failure.Type, failure.Retryable = codes.FailedPrecondition, NonRetryableType, false
+	case errors.As(err, &later):
+		failure.RetryAfter = durationpb.New(later.Delay)
 	case errors.Is(err, errPanic):
 		failure.Type = PanicType
 	case errors.Is(err, context.DeadlineExceeded):

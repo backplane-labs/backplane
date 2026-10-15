@@ -254,7 +254,7 @@ func (c *compiler) runtime(own consolev1.Runtime) {
 }
 
 // runtimeChecks reports what the step uses that the runtime does not run:
-// on direct, no undo, retry options, heartbeat or child workflow.
+// on direct, no undo, heartbeat or child workflow.
 func (c *compiler) runtimeChecks(d *draft) {
 	if c.rt != consolev1.Runtime_RUNTIME_DIRECT {
 		return
@@ -264,11 +264,6 @@ func (c *compiler) runtimeChecks(d *draft) {
 
 	if d.Undo != "" {
 		c.violate(d.path+"/undo", CodeRuntimeUnsupported, msg+"undo: choose the temporal runtime")
-	}
-
-	if !d.Retry.IsZero() {
-		c.violate(d.path+"/retry", CodeRuntimeUnsupported,
-			msg+"retries of a step: the run as a whole is retried by its caller or by event redelivery")
 	}
 
 	if d.Heartbeat != 0 {

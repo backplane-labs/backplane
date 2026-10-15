@@ -42,6 +42,20 @@ For-each steps run an activity or a subflow over a list. Choose item naming, con
 
 The graph shows data, condition and explicit-order edges differently. Dragging ports writes references into the same YAML draft. Nested loops are frames; run overlays show per-item progress. Renames use server analysis rather than string replacement.
 
+## Retries
+
+Every step has a retry policy: `attempts` (default 3), `initialInterval`
+(1s), `maxInterval` (30s) and `backoff` (2). Both runtimes run it per step
+and per for-each item: a failed item is retried alone, the items that
+succeeded are not called again. Every attempt carries the same idempotency
+key (`activity.InfoOf(ctx).Key`) and a growing attempt number.
+
+An activity decides what is retried: `activity.NonRetryable(err)` fails the
+step at once, `activity.RetryAfter(err, d)` asks for the next attempt no
+sooner than `d` (a rate limit, a `Retry-After` header), anything else is
+retried by the policy. When the attempts run out, the run fails; a rule's
+run is then retried as a whole by event redelivery.
+
 ## Validate, test, publish
 
 1. The editor checks syntax and shape immediately.

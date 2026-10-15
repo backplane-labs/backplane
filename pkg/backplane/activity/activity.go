@@ -93,6 +93,18 @@ func Handle[Req, Res any](
 	})
 }
 
+// RetryAfter marks err retryable no sooner than d: the remote side asked
+// to wait (a rate limit, a Retry-After header). The binding's next attempt
+// waits at least d, more when its backoff is longer; a NonRetryable error
+// stays final. nil stays nil; d <= 0 is a plain retryable error.
+func RetryAfter(err error, d time.Duration) error {
+	if err == nil || d <= 0 {
+		return err
+	}
+
+	return env.RetryAfterError{Err: err, Delay: d}
+}
+
 // NonRetryable marks err as final: the binding does not retry the activity
 // (on Temporal, a non-retryable application error). Any other error is
 // retried by the binding's retry policy; a *temporal.ApplicationError is

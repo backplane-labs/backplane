@@ -240,7 +240,7 @@ const (
 	CodeInvalidValue    = "INVALID_VALUE"
 	CodeInvalidOption   = "INVALID_OPTION"
 	// CodeRuntimeUnsupported: the step uses what the definition's runtime
-	// does not run (undo, retry, heartbeat or a child workflow on direct).
+	// does not run (undo, heartbeat or a child workflow on direct).
 	CodeRuntimeUnsupported = "RUNTIME_UNSUPPORTED"
 )
 

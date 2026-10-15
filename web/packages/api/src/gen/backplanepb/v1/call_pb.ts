@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file backplanepb/v1/call.proto.
  */
 export const file_backplanepb_v1_call: GenFile = /*@__PURE__*/
-  fileDesc("ChliYWNrcGxhbmVwYi92MS9jYWxsLnByb3RvEgxiYWNrcGxhbmUudjEiyAEKCEhvb2tDYWxsEgwKBGhvb2sYASABKAkSEAoIaW5zdGFuY2UYAiABKAkSDwoHcGF5bG9hZBgDIAEoDBIwCgV0cmFjZRgEIAMoCzIhLmJhY2twbGFuZS52MS5Ib29rQ2FsbC5UcmFjZUVudHJ5EisKCGRlYWRsaW5lGAUgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uGiwKClRyYWNlRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASIdCgpIb29rUmVzdWx0Eg8KB3BheWxvYWQYASABKAwi0gEKDEFjdGl2aXR5Q2FsbBIQCghhY3Rpdml0eRgBIAEoCRIPCgdwYXlsb2FkGAIgASgMEjQKBXRyYWNlGAMgAygLMiUuYmFja3BsYW5lLnYxLkFjdGl2aXR5Q2FsbC5UcmFjZUVudHJ5Eg8KB2JpbmRpbmcYBCABKAkSDAoEc3RlcBgFIAEoCRIPCgdhdHRlbXB0GAYgASgFEgsKA2tleRgHIAEoCRosCgpUcmFjZUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiIQoOQWN0aXZpdHlSZXN1bHQSDwoHcGF5bG9hZBgBIAEoDCIuCgtDYWxsRmFpbHVyZRIMCgR0eXBlGAEgASgJEhEKCXJldHJ5YWJsZRgCIAEoCCI2CgpSdW5SZXF1ZXN0EigKBGNhbGwYASABKAsyGi5iYWNrcGxhbmUudjEuQWN0aXZpdHlDYWxsIjsKC1J1blJlc3BvbnNlEiwKBnJlc3VsdBgBIAEoCzIcLmJhY2twbGFuZS52MS5BY3Rpdml0eVJlc3VsdDJNCg9BY3Rpdml0eVNlcnZpY2USOgoDUnVuEhguYmFja3BsYW5lLnYxLlJ1blJlcXVlc3QaGS5iYWNrcGxhbmUudjEuUnVuUmVzcG9uc2VCQFo+Z2l0aHViLmNvbS9iYWNrcGxhbmUtbGFicy9iYWNrcGxhbmUvYmFja3BsYW5lcGIvdjE7YmFja3BsYW5ldjFiBnByb3RvMw", [file_google_protobuf_duration]);
+  fileDesc("ChliYWNrcGxhbmVwYi92MS9jYWxsLnByb3RvEgxiYWNrcGxhbmUudjEiyAEKCEhvb2tDYWxsEgwKBGhvb2sYASABKAkSEAoIaW5zdGFuY2UYAiABKAkSDwoHcGF5bG9hZBgDIAEoDBIwCgV0cmFjZRgEIAMoCzIhLmJhY2twbGFuZS52MS5Ib29rQ2FsbC5UcmFjZUVudHJ5EisKCGRlYWRsaW5lGAUgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uGiwKClRyYWNlRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASIdCgpIb29rUmVzdWx0Eg8KB3BheWxvYWQYASABKAwi0gEKDEFjdGl2aXR5Q2FsbBIQCghhY3Rpdml0eRgBIAEoCRIPCgdwYXlsb2FkGAIgASgMEjQKBXRyYWNlGAMgAygLMiUuYmFja3BsYW5lLnYxLkFjdGl2aXR5Q2FsbC5UcmFjZUVudHJ5Eg8KB2JpbmRpbmcYBCABKAkSDAoEc3RlcBgFIAEoCRIPCgdhdHRlbXB0GAYgASgFEgsKA2tleRgHIAEoCRosCgpUcmFjZUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiIQoOQWN0aXZpdHlSZXN1bHQSDwoHcGF5bG9hZBgBIAEoDCJeCgtDYWxsRmFpbHVyZRIMCgR0eXBlGAEgASgJEhEKCXJldHJ5YWJsZRgCIAEoCBIuCgtyZXRyeV9hZnRlchgDIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiI2CgpSdW5SZXF1ZXN0EigKBGNhbGwYASABKAsyGi5iYWNrcGxhbmUudjEuQWN0aXZpdHlDYWxsIjsKC1J1blJlc3BvbnNlEiwKBnJlc3VsdBgBIAEoCzIcLmJhY2twbGFuZS52MS5BY3Rpdml0eVJlc3VsdDJNCg9BY3Rpdml0eVNlcnZpY2USOgoDUnVuEhguYmFja3BsYW5lLnYxLlJ1blJlcXVlc3QaGS5iYWNrcGxhbmUudjEuUnVuUmVzcG9uc2VCQFo+Z2l0aHViLmNvbS9iYWNrcGxhbmUtbGFicy9iYWNrcGxhbmUvYmFja3BsYW5lcGIvdjE7YmFja3BsYW5ldjFiBnByb3RvMw", [file_google_protobuf_duration]);
 
 /**
  * Input of the Nexus operation a service raises.
@@ -147,8 +147,9 @@ export const ActivityResultSchema: GenMessage<ActivityResult> = /*@__PURE__*/
 
 /**
  * CallFailure is the detail of a failed direct call (a gRPC status
- * detail): the type the binding knows (backplane.NonRetryable, ...) and
- * whether retrying can help.
+ * detail): the type the binding knows (backplane.NonRetryable, ...),
+ * whether retrying can help, and how long to wait before the next attempt
+ * when the handler said so (activity.RetryAfter).
  *
  * @generated from message backplane.v1.CallFailure
  */
@@ -162,6 +163,11 @@ export type CallFailure = Message<"backplane.v1.CallFailure"> & {
    * @generated from field: bool retryable = 2;
    */
   retryable: boolean;
+
+  /**
+   * @generated from field: google.protobuf.Duration retry_after = 3;
+   */
+  retryAfter?: Duration | undefined;
 };
 
 /**

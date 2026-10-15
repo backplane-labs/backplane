@@ -44,11 +44,13 @@ message ActivityResult {
 }
 
 // CallFailure is the detail of a failed direct call (a gRPC status
-// detail): the type the binding knows (backplane.NonRetryable, ...) and
-// whether retrying can help.
+// detail): the type the binding knows (backplane.NonRetryable, ...),
+// whether retrying can help, and how long to wait before the next attempt
+// when the handler said so (activity.RetryAfter).
 message CallFailure {
   string type = 1;
   bool retryable = 2;
+  google.protobuf.Duration retry_after = 3;
 }
 
 // ActivityService is served by the SDK on a service's platform port, behind

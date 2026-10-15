@@ -10,6 +10,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
+	"google.golang.org/protobuf/proto"
 
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/internal/bindings"
@@ -301,7 +302,10 @@ func (f *flow) launch(ctx context.Context, plan bindings.StepPlan, results chan<
 	return true, nil
 }
 
-// call runs one activity call and records it.
+// call runs one activity call, retried by the step's policy while the
+// failure is retryable, and records it. Every attempt has the same key;
+// the wait between attempts grows by the policy's backoff up to its
+// maximum, and is at least what the handler asked for (RetryAfter).
 func (e *execution) call(ctx context.Context, plan bindings.StepPlan, label string, input []byte) ([]byte, error) {
 	parsed := bindings.ParseCallLabel(label)
 	now := time.Now()
@@ -313,7 +317,7 @@ func (e *execution) call(ctx context.Context, plan bindings.StepPlan, label stri
 		Attempt: 1, Key: e.run.ID + "/" + label,
 	}
 
-	res, err := e.r.acts.Call(ctx, call, plan.StartToClose)
+	res, err := e.attempts(ctx, plan, call)
 	if err != nil {
 		err = stepFailure(parsed.Step, plan.Activity, err)
 		msg, typ := Readable(err)
@@ -330,6 +334,44 @@ func (e *execution) call(ctx context.Context, plan bindings.StepPlan, label stri
 	e.rec.Completed(label, out, time.Now())
 
 	return out, nil
+}
+
+// attempts calls until success, a final failure, the policy's last
+// attempt or ctx's end.
+func (e *execution) attempts(
+	ctx context.Context, plan bindings.StepPlan, call *backplanev1.ActivityCall,
+) (*backplanev1.ActivityResult, error) {
+	wait := plan.Retry.InitialInterval
+
+	for {
+		res, err := e.r.acts.Call(ctx, call, plan.StartToClose)
+		if err == nil {
+			return res, nil
+		}
+
+		failed := callFailure(err)
+		if !failed.Retryable || int(call.GetAttempt()) >= max(plan.Retry.Attempts, 1) || ctx.Err() != nil {
+			return nil, err //nolint:wrapcheck // read by stepFailure
+		}
+
+		delay := max(wait, failed.RetryAfter)
+
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+
+			return nil, err //nolint:wrapcheck // read by stepFailure
+		case <-timer.C:
+		}
+
+		wait = min(time.Duration(float64(wait)*max(plan.Retry.Backoff, 1)), max(plan.Retry.MaxInterval, wait))
+
+		// A fresh envelope per attempt: the transport may still hold the last.
+		next, _ := proto.Clone(call).(*backplanev1.ActivityCall)
+		next.Attempt++
+		call = next
+	}
 }
 
 // launchItems starts a for-each step: its items run in a goroutine of

@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -33,7 +34,9 @@ type Failure struct {
 	// could not be reached, a retryable handler error); false: the input
 	// or the definition is wrong, or the handler said so.
 	Retryable bool
-	cause     error
+	// RetryAfter: the handler asked to wait this long before retrying.
+	RetryAfter time.Duration
+	cause      error
 }
 
 func (f *Failure) Error() string { return f.Msg }
@@ -64,7 +67,7 @@ func stepFailure(step, activity string, err error) error {
 
 	return &Failure{
 		Msg: "step " + step + ": " + prefixed(activity, call.Msg), Type: wire.StepFailedType,
-		Retryable: call.Retryable, cause: err,
+		Retryable: call.Retryable, RetryAfter: call.RetryAfter, cause: err,
 	}
 }
 
@@ -99,6 +102,7 @@ func callFailure(err error) *Failure {
 	for _, d := range st.Details() {
 		if cf, isFailure := d.(*backplanev1.CallFailure); isFailure {
 			out.Type, out.Retryable = cf.GetType(), cf.GetRetryable()
+			out.RetryAfter = cf.GetRetryAfter().AsDuration()
 
 			return out
 		}

@@ -62,6 +62,9 @@ func TestServer(t *testing.T) {
 		return nil, env.NonRetryableError{Err: errors.New("smtp.Reject: refused")}
 	})
 	e.Activity("Busy", func(context.Context, []byte) ([]byte, error) { return nil, errors.New("smtp.Busy: later") })
+	e.Activity("Slow", func(context.Context, []byte) ([]byte, error) {
+		return nil, env.RetryAfterError{Err: errors.New("smtp.Slow: rate limited"), Delay: 30 * time.Second}
+	})
 	e.Activity("Boom", func(context.Context, []byte) ([]byte, error) { panic("kaboom") })
 
 	dial := serve(t, func(g *grpc.Server) {
@@ -107,6 +110,16 @@ func TestServer(t *testing.T) {
 		if typ, retryable := direct.FailureOf(err); typ != tc.typ || retryable != tc.retryable {
 			t.Errorf("%s: failure %q retryable %v", tc.activity, typ, retryable)
 		}
+	}
+
+	// RetryAfter travels as the failure's retry_after.
+	_, err = client.Run(t.Context(), &backplanev1.RunRequest{
+		Call: &backplanev1.ActivityCall{Activity: "smtp.Slow", Payload: []byte(`{}`)},
+	})
+
+	st, _ := status.FromError(err)
+	if len(st.Details()) != 1 || st.Details()[0].(*backplanev1.CallFailure).GetRetryAfter().AsDuration() != 30*time.Second {
+		t.Errorf("retry after: %v", st.Details())
 	}
 
 	for _, activity := range []string{"smtp.Nope", "other.Send", "Send"} {

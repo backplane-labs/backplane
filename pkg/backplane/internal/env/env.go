@@ -30,6 +30,16 @@ func (e NonRetryableError) Error() string { return e.Err.Error() }
 
 func (e NonRetryableError) Unwrap() error { return e.Err }
 
+// RetryAfterError marks a handler error retryable no sooner than Delay.
+type RetryAfterError struct {
+	Err   error
+	Delay time.Duration
+}
+
+func (e RetryAfterError) Error() string { return e.Err.Error() }
+
+func (e RetryAfterError) Unwrap() error { return e.Err }
+
 // Broker carries events (NATS JetStream; a recorder in tests).
 type Broker interface {
 	Publish(ctx context.Context, m Message) error
