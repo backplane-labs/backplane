@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	sp "github.com/gopherex/schemapb/go/schemapb"
+
 	"github.com/backplane-labs/backplane/pkg/backplane/activity"
 	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
@@ -81,4 +83,33 @@ func TestDeclareOnZeroScopePanics(t *testing.T) {
 	}()
 
 	activity.Handle(deps.Component{}, "Charge", charge)
+}
+
+// A schema known at run time is recorded under the service's name for it;
+// the handler gets and answers JSON.
+func TestHandleSchema(t *testing.T) {
+	t.Parallel()
+
+	in, err := sp.ReflectType[Order](sp.ID(sp.Namespace("plugin"), sp.SchemaName("order"), sp.Ver(1, 0, 0)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	h := backplanetest.New(t)
+	activity.HandleSchema(h.Root(), "Relay", in, nil, func(_ context.Context, raw []byte) ([]byte, error) {
+		return []byte(`{"total":` + strings.TrimSuffix(strings.TrimPrefix(string(raw), `{"items":`), "}") + `}`), nil
+	})
+
+	acts := h.Manifest().GetActivities()
+	if len(acts) != 1 || acts[0].GetInput() == nil || acts[0].GetOutput() != nil ||
+		len(acts[0].GetInput().GetFields()) != 1 || !strings.Contains(acts[0].GetInput().GetId().GetName(), "Relay") {
+		t.Fatalf("activities: %v", acts)
+	}
+
+	h.Start()
+
+	out, err := backplanetest.Activity[Order, Receipt](t.Context(), h, "Relay", Order{Items: 4})
+	if err != nil || out.Total != 4 {
+		t.Fatalf("invoke: %v %v", out, err)
+	}
 }

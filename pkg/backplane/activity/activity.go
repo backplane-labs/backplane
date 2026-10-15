@@ -21,6 +21,8 @@ import (
 
 	"google.golang.org/protobuf/types/known/durationpb"
 
+	sp "github.com/gopherex/schemapb/go/schemapb"
+
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
@@ -90,6 +92,25 @@ func Handle[Req, Res any](
 		}
 
 		return decl.Encode(res)
+	})
+}
+
+// HandleSchema declares an activity whose input and output are known only
+// at run time: in and out are their schemas (nil: plain JSON), fn gets the
+// input as JSON bytes and answers JSON bytes. For a service that relays a
+// contract it learns at startup (a plugin host, a gateway); a contract
+// known at compile time uses Handle. fn's ctx carries InfoOf.
+func HandleSchema(
+	scope deps.Scope, name string, in, out *sp.Schema, fn func(ctx context.Context, in []byte) ([]byte, error),
+	opts ...Option,
+) {
+	e := decl.ActivitySchema(scope, name, backplanev1.ActivityKind_ACTIVITY_KIND_ACTIVITY, in, out, opts)
+	e.Activity(name, func(ctx context.Context, in []byte) ([]byte, error) {
+		if len(in) == 0 {
+			in = []byte("{}")
+		}
+
+		return fn(ctx, in)
 	})
 }
 
