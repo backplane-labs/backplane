@@ -21,4 +21,4 @@ export interface CodeEditorProps {
   /** Hide the list of diagnostics under the editor (the host shows them). */
   hideMessages?: boolean;
 }
-export interface DiffViewerProps { label: string; before: string; after: string; mode: 'dark' | 'light'; language?: 'json' | 'yaml' | 'text'; height?: number }
+export interface DiffViewerProps { label: string; before: string; after: string; mode: 'dark' | 'light'; language?: Exclude<EditorLanguage, QueryLanguage>; height?: number }
