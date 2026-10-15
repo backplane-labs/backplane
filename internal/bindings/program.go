@@ -13,6 +13,7 @@ import (
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/redact"
 )
 
 // Kind is what a program implements.
@@ -132,7 +133,11 @@ type specBody struct {
 // results are JSON with sorted keys, so the same Program and Scope give
 // the same bytes on every run — it is safe inside Temporal workflow code.
 type Program struct {
-	spec   spec
+	spec spec
+	// raw is the spec marshaled, masks what the console hides of a run by
+	// it: both derived once here, read on every run (Spec, Masks).
+	raw    []byte
+	masks  *redact.Program
 	env    *cel.Env
 	input  *shape
 	groups [][]string
@@ -185,7 +190,12 @@ func newProgram(s spec) (*Program, error) {
 		return nil, err
 	}
 
-	p := &Program{spec: s, env: env, input: b.of(in, "bp.input")}
+	raw, err := json.Marshal(s)
+	if err != nil {
+		return nil, fmt.Errorf("bindings: program: %w", err)
+	}
+
+	p := &Program{spec: s, raw: raw, masks: redact.ParseProgram(raw), env: env, input: b.of(in, "bp.input")}
 
 	if s.When != "" {
 		if p.when, err = program(env, s.When); err != nil {
@@ -350,14 +360,15 @@ func (p *Program) compileValue(v Value) (valueProgram, error) {
 
 // MarshalJSON is the program's serialized form: a workflow takes it as
 // input and evaluates exactly what was compiled.
-func (p *Program) MarshalJSON() ([]byte, error) {
-	out, err := json.Marshal(p.spec)
-	if err != nil {
-		return nil, fmt.Errorf("bindings: program: %w", err)
-	}
+func (p *Program) MarshalJSON() ([]byte, error) { return bytes.Clone(p.raw), nil }
 
-	return out, nil
-}
+// Spec is MarshalJSON's bytes without the copy: read, never written. A
+// for-each body (KindBody) has none.
+func (p *Program) Spec() []byte { return p.raw }
+
+// Masks is what the console hides of a run of the program: the secrets
+// of its input, calls and result. Shared: read only.
+func (p *Program) Masks() *redact.Program { return p.masks }
 
 // UnmarshalJSON rebuilds a marshaled program. Only for a new zero Program
 // (json.Unmarshal into one): a Program is not modified once built.

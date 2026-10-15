@@ -20,7 +20,6 @@ import (
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	"github.com/backplane-labs/backplane/internal/bindings"
-	"github.com/backplane-labs/backplane/internal/redact"
 	"github.com/backplane-labs/backplane/internal/wire"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 )
@@ -221,8 +220,7 @@ func (s *Service) Test(
 		return res
 	}
 
-	program, _ := json.Marshal(prog) //nolint:errchkjson // marshaled once already by Execute
-	masked := redact.ParseProgram(program).MaskResult(out)
+	masked := prog.Masks().MaskResult(out)
 
 	if json.Valid(masked) {
 		res.Output = string(masked)

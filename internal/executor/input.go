@@ -93,25 +93,15 @@ func (m *EventMeta) meta() bindings.Meta {
 // BindingInput is the input of a binding's run: the program compiled from
 // the binding, the hook's input and the caller's trace.
 func BindingInput(p *bindings.Program, id Identity, payload []byte, trace map[string]string) (Input, error) {
-	prog, err := json.Marshal(p)
-	if err != nil {
-		return Input{}, err //nolint:wrapcheck // prefixed by bindings
-	}
-
-	return Input{Kind: KindBinding, Program: prog, Identity: id, Payload: jsonOrEmpty(payload), Trace: trace}, nil
+	return Input{Kind: KindBinding, Program: p.Spec(), Identity: id, Payload: jsonOrEmpty(payload), Trace: trace}, nil
 }
 
 // RuleInput is the input of a rule's run on an event.
 func RuleInput(
 	p *bindings.Program, id Identity, payload []byte, meta EventMeta, trace map[string]string,
 ) (Input, error) {
-	prog, err := json.Marshal(p)
-	if err != nil {
-		return Input{}, err //nolint:wrapcheck // prefixed by bindings
-	}
-
 	return Input{
-		Kind: KindRule, Program: prog, Identity: id, Payload: jsonOrEmpty(payload), Meta: &meta, Trace: trace,
+		Kind: KindRule, Program: p.Spec(), Identity: id, Payload: jsonOrEmpty(payload), Meta: &meta, Trace: trace,
 	}, nil
 }
 

@@ -12,7 +12,6 @@ import (
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/internal/bindings"
 	"github.com/backplane-labs/backplane/internal/direct"
-	"github.com/backplane-labs/backplane/internal/redact"
 )
 
 // echo is a Caller answering every activity at once with a fixed output:
@@ -175,27 +174,5 @@ result: {id: send.id}
 				b.ReportMetric(100*float64(lost)/float64(burst), "%runs-incomplete")
 			}
 		})
-	}
-}
-
-// BenchmarkRunPreamble is what Service.Execute does before every run, on
-// the same program each time: marshal it for the run's record and read
-// the masks back out of that JSON.
-func BenchmarkRunPreamble(b *testing.B) {
-	p := program(b, `
-hook: iam.SendEmail
-steps:
-  render: {activity: template.Exec, input: {name: req.template}}
-  send: {activity: smtp.Send, input: {to: req.to, text: render.id}}
-result: {id: send.id}
-`)
-
-	for b.Loop() {
-		data, err := json.Marshal(p)
-		if err != nil {
-			b.Fatal(err)
-		}
-
-		_ = redact.ParseProgram(data)
 	}
 }

@@ -130,7 +130,7 @@ func (x *Executor) testBinding(
 		return nil, x.status(ctx, err)
 	}
 
-	maskResult(res, redact.ParseProgram(in.Program))
+	maskResult(res, prog.Masks())
 
 	x.audit(ctx, "binding.test", b.Hook, xlog.String("workflow_id", res.GetWorkflowId()),
 		xlog.Int64("version", version), xlog.String("error", res.GetError()))

@@ -19,7 +19,6 @@ import (
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/internal/bindings"
-	"github.com/backplane-labs/backplane/internal/redact"
 	"github.com/backplane-labs/backplane/internal/registry"
 	"github.com/backplane-labs/backplane/internal/store"
 	"github.com/backplane-labs/backplane/internal/wire"
@@ -274,13 +273,8 @@ func (s *Service) Required(hook, instance string) bool {
 // ErrAlreadyStarted), runs within ctx, and ends. The run can be canceled
 // by id while it runs.
 func (s *Service) Execute(ctx context.Context, start Start, run Run, claim bool) ([]byte, error) {
-	program, err := json.Marshal(run.Program)
-	if err != nil {
-		return nil, failure("program: "+err.Error(), wire.TransformFailedType)
-	}
-
-	start.Program = program
-	masks := redact.ParseProgram(program)
+	start.Program = run.Program.Spec()
+	masks := run.Program.Masks()
 
 	if claim {
 		claimed, err := s.runs.Claim(ctx, start, masks)
