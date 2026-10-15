@@ -38,10 +38,16 @@ const (
 
 // Bounds of the store.
 const (
-	// queueSize bounds the writes waiting: past it, records are dropped
-	// (and counted), the run goes on.
-	queueSize = 4096
-	// writeTimeout bounds one write.
+	// runQueueSize bounds the run records (begin, finish) waiting;
+	// stepQueueSize the step records. Past them, records are dropped (and
+	// counted), the run goes on. Steps are the bulk and the first to go:
+	// a run whose steps were dropped still begins and ends in the store.
+	runQueueSize  = 8192
+	stepQueueSize = 32768
+	// batchSize bounds the records one transaction writes: the writer
+	// takes what is queued, up to this many, and commits once.
+	batchSize = 256
+	// writeTimeout bounds one write (a batch, or one record).
 	writeTimeout = 5 * time.Second
 	// expireBatch bounds one retention delete.
 	expireBatch = 1000
@@ -49,14 +55,24 @@ const (
 	maxPage     = 500
 )
 
+// write is one record: a statement on the store's queries.
+type write func(ctx context.Context, q *db.Queries) error
+
 // Runs records runs in PostgreSQL and reads them for the console. Writes
 // are asynchronous and in order: a run never waits for the database; a
 // database that is down loses records, not runs. Claim is the exception:
 // the dedup of a rule's event needs the answer.
+//
+// One writer takes what is queued, up to batchSize records, and commits
+// them in one transaction: under load a run's records cost a fraction of
+// a commit each instead of one commit each. Run records (begin, finish)
+// go before the step records queued at the same time; within each kind
+// the order is the order of the calls.
 type Runs struct {
 	st    deps.Dependency[*store.Store]
 	log   *xlog.Logger
-	queue chan func(ctx context.Context, q *db.Queries) error
+	runs  chan write
+	steps chan write
 	drops func()
 }
 
@@ -67,41 +83,97 @@ func NewRuns(st deps.Dependency[*store.Store], log *xlog.Logger, drops func()) *
 		drops = func() {}
 	}
 
-	return &Runs{st: st, log: log, queue: make(chan func(context.Context, *db.Queries) error, queueSize), drops: drops}
+	return &Runs{
+		st: st, log: log, drops: drops,
+		runs: make(chan write, runQueueSize), steps: make(chan write, stepQueueSize),
+	}
 }
 
 // Write runs the writer until ctx ends, then drains what is queued within
 // the stop budget.
 func (r *Runs) Write(ctx context.Context) error {
 	for {
+		var (
+			first write
+			step  bool
+		)
+
 		select {
-		case op := <-r.queue:
-			r.apply(ctx, op)
+		case first = <-r.runs:
+		case first = <-r.steps:
+			step = true
 		case <-ctx.Done():
 			r.drain() //nolint:contextcheck // the stop drains with a budget of its own
 
 			return nil
 		}
+
+		r.apply(ctx, r.batch(first, step))
 	}
+}
+
+// batch is first and what is queued with it, up to batchSize: the run
+// records first, then the step records. A step's run record is queued
+// before the step (Begin before the run), so the run is in the store or
+// in the same transaction before its first step.
+func (r *Runs) batch(first write, step bool) []write {
+	out := make([]write, 0, batchSize)
+	if !step {
+		out = append(out, first)
+	}
+
+	out = r.take(out, r.runs)
+
+	if step {
+		out = append(out, first)
+	}
+
+	return r.take(out, r.steps)
+}
+
+// take appends what queue holds, without waiting, up to batchSize in all.
+func (r *Runs) take(out []write, queue chan write) []write {
+	for len(out) < batchSize {
+		select {
+		case w := <-queue:
+			out = append(out, w)
+		default:
+			return out
+		}
+	}
+
+	return out
 }
 
 func (r *Runs) drain() {
 	ctx, cancel := context.WithTimeout(context.Background(), writeTimeout)
 	defer cancel()
 
-	for {
+	for len(r.runs)+len(r.steps) > 0 {
+		var (
+			first write
+			step  bool
+		)
+
 		select {
-		case op := <-r.queue:
-			r.apply(ctx, op)
+		case first = <-r.runs:
+		case first = <-r.steps:
+			step = true
 		default:
 			return
 		}
+
+		r.apply(ctx, r.batch(first, step))
 	}
 }
 
-func (r *Runs) apply(ctx context.Context, write func(context.Context, *db.Queries) error) {
+// apply writes a batch in one transaction; a batch that fails is written
+// record by record, so one bad record loses itself alone.
+func (r *Runs) apply(ctx context.Context, batch []write) {
 	if !r.ready() {
-		r.drops()
+		for range batch {
+			r.drops()
+		}
 
 		return
 	}
@@ -109,18 +181,64 @@ func (r *Runs) apply(ctx context.Context, write func(context.Context, *db.Querie
 	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), writeTimeout)
 	defer cancel()
 
-	if err := write(wctx, r.st.Get().Q); err != nil {
-		r.drops()
-		r.log.Warn("direct run record lost", xlog.Err(err))
+	if len(batch) > 1 {
+		err := r.applyTx(wctx, batch)
+		if err == nil {
+			return
+		}
+
+		r.log.Warn("direct run batch not written, writing records one by one", xlog.Int("records", len(batch)), xlog.Err(err))
 	}
+
+	queries := r.st.Get().Q
+
+	for _, w := range batch {
+		if err := w(wctx, queries); err != nil {
+			r.drops()
+			r.log.Warn("direct run record lost", xlog.Err(err))
+		}
+	}
+}
+
+func (r *Runs) applyTx(ctx context.Context, batch []write) error {
+	trans, err := r.st.Get().Pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin: %w", err)
+	}
+
+	defer func() { _ = trans.Rollback(ctx) }()
+
+	queries := db.New(trans)
+
+	for _, w := range batch {
+		if err := w(ctx, queries); err != nil {
+			return err
+		}
+	}
+
+	if err := trans.Commit(ctx); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+
+	return nil
 }
 
 // ready: the store is there to write to.
 func (r *Runs) ready() bool { return !r.st.IsZero() && r.st.Ready() }
 
-func (r *Runs) enqueue(write func(context.Context, *db.Queries) error) {
+// enqueue queues a run record; enqueueStep a step record. A full queue
+// drops the record.
+func (r *Runs) enqueue(w write) {
 	select {
-	case r.queue <- write:
+	case r.runs <- w:
+	default:
+		r.drops()
+	}
+}
+
+func (r *Runs) enqueueStep(w write) {
+	select {
+	case r.steps <- w:
 	default:
 		r.drops()
 	}
@@ -173,11 +291,11 @@ func (r *Runs) Begin(s Start, prog *redact.Program) {
 			ID: s.ID, Kind: string(s.Kind), Source: s.Source, Version: s.Version, Test: s.Test, Caller: s.Caller,
 			Input: input, Program: jsonb(s.Program),
 		})
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("begin %s: %w", s.ID, err)
 		}
 
-		return fmt.Errorf("begin %s: %w", s.ID, err)
+		return nil
 	})
 }
 
@@ -233,7 +351,7 @@ func (rc *recorder) Scheduled(
 	seq := rc.seq
 	rc.mu.Unlock()
 
-	rc.runs.enqueue(func(ctx context.Context, q *db.Queries) error {
+	rc.runs.enqueueStep(func(ctx context.Context, q *db.Queries) error {
 		return q.UpsertDirectRunStep(ctx, db.UpsertDirectRunStepParams{
 			RunID: rc.id, Label: label, Seq: seq, Step: step, Parent: parent, Item: itemPtr, Activity: activity,
 			Status: statusScheduled, Input: masked, ScheduledAt: when,
@@ -245,7 +363,7 @@ func (rc *recorder) Completed(label string, output []byte, when time.Time) {
 	st, _ := rc.prog.Step(label)
 	masked := jsonb(st.MaskOutput(output))
 
-	rc.runs.enqueue(func(ctx context.Context, q *db.Queries) error {
+	rc.runs.enqueueStep(func(ctx context.Context, q *db.Queries) error {
 		return q.UpsertDirectRunStep(ctx, db.UpsertDirectRunStepParams{
 			RunID: rc.id, Label: label, Status: statusCompleted, Output: masked, ClosedAt: &when, ScheduledAt: when,
 		})
@@ -264,7 +382,7 @@ func (rc *recorder) Failed(label, msg, typ string, when time.Time) {
 		}
 	}
 
-	rc.runs.enqueue(func(ctx context.Context, q *db.Queries) error {
+	rc.runs.enqueueStep(func(ctx context.Context, q *db.Queries) error {
 		return q.UpsertDirectRunStep(ctx, db.UpsertDirectRunStepParams{
 			RunID: rc.id, Label: label, Status: status, Error: msg, ErrorType: typ, ClosedAt: &when, ScheduledAt: when,
 		})

@@ -138,12 +138,14 @@ result: {id: send.id}
 
 				called := time.Since(start)
 
-				// Records are written in order: the last one's end stored
-				// is every record of the burst handled, stored or dropped.
+				// Records of a kind are written in order: the last run's end
+				// and its last step stored is every record of the burst
+				// handled, stored or dropped.
 				last := ids[len(ids)-1]
 				for deadline := time.Now().Add(2 * time.Minute); ; time.Sleep(time.Millisecond) {
-					run, _, _, err := s.Runs().Get(b.Context(), last)
-					if err == nil && run.GetRun().GetStatus() == consolev1.RunStatus_RUN_STATUS_COMPLETED {
+					run, steps, _, err := s.Runs().Get(b.Context(), last)
+					if err == nil && run.GetRun().GetStatus() == consolev1.RunStatus_RUN_STATUS_COMPLETED &&
+						len(steps) == 2 && steps[1].GetStatus() == consolev1.StepRunStatus_STEP_RUN_STATUS_COMPLETED {
 						break
 					}
 
