@@ -54,7 +54,7 @@ func (m *Manager) status(err error) error {
 		code = codes.Unavailable
 	case errors.Is(err, ErrNoBinding), errors.Is(err, ErrNoVersion), errors.Is(err, ErrNoRule):
 		code = codes.NotFound
-	case errors.Is(err, ErrDeleted):
+	case errors.Is(err, ErrDeleted), errors.Is(err, ErrManaged):
 		code = codes.FailedPrecondition
 	case errors.Is(err, ErrConflict):
 		code = codes.Aborted

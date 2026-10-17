@@ -193,7 +193,9 @@ type RuleVersion struct {
 	Comment   string                 `protobuf:"bytes,7,opt,name=comment,proto3" json:"comment,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// The version this one rolls back to; 0 when it is not a rollback.
-	RollbackOf    uint64 `protobuf:"varint,9,opt,name=rollback_of,json=rollbackOf,proto3" json:"rollback_of,omitempty"`
+	RollbackOf uint64 `protobuf:"varint,9,opt,name=rollback_of,json=rollbackOf,proto3" json:"rollback_of,omitempty"`
+	// As BindingVersion.managed_by; pausing stays the console's.
+	ManagedBy     string `protobuf:"bytes,10,opt,name=managed_by,json=managedBy,proto3" json:"managed_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -289,6 +291,13 @@ func (x *RuleVersion) GetRollbackOf() uint64 {
 		return x.RollbackOf
 	}
 	return 0
+}
+
+func (x *RuleVersion) GetManagedBy() string {
+	if x != nil {
+		return x.ManagedBy
+	}
+	return ""
 }
 
 // Rule is a rule as ListRules shows it.
@@ -2091,7 +2100,7 @@ const file_backplanepb_console_v1_rules_proto_rawDesc = "" +
 	"\n" +
 	"StepsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
-	"\x05value\x18\x02 \x01(\v2\x1a.backplane.console.v1.StepR\x05value:\x028\x01\"\xc2\x02\n" +
+	"\x05value\x18\x02 \x01(\v2\x1a.backplane.console.v1.StepR\x05value:\x028\x01\"\xe1\x02\n" +
 	"\vRuleVersion\x12\x17\n" +
 	"\arule_id\x18\x01 \x01(\tR\x06ruleId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x04R\aversion\x12\x12\n" +
@@ -2105,7 +2114,10 @@ const file_backplanepb_console_v1_rules_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1f\n" +
 	"\vrollback_of\x18\t \x01(\x04R\n" +
-	"rollbackOf\"\x9e\x02\n" +
+	"rollbackOf\x12\x1d\n" +
+	"\n" +
+	"managed_by\x18\n" +
+	" \x01(\tR\tmanagedBy\"\x9e\x02\n" +
 	"\x04Rule\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06paused\x18\x02 \x01(\bR\x06paused\x12;\n" +

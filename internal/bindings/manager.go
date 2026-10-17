@@ -29,6 +29,9 @@ var (
 	// ErrConflict: an edit started from a version that is no longer the
 	// current one.
 	ErrConflict = errors.New("bindings: changed since the edit started")
+	// ErrManaged: the binding or rule is defined in a wiring file, which
+	// alone changes it.
+	ErrManaged = errors.New("bindings: managed by a wiring file")
 )
 
 // DefaultAuthor is the author of a version saved outside a console session.

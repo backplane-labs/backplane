@@ -194,7 +194,12 @@ type BindingVersion struct {
 	Comment   string                 `protobuf:"bytes,6,opt,name=comment,proto3" json:"comment,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// The version this one rolls back to; 0 when it is not a rollback.
-	RollbackOf    uint64 `protobuf:"varint,8,opt,name=rollback_of,json=rollbackOf,proto3" json:"rollback_of,omitempty"`
+	RollbackOf uint64 `protobuf:"varint,8,opt,name=rollback_of,json=rollbackOf,proto3" json:"rollback_of,omitempty"`
+	// The wiring file (relative to the platform's BACKPLANE_WIRING_DIR) the
+	// version came from; empty for the console's versions. While the current
+	// version has one, the binding changes only through the file: saves,
+	// rollbacks and deletes from the console fail with FAILED_PRECONDITION.
+	ManagedBy     string `protobuf:"bytes,9,opt,name=managed_by,json=managedBy,proto3" json:"managed_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -283,6 +288,13 @@ func (x *BindingVersion) GetRollbackOf() uint64 {
 		return x.RollbackOf
 	}
 	return 0
+}
+
+func (x *BindingVersion) GetManagedBy() string {
+	if x != nil {
+		return x.ManagedBy
+	}
+	return ""
 }
 
 // HookBinding is a hook and its binding, as ListBindings shows it.
@@ -1761,7 +1773,7 @@ const file_backplanepb_console_v1_bindings_proto_rawDesc = "" +
 	"\n" +
 	"StepsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
-	"\x05value\x18\x02 \x01(\v2\x1a.backplane.console.v1.StepR\x05value:\x028\x01\"\xaf\x02\n" +
+	"\x05value\x18\x02 \x01(\v2\x1a.backplane.console.v1.StepR\x05value:\x028\x01\"\xce\x02\n" +
 	"\x0eBindingVersion\x12\x12\n" +
 	"\x04hook\x18\x01 \x01(\tR\x04hook\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x04R\aversion\x12G\n" +
@@ -1774,7 +1786,9 @@ const file_backplanepb_console_v1_bindings_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1f\n" +
 	"\vrollback_of\x18\b \x01(\x04R\n" +
-	"rollbackOf\"\xd0\x02\n" +
+	"rollbackOf\x12\x1d\n" +
+	"\n" +
+	"managed_by\x18\t \x01(\tR\tmanagedBy\"\xd0\x02\n" +
 	"\vHookBinding\x12\x12\n" +
 	"\x04hook\x18\x01 \x01(\tR\x04hook\x12\x18\n" +
 	"\aservice\x18\x02 \x01(\tR\aservice\x12\x1a\n" +

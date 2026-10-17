@@ -97,6 +97,8 @@ message RuleVersion {
   google.protobuf.Timestamp created_at = 8;
   // The version this one rolls back to; 0 when it is not a rollback.
   uint64 rollback_of = 9;
+  // As BindingVersion.managed_by; pausing stays the console's.
+  string managed_by = 10;
 }
 
 // RuleState is whether a rule runs.

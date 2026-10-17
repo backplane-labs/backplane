@@ -146,7 +146,7 @@ export const platformEnglish = {
   bindingOf: 'binding of {{hook}}', noEvent: 'no event', draft: 'Draft', undo: 'Undo', redo: 'Redo', format: 'Format', formatHelp: 'Rewrite the YAML in canonical order and style',
   checking: 'Checking…', problemsCount_one: '{{count}} problem', problemsCount_other: '{{count}} problems', problems: 'Problems', noProblems: 'No problems',
   discardDraft: 'Discard', saveShortcut: 'Save (Ctrl+S)', saveRejected_one: 'Not saved: {{count}} violation.', saveRejected_other: 'Not saved: {{count}} violations.',
-  brokenTitle: 'This definition no longer compiles', brokenHelp: 'A service changed a contract it uses; calls fail until it is fixed. The problems list says where.',
+  managedTitle: 'Defined in {{file}}', managedBindingHelp: 'The platform keeps this binding as the file in its wiring directory says: change the file to change it. Drafts here can still be tested.', managedRuleHelp: 'The platform keeps this rule as the file in its wiring directory says: change the file to change it. Pausing stays here. Drafts can still be tested.', managedToSave: 'Defined in a wiring file: change the file to save', brokenTitle: 'This definition no longer compiles', brokenHelp: 'A service changed a contract it uses; calls fail until it is fixed. The problems list says where.',
   staleTitle: 'Your draft started from v{{base}}; the current version is v{{current}}',
   staleHelp: 'Someone saved meanwhile. Compare with the latest, continue from it keeping your draft, or discard the draft.',
   compareLatest: 'Compare with latest', compareLatestHelp: 'The latest saved version on the left, your draft on the right.',

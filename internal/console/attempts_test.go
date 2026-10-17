@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -306,7 +307,7 @@ INSERT INTO service_data.widgets VALUES ('service-owned');`)
 	}
 
 	var applied int
-	if err := st.Get().Pool.QueryRow(t.Context(), "SELECT count(*) FROM backplane.sqld_migrations").Scan(&applied); err != nil || applied < 2 {
+	if err := st.Get().Pool.QueryRow(t.Context(), "SELECT count(*) FROM backplane.sqld_migrations").Scan(&applied); err != nil || applied < 1 {
 		t.Fatalf("platform migration ledger: %d %v", applied, err)
 	}
 }
@@ -314,13 +315,18 @@ INSERT INTO service_data.widgets VALUES ('service-owned');`)
 func TestPGLoginMigrationKeepsExistingSessions(t *testing.T) {
 	t.Parallel()
 	st := pgStoreWithSetup(t, func(ctx context.Context, conn *pgx.Conn) {
-		initial, err := os.ReadFile("../store/migrations/20261015130420587_init.sql")
+		inits, err := filepath.Glob("../store/migrations/*_init.sql")
+		if err != nil || len(inits) != 1 {
+			t.Fatalf("init migration: %v %v", inits, err)
+		}
+
+		initial, err := os.ReadFile(inits[0])
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		legacy, err := postgres.Open(ctx, xlog.NewJSON(), postgres.Config{DSN: config.Secret(conn.Config().ConnString())},
-			postgres.Schema(store.Schema), postgres.Migrations(fstest.MapFS{"20261015130420587_init.sql": {Data: initial}}))
+			postgres.Schema(store.Schema), postgres.Migrations(fstest.MapFS{filepath.Base(inits[0]): {Data: initial}}))
 		if err != nil {
 			t.Fatal(err)
 		}

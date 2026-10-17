@@ -66,4 +66,61 @@ run is then retried as a whole by event redelivery.
 
 History supports review and rollback. A removed/changed service contract can invalidate an existing definition; the UI marks broken definitions rather than silently rewriting them. Unsaved drafts survive switching items and require confirmation before leaving.
 
+## Keep wiring in files
+
+An installation can keep bindings and rules in YAML files instead of saving
+them from the console. Point `BACKPLANE_WIRING_DIR` at a directory: a
+mounted Kubernetes ConfigMap, a directory baked into the image, a checkout.
+Every replica reads it at start, every `BACKPLANE_WIRING_POLL` (5s) and on
+every new manifest, and keeps the platform's versions equal to it. You do not
+need an init container or a job: an entry waits until the services it names
+register, then applies.
+
+```yaml
+# wiring/kratos.yaml
+bindings:
+  - hook: kratos.Deliver           # a BindingDefinition, as the YAML editor shows it
+    steps:
+      rendered:
+        activity: templates.Render
+        input: {template: "'kratos.' + req.template_type", data: {code: req.code}}
+      mail:
+        activity: courier.SendMail
+        when: req.channel == "email"
+        input: {to: req.to, subject: rendered.subject, text: rendered.text, html: rendered.parts.html}
+---
+rules:
+  - name: record greetings         # the rule's identity: renaming it replaces the rule
+    event: hello.Greeted
+    when: event.name != "skip"
+    steps:
+      recorded: {activity: formatter.Record, input: {name: event.name, text: event.text}}
+```
+
+The directory is read recursively. Only `*.yaml` and `*.yml` files are read, and
+names starting with a dot are skipped, so a ConfigMap's `..data` links work as
+they are. A file may hold several documents. A hook or rule name may appear in
+one file only.
+
+What the files define, the console only reads:
+
+- A changed entry becomes the next version. Its author is `wiring` and its
+  comment `from <file>`. The version and the editor show the file it came from.
+- The console's Save, Delete and Rollback are refused for that binding or rule
+  (`FAILED_PRECONDITION`). Drafts can still be edited and tested. Pausing a
+  rule stays the console's.
+- An entry removed from every file is deleted (a tombstone,
+  `removed from <file>`), and the console owns that hook or rule again. Moving
+  an entry between files only changes the file it is attributed to.
+- A definition that does not compile waits. The version in force stays, and
+  the platform logs why once. If everything it lacks is an undeclared hook,
+  event or activity, it waits at `info` level for the service to register.
+  Any other violation is logged at `warn`.
+- If the directory does not read whole (a YAML error, an unknown key, a
+  duplicate name), the platform changes nothing until it is fixed. An empty
+  directory, on the other hand, means "no wiring" and deletes everything the
+  files defined before.
+
+To roll back, revert the file. History stays in the platform as for any version.
+
 See the [language reference](wiring-language.md), [WiringService](../reference/services/wiring-service.md), [BindingService](../reference/services/binding-service.md), [RuleService](../reference/services/rule-service.md) and the [editor behavior reference](../reference/platform-ui.md#wiring).

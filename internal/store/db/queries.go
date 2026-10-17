@@ -548,9 +548,9 @@ func (q *Queries) NextBindingVersion(ctx context.Context, hook string) (NextBind
 	return i, err
 }
 
-const insertBindingVersionSQL = `INSERT INTO backplane.binding_version (hook, version, definition, author, comment, rollback_of)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING hook, version, definition, author, comment, created_at, rollback_of;`
+const insertBindingVersionSQL = `INSERT INTO backplane.binding_version (hook, version, definition, author, comment, rollback_of, managed_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING hook, version, definition, author, comment, created_at, rollback_of, managed_by;`
 
 type InsertBindingVersionParams struct {
 	Hook       string
@@ -559,6 +559,7 @@ type InsertBindingVersionParams struct {
 	Author     string
 	Comment    string
 	RollbackOf *int64
+	ManagedBy  *string
 }
 
 type InsertBindingVersionRow struct {
@@ -569,12 +570,13 @@ type InsertBindingVersionRow struct {
 	Comment    string
 	CreatedAt  time.Time
 	RollbackOf *int64
+	ManagedBy  *string
 }
 
 func (q *Queries) InsertBindingVersion(ctx context.Context, arg InsertBindingVersionParams) (InsertBindingVersionRow, error) {
-	row := q.db.QueryRow(ctx, insertBindingVersionSQL, arg.Hook, arg.Version, arg.Definition, arg.Author, arg.Comment, arg.RollbackOf)
+	row := q.db.QueryRow(ctx, insertBindingVersionSQL, arg.Hook, arg.Version, arg.Definition, arg.Author, arg.Comment, arg.RollbackOf, arg.ManagedBy)
 	var i InsertBindingVersionRow
-	err := row.Scan(&i.Hook, &i.Version, &i.Definition, &i.Author, &i.Comment, &i.CreatedAt, &i.RollbackOf)
+	err := row.Scan(&i.Hook, &i.Version, &i.Definition, &i.Author, &i.Comment, &i.CreatedAt, &i.RollbackOf, &i.ManagedBy)
 	return i, err
 }
 
@@ -591,7 +593,7 @@ func (q *Queries) SetBindingCurrent(ctx context.Context, arg SetBindingCurrentPa
 	return err
 }
 
-const getBindingVersionSQL = `SELECT hook, version, definition, author, comment, created_at, rollback_of
+const getBindingVersionSQL = `SELECT hook, version, definition, author, comment, created_at, rollback_of, managed_by
 FROM backplane.binding_version WHERE hook = $1 AND version = $2;`
 
 type GetBindingVersionParams struct {
@@ -607,16 +609,17 @@ type GetBindingVersionRow struct {
 	Comment    string
 	CreatedAt  time.Time
 	RollbackOf *int64
+	ManagedBy  *string
 }
 
 func (q *Queries) GetBindingVersion(ctx context.Context, arg GetBindingVersionParams) (GetBindingVersionRow, error) {
 	row := q.db.QueryRow(ctx, getBindingVersionSQL, arg.Hook, arg.Version)
 	var i GetBindingVersionRow
-	err := row.Scan(&i.Hook, &i.Version, &i.Definition, &i.Author, &i.Comment, &i.CreatedAt, &i.RollbackOf)
+	err := row.Scan(&i.Hook, &i.Version, &i.Definition, &i.Author, &i.Comment, &i.CreatedAt, &i.RollbackOf, &i.ManagedBy)
 	return i, err
 }
 
-const getCurrentBindingSQL = `SELECT v.hook, v.version, v.definition, v.author, v.comment, v.created_at, v.rollback_of
+const getCurrentBindingSQL = `SELECT v.hook, v.version, v.definition, v.author, v.comment, v.created_at, v.rollback_of, v.managed_by
 FROM backplane.binding_current c
 JOIN backplane.binding_version v ON v.hook = c.hook AND v.version = c.version
 WHERE c.hook = $1;`
@@ -629,16 +632,17 @@ type GetCurrentBindingRow struct {
 	Comment    string
 	CreatedAt  time.Time
 	RollbackOf *int64
+	ManagedBy  *string
 }
 
 func (q *Queries) GetCurrentBinding(ctx context.Context, hook string) (GetCurrentBindingRow, error) {
 	row := q.db.QueryRow(ctx, getCurrentBindingSQL, hook)
 	var i GetCurrentBindingRow
-	err := row.Scan(&i.Hook, &i.Version, &i.Definition, &i.Author, &i.Comment, &i.CreatedAt, &i.RollbackOf)
+	err := row.Scan(&i.Hook, &i.Version, &i.Definition, &i.Author, &i.Comment, &i.CreatedAt, &i.RollbackOf, &i.ManagedBy)
 	return i, err
 }
 
-const listCurrentBindingsSQL = `SELECT v.hook, v.version, v.definition, v.author, v.comment, v.created_at, v.rollback_of
+const listCurrentBindingsSQL = `SELECT v.hook, v.version, v.definition, v.author, v.comment, v.created_at, v.rollback_of, v.managed_by
 FROM backplane.binding_current c
 JOIN backplane.binding_version v ON v.hook = c.hook AND v.version = c.version
 ORDER BY v.hook;`
@@ -651,6 +655,7 @@ type ListCurrentBindingsRow struct {
 	Comment    string
 	CreatedAt  time.Time
 	RollbackOf *int64
+	ManagedBy  *string
 }
 
 func (q *Queries) ListCurrentBindings(ctx context.Context) ([]ListCurrentBindingsRow, error) {
@@ -662,7 +667,7 @@ func (q *Queries) ListCurrentBindings(ctx context.Context) ([]ListCurrentBinding
 	var items []ListCurrentBindingsRow
 	for rows.Next() {
 		var i ListCurrentBindingsRow
-		if err := rows.Scan(&i.Hook, &i.Version, &i.Definition, &i.Author, &i.Comment, &i.CreatedAt, &i.RollbackOf); err != nil {
+		if err := rows.Scan(&i.Hook, &i.Version, &i.Definition, &i.Author, &i.Comment, &i.CreatedAt, &i.RollbackOf, &i.ManagedBy); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -673,7 +678,7 @@ func (q *Queries) ListCurrentBindings(ctx context.Context) ([]ListCurrentBinding
 	return items, nil
 }
 
-const listBindingVersionsSQL = `SELECT hook, version, definition, author, comment, created_at, rollback_of
+const listBindingVersionsSQL = `SELECT hook, version, definition, author, comment, created_at, rollback_of, managed_by
 FROM backplane.binding_version
 WHERE hook = $1 AND version < $2
 ORDER BY version DESC
@@ -693,6 +698,7 @@ type ListBindingVersionsRow struct {
 	Comment    string
 	CreatedAt  time.Time
 	RollbackOf *int64
+	ManagedBy  *string
 }
 
 func (q *Queries) ListBindingVersions(ctx context.Context, arg ListBindingVersionsParams) ([]ListBindingVersionsRow, error) {
@@ -704,7 +710,7 @@ func (q *Queries) ListBindingVersions(ctx context.Context, arg ListBindingVersio
 	var items []ListBindingVersionsRow
 	for rows.Next() {
 		var i ListBindingVersionsRow
-		if err := rows.Scan(&i.Hook, &i.Version, &i.Definition, &i.Author, &i.Comment, &i.CreatedAt, &i.RollbackOf); err != nil {
+		if err := rows.Scan(&i.Hook, &i.Version, &i.Definition, &i.Author, &i.Comment, &i.CreatedAt, &i.RollbackOf, &i.ManagedBy); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -730,6 +736,14 @@ func (q *Queries) CreateRule(ctx context.Context) (CreateRuleRow, error) {
 	var i CreateRuleRow
 	err := row.Scan(&i.ID, &i.Paused, &i.CreatedAt, &i.UpdatedAt)
 	return i, err
+}
+
+const ensureRuleSQL = `-- Creates the rule of a wiring file under the id derived from its name.
+INSERT INTO backplane.rule (id) VALUES ($1) ON CONFLICT (id) DO NOTHING;`
+
+func (q *Queries) EnsureRule(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, ensureRuleSQL, id)
+	return err
 }
 
 const getRuleSQL = `SELECT id, paused, created_at, updated_at FROM backplane.rule WHERE id = $1;`
@@ -791,9 +805,9 @@ func (q *Queries) NextRuleVersion(ctx context.Context, ruleID uuid.UUID) (NextRu
 	return i, err
 }
 
-const insertRuleVersionSQL = `INSERT INTO backplane.rule_version (rule_id, version, name, definition, author, comment, rollback_of)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING rule_id, version, name, definition, author, comment, created_at, rollback_of;`
+const insertRuleVersionSQL = `INSERT INTO backplane.rule_version (rule_id, version, name, definition, author, comment, rollback_of, managed_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING rule_id, version, name, definition, author, comment, created_at, rollback_of, managed_by;`
 
 type InsertRuleVersionParams struct {
 	RuleID     uuid.UUID
@@ -803,6 +817,7 @@ type InsertRuleVersionParams struct {
 	Author     string
 	Comment    string
 	RollbackOf *int64
+	ManagedBy  *string
 }
 
 type InsertRuleVersionRow struct {
@@ -814,12 +829,13 @@ type InsertRuleVersionRow struct {
 	Comment    string
 	CreatedAt  time.Time
 	RollbackOf *int64
+	ManagedBy  *string
 }
 
 func (q *Queries) InsertRuleVersion(ctx context.Context, arg InsertRuleVersionParams) (InsertRuleVersionRow, error) {
-	row := q.db.QueryRow(ctx, insertRuleVersionSQL, arg.RuleID, arg.Version, arg.Name, arg.Definition, arg.Author, arg.Comment, arg.RollbackOf)
+	row := q.db.QueryRow(ctx, insertRuleVersionSQL, arg.RuleID, arg.Version, arg.Name, arg.Definition, arg.Author, arg.Comment, arg.RollbackOf, arg.ManagedBy)
 	var i InsertRuleVersionRow
-	err := row.Scan(&i.RuleID, &i.Version, &i.Name, &i.Definition, &i.Author, &i.Comment, &i.CreatedAt, &i.RollbackOf)
+	err := row.Scan(&i.RuleID, &i.Version, &i.Name, &i.Definition, &i.Author, &i.Comment, &i.CreatedAt, &i.RollbackOf, &i.ManagedBy)
 	return i, err
 }
 
@@ -836,7 +852,7 @@ func (q *Queries) SetRuleCurrent(ctx context.Context, arg SetRuleCurrentParams) 
 	return err
 }
 
-const getRuleVersionSQL = `SELECT rule_id, version, name, definition, author, comment, created_at, rollback_of
+const getRuleVersionSQL = `SELECT rule_id, version, name, definition, author, comment, created_at, rollback_of, managed_by
 FROM backplane.rule_version WHERE rule_id = $1 AND version = $2;`
 
 type GetRuleVersionParams struct {
@@ -853,17 +869,18 @@ type GetRuleVersionRow struct {
 	Comment    string
 	CreatedAt  time.Time
 	RollbackOf *int64
+	ManagedBy  *string
 }
 
 func (q *Queries) GetRuleVersion(ctx context.Context, arg GetRuleVersionParams) (GetRuleVersionRow, error) {
 	row := q.db.QueryRow(ctx, getRuleVersionSQL, arg.RuleID, arg.Version)
 	var i GetRuleVersionRow
-	err := row.Scan(&i.RuleID, &i.Version, &i.Name, &i.Definition, &i.Author, &i.Comment, &i.CreatedAt, &i.RollbackOf)
+	err := row.Scan(&i.RuleID, &i.Version, &i.Name, &i.Definition, &i.Author, &i.Comment, &i.CreatedAt, &i.RollbackOf, &i.ManagedBy)
 	return i, err
 }
 
 const getCurrentRuleSQL = `SELECT r.id, r.paused, r.created_at, r.updated_at,
-       v.version, v.name, v.definition, v.author, v.comment, v.created_at AS version_created_at, v.rollback_of
+       v.version, v.name, v.definition, v.author, v.comment, v.created_at AS version_created_at, v.rollback_of, v.managed_by
 FROM backplane.rule r
 JOIN backplane.rule_current c ON c.rule_id = r.id
 JOIN backplane.rule_version v ON v.rule_id = c.rule_id AND v.version = c.version
@@ -881,17 +898,18 @@ type GetCurrentRuleRow struct {
 	Comment          string
 	VersionCreatedAt time.Time
 	RollbackOf       *int64
+	ManagedBy        *string
 }
 
 func (q *Queries) GetCurrentRule(ctx context.Context, id uuid.UUID) (GetCurrentRuleRow, error) {
 	row := q.db.QueryRow(ctx, getCurrentRuleSQL, id)
 	var i GetCurrentRuleRow
-	err := row.Scan(&i.ID, &i.Paused, &i.CreatedAt, &i.UpdatedAt, &i.Version, &i.Name, &i.Definition, &i.Author, &i.Comment, &i.VersionCreatedAt, &i.RollbackOf)
+	err := row.Scan(&i.ID, &i.Paused, &i.CreatedAt, &i.UpdatedAt, &i.Version, &i.Name, &i.Definition, &i.Author, &i.Comment, &i.VersionCreatedAt, &i.RollbackOf, &i.ManagedBy)
 	return i, err
 }
 
 const listCurrentRulesSQL = `SELECT r.id, r.paused, r.created_at, r.updated_at,
-       v.version, v.name, v.definition, v.author, v.comment, v.created_at AS version_created_at, v.rollback_of
+       v.version, v.name, v.definition, v.author, v.comment, v.created_at AS version_created_at, v.rollback_of, v.managed_by
 FROM backplane.rule r
 JOIN backplane.rule_current c ON c.rule_id = r.id
 JOIN backplane.rule_version v ON v.rule_id = c.rule_id AND v.version = c.version
@@ -909,6 +927,7 @@ type ListCurrentRulesRow struct {
 	Comment          string
 	VersionCreatedAt time.Time
 	RollbackOf       *int64
+	ManagedBy        *string
 }
 
 func (q *Queries) ListCurrentRules(ctx context.Context) ([]ListCurrentRulesRow, error) {
@@ -920,7 +939,7 @@ func (q *Queries) ListCurrentRules(ctx context.Context) ([]ListCurrentRulesRow, 
 	var items []ListCurrentRulesRow
 	for rows.Next() {
 		var i ListCurrentRulesRow
-		if err := rows.Scan(&i.ID, &i.Paused, &i.CreatedAt, &i.UpdatedAt, &i.Version, &i.Name, &i.Definition, &i.Author, &i.Comment, &i.VersionCreatedAt, &i.RollbackOf); err != nil {
+		if err := rows.Scan(&i.ID, &i.Paused, &i.CreatedAt, &i.UpdatedAt, &i.Version, &i.Name, &i.Definition, &i.Author, &i.Comment, &i.VersionCreatedAt, &i.RollbackOf, &i.ManagedBy); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -931,7 +950,7 @@ func (q *Queries) ListCurrentRules(ctx context.Context) ([]ListCurrentRulesRow, 
 	return items, nil
 }
 
-const listRuleVersionsSQL = `SELECT rule_id, version, name, definition, author, comment, created_at, rollback_of
+const listRuleVersionsSQL = `SELECT rule_id, version, name, definition, author, comment, created_at, rollback_of, managed_by
 FROM backplane.rule_version
 WHERE rule_id = $1 AND version < $2
 ORDER BY version DESC
@@ -952,6 +971,7 @@ type ListRuleVersionsRow struct {
 	Comment    string
 	CreatedAt  time.Time
 	RollbackOf *int64
+	ManagedBy  *string
 }
 
 func (q *Queries) ListRuleVersions(ctx context.Context, arg ListRuleVersionsParams) ([]ListRuleVersionsRow, error) {
@@ -963,7 +983,7 @@ func (q *Queries) ListRuleVersions(ctx context.Context, arg ListRuleVersionsPara
 	var items []ListRuleVersionsRow
 	for rows.Next() {
 		var i ListRuleVersionsRow
-		if err := rows.Scan(&i.RuleID, &i.Version, &i.Name, &i.Definition, &i.Author, &i.Comment, &i.CreatedAt, &i.RollbackOf); err != nil {
+		if err := rows.Scan(&i.RuleID, &i.Version, &i.Name, &i.Definition, &i.Author, &i.Comment, &i.CreatedAt, &i.RollbackOf, &i.ManagedBy); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

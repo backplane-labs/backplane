@@ -6,7 +6,7 @@ import { WsStatusError } from '@backplane-labs/backplane-client';
 import { useClient } from '@backplane-labs/backplane-react';
 import { Badge, Button, Combobox, ConfirmAction, DetailDrawer, EmptyState, EntityHeader, Input, MetaItem, MetaList, Panel, Skeleton, StatusBadge, TabBar, Timestamp, type StatusTone } from '@backplane-labs/backplane-ui';
 import { CodeEditor, DiffViewer, type EditorDiagnostic } from '@backplane-labs/backplane-editors';
-import { AlertTriangle, Cable, CircleAlert, CircleCheck, FileWarning, LayoutGrid, Map as MapIcon, GitFork, History, Info, Pause, Play, Redo2, Save, Trash2, Undo2, User, Wand2, Zap } from 'lucide-react';
+import { AlertTriangle, Cable, CircleAlert, CircleCheck, FileCode, FileWarning, LayoutGrid, Map as MapIcon, GitFork, History, Info, Pause, Play, Redo2, Save, Trash2, Undo2, User, Wand2, Zap } from 'lucide-react';
 import { usePlatformAction, usePlatformQuery } from '../runtime.js';
 import { usePlatformText } from '../locales.js';
 import { date, enumLabel } from '../format.js';
@@ -86,6 +86,8 @@ function DraftEditor({ target, index, mode, view, onView, drafts, hookInfo, late
   const baseline = useMemo(() => saved ? toYAML(kind, saved) : templateYAML(kind, source), [kind, saved, source]);
   const savedName = (version as api.RuleVersion | undefined)?.name ?? '';
   const loadedVersion = version?.version ?? 0n;
+  // Defined in a wiring file: the console reads it, tests drafts of it, never saves it.
+  const managedBy = version?.managedBy ?? '';
   const stored = drafts.get(key);
   const draft = useDraftText(stored?.text ?? baseline);
   const [name, setName] = useState(stored?.name ?? savedName), [base, setBase] = useState(stored?.base ?? loadedVersion);
@@ -139,9 +141,9 @@ function DraftEditor({ target, index, mode, view, onView, drafts, hookInfo, late
       event.preventDefault(); if (event.key === 'y' || event.shiftKey) draft.redo(); else draft.undo();
     }
   };
-  const canSave = changed && !errors.length && !action.pending && !action.disabled && !!parsed.definition && (kind === 'binding' || !!name.trim());
+  const canSave = !managedBy && changed && !errors.length && !action.pending && !action.disabled && !!parsed.definition && (kind === 'binding' || !!name.trim());
   // Why Save is off, when the reason is the author's to fix.
-  const blockedBy = !parsed.definition || errors.length ? 'fixProblemsToSave' as const : kind === 'rule' && !name.trim() ? 'nameToSave' as const : undefined;
+  const blockedBy = managedBy ? 'managedToSave' as const : !parsed.definition || errors.length ? 'fixProblemsToSave' as const : kind === 'rule' && !name.trim() ? 'nameToSave' as const : undefined;
   const state = kind === 'binding' ? hookInfo?.state : loaded.rule?.state;
   const broken = loaded.violations.length > 0 && !textChanged;
   const title = kind === 'binding' ? source : savedName || text('newRule');
@@ -150,6 +152,7 @@ function DraftEditor({ target, index, mode, view, onView, drafts, hookInfo, late
     {version && <MetaItem icon={<History />} mono>v{version.version.toString()}</MetaItem>}
     {version && <MetaItem icon={<User />} mono title={version.author}>{shortActor(version.author)}</MetaItem>}
     {version && <MetaItem><Timestamp value={date(version.createdAt)} /></MetaItem>}
+    {managedBy && <MetaItem icon={<FileCode />} mono title={managedBy}>{managedBy}</MetaItem>}
     {textChanged && <Badge variant="outline" className="h-4 border-warning/40 px-1 text-2xs text-warning">{text('draft')}</Badge>}
   </MetaList>;
 
@@ -158,13 +161,14 @@ function DraftEditor({ target, index, mode, view, onView, drafts, hookInfo, late
       status={state !== undefined && (kind === 'binding'
         ? <StatusBadge tone={bindingTone[state as api.BindingState]}>{enumLabel(api.BindingState, state)}</StatusBadge>
         : <StatusBadge tone={ruleTone[state as api.RuleState]}>{enumLabel(api.RuleState, state)}</StatusBadge>)}
-      actions={<HeaderActions target={target} loaded={loaded} saved={!!saved} loadedVersion={loadedVersion} onChanged={reload} onDeleted={onDeleted} />}
+      actions={<HeaderActions target={target} loaded={loaded} saved={!!saved} managed={!!managedBy} loadedVersion={loadedVersion} onChanged={reload} onDeleted={onDeleted} />}
       tabs={<TabBar aria-label={title}>{(['graph', 'yaml', 'versions', 'test', 'runs'] as const).filter((entry) => subject || entry === 'graph' || entry === 'yaml' || entry === 'test').map((entry) =>
         <button key={entry} type="button" disabled={!executionEnabled && (entry === 'test' || entry === 'runs')} title={!executionEnabled && (entry === 'test' || entry === 'runs') ? text('executionDisabled') : undefined} aria-current={view === entry ? 'page' : undefined} onClick={() => onView(entry)}
           className="relative -mb-px inline-flex h-9 items-center gap-1.5 border-b-2 border-transparent px-2.5 text-sm text-muted-foreground hover:text-foreground aria-[current=page]:border-primary aria-[current=page]:font-medium aria-[current=page]:text-foreground">
           {text(`wiringView_${entry}`)}{entry === 'yaml' && errors.length > 0 && <span className="size-1.5 rounded-full bg-destructive" />}</button>)}</TabBar>} />
+    {managedBy && <Banner tone="info" icon={<FileCode />} title={text('managedTitle', { file: managedBy })}>{text(kind === 'binding' ? 'managedBindingHelp' : 'managedRuleHelp')}</Banner>}
     {broken && <Banner tone="danger" icon={<FileWarning />} title={text('brokenTitle')}>{text('brokenHelp')}</Banner>}
-    {stale && <Banner tone="warning" icon={<GitFork />} title={text('staleTitle', { base: base.toString(), current: (latestVersion ?? loadedVersion).toString() })}
+    {stale && !managedBy && <Banner tone="warning" icon={<GitFork />} title={text('staleTitle', { base: base.toString(), current: (latestVersion ?? loadedVersion).toString() })}
       actions={<>{latestVersion !== undefined && latestVersion > loadedVersion && <Button size="xs" variant="outline" onClick={reload}>{text('loadLatest')}</Button>}
         <Button size="xs" variant="outline" onClick={() => setConflictOpen(true)}>{text('compareLatest')}</Button>
         {base !== loadedVersion && <Button size="xs" onClick={() => setBase(loadedVersion)}>{text('continueFrom', { version: loadedVersion.toString() })}</Button>}
@@ -220,7 +224,7 @@ function DraftEditor({ target, index, mode, view, onView, drafts, hookInfo, late
         </Panel>
       </aside>
     </div>}
-    {view === 'versions' && subject && <div className="flex min-h-0 flex-1 flex-col"><Versions subject={subject} current={loadedVersion || undefined} mode={mode} onChanged={reload}
+    {view === 'versions' && subject && <div className="flex min-h-0 flex-1 flex-col"><Versions subject={subject} current={loadedVersion || undefined} managed={!!managedBy} mode={mode} onChanged={reload}
       onOpenDraft={(text) => { draft.apply(text); onView('yaml'); }} /></div>}
     {view === 'test' && <ExecutionGate kind={kind}><div className="flex min-h-0 flex-1 flex-col"><TestRun subject={subject ?? { kind: 'rule', id: '' }} draft={parsed.definition} dirty={changed} mode={mode}
       schema={kind === 'binding' ? index.hooks.get(source)?.value.input : index.events.get(source)?.value.schema}
@@ -233,20 +237,26 @@ function DraftEditor({ target, index, mode, view, onView, drafts, hookInfo, late
   </div>;
 }
 
-function Banner({ tone, icon, title, actions, children }: { tone: 'danger' | 'warning'; icon: ReactNode; title: ReactNode; actions?: ReactNode; children?: ReactNode }) {
-  const colors = tone === 'danger' ? 'border-destructive/40 bg-destructive/10 text-destructive' : 'border-warning/40 bg-warning/10 text-warning';
+const bannerColors = {
+  danger: 'border-destructive/40 bg-destructive/10 text-destructive',
+  warning: 'border-warning/40 bg-warning/10 text-warning',
+  info: 'border-border bg-raised text-foreground',
+};
+
+function Banner({ tone, icon, title, actions, children }: { tone: keyof typeof bannerColors; icon: ReactNode; title: ReactNode; actions?: ReactNode; children?: ReactNode }) {
+  const colors = bannerColors[tone];
   return <div role="status" className={`mb-3 flex shrink-0 flex-wrap items-start gap-3 rounded-lg border px-3 py-2 text-sm ${colors} [&>svg]:mt-0.5 [&>svg]:size-4 [&>svg]:shrink-0`}>
     {icon}<div className="min-w-0 flex-1"><div className="font-medium">{title}</div>{children && <div className="text-xs text-foreground/80">{children}</div>}</div>
     {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
   </div>;
 }
 
-function HeaderActions({ target, loaded, saved, loadedVersion, onChanged, onDeleted }: { target: WiringTarget; loaded: Loaded; saved: boolean; loadedVersion: bigint; onChanged: () => void; onDeleted: () => void }) {
+function HeaderActions({ target, loaded, saved, managed, loadedVersion, onChanged, onDeleted }: { target: WiringTarget; loaded: Loaded; saved: boolean; managed: boolean; loadedVersion: bigint; onChanged: () => void; onDeleted: () => void }) {
   const bindings = useClient(api.BindingServiceClient), rules = useClient(api.RuleServiceClient), text = usePlatformText(), action = usePlatformAction<unknown>();
   const control = (execute: (signal: AbortSignal) => Promise<unknown>, after: () => void) => async (signal: AbortSignal) => {
     const result = await action.run((abort) => execute(AbortSignal.any([signal, abort]))); if (result === undefined) throw new Error('Outcome is unavailable'); after();
   };
-  if (!saved) return null;
+  if (!saved || (managed && target.kind === 'binding')) return null;
   if (target.kind === 'binding') return <ConfirmAction trigger={<><Trash2 className="size-3.5" />{text('delete')}</>} title={text('deleteBindingConfirm')} description={text('deleteBindingHelp')} disabled={action.pending || action.disabled}
     onConfirm={control((signal) => bindings.deleteBinding(create(api.DeleteBindingRequestSchema, { hook: target.hook, baseVersion: loadedVersion }), { signal }), onChanged)} />;
   const id = target.id, paused = loaded.rule?.paused;
@@ -255,8 +265,8 @@ function HeaderActions({ target, loaded, saved, loadedVersion, onChanged, onDele
       onConfirm={control((signal) => rules.resumeRule(create(api.ResumeRuleRequestSchema, { id, baseVersion: loadedVersion }), { signal }), onChanged)} />
       : <ConfirmAction trigger={<><Pause className="size-3.5" />{text('pause')}</>} title={text('pauseRuleConfirm')} description={text('pauseRuleHelp')} disabled={action.pending || action.disabled}
         onConfirm={control((signal) => rules.pauseRule(create(api.PauseRuleRequestSchema, { id, baseVersion: loadedVersion }), { signal }), onChanged)} />}
-    <ConfirmAction trigger={<><Trash2 className="size-3.5" />{text('delete')}</>} title={text('deleteRuleConfirm')} description={text('deleteRuleHelp')} disabled={action.pending || action.disabled}
-      onConfirm={control((signal) => rules.deleteRule(create(api.DeleteRuleRequestSchema, { id, baseVersion: loadedVersion }), { signal }), onDeleted)} />
+    {!managed && <ConfirmAction trigger={<><Trash2 className="size-3.5" />{text('delete')}</>} title={text('deleteRuleConfirm')} description={text('deleteRuleHelp')} disabled={action.pending || action.disabled}
+      onConfirm={control((signal) => rules.deleteRule(create(api.DeleteRuleRequestSchema, { id, baseVersion: loadedVersion }), { signal }), onDeleted)} />}
     {action.error !== undefined && <span className="text-xs text-destructive" role="alert">{text('mutationFailed')}</span>}
   </>;
 }

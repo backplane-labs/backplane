@@ -27,12 +27,13 @@ type bindingRow struct {
 	Comment    string
 	CreatedAt  time.Time
 	RollbackOf *int64
+	ManagedBy  *string
 }
 
 func (r bindingRow) version() (BindingVersion, error) {
 	out := BindingVersion{
 		Hook: r.Hook, Version: r.Version, Author: r.Author, Comment: r.Comment, CreatedAt: r.CreatedAt,
-		Deleted: r.Definition == nil,
+		Deleted: r.Definition == nil, ManagedBy: deref(r.ManagedBy),
 	}
 
 	if r.RollbackOf != nil {
@@ -61,12 +62,13 @@ type ruleVersionRow struct {
 	Comment    string
 	CreatedAt  time.Time
 	RollbackOf *int64
+	ManagedBy  *string
 }
 
 func (r ruleVersionRow) version() (RuleVersion, error) {
 	out := RuleVersion{
 		RuleID: r.RuleID, Version: r.Version, Name: r.Name, Author: r.Author, Comment: r.Comment,
-		CreatedAt: r.CreatedAt, Deleted: r.Definition == nil,
+		CreatedAt: r.CreatedAt, Deleted: r.Definition == nil, ManagedBy: deref(r.ManagedBy),
 	}
 
 	if r.RollbackOf != nil {
@@ -98,12 +100,13 @@ type ruleRow struct {
 	Comment          string
 	VersionCreatedAt time.Time
 	RollbackOf       *int64
+	ManagedBy        *string
 }
 
 func (r ruleRow) entry() (RuleEntry, error) {
 	cur, err := ruleVersionRow{
 		RuleID: r.ID, Version: r.Version, Name: r.Name, Definition: r.Definition, Author: r.Author,
-		Comment: r.Comment, CreatedAt: r.VersionCreatedAt, RollbackOf: r.RollbackOf,
+		Comment: r.Comment, CreatedAt: r.VersionCreatedAt, RollbackOf: r.RollbackOf, ManagedBy: r.ManagedBy,
 	}.version()
 	if err != nil {
 		return RuleEntry{}, err
@@ -144,6 +147,50 @@ func (b Base) check(current int64) error {
 	}
 
 	return fmt.Errorf("%w: the current version is %d, the edit started from %d", ErrConflict, current, b.version)
+}
+
+// writer is who writes a version: the console (the zero writer), refused
+// while the current version is managed by a wiring file, or the wiring
+// files (files), which write over anything; file is the new version's
+// managed_by ("" for the tombstone of an entry a file no longer holds).
+type writer struct {
+	files bool
+	file  string
+}
+
+// managedBy is the managed_by column of w's version.
+func (w writer) managedBy() *string {
+	if w.file == "" {
+		return nil
+	}
+
+	return &w.file
+}
+
+// allowed is ErrManaged when w is the console and current is managed.
+func (w writer) allowed(what string, current *string) error {
+	if w.files || deref(current) == "" {
+		return nil
+	}
+
+	return fmt.Errorf("%w: %s is defined in %s; change the file", ErrManaged, what, *current)
+}
+
+// authorOf is the author of w's version.
+func (m *Manager) authorOf(ctx context.Context, w writer) string {
+	if w.files {
+		return FilesAuthor
+	}
+
+	return m.author(ctx)
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+
+	return *s
 }
 
 func rollbackOf(v int64) *int64 {
@@ -291,7 +338,7 @@ func (m *Manager) Validate(b Binding) ([]Violation, error) {
 // Save validates b and saves it as the next version of its hook's
 // binding. Rejected: nothing is saved.
 func (m *Manager) Save(ctx context.Context, b Binding, comment string, base Base) (Saved, error) {
-	return m.save(ctx, b, comment, 0, base)
+	return m.save(ctx, b, comment, 0, base, writer{})
 }
 
 // Rollback saves the definition of an older version as the next one
@@ -306,12 +353,12 @@ func (m *Manager) Rollback(
 	}
 
 	if old.Deleted {
-		v, err := m.insertBinding(ctx, hook, nil, m.author(ctx), comment, version, base)
+		v, err := m.insertBinding(ctx, hook, nil, m.author(ctx), comment, version, base, writer{})
 
 		return Saved{Version: v}, err
 	}
 
-	return m.save(ctx, old.Binding, comment, version, base)
+	return m.save(ctx, old.Binding, comment, version, base, writer{})
 }
 
 // Delete saves a tombstone: the hook becomes unbound. ErrNoBinding when it
@@ -323,7 +370,7 @@ func (m *Manager) Delete(ctx context.Context, hook, comment string, base Base) (
 
 	author := m.author(ctx)
 
-	v, err := m.insertBinding(ctx, hook, nil, author, comment, 0, base)
+	v, err := m.insertBinding(ctx, hook, nil, author, comment, 0, base, writer{})
 	if err != nil {
 		return BindingVersion{}, err
 	}
@@ -334,13 +381,15 @@ func (m *Manager) Delete(ctx context.Context, hook, comment string, base Base) (
 	return v, nil
 }
 
-func (m *Manager) save(ctx context.Context, b Binding, comment string, rollback int64, base Base) (Saved, error) {
+func (m *Manager) save(
+	ctx context.Context, b Binding, comment string, rollback int64, base Base, w writer,
+) (Saved, error) {
 	violations, err := m.Validate(b)
 	if err != nil {
 		return Saved{}, err
 	}
 
-	author := m.author(ctx)
+	author := m.authorOf(ctx, w)
 
 	if len(violations) > 0 {
 		m.Log().Info("binding rejected", xlog.String("hook", b.Hook), xlog.String("author", author),
@@ -354,7 +403,7 @@ func (m *Manager) save(ctx context.Context, b Binding, comment string, rollback 
 		return Saved{}, err
 	}
 
-	v, err := m.insertBinding(ctx, b.Hook, def, author, comment, rollback, base)
+	v, err := m.insertBinding(ctx, b.Hook, def, author, comment, rollback, base, w)
 	if err != nil {
 		return Saved{}, err
 	}
@@ -369,12 +418,22 @@ func (m *Manager) save(ctx context.Context, b Binding, comment string, rollback 
 // makes it current, in one serializable transaction.
 func (m *Manager) insertBinding(
 	ctx context.Context, hook string, def json.RawMessage, author, comment string, rollback int64, base Base,
+	w writer,
 ) (BindingVersion, error) {
 	st := m.store.Get()
 
 	var saved db.InsertBindingVersionRow
 
 	err := st.InTx(ctx, func(ctx context.Context) error {
+		current, err := st.Q.GetCurrentBinding(ctx, hook)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("current version: %w", err)
+		}
+
+		if err := w.allowed("the binding of "+hook, current.ManagedBy); err != nil {
+			return err
+		}
+
 		next, err := st.Q.NextBindingVersion(ctx, hook)
 		if err != nil {
 			return fmt.Errorf("next version: %w", err)
@@ -386,7 +445,7 @@ func (m *Manager) insertBinding(
 
 		saved, err = st.Q.InsertBindingVersion(ctx, db.InsertBindingVersionParams{
 			Hook: hook, Version: next.Version, Definition: def, Author: author, Comment: comment,
-			RollbackOf: rollbackOf(rollback),
+			RollbackOf: rollbackOf(rollback), ManagedBy: w.managedBy(),
 		})
 		if err != nil {
 			return fmt.Errorf("insert version: %w", err)
@@ -537,7 +596,7 @@ func (m *Manager) ValidateRule(name string, r Rule) ([]Violation, error) {
 func (m *Manager) SaveRule(
 	ctx context.Context, id uuid.UUID, name string, r Rule, comment string, base Base,
 ) (SavedRule, error) {
-	return m.saveRule(ctx, id, name, r, comment, 0, base)
+	return m.saveRule(ctx, id, name, r, comment, 0, base, writer{})
 }
 
 // RollbackRule saves the name and definition of an older version as the
@@ -551,12 +610,12 @@ func (m *Manager) RollbackRule(
 	}
 
 	if old.Deleted {
-		v, err := m.insertRule(ctx, id, old.Name, nil, m.author(ctx), comment, version, base)
+		v, err := m.insertRule(ctx, id, old.Name, nil, m.author(ctx), comment, version, base, writer{})
 
 		return SavedRule{Version: v}, err
 	}
 
-	return m.saveRule(ctx, id, old.Name, old.Rule, comment, version, base)
+	return m.saveRule(ctx, id, old.Name, old.Rule, comment, version, base, writer{})
 }
 
 // DeleteRule saves a tombstone: the rule stops. ErrDeleted when it is
@@ -573,7 +632,7 @@ func (m *Manager) DeleteRule(ctx context.Context, id uuid.UUID, comment string, 
 
 	author := m.author(ctx)
 
-	v, err := m.insertRule(ctx, id, e.Current.Name, nil, author, comment, 0, base)
+	v, err := m.insertRule(ctx, id, e.Current.Name, nil, author, comment, 0, base, writer{})
 	if err != nil {
 		return RuleVersion{}, err
 	}
@@ -631,9 +690,9 @@ func (m *Manager) PauseRule(ctx context.Context, id uuid.UUID, paused bool, base
 }
 
 func (m *Manager) saveRule(
-	ctx context.Context, id uuid.UUID, name string, r Rule, comment string, rollback int64, base Base,
+	ctx context.Context, id uuid.UUID, name string, r Rule, comment string, rollback int64, base Base, w writer,
 ) (SavedRule, error) {
-	if id != uuid.Nil {
+	if id != uuid.Nil && !w.files {
 		if _, err := m.Rule(ctx, id); err != nil {
 			return SavedRule{}, err
 		}
@@ -644,7 +703,7 @@ func (m *Manager) saveRule(
 		return SavedRule{}, err
 	}
 
-	author := m.author(ctx)
+	author := m.authorOf(ctx, w)
 
 	if len(violations) > 0 {
 		m.Log().Info("rule rejected", xlog.String("event", r.Event), xlog.String("author", author),
@@ -658,7 +717,7 @@ func (m *Manager) saveRule(
 		return SavedRule{}, err
 	}
 
-	v, err := m.insertRule(ctx, id, strings.TrimSpace(name), def, author, comment, rollback, base)
+	v, err := m.insertRule(ctx, id, strings.TrimSpace(name), def, author, comment, rollback, base, w)
 	if err != nil {
 		return SavedRule{}, err
 	}
@@ -669,11 +728,33 @@ func (m *Manager) saveRule(
 	return SavedRule{Version: v}, nil
 }
 
+// ruleWritable creates the rule a wiring file names (in the caller's
+// transaction) and refuses the console a rule a file manages.
+func ruleWritable(ctx context.Context, st *store.Store, id uuid.UUID, w writer) error {
+	if w.files {
+		if err := st.Q.EnsureRule(ctx, id); err != nil {
+			return fmt.Errorf("ensure rule: %w", err)
+		}
+	}
+
+	if id == uuid.Nil {
+		return nil
+	}
+
+	current, err := st.Q.GetCurrentRule(ctx, id)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return fmt.Errorf("current version: %w", err)
+	}
+
+	return w.allowed("rule "+current.Name, current.ManagedBy)
+}
+
 // insertRule stores the next version of the rule (creating the rule for
-// uuid.Nil; definition nil: a tombstone) and makes it current.
+// uuid.Nil, or for the wiring files under the id they name; definition
+// nil: a tombstone) and makes it current.
 func (m *Manager) insertRule(
 	ctx context.Context, id uuid.UUID, name string, def json.RawMessage, author, comment string, rollback int64,
-	base Base,
+	base Base, w writer,
 ) (RuleVersion, error) {
 	st := m.store.Get()
 
@@ -681,6 +762,10 @@ func (m *Manager) insertRule(
 
 	err := st.InTx(ctx, func(ctx context.Context) error {
 		ruleID := id
+
+		if err := ruleWritable(ctx, st, ruleID, w); err != nil {
+			return err
+		}
 
 		if ruleID == uuid.Nil {
 			created, err := st.Q.CreateRule(ctx)
@@ -706,7 +791,7 @@ func (m *Manager) insertRule(
 
 		saved, err = st.Q.InsertRuleVersion(ctx, db.InsertRuleVersionParams{
 			RuleID: ruleID, Version: next.Version, Name: name, Definition: def, Author: author, Comment: comment,
-			RollbackOf: rollbackOf(rollback),
+			RollbackOf: rollbackOf(rollback), ManagedBy: w.managedBy(),
 		})
 		if err != nil {
 			return fmt.Errorf("insert version: %w", err)

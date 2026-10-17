@@ -112,6 +112,7 @@ CREATE TABLE "backplane"."binding_version" (
   "comment" text NOT NULL DEFAULT ''::text,
   "created_at" timestamptz NOT NULL DEFAULT now(),
   "rollback_of" int8,
+  "managed_by" text,
   PRIMARY KEY ("hook", "version")
 );
 CREATE TABLE "backplane"."config_current" (
@@ -224,6 +225,7 @@ CREATE TABLE "backplane"."rule_version" (
   "comment" text NOT NULL DEFAULT ''::text,
   "created_at" timestamptz NOT NULL DEFAULT now(),
   "rollback_of" int8,
+  "managed_by" text,
   PRIMARY KEY ("rule_id", "version")
 );
 ALTER TABLE "backplane"."app_audit" ADD CONSTRAINT "app_audit_key_key" UNIQUE ("key");

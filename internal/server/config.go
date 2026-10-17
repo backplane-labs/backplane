@@ -62,11 +62,18 @@ type Config struct {
 	Direct Direct `json:"direct"`
 }
 
-// Wiring of the installation: BACKPLANE_WIRING_RUNTIME.
+// Wiring of the installation: BACKPLANE_WIRING_*.
 type Wiring struct {
 	// Runtime of a binding or rule that names none: "temporal", "direct",
 	// or "auto": temporal when Temporal is configured, else direct.
 	Runtime string `json:"runtime" schemapb:"default=auto"`
+	// Dir holds bindings and rules as YAML files, kept in force: the
+	// console only reads what they define (website guides/wiring.md).
+	// Empty: everything is the console's.
+	Dir string `json:"dir,omitempty"`
+	// Poll is how often Dir is read again (it is read on every new
+	// manifest too).
+	Poll time.Duration `json:"poll" schemapb:"default=5s;gt=0"`
 }
 
 // Resolve is the runtime "auto" stands for.

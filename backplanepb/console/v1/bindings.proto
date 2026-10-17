@@ -99,6 +99,11 @@ message BindingVersion {
   google.protobuf.Timestamp created_at = 7;
   // The version this one rolls back to; 0 when it is not a rollback.
   uint64 rollback_of = 8;
+  // The wiring file (relative to the platform's BACKPLANE_WIRING_DIR) the
+  // version came from; empty for the console's versions. While the current
+  // version has one, the binding changes only through the file: saves,
+  // rollbacks and deletes from the console fail with FAILED_PRECONDITION.
+  string managed_by = 9;
 }
 
 // BindingState is whether a hook is answered.

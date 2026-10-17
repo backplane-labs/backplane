@@ -162,6 +162,9 @@ type BindingVersion struct {
 	Comment    string
 	CreatedAt  time.Time
 	RollbackOf int64 // 0: not a rollback
+	// ManagedBy is the wiring file the version came from; "" for the
+	// console's versions.
+	ManagedBy string
 }
 
 // RuleVersion is one saved version of a rule.
@@ -177,6 +180,8 @@ type RuleVersion struct {
 	Comment    string
 	CreatedAt  time.Time
 	RollbackOf int64 // 0: not a rollback
+	// ManagedBy as BindingVersion's.
+	ManagedBy string
 }
 
 // RuleEntry is a rule with its current version.

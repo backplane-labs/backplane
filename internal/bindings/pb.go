@@ -136,7 +136,7 @@ func durationPB(d time.Duration) *durationpb.Duration {
 func (v BindingVersion) PB() *consolev1.BindingVersion {
 	out := &consolev1.BindingVersion{
 		Hook: v.Hook, Version: uint64(max(v.Version, 0)), Deleted: v.Deleted, Author: v.Author, Comment: v.Comment,
-		CreatedAt: timestamppb.New(v.CreatedAt), RollbackOf: uint64(max(v.RollbackOf, 0)),
+		CreatedAt: timestamppb.New(v.CreatedAt), RollbackOf: uint64(max(v.RollbackOf, 0)), ManagedBy: v.ManagedBy,
 	}
 	if !v.Deleted {
 		out.Definition = v.Binding.PB()
@@ -150,7 +150,7 @@ func (v RuleVersion) PB() *consolev1.RuleVersion {
 	out := &consolev1.RuleVersion{
 		RuleId: v.RuleID.String(), Version: uint64(max(v.Version, 0)), Name: v.Name, Deleted: v.Deleted,
 		Author: v.Author, Comment: v.Comment, CreatedAt: timestamppb.New(v.CreatedAt),
-		RollbackOf: uint64(max(v.RollbackOf, 0)),
+		RollbackOf: uint64(max(v.RollbackOf, 0)), ManagedBy: v.ManagedBy,
 	}
 	if !v.Deleted {
 		out.Definition = v.Rule.PB()

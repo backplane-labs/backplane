@@ -47,6 +47,15 @@ func liveHub(tb testing.TB, also ...func(root deps.Scope, m *bindings.Manager)) 
 		tb.Skip("BACKPLANE_TEST_PG not set")
 	}
 
+	return liveHubAt(tb, dsn, also...)
+}
+
+// liveHubAt is liveHub over the database at dsn.
+func liveHubAt(
+	tb testing.TB, dsn string, also ...func(root deps.Scope, m *bindings.Manager),
+) (*bindings.Manager, string, hubServices) {
+	tb.Helper()
+
 	b := make([]byte, 4)
 	if _, err := rand.Read(b); err != nil {
 		tb.Fatal(err)

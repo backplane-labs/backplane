@@ -58,6 +58,11 @@ func decodeYAML(text string, m proto.Message) error {
 		return fmt.Errorf("bindings: yaml: %w", err)
 	}
 
+	return decodeTree(tree, m)
+}
+
+// decodeTree reads m from a YAML tree.
+func decodeTree(tree any, m proto.Message) error {
 	shortRuntime(tree)
 
 	data, err := json.Marshal(tree)

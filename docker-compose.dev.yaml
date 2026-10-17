@@ -21,6 +21,12 @@ services:
     <<: *runtime
     command: [/app/bin/backplane]
     ports: ["127.0.0.1:8081:8081"]
+    volumes:
+      - ./bin:/app/bin:ro
+      - ./web/apps/console/dist:/app/web/apps/console/dist:ro
+      - ./web/templates/module/dist/plugin:/app/web/templates/module/dist/plugin:ro
+      # Local wiring files (gitignored); empty: everything is the console's.
+      - ./.dev/wiring:/app/wiring:ro
     environment:
       <<: *environment
       BACKPLANE_INSTANCE: backplane-dev
@@ -37,6 +43,7 @@ services:
       BACKPLANE_OBS_LOGS_URL: http://victorialogs:9428
       BACKPLANE_OBS_METRICS_URL: http://victoriametrics:8428
       BACKPLANE_OBS_TRACES_URL: http://victoriatraces:10428
+      BACKPLANE_WIRING_DIR: /app/wiring
   # The application audit pipeline (deployments/otel-collector.audit.yaml)
   # needs the contrib distribution; its queue waits out backplane restarts.
   collector:

@@ -62,6 +62,7 @@ type BackplaneBindingVersion struct {
 	Comment    string
 	CreatedAt  time.Time
 	RollbackOf *int64
+	ManagedBy  *string
 }
 
 type BackplaneBindingCurrent struct {
@@ -86,6 +87,7 @@ type BackplaneRuleVersion struct {
 	Comment    string
 	CreatedAt  time.Time
 	RollbackOf *int64
+	ManagedBy  *string
 }
 
 type BackplaneRuleCurrent struct {

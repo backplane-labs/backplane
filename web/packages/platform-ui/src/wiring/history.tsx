@@ -26,7 +26,7 @@ export type Subject = { kind: 'binding'; hook: string } | { kind: 'rule'; id: st
 interface VersionEntry { version: bigint; author: string; comment: string; createdAt?: api.BindingVersion['createdAt']; deleted: boolean; rollbackOf: bigint; name?: string; definition?: Definition }
 
 /** Saved versions, newest first; one opens as a YAML diff against the current version, with rollback. */
-export function Versions({ subject, current, mode, onChanged, onOpenDraft }: { subject: Subject; current?: bigint; mode: Mode; onChanged: () => void; onOpenDraft?: (text: string) => void }) {
+export function Versions({ subject, current, managed, mode, onChanged, onOpenDraft }: { subject: Subject; current?: bigint; managed?: boolean; mode: Mode; onChanged: () => void; onOpenDraft?: (text: string) => void }) {
   const bindings = useClient(api.BindingServiceClient), rules = useClient(api.RuleServiceClient), text = usePlatformText(), action = usePlatformAction<unknown>();
   const key = subject.kind === 'binding' ? subject.hook : subject.id;
   const state = usePlatformQuery(`wiring-versions:${subject.kind}:${key}:${current}`, async (signal): Promise<VersionEntry[]> => subject.kind === 'binding'
@@ -55,8 +55,8 @@ export function Versions({ subject, current, mode, onChanged, onOpenDraft }: { s
     </button></li>)}</ol>
     <DetailDrawer open={!!selected} onOpenChange={(open) => { if (!open) setSelected(undefined); }} size="xl" title={selected && `${selected.name ? `${selected.name} ` : ''}v${selected.version}`} description={selected?.comment}
       actions={selected && selected.version !== current && <>
-        <ConfirmAction trigger={<><RotateCcw className="size-3.5" />{text('rollbackToVersion', { version: selected.version.toString() })}</>}
-          title={text('rollbackConfirm')} description={text(subject.kind === 'binding' ? 'rollbackBindingHelp' : 'rollbackRuleHelp')} disabled={action.pending || action.disabled} onConfirm={rollback(selected)} />
+        {!managed && <ConfirmAction trigger={<><RotateCcw className="size-3.5" />{text('rollbackToVersion', { version: selected.version.toString() })}</>}
+          title={text('rollbackConfirm')} description={text(subject.kind === 'binding' ? 'rollbackBindingHelp' : 'rollbackRuleHelp')} disabled={action.pending || action.disabled} onConfirm={rollback(selected)} />}
         {onOpenDraft && selected.definition && <Button size="sm" variant="outline" onClick={() => { onOpenDraft(yaml(selected)); setSelected(undefined); }}><FilePen />{text('openAsDraft')}</Button>}
       </>}>
       {selected && <div className="grid gap-2"><div className="text-xs text-muted-foreground">{text('diffAgainstCurrent')}</div>

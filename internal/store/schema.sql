@@ -75,6 +75,8 @@ CREATE INDEX console_login_attempt_expires_at_idx ON backplane.console_login_att
 -- copying an older one's definition (rollback_of), a delete is a tombstone
 -- (definition NULL). definition: protojson of backplane.console.v1.BindingDefinition
 -- (steps keyed by name, values as JSON trees of CEL expressions).
+-- managed_by: the wiring file (BACKPLANE_WIRING_DIR) the version came from;
+-- while the current version has one, the console cannot change the binding.
 CREATE TABLE backplane.binding_version (
   hook        text        NOT NULL,
   version     bigint      NOT NULL CHECK (version > 0),
@@ -83,6 +85,7 @@ CREATE TABLE backplane.binding_version (
   comment     text        NOT NULL DEFAULT '',
   created_at  timestamptz NOT NULL DEFAULT now(),
   rollback_of bigint,
+  managed_by  text,
   PRIMARY KEY (hook, version),
   FOREIGN KEY (hook, rollback_of) REFERENCES backplane.binding_version (hook, version)
 );
@@ -105,7 +108,8 @@ CREATE TABLE backplane.rule (
 );
 
 -- Versions of a rule, as binding_version: name and definition (protojson of
--- backplane.console.v1.RuleDefinition; NULL: the tombstone of a delete).
+-- backplane.console.v1.RuleDefinition; NULL: the tombstone of a delete),
+-- managed_by as binding_version's.
 CREATE TABLE backplane.rule_version (
   rule_id     uuid        NOT NULL REFERENCES backplane.rule (id),
   version     bigint      NOT NULL CHECK (version > 0),
@@ -115,6 +119,7 @@ CREATE TABLE backplane.rule_version (
   comment     text        NOT NULL DEFAULT '',
   created_at  timestamptz NOT NULL DEFAULT now(),
   rollback_of bigint,
+  managed_by  text,
   PRIMARY KEY (rule_id, version),
   FOREIGN KEY (rule_id, rollback_of) REFERENCES backplane.rule_version (rule_id, version)
 );
