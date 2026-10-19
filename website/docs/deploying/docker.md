@@ -32,6 +32,35 @@ docker run --name backplane --restart unless-stopped \
 
 The image defaults to `/app/console` and `/backplane`. Platform port 9400 should only be reachable by appropriate internal peers. Add NATS/Temporal/observability variables only for enabled capabilities.
 
+## Healthchecks
+
+The images are distroless: no shell, curl or wget. Every binary built on
+the SDK — the backplane server and every service — probes itself instead:
+
+```sh
+/app/bin/<binary> probe [readiness|liveness|startup]   # readiness by default
+```
+
+It asks its own platform port (`BACKPLANE_INTERNAL_PORT`, from the same
+file and environment the service reads) for `/healthz/<kind>` on
+127.0.0.1 and exits 0 when the probe passes, 1 when it does not.
+
+```yaml
+services:
+  backplane-kratos:
+    image: ghcr.io/backplane-labs/backplane-kratos:<version>
+    healthcheck:
+      test: ["CMD", "/app/bin/kratos", "probe"]
+      interval: 5s
+      timeout: 6s
+      retries: 30
+  kratos:
+    depends_on:
+      backplane-kratos: {condition: service_healthy}   # the overlay is written
+```
+
+In Kubernetes use the HTTP probes on the platform port directly.
+
 ## Binary archive
 
 Download the architecture-specific archive and `SHA256SUMS` from the same release:

@@ -29,3 +29,6 @@ func NodeStatuses[St any](s *Service[St]) []*backplanev1.NodeStatus { return s.n
 
 // TransportStatuses is what the instance state reports for the transports.
 func TransportStatuses[St any](s *Service[St]) []*backplanev1.TransportStatus { return s.transports() }
+
+// ProbeKind is probeKind.
+func ProbeKind(args []string) (string, bool, error) { return probeKind(args) }

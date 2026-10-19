@@ -42,6 +42,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"regexp"
 
 	"github.com/backplane-labs/backplane/pkg/backplane/build"
@@ -88,6 +89,9 @@ func (s *Service[St]) State() *St { return s.state }
 // Open loads the configuration, builds the State with newState and returns a
 // service ready to declare routes and Run. Nothing listens until Run.
 //
+// Started as "<binary> probe [readiness|liveness|startup]", Open probes the
+// service running next to it instead and exits (see ProbeCommand).
+//
 // ctx bounds loading only (a required Live value may wait for Consul); the
 // service does not depend on it afterwards. An invalid configuration or a
 // failing constructor is an error; an absent Consul is not. Call Close if
@@ -106,6 +110,16 @@ func Open[C config.Backplaner, St any](
 
 	if !serviceName.MatchString(o.id.Service) {
 		return nil, fmt.Errorf("%w: service name %q must match %s", ErrConfig, o.id.Service, serviceName)
+	}
+
+	// "<binary> probe [kind]": probe the service running next to it and exit.
+	if kind, ok, err := probeKind(os.Args); ok {
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(usageExit)
+		}
+
+		runProbe[C](ctx, kind, append([]config.Option{config.Service(o.id.Service)}, o.config...))
 	}
 
 	conf, err := config.Open[C](ctx, append([]config.Option{config.Service(o.id.Service)}, o.config...)...)
