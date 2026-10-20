@@ -125,9 +125,10 @@ svc.Internal(func(r grpc.ServiceRegistrar) {
 svc.UI(bundle)
 ```
 
-Internal RPCs live on the platform port and are restricted to the service's
-`<service>.console.v1` protobuf package. The console's authenticated WebSocket relay
-calls them directly; UI bundles and API files are fetched directly from that port.
+Internal RPCs live on the platform port, in any protobuf package except `grpc.*`
+and the platform's own `backplane.*`. The console's authenticated WebSocket
+relay sends each method to the service whose manifest declares it (a method two
+services declare is refused) and calls it directly; UI bundles and API files are fetched directly from that port.
 The public API is excluded from this relay.
 
 ## API documents

@@ -525,11 +525,13 @@ func TestDeclarationErrorsFailRun(t *testing.T) {
 			want: "registered twice",
 		},
 		{
-			name: "internal API outside the console package", service: "svc-internal",
+			name: "internal API in a reserved package", service: "svc-internal",
 			declare: func(svc *backplane.Service[testState]) {
-				svc.Internal(func(r grpc.ServiceRegistrar) { helloconsolev1.RegisterAdminServiceServer(r, admin{}) })
+				svc.Internal(func(r grpc.ServiceRegistrar) {
+					r.RegisterService(&grpc.ServiceDesc{ServiceName: "backplane.console.v1.Fake", HandlerType: (*any)(nil)}, struct{}{})
+				})
 			},
-			want: "must be in proto package svc_internal.console.v1",
+			want: "backplane.console.v1.Fake: is in a reserved proto package",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

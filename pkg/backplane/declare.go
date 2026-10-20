@@ -39,10 +39,10 @@ func init() {
 
 // Declaration errors, reported by Run.
 var (
-	errPrefixTaken    = errors.New("prefix served twice")
-	errConsolePackage = errors.New("must be in proto package")
-	errSchemaConflict = errors.New("api: inline and file API schemas declared together")
-	errMixedTLS       = errors.New("api.MTLS and plain routes on one port")
+	errPrefixTaken     = errors.New("prefix served twice")
+	errReservedPackage = errors.New("is in a reserved proto package")
+	errSchemaConflict  = errors.New("api: inline and file API schemas declared together")
+	errMixedTLS        = errors.New("api.MTLS and plain routes on one port")
 )
 
 // API describes an API the author serves on their own listener.
@@ -173,8 +173,9 @@ func setMatch(r *backplanev1.API, host, prefix string) {
 
 // Internal registers the internal API: gRPC on the platform port for the
 // service's own console plugin, behind the internal secret, served only
-// while the author's tree is up. Services must live in the proto package
-// <service>.console.v1.
+// while the author's tree is up. Any proto package will do but grpc.* and,
+// outside the platform itself, backplane.*; the console relays a method to
+// the service whose manifest declares it.
 func (c *core) Internal(register func(r grpc.ServiceRegistrar)) {
 	c.declare("internal API", func() {
 		services, err := manifest.Register(c.internal, register)
@@ -182,10 +183,9 @@ func (c *core) Internal(register func(r grpc.ServiceRegistrar)) {
 			c.env.Manifest.Fail(err)
 		}
 
-		pkg := strings.ReplaceAll(c.id.Service, "-", "_") + ".console.v1."
 		for _, name := range services {
-			if !strings.HasPrefix(name, pkg) {
-				c.env.Manifest.Fail(fmt.Errorf("internal API %s: %w %s", name, errConsolePackage, strings.TrimSuffix(pkg, ".")))
+			if strings.HasPrefix(name, "grpc.") || strings.HasPrefix(name, "backplane.") && c.id.Service != "backplane" {
+				c.env.Manifest.Fail(fmt.Errorf("internal API %s: %w", name, errReservedPackage))
 			}
 		}
 
