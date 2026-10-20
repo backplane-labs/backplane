@@ -106,6 +106,8 @@ type Harness struct {
 
 	mu    sync.Mutex
 	bound []string // answered hooks, short names
+
+	stopOnce sync.Once
 }
 
 // New creates a harness for a service named "test", or as Name says.
@@ -154,7 +156,24 @@ func (h *Harness) Root() deps.Component {
 func (h *Harness) Start() {
 	h.t.Helper()
 
-	h.t.Cleanup(func() {
+	h.t.Cleanup(h.stopTree)
+
+	if err := h.svc.Start(h.t.Context()); err != nil {
+		h.t.Fatalf("backplanetest: start: %v", err)
+	}
+}
+
+// Stop stops the whole tree now, as the cleanup would: goroutines are
+// cancelled and waited for and OnStop hooks run in reverse start order,
+// within the StopBudget; a failure fails the test. The cleanup then has
+// nothing left to stop. A restarted instance is a new Harness.
+func (h *Harness) Stop() {
+	h.t.Helper()
+	h.stopTree()
+}
+
+func (h *Harness) stopTree() {
+	h.stopOnce.Do(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), h.budget)
 		defer cancel()
 
@@ -162,10 +181,46 @@ func (h *Harness) Start() {
 			h.t.Errorf("backplanetest: stop: %v", err)
 		}
 	})
+}
 
-	if err := h.svc.Start(h.t.Context()); err != nil {
-		h.t.Fatalf("backplanetest: start: %v", err)
+// Stop stops one component's subtree now — a projection, a consumer, a
+// worker killed in the middle of a test — while the rest of the tree runs:
+// its goroutines are cancelled (their context ends wherever they are) and
+// waited for, its children and then its own OnStop hooks run, within the
+// StopBudget. A failure fails the test. It stays stopped: what it served is
+// gone for the components that use it, as in a crash; the tree's cleanup
+// skips it. scope must be a component created under h.Root.
+func Stop(h *Harness, scope deps.Scope) {
+	h.t.Helper()
+
+	n := link.NodeOf(scope)
+	if n == nil || !h.owns(n) {
+		h.t.Fatalf("backplanetest: Stop: %s is not a component of this harness", scopeName(scope))
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), h.budget)
+	defer cancel()
+
+	if err := n.Stop(ctx); err != nil {
+		h.t.Errorf("backplanetest: stop %s: %v", n.Path(), err)
+	}
+}
+
+// owns reports whether n is in the tree under Root (Root itself included).
+func (h *Harness) owns(n *node.Node) bool {
+	found := false
+
+	h.app.Walk(func(c *node.Node) { found = found || c == n })
+
+	return found
+}
+
+func scopeName(scope deps.Scope) string {
+	if scope == nil {
+		return "nil"
+	}
+
+	return scope.Path()
 }
 
 // Manifest is what the components declared so far.

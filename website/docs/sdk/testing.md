@@ -31,6 +31,23 @@ The `pkg/backplane/backplanetest` package and repository conformance tests provi
 | `ReactConsumer(ctx, h, consumer, value)` | Deliver once to a pinned reactor |
 | `SetLive(&field, value)` | Update a live field and notify its watchers |
 | `h.Manifest()` | Inspect declarations and declaration errors |
+| `Stop(h, component)` | Kill one component mid-test (a projection, a consumer): its goroutines' contexts end wherever they are, its subtree's `OnStop` hooks run, the rest keeps running |
+| `h.Stop()` | Stop the whole tree now, as the cleanup would; a restarted instance is a new harness on the same state |
+
+A chaos test kills and restarts on the same state:
+
+```go
+h := backplanetest.New(t)
+p := projections.New(h.Root(), deps.Static(db))
+h.Start()
+// ... feed events until the projection is mid-batch
+backplanetest.Stop(h, p)            // killed: its context ends, nothing else stops
+
+h2 := backplanetest.New(t)          // the restart
+projections.New(h2.Root(), deps.Static(db))
+h2.Start()
+// ... assert it catches up without loss or duplicates
+```
 
 The harness does not simulate JetStream redelivery or DLQ semantics. Its activity call executes once; retries belong in runtime integration tests. For Temporal code, use `pkg/backplane/workflows/workflowtest.New(t, h)`, which supplies a Temporal test environment with the service's registrations. This testing extension intentionally imports Temporal separately from core component tests.
 
