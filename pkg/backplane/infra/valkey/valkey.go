@@ -40,8 +40,10 @@ type Config struct {
 	Addr     string        `json:"addr,omitempty"`
 	Username string        `json:"username,omitempty"`
 	Password config.Secret `json:"password,omitempty"`
-	// DB is the logical database (standalone only).
-	DB  int64      `json:"db"  schemapb:"default=0;gte=0;lte=15"`
+	// DB is the logical database (standalone only). How many there are is
+	// the server's databases setting (16 by default); a number it does not
+	// have fails the connection.
+	DB  int64      `json:"db"  schemapb:"default=0;gte=0"`
 	TLS config.TLS `json:"tls"`
 }
 
