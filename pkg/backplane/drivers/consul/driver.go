@@ -9,8 +9,9 @@ import (
 	internal "github.com/backplane-labs/backplane/pkg/backplane/internal/consul"
 )
 
-// Driver installs Consul discovery, its live configuration source and the
-// discovery of backplane's replicas for the direct hook transport.
+// Driver installs Consul discovery, its live configuration source, the
+// discovery of backplane's replicas for the direct hook transport and the
+// mesh: mutual TLS between services with Consul's CA and intentions.
 func Driver() backplane.Option {
 	remote := backplane.ConfigOptions(Config())
 	discovery := backplane.WithHookDiscovery(func(cfg config.Backplane, _ *xlog.Logger) (backplane.HookDiscovery, error) {
@@ -53,5 +54,16 @@ func Driver() backplane.Option {
 		})
 	})
 
-	return backplane.Options(remote, presence, discovery)
+	mesh := backplane.WithMesh(func(cfg config.Backplane, service string, log *xlog.Logger) (backplane.Mesh, error) {
+		client, err := newClient(cfg.Consul)
+		if err != nil {
+			return nil, err
+		}
+
+		return internal.NewMesh(internal.MeshParams{
+			Client: client, Service: service, DefaultAllow: cfg.Mesh.Default != config.MeshDeny, Log: log,
+		}), nil
+	})
+
+	return backplane.Options(remote, presence, discovery, mesh)
 }

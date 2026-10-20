@@ -72,6 +72,8 @@ type core struct {
 	// consulPresence is built by Run (it needs the manifest); nil without
 	// Consul.
 	consulPresence Presence
+	// mesh is mutual TLS between services.
+	mesh *meshState
 
 	mu    sync.Mutex
 	phase phase
@@ -120,6 +122,7 @@ func newCore(ctx context.Context, o options, conf configrt.State, cfg config.Bac
 	c.presenceNode()
 	c.connect()
 	c.requireTransports()
+	c.mesh = c.newMesh()
 
 	c.app = c.svc.Child(id.Service, node.Root, false)
 	c.health.Add(health.Ready, c.app.Readiness())
@@ -232,8 +235,8 @@ func (c *core) hookTransport() {
 }
 
 // listen adds a listener node.
-func (c *core) listen(name, addr string, g *grpc.Server, h http.Handler) *node.Node {
-	l := listener.New(name, addr, g, h, c.log, c.limits())
+func (c *core) listen(name, addr string, g *grpc.Server, h http.Handler, opts ...listener.Option) *node.Node {
+	l := listener.New(name, addr, g, h, c.log, c.limits(), opts...)
 	n := c.svc.Child(name, node.System, false)
 	n.OnStart(func(ctx context.Context) error { return l.Start(ctx, n) })
 	n.OnStop(l.Stop)

@@ -32,6 +32,8 @@ type Managed struct {
 	Middleware []func(http.Handler) http.Handler
 	// gRPC: serve grpc.reflection on the route's port.
 	Reflection bool
+	// The route's port takes services of the mesh only (mutual TLS).
+	MTLS bool
 }
 
 // SchemaFiles is a file snapshot and its manifest reference (or a declaration error).

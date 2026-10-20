@@ -137,7 +137,7 @@ func (c *core) tail(m *backplanev1.Manifest) {
 	c.work(m, listeners)
 
 	for _, p := range c.public {
-		c.listen("public"+p.addr, p.addr, p.grpc, c.publicHandler(p)).Budget(listeners.derive)
+		c.listen("public"+p.addr, p.addr, p.grpc, c.publicHandler(p), c.listenOptions(p)...).Budget(listeners.derive)
 	}
 
 	dn := c.svc.Child("drain", node.System, false)

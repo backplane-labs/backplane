@@ -36,6 +36,64 @@ gRPC reflection on that listener. Shared listener limits are configured with
 Request timeouts, body bounds, browser CORS and other application behavior belong to
 handlers, middleware or the external proxy. There are no declarative proxy policy options.
 
+## Calls between services: mutual TLS
+
+An API only other services call (a domain's admin API, a sync service)
+should not answer whoever reaches its port. `api.MTLS()` serves the route's
+port to services of the mesh only, and `CallerOf` says which one called:
+
+```go
+// The server: only services may call, and the call knows who.
+svc.GRPC(func(r grpc.ServiceRegistrar) { syncv1.RegisterSyncAdminServiceServer(r, admin) },
+	api.Listen(":9090"), api.MTLS())
+
+func (a admin) Purge(ctx context.Context, in *syncv1.PurgeRequest) (*syncv1.PurgeResponse, error) {
+	caller, _ := backplane.CallerOf(ctx) // caller.Service == "feed"
+	...
+}
+
+// A client, in its newState: its own certificate, the server verified as "sync".
+conn, err := grpc.NewClient("sync:9090", grpc.WithTransportCredentials(root.ServiceCredentials("sync")))
+// HTTP: &http.Transport{TLSClientConfig: root.ServiceTLS("sync")}
+```
+
+Nothing is configured for it beyond Consul, which the Consul driver already
+uses:
+
+- **Certificates** come from Consul's CA: each service gets a certificate
+  naming it (`spiffe://<trust domain>/ns/default/dc/<dc>/svc/<service>`),
+  issued and renewed by the local agent before it expires and when the CA's
+  root rotates. The SDK follows them with blocking queries and reads them on
+  every TLS handshake: a renewed certificate applies to the next connection
+  without a restart; open connections keep theirs. Private keys never pass
+  through the KV store. A development Consul (`consul agent -dev`) is a CA
+  already.
+- **Who may call** is Consul's intentions with the service as destination,
+  followed live and decided by the SDK (an exact source before `*`):
+
+  ```sh
+  consul config write - <<'EOF'
+  Kind = "service-intentions"
+  Name = "sync"
+  Sources = [
+    { Name = "feed", Action = "allow" },
+    { Name = "*",    Action = "deny" },
+  ]
+  EOF
+  ```
+
+  A caller no intention names gets `BACKPLANE_MESH_DEFAULT`: `allow`
+  (Consul's own default without ACLs) or `deny`. A refused call is
+  `PermissionDenied` (gRPC) or 403 (HTTP); a client without a certificate of
+  the mesh does not get past the TLS handshake.
+- **A port is mTLS or not as a whole**: every route on it says the same, or
+  Run fails; so does `api.MTLS()` without the Consul driver and Consul.
+  The SDK follows the CA only once something uses it, so services without
+  mTLS ask Consul for nothing. Readiness waits for the certificate.
+
+In production protect the identity with Consul ACLs: whoever can get a
+certificate for `feed` (a token with `service:write` on it) is `feed`.
+
 ## Independently served APIs
 
 Describe an API that your own server already serves:

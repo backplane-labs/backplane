@@ -22,6 +22,8 @@ type Backplane struct {
 	Server Server `json:"server"`
 	// Metric export timing and histogram aggregation.
 	Telemetry Telemetry `json:"telemetry"`
+	// Mutual TLS between services.
+	Mesh Mesh `json:"mesh"`
 
 	// Instance id; default <service>-<hostname>.
 	Instance string `json:"instance,omitempty"`

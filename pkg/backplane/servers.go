@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/keepalive"
 
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/listener"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/mtls"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/recovery"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/routes"
 )
@@ -54,7 +55,15 @@ func (c *core) grpcServer(p *publicPort) *grpc.Server {
 	if p.grpc == nil {
 		p.dispatch = routes.NewDispatch()
 
-		extra := append(append([]grpc.ServerOption(nil), c.opts.grpc...), p.dispatch.ServerOptions()...)
+		extra := append([]grpc.ServerOption(nil), c.opts.grpc...)
+		if p.mtls {
+			// Authorization runs before the route's own interceptors.
+			if src, err := c.mesh.source(); err == nil {
+				extra = append(extra, mtls.GRPCServerOptions(src)...)
+			}
+		}
+
+		extra = append(extra, p.dispatch.ServerOptions()...)
 		p.grpc = grpc.NewServer(c.serverOptions(recovery.GRPCPublic, extra...)...)
 		hv1.RegisterHealthServer(p.grpc, c.health.GRPC())
 	}
@@ -69,5 +78,26 @@ func (c *core) publicHandler(p *publicPort) http.Handler {
 		return nil
 	}
 
-	return otelhttp.NewHandler(recovery.HTTP(c.log, recovery.HTTPPublic, p.http), "public"+p.addr)
+	var h http.Handler = p.http
+	if p.mtls {
+		if src, err := c.mesh.source(); err == nil {
+			h = mtls.Middleware(src)(h)
+		}
+	}
+
+	return otelhttp.NewHandler(recovery.HTTP(c.log, recovery.HTTPPublic, h), "public"+p.addr)
+}
+
+// listenOptions are the TLS of an mTLS port.
+func (c *core) listenOptions(p *publicPort) []listener.Option {
+	if !p.mtls {
+		return nil
+	}
+
+	src, err := c.mesh.source()
+	if err != nil {
+		return nil // Run failed on the declaration already
+	}
+
+	return []listener.Option{listener.TLS(mtls.ServerConfig(src)), listener.ConnContext(mtls.ConnContext)}
 }

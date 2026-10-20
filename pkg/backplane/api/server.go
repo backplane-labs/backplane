@@ -62,3 +62,25 @@ func (reflection) applyGRPC(m *routes.Managed) { m.Reflection = true }
 // once per port, for grpcurl and similar tools. It is not announced to
 // external routing: it answers on the port directly.
 func Reflection() GRPCOption { return reflection{} }
+
+type mtlsOption struct{}
+
+func (mtlsOption) applyGRPC(m *routes.Managed) { m.MTLS = true }
+func (mtlsOption) applyHTTP(m *routes.Managed) { m.MTLS = true }
+func (mtlsOption) applyWS(m *routes.Managed)   { m.MTLS = true }
+
+// MTLSOption applies to Service.GRPC, Service.HTTP, Service.GraphQL and
+// wsproto.Serve.
+type MTLSOption interface {
+	GRPCOption
+	HTTPOption
+	WSProtoOption
+}
+
+// MTLS serves the route's port to services of the mesh only: mutual TLS
+// with the certificates of the installed driver (Consul's CA), every call
+// authorized by the mesh's rules (Consul intentions) and its caller in
+// backplane.CallerOf. A port is mTLS or not as a whole: every route on it
+// says the same, or Run fails. Without the driver or Consul, Run fails.
+// Clients call it with Root.ServiceCredentials (gRPC) or Root.ServiceTLS.
+func MTLS() MTLSOption { return mtlsOption{} }

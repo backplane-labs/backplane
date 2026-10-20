@@ -40,10 +40,13 @@ package backplane
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"os"
 	"regexp"
+
+	"google.golang.org/grpc/credentials"
 
 	"github.com/backplane-labs/backplane/pkg/backplane/build"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
@@ -58,8 +61,9 @@ import (
 type Root[C any] struct {
 	deps.Component
 
-	cfg *C
-	id  Identity
+	cfg  *C
+	id   Identity
+	mesh *meshState
 }
 
 // Config is a copy of the loaded configuration. Static fields never change;
@@ -76,6 +80,31 @@ func (r Root[C]) Config() C {
 
 // Identity of the instance.
 func (r Root[C]) Identity() Identity { return r.id }
+
+// ServiceCredentials are the gRPC credentials of a client of target's
+// api.MTLS port: this service's certificate, the server verified as target.
+//
+//	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(root.ServiceCredentials("sync")))
+//
+// Without a mesh (the Consul driver and Consul) every handshake fails with
+// ErrNoMesh.
+//
+//nolint:ireturn // gRPC's credentials
+func (r Root[C]) ServiceCredentials(target string) credentials.TransportCredentials {
+	return r.meshState().ServiceCredentials(target)
+}
+
+// ServiceTLS is ServiceCredentials for an HTTP client:
+// &http.Transport{TLSClientConfig: root.ServiceTLS("sync")}.
+func (r Root[C]) ServiceTLS(target string) *tls.Config { return r.meshState().ServiceTLS(target) }
+
+func (r Root[C]) meshState() *meshState {
+	if r.mesh == nil {
+		return &meshState{err: ErrNoMesh}
+	}
+
+	return r.mesh
+}
 
 // Service is one process on the SDK: the author's State plus what it serves.
 type Service[St any] struct {
@@ -136,7 +165,7 @@ func Open[C config.Backplaner, St any](
 	c := newCore(ctx, o, link.ConfigState(conf), block)
 
 	scope := link.Scope(c.app).(deps.Component) //nolint:forcetypeassert,errcheck // deps installs it
-	root := Root[C]{Component: scope, cfg: conf.Value(), id: c.id}
+	root := Root[C]{Component: scope, cfg: conf.Value(), id: c.id, mesh: c.mesh}
 
 	state, err := newState(root)
 	if err != nil {
@@ -160,7 +189,12 @@ func validate(b config.Backplane) error {
 		histograms = fmt.Errorf("%w: telemetry.metrics.histograms: %w", ErrConfig, err)
 	}
 
-	return errors.Join(validateShutdown(b.Shutdown), validateHealth(b.Health), validateNATS(b.NATS), histograms)
+	var mesh error
+	if d := b.Mesh.Default; d != config.MeshAllow && d != config.MeshDeny {
+		mesh = fmt.Errorf("%w: mesh.default must be allow or deny, got %q", ErrConfig, d)
+	}
+
+	return errors.Join(validateShutdown(b.Shutdown), validateHealth(b.Health), validateNATS(b.NATS), histograms, mesh)
 }
 
 // validateShutdown: the stages fit the budget, leaving the reserve.

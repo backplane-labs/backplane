@@ -42,6 +42,7 @@ var (
 	errPrefixTaken    = errors.New("prefix served twice")
 	errConsolePackage = errors.New("must be in proto package")
 	errSchemaConflict = errors.New("api: inline and file API schemas declared together")
+	errMixedTLS       = errors.New("api.MTLS and plain routes on one port")
 )
 
 // API describes an API the author serves on their own listener.
@@ -68,7 +69,7 @@ func (c *core) GRPC(register func(r grpc.ServiceRegistrar), opts ...api.GRPCOpti
 	spec := link.APIs.GRPC(opts)
 
 	c.declare("gRPC routes", func() {
-		p := c.port(spec.Listen)
+		p := c.routePort(spec)
 		srv := c.grpcServer(p)
 
 		services, err := manifest.Register(srv, register)
@@ -130,7 +131,7 @@ func (c *core) mountHTTP(
 			return
 		}
 
-		port := c.port(spec.Listen)
+		port := c.routePort(spec)
 		if !port.handle(spec.Host, p, spec.Wrap(h)) {
 			c.env.Manifest.Fail(fmt.Errorf("%s %s%s: %w on %s", what, spec.Host, p, errPrefixTaken, port.addr))
 
@@ -277,11 +278,34 @@ func (c *core) StartupProbe(p probe.Probe) {
 type publicPort struct {
 	addr       string
 	port       uint16
+	mtls       bool // served with api.MTLS
+	tlsSet     bool // a route said whether
 	grpc       *grpc.Server
 	dispatch   *routes.Dispatch // per-registration interceptors of grpc
 	reflection bool
 	http       *http.ServeMux
 	prefixes   map[string]*routes.Hosts
+}
+
+// routePort is the port of a route: its mode (mTLS or not) set by the
+// first route, the others must agree; an mTLS port needs the mesh.
+func (c *core) routePort(spec routes.Managed) *publicPort {
+	p := c.port(spec.Listen)
+
+	switch {
+	case !p.tlsSet:
+		p.mtls, p.tlsSet = spec.MTLS, true
+
+		if p.mtls {
+			if _, err := c.mesh.source(); err != nil {
+				c.env.Manifest.Fail(fmt.Errorf("api.MTLS on %s: %w", p.addr, err))
+			}
+		}
+	case p.mtls != spec.MTLS:
+		c.env.Manifest.Fail(fmt.Errorf("%w: %s", errMixedTLS, p.addr))
+	}
+
+	return p
 }
 
 // port returns the public port for listen ("" = the default public port).

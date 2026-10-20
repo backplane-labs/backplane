@@ -4,6 +4,7 @@ package listener
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -38,11 +39,29 @@ type Listener struct {
 	http   *http.Server
 	log    *xlog.Logger
 	ln     *tracking
+	tls    *tls.Config
 	silent time.Duration // cmux read timeout
 }
 
+// Option configures New.
+type Option func(*Listener)
+
+// TLS terminates TLS on every connection before gRPC and HTTP are told
+// apart: the servers see the decrypted connection (mtls.PeerOf reads its
+// peer).
+func TLS(cfg *tls.Config) Option { return func(l *Listener) { l.tls = cfg } }
+
+// ConnContext sets the HTTP server's ConnContext.
+func ConnContext(fn func(ctx context.Context, c net.Conn) context.Context) Option {
+	return func(l *Listener) {
+		if l.http != nil {
+			l.http.ConnContext = fn
+		}
+	}
+}
+
 // New creates a listener; nothing is bound until Start.
-func New(name, addr string, g *grpc.Server, h http.Handler, log *xlog.Logger, lim Limits) *Listener {
+func New(name, addr string, g *grpc.Server, h http.Handler, log *xlog.Logger, lim Limits, opts ...Option) *Listener {
 	if lim.ReadHeaderTimeout <= 0 {
 		lim.ReadHeaderTimeout = defaultReadHeaderTimeout
 	}
@@ -57,6 +76,10 @@ func New(name, addr string, g *grpc.Server, h http.Handler, log *xlog.Logger, li
 		}
 	}
 
+	for _, o := range opts {
+		o(l)
+	}
+
 	return l
 }
 
@@ -69,7 +92,14 @@ func (l *Listener) Start(ctx context.Context, g node.Group) error {
 
 	l.ln = &tracking{Listener: ln, conns: map[*trackedConn]struct{}{}}
 
-	m := cmux.New(l.ln)
+	var served net.Listener = l.ln
+	if l.tls != nil {
+		// Under cmux the handshake runs on the first read, bounded by the
+		// same read timeout as an idle connection.
+		served = tls.NewListener(l.ln, l.tls)
+	}
+
+	m := cmux.New(served)
 	// A connection that never sends a byte is dropped after the timeout;
 	// Stop closes those still being classified so m.Serve returns at once.
 	m.SetReadTimeout(l.silent)
