@@ -176,14 +176,36 @@ func TestChanges(t *testing.T) {
 		return !ok
 	})
 
-	// An unchanged query result publishes nothing.
-	before := r.Current()
+	// An unchanged query result publishes nothing. KV and the catalog are
+	// followed separately, so a result of either may still be in flight:
+	// settle first.
+	before := settled(t, r)
 
 	f.change(func() {})
 	time.Sleep(300 * time.Millisecond)
 
 	if after := r.Current(); after.Index != before.Index {
 		t.Fatalf("index moved without a change: %d -> %d\nbefore %s\nafter  %s", before.Index, after.Index, dump(before), dump(after))
+	}
+}
+
+// settled is the snapshot once its index has not moved for 300ms.
+func settled(t *testing.T, r *registry.Registry) registry.Catalog {
+	t.Helper()
+
+	deadline := time.Now().Add(10 * time.Second)
+
+	for {
+		before := r.Current()
+		time.Sleep(300 * time.Millisecond)
+
+		if r.Current().Index == before.Index {
+			return before
+		}
+
+		if time.Now().After(deadline) {
+			t.Fatal("the registry never settled")
+		}
 	}
 }
 
