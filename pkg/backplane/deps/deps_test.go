@@ -512,7 +512,9 @@ func TestComponentLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got := steps.String(); got != "start stop done" {
+	// The stop cancels the goroutines' context, then runs the stop hooks
+	// and waits for the goroutines: "stop" and "done" come in either order.
+	if got := steps.String(); got != "start stop done" && got != "start done stop" {
 		t.Fatalf("lifecycle %q", got)
 	}
 }

@@ -197,6 +197,7 @@ func settled(t *testing.T, r *registry.Registry) registry.Catalog {
 
 	for {
 		before := r.Current()
+
 		time.Sleep(300 * time.Millisecond)
 
 		if r.Current().Index == before.Index {
