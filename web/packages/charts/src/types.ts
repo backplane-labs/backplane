@@ -5,6 +5,8 @@ export interface ChartSeries { id: string; label: string; points: readonly Chart
 export interface ChartProps {
   label: string; series: readonly ChartSeries[]; mode: 'dark' | 'light'; kind?: 'line' | 'bars' | 'histogram';
   height?: number; maxPoints?: number; timeZone?: string; loading?: boolean; error?: string; partial?: boolean;
+  /** Unit of the values (OpenTelemetry's: s, ms, By, or any text): the y axis and the cursor read in it, durations humanized. */
+  unit?: string;
   onRangeChange?: (range: { from: number; to: number }) => void;
   /** Series toggles, the data table and the typed range form under the plot (dragging still selects a range); off when the caller renders its own legend and range picker. */
   controls?: boolean;

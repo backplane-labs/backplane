@@ -4,6 +4,36 @@ export function numeric(value: NumericValue): number | null {
   const result = Number(value); return Number.isFinite(result) ? result : null;
 }
 export function exact(value: NumericValue): string { return value === null ? '—' : String(value); }
+
+const precise = (value: number) => String(Number(value.toPrecision(3)));
+/** Seconds as the closest unit: 850 µs, 120 ms, 1.5 s, 2.3 min, 1.2 h. */
+function duration(seconds: number): string {
+  const size = Math.abs(seconds);
+  if (size === 0) return '0 s';
+  if (size < 1e-3) return `${precise(seconds * 1e6)} µs`;
+  if (size < 1) return `${precise(seconds * 1e3)} ms`;
+  if (size < 60) return `${precise(seconds)} s`;
+  if (size < 3600) return `${precise(seconds / 60)} min`;
+  return `${precise(seconds / 3600)} h`;
+}
+function bytes(value: number): string {
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']; let size = value, at = 0;
+  while (Math.abs(size) >= 1024 && at < units.length - 1) { size /= 1024; at++; }
+  return `${precise(size)} ${units[at]}`;
+}
+/** A value as people read it in its unit: durations (s, ms) and bytes (By) humanized, other units appended. */
+export function formatValue(value: NumericValue, unit?: string): string {
+  const number = numeric(value);
+  if (number === null) return '—';
+  switch (unit) {
+    case 's': return duration(number);
+    case 'ms': return duration(number / 1e3);
+    case 'us': return duration(number / 1e6);
+    case 'By': return bytes(number);
+    case undefined: case '': case '1': return precise(number);
+    default: return `${precise(number)} ${unit}`;
+  }
+}
 /** Keep both extrema per bucket, first/last and null gaps, with a strict output bound. */
 export function samplePoints(points: readonly ChartPoint[], limit: number): ChartPoint[] {
   const budget = Math.max(5, Math.floor(limit));

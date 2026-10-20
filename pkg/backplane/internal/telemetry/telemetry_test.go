@@ -3,6 +3,7 @@ package telemetry_test
 import (
 	"testing"
 
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/telemetry"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
 )
@@ -11,7 +12,7 @@ func TestStatus(t *testing.T) {
 	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
 	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "")
 
-	tel := telemetry.New(telemetry.Identity{Service: "svc"}, testlog.Discard())
+	tel := telemetry.New(telemetry.Identity{Service: "svc"}, config.Metrics{}, testlog.Discard())
 
 	if configured, _, _ := tel.Status(); configured {
 		t.Fatal("configured without an endpoint")

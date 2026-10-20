@@ -692,3 +692,17 @@ func TestOpenFailsOnConstructorError(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestOpenRejectsInvalidHistogramRule(t *testing.T) {
+	setup(t, "")
+	t.Setenv("BACKPLANE_TELEMETRY_METRICS_HISTOGRAMS", `[{"instrument":"*","aggregation":"explicit","boundaries":[2,1]}]`)
+
+	_, err := backplane.Open(t.Context(), func(backplane.Root[testConfig]) (*testState, error) {
+		t.Fatal("constructor called with an invalid configuration")
+
+		return nil, errDown
+	}, baseOptions("svc-histogram")...)
+	if !errors.Is(err, backplane.ErrConfig) || !strings.Contains(err.Error(), "strictly increase") {
+		t.Fatalf("decreasing boundaries: %v", err)
+	}
+}

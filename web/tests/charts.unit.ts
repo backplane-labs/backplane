@@ -18,3 +18,11 @@ describe('plot bounds and precision', () => {
     expect(result.invalid).toBe(true); expect(result.data).toEqual([[1, 2], [null, null]]);
   });
 });
+describe('values in their unit', () => {
+  it('humanizes durations and bytes, appends other units', async () => {
+    const { formatValue } = await import('../packages/charts/src/model');
+    expect(formatValue(0.1201, 's')).toBe('120 ms'); expect(formatValue(0.00085, 's')).toBe('850 µs'); expect(formatValue(1.5, 's')).toBe('1.5 s');
+    expect(formatValue(138, 's')).toBe('2.3 min'); expect(formatValue(250, 'ms')).toBe('250 ms'); expect(formatValue(0, 's')).toBe('0 s');
+    expect(formatValue(12_582_912, 'By')).toBe('12 MiB'); expect(formatValue(3.14159, 'req')).toBe('3.14 req'); expect(formatValue(null, 's')).toBe('—');
+  });
+});

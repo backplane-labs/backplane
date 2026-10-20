@@ -15,6 +15,8 @@ import (
 
 	"github.com/gopherex/xlog"
 	xsdk "github.com/gopherex/xtrace/contrib/sdk"
+
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
 )
 
 // Identity stamped into the resource.
@@ -25,6 +27,7 @@ type Identity struct {
 // Telemetry is a lifecycle component; start it first, it stops last.
 type Telemetry struct {
 	id       Identity
+	metrics  config.Metrics
 	log      *xlog.Logger
 	shutdown xsdk.Shutdown
 
@@ -32,15 +35,24 @@ type Telemetry struct {
 	setupErr error
 }
 
-// New creates the component.
-func New(id Identity, log *xlog.Logger) *Telemetry { return &Telemetry{id: id, log: log} }
+// New creates the component; metrics were validated (HistogramView).
+func New(id Identity, metrics config.Metrics, log *xlog.Logger) *Telemetry {
+	return &Telemetry{id: id, metrics: metrics, log: log}
+}
 
 // Start installs global providers and the propagator.
 func (t *Telemetry) Start(ctx context.Context) error {
+	histograms, err := HistogramView(t.metrics.Histograms)
+	if err != nil {
+		return err
+	}
+
 	opts := []xsdk.Option{
 		xsdk.WithService(t.id.Service),
 		xsdk.WithVersion(t.id.Version),
 		xsdk.WithInstanceID(t.id.Instance),
+		xsdk.WithMetricReaderTiming(t.metrics.Interval, t.metrics.Timeout),
+		xsdk.WithViews(histograms),
 	}
 	if t.id.Environment != "" {
 		opts = append(opts, xsdk.WithAttributes(attribute.String("deployment.environment.name", t.id.Environment)))

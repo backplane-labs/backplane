@@ -3,11 +3,11 @@ import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import { tokens, typography } from '@backplane-labs/backplane-theme';
 import { Button, DataTable, Input } from '@backplane-labs/backplane-ui';
-import { exact, prepareSeries } from './model.js';
+import { exact, formatValue, prepareSeries } from './model.js';
 import { useChartText } from './locales.js';
 import type { ChartProps } from './types.js';
 
-export default function Plot({ label, series, mode, kind = 'line', height = 280, maxPoints, timeZone = 'UTC', loading, error, partial, onRangeChange, controls = true }: ChartProps) {
+export default function Plot({ label, series, mode, kind = 'line', height = 280, maxPoints, timeZone = 'UTC', loading, error, partial, unit, onRangeChange, controls = true }: ChartProps) {
   const host = useRef<HTMLDivElement>(null), plot = useRef<uPlot | null>(null), callback = useRef(onRangeChange); callback.current = onRangeChange;
   const prepared = useMemo(() => prepareSeries(series, maxPoints), [series, maxPoints]);
   const [hidden, setHidden] = useState<Set<string>>(new Set()), [showData, setShowData] = useState(false), [cursor, setCursor] = useState<number>();
@@ -28,7 +28,8 @@ export default function Plot({ label, series, mode, kind = 'line', height = 280,
       }))],
       axes: [
         { stroke: c['muted-foreground'], grid: { stroke: c.border, width: 1 }, ticks: { stroke: c.border }, font: `11px ${typography.fontFamily}`, space: 90, values: (_u, splits) => splits.map((x) => kind === 'histogram' ? String(x) : formatter.format(x)) },
-        { stroke: c['muted-foreground'], grid: { stroke: c.border, width: 1 }, ticks: { stroke: c.border }, font: `11px ${typography.fontFamily}`, size: 56 },
+        { stroke: c['muted-foreground'], grid: { stroke: c.border, width: 1 }, ticks: { stroke: c.border }, font: `11px ${typography.fontFamily}`, size: unit ? 64 : 56,
+          ...(unit ? { values: (_u: uPlot, splits: number[]) => splits.map((value) => formatValue(value, unit)) } : {}) },
       ],
       hooks: { setCursor: [(view) => setCursor(view.cursor.idx ?? undefined)], setSelect: [(view) => {
         if (view.select.width > 0) callback.current?.({ from: view.posToVal(view.select.left, 'x'), to: view.posToVal(view.select.left + view.select.width, 'x') });
@@ -37,7 +38,7 @@ export default function Plot({ label, series, mode, kind = 'line', height = 280,
     plot.current = view;
     const resize = new ResizeObserver(() => { if (host.current) view.setSize({ width: Math.max(200, host.current.clientWidth), height }); }); resize.observe(host.current);
     return () => { resize.disconnect(); view.destroy(); plot.current = null; };
-  }, [prepared, mode, height, kind, timeZone]);
+  }, [prepared, mode, height, kind, timeZone, unit]);
   useEffect(() => { prepared.series.forEach((series, index) => plot.current?.setSeries(index + 1, { show: !hidden.has(series.id) })); }, [prepared, hidden, mode, height, kind, timeZone]);
   const rows = useMemo(() => prepared.series.flatMap((series) => series.points.map((point, index) => ({ ...point, id: `${series.id}:${index}`, series: series.label }))), [prepared]);
   return <section aria-label={label} style={{ display: 'grid', gap: 8 }}>
@@ -46,7 +47,7 @@ export default function Plot({ label, series, mode, kind = 'line', height = 280,
     {!loading && !prepared.x.length && <p>{text('empty')}</p>}
     <div ref={host} role="img" aria-label={label} style={{ minWidth: 0 }} />
     {controls && <div role="group" aria-label={text('series')} style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>{prepared.series.map((series) => <Button key={series.id} type="button" variant="outline" aria-pressed={!hidden.has(series.id)} onClick={() => setHidden((previous) => { const next = new Set(previous); if (next.has(series.id)) next.delete(series.id); else next.add(series.id); return next; })}>{series.label}</Button>)}</div>}
-    {cursor !== undefined && <output aria-label={text('value')} style={{ fontSize: 11, fontFamily: typography.fontFamilyMonospace, color: 'var(--muted-foreground)' }}>{prepared.series.map((series, index) => `${series.label}: ${exact(prepared.values[index].get(prepared.x[cursor]) ?? null)}`).join(' · ')}</output>}
+    {cursor !== undefined && <output aria-label={text('value')} style={{ fontSize: 11, fontFamily: typography.fontFamilyMonospace, color: 'var(--muted-foreground)' }}>{prepared.series.map((series, index) => `${series.label}: ${unit ? formatValue(prepared.values[index].get(prepared.x[cursor]) ?? null, unit) : exact(prepared.values[index].get(prepared.x[cursor]) ?? null)}`).join(' · ')}</output>}
     {onRangeChange && controls && <form style={{ display: 'flex', gap: 8 }} onSubmit={(event) => {
       event.preventDefault(); const start = Number(from), end = Number(to); const valid = from.trim() && to.trim() && Number.isFinite(start) && Number.isFinite(end) && start < end;
       setRangeError(!valid); if (valid) onRangeChange({ from: start, to: end });

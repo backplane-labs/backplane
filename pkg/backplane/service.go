@@ -49,6 +49,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/telemetry"
 )
 
 // Root is the root of the author's tree, handed to the State constructor:
@@ -154,7 +155,12 @@ var serviceName = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 
 // validate checks what the schema cannot express.
 func validate(b config.Backplane) error {
-	return errors.Join(validateShutdown(b.Shutdown), validateHealth(b.Health), validateNATS(b.NATS))
+	var histograms error
+	if _, err := telemetry.HistogramView(b.Telemetry.Metrics.Histograms); err != nil {
+		histograms = fmt.Errorf("%w: telemetry.metrics.histograms: %w", ErrConfig, err)
+	}
+
+	return errors.Join(validateShutdown(b.Shutdown), validateHealth(b.Health), validateNATS(b.NATS), histograms)
 }
 
 // validateShutdown: the stages fit the budget, leaving the reserve.

@@ -20,6 +20,33 @@ export interface QueryBuilder {
 const quote = (value: string) => JSON.stringify(value);
 export const nanosNow = () => BigInt(Date.now()) * 1_000_000n;
 
+/** Labels a histogram's buckets carry: le for explicit buckets, vmrange for exponential ones (VictoriaMetrics); quantiles group by both. */
+export const bucketLabels = ['le', 'vmrange'] as const;
+
+/** Metric names of an expression: quoted __name__ matchers and bare selectors. */
+function metricNames(expression: string): string[] {
+  const quoted = [...expression.matchAll(/__name__\s*=\s*"([^"]+)"/g)].map((match) => match[1]!);
+  const bare = [...expression.matchAll(/(?:^|[(\s,])([a-zA-Z_][\w.:]*)\s*(?:\{|\[)/g)].map((match) => match[1]!);
+  return [...quoted, ...bare];
+}
+
+/** Unit of a metric by its name, as OpenTelemetry names durations (.duration, _seconds, _ms); undefined when unknown. */
+export function metricUnit(metric: string): string | undefined {
+  const base = metric.replace(/_(bucket|sum|count)$/, '');
+  if (/(_ms|_milliseconds|\.ms)$/.test(base)) return 'ms';
+  if (/([._]duration|[._]latency|_seconds)$/.test(base)) return 's';
+  return undefined;
+}
+
+/** Unit of a query's values: a quantile or a raw duration is in the duration's unit; a rate or a count has none it can name. */
+export function queryUnit(expression: string): string | undefined {
+  const names = metricNames(expression);
+  if (/histogram_quantile\s*\(/.test(expression)) return names.map(metricUnit).find(Boolean);
+  if (/\b(rate|increase|irate|count)\s*\(/.test(expression)) return undefined;
+  const units = names.map(metricUnit);
+  return units.length && units.every((unit) => unit && unit === units[0]) && !names.some((name) => /_(bucket|count)$/.test(name)) ? units[0] : undefined;
+}
+
 /** Default aggregation for a metric by its OpenTelemetry export suffix. */
 export function defaultFunction(metric: string): MetricFunction {
   if (metric.endsWith('_bucket')) return 'p95';
@@ -41,7 +68,10 @@ export function buildQuery(signal: ExploreSignal, language: string | undefined, 
       case 'sum': return `sum(${selector})${by}`;
       case 'p50': case 'p95': case 'p99': {
         const quantile = { p50: '0.5', p95: '0.95', p99: '0.99' }[builder.fn === 'p50' || builder.fn === 'p99' ? builder.fn : 'p95'];
-        return `histogram_quantile(${quantile}, sum(rate(${selector}[5m])) by (${label('le')}${builder.groupBy ? `, ${label(builder.groupBy)}` : ''}))`;
+        // Histograms of different buckets (explicit and exponential, or other bounds) do not add up: without a grouping a
+        // quantile is per service, which is what an operator reads anyway.
+        const group = builder.groupBy ?? (builder.service ? undefined : field('service.name'));
+        return `histogram_quantile(${quantile}, sum(rate(${selector}[5m])) by (${bucketLabels.map(label).join(', ')}${group ? `, ${label(group)}` : ''}))`;
       }
       default: return selector;
     }

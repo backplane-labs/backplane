@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { EmptyState, Panel } from '@backplane-labs/backplane-ui';
-import { TimeSeriesChart } from '@backplane-labs/backplane-charts';
+import { TimeSeriesChart, formatValue } from '@backplane-labs/backplane-charts';
 import { Activity } from 'lucide-react';
 import { usePlatformText } from './locales.js';
 import type { ExploreRun } from './explore.js';
+import { queryUnit } from './explore-query.js';
 
 // Canvas plots need concrete colors, not CSS variables.
 const palette = ['#25e2a5', '#4dabf7', '#fcc419', '#ff8787', '#b197fc', '#63e6be', '#74c0fc', '#ffa94d', '#e599f7', '#a9e34b'];
@@ -11,7 +12,7 @@ const format = (value: number) => !Number.isFinite(value) ? String(value) : Math
 
 /** Time series with a legend table: the labels that differ between series, and last/min/avg/max. */
 export function MetricResults({ run, mode }: { run: ExploreRun; mode: 'dark' | 'light' }) {
-  const text = usePlatformText();
+  const text = usePlatformText(), unit = useMemo(() => queryUnit(run.query), [run.query]);
   const series = useMemo(() => run.response.result.case === 'timeSeries' ? run.response.result.value.series : [], [run]);
   const varying = useMemo(() => {
     const keys = [...new Set(series.flatMap((entry) => Object.keys(entry.labels)))];
@@ -28,7 +29,7 @@ export function MetricResults({ run, mode }: { run: ExploreRun; mode: 'dark' | '
   if (!series.length) return <Panel fill><EmptyState icon={<Activity />} title={text('noSeries')} description={text('noSeriesHint')} /></Panel>;
   return <div className="flex min-h-0 flex-1 flex-col gap-3">
     <Panel title={<><Activity className="size-4 text-muted-foreground" />{text('metrics')}</>} count={series.length} className="shrink-0">
-      <TimeSeriesChart label={text('metrics')} series={chart} mode={mode} height={300} controls={false} timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone} partial={run.response.info?.partial || run.response.info?.truncated} />
+      <TimeSeriesChart label={text('metrics')} series={chart} mode={mode} height={300} unit={unit} controls={false} timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone} partial={run.response.info?.partial || run.response.info?.truncated} />
     </Panel>
     <Panel fill title={text('seriesLegend')} flush>
       <table aria-label={text('seriesLegend')} className="w-full text-xs">
@@ -39,7 +40,7 @@ export function MetricResults({ run, mode }: { run: ExploreRun; mode: 'dark' | '
           onClick={() => setHidden((old) => { const next = new Set(old); if (next.has(row.index)) next.delete(row.index); else next.add(row.index); return next; })}
           onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); event.currentTarget.click(); } }}>
           <td className="max-w-0 px-3 py-1.5"><span className="flex min-w-0 items-center gap-2"><span className="h-0.5 w-3 shrink-0 rounded-full" style={{ background: row.color }} /><span className="truncate font-mono" title={row.label}>{row.label}</span></span></td>
-          {[row.last, row.min, row.avg, row.max].map((value, index) => <td key={index} className="px-3 text-right font-mono tabular-nums">{format(value)}</td>)}
+          {[row.last, row.min, row.avg, row.max].map((value, index) => <td key={index} className="px-3 text-right font-mono tabular-nums">{unit && Number.isFinite(value) ? formatValue(value, unit) : format(value)}</td>)}
         </tr>)}</tbody>
       </table>
     </Panel>

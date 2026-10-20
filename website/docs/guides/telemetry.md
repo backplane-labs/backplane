@@ -17,6 +17,66 @@ flowchart LR
   Read --> Explore[Explore and module views]
 ```
 
+## Metric export and histograms
+
+Every service on the SDK exports Go runtime and process metrics and its own
+instruments without code of its own. Two settings shape them; both are fixed
+at start.
+
+**Export interval.** `OTEL_METRIC_EXPORT_INTERVAL` / `OTEL_METRIC_EXPORT_TIMEOUT`
+(milliseconds, the OpenTelemetry standard) apply as they are; without them a
+point every 30 s. `BACKPLANE_TELEMETRY_METRICS_INTERVAL` / `_TIMEOUT` (`5s`)
+override both for one service.
+
+**Histograms.** A duration in seconds (`unit: s`) gets buckets from 5 ms to
+10 s, one in milliseconds (`ms`) the same in ms: OpenTelemetry's own defaults
+(0 to 10000) are made for milliseconds and turn every quantile in seconds
+into noise. Rules change that per instrument, first match wins, ahead of the
+built-in ones:
+
+```yaml
+backplane:
+  telemetry:
+    metrics:
+      histograms:
+        # Precise quantiles at any scale: exponential buckets that follow the data.
+        - {instrument: "templates.*", aggregation: exponential, max_size: 80}
+        # Fixed buckets of your own.
+        - {instrument: courier.delivery.duration, boundaries: [0.05, 0.1, 0.5, 1, 5, 30]}
+        # Not exported at all.
+        - {instrument: "db.client.*", aggregation: drop}
+        # What the instrument asks for itself (its boundaries advice).
+        - {instrument: own.histogram, aggregation: default}
+        # Every other duration: exponential.
+        - {instrument: "*", unit: s, aggregation: exponential}
+```
+
+As an environment variable the list is JSON:
+`BACKPLANE_TELEMETRY_METRICS_HISTOGRAMS='[{"instrument":"*","unit":"s","aggregation":"exponential"}]'`.
+
+| field | meaning |
+|---|---|
+| `instrument` | name; `*` and `?` are wildcards |
+| `unit` | the histogram's unit must be this (`s`, `ms`, `By`); empty: any |
+| `aggregation` | `explicit` (default), `exponential`, `drop`, `default` |
+| `boundaries` | explicit: bucket upper bounds, strictly increasing |
+| `max_size`, `max_scale` | exponential: most buckets per sign (160), finest scale −10…20 (20) |
+| `no_min_max` | leave min and max out |
+
+Explicit or exponential:
+
+- **Explicit** buckets are cheap and portable: one series per bound. A
+  quantile is interpolated inside a bucket, so it is only as good as the
+  bounds around it (a value of 0.1 ms in a 0–5 ms bucket reads as up to 4.75 ms).
+- **Exponential** buckets follow the data and give precise quantiles at any
+  scale, for more series: VictoriaMetrics stores them as `vmrange` buckets,
+  as many as the values span (`max_size` bounds them; fewer is coarser).
+
+Explore reads both: quantiles group by `le` and `vmrange`. Histograms of
+different buckets do not add up, so a quantile without a grouping is taken
+per service. Durations show in their unit (µs, ms, s) on tiles, axes and in
+the legend.
+
 ## Sources without declarations
 
 Discovery reads stored resource identity: `service.namespace`, `service.name` and `service.instance.id`. Missing fields remain missing. A third-party identity server and its wrapper can both appear even if only the wrapper registers with Backplane.

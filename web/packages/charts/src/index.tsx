@@ -1,6 +1,7 @@
 import { lazy, Suspense, type ReactNode } from 'react';
 import { DataTable } from '@backplane-labs/backplane-ui';
 import { exact } from './model.js';
+export { formatValue } from './model.js';
 import { useChartText } from './locales.js';
 import type { ChartProps, ChartSeries, HeatmapProps, ValueProps, VisualizationControlsProps } from './types.js';
 export type * from './types.js';

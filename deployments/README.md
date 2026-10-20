@@ -63,6 +63,8 @@ the instance state.
 | `BACKPLANE_INSTANCE` | `<service>-<hostname>` | instance id = Consul service id |
 | `BACKPLANE_ADVERTISE` | `POD_IP`, else hostname's IP | address registered in Consul |
 | `BACKPLANE_ENVIRONMENT` | — | `deployment.environment.name` |
+| `BACKPLANE_TELEMETRY_METRICS_INTERVAL`, `_TIMEOUT` | `0s` | metric export timing; `0s`: `OTEL_METRIC_EXPORT_INTERVAL` / `_TIMEOUT`, else `30s` / `10s` |
+| `BACKPLANE_TELEMETRY_METRICS_HISTOGRAMS` | — | histogram rules, a JSON list, first match wins ([histograms](../website/docs/guides/telemetry.md#metric-export-and-histograms)) |
 | `BACKPLANE_INTERNAL_PORT` | `9400` | platform port |
 | `BACKPLANE_INTERNAL_SECRET` | — | secret backplane presents on the platform port (secret); empty: the internal API and bundle are open to whoever reaches the port |
 | `BACKPLANE_INTERNAL_SECRET_PREVIOUS` | — | also accepted while the secret rotates |

@@ -20,6 +20,8 @@ type Backplane struct {
 	Health   Health   `json:"health"`
 	// Limits of the SDK's HTTP and gRPC servers (public and platform ports).
 	Server Server `json:"server"`
+	// Metric export timing and histogram aggregation.
+	Telemetry Telemetry `json:"telemetry"`
 
 	// Instance id; default <service>-<hostname>.
 	Instance string `json:"instance,omitempty"`

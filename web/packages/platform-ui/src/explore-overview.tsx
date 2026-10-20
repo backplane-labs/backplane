@@ -3,11 +3,11 @@ import { create } from '@bufbuild/protobuf';
 import { ListObsFieldValuesRequestSchema, ObsLanguage, ObsServiceClient, ObsSignal, QueryObsRequestSchema, type ObsSeries } from '@backplane-labs/backplane-api';
 import { useClient } from '@backplane-labs/backplane-react';
 import { Badge, EmptyState, Input, Panel, Skeleton } from '@backplane-labs/backplane-ui';
-import { TimeSeriesChart } from '@backplane-labs/backplane-charts';
+import { TimeSeriesChart, formatValue } from '@backplane-labs/backplane-charts';
 import { Activity, ChevronRight, LayoutDashboard, Search } from 'lucide-react';
 import { usePlatformQuery } from './runtime.js';
 import { usePlatformText } from './locales.js';
-import { nanosNow, ranges, stepFor, type ExploreRange, type MetricFunction } from './explore-query.js';
+import { bucketLabels, metricUnit, nanosNow, ranges, stepFor, type ExploreRange, type MetricFunction } from './explore-query.js';
 
 /** One panel of the generated dashboard: a metric family collapsed to one chart. */
 interface Tile { id: string; metric: string; histogram: boolean; family: string }
@@ -84,7 +84,7 @@ function MetricTile({ tile, service, range, mode, onOpen }: { tile: Tile; servic
     const to = nanosNow(), request = (expression: string) => slot(() => client.queryObs(create(QueryObsRequestSchema, { signal: ObsSignal.METRICS, language: ObsLanguage.METRICSQL, expression,
       range: { startUnixNano: to - BigInt(ranges[range]) * 1_000_000n, endUnixNano: to }, stepNanos: stepFor(range, 120) }), { signal }));
     const series = (response: Awaited<ReturnType<typeof request>>) => response.result.case === 'timeSeries' ? response.result.value.series : [];
-    if (tile.histogram) return { fn: 'p95' as MetricFunction, series: series(await request(`histogram_quantile(0.95, sum(rate(${selector(`${tile.metric}_bucket`)}[5m])) by (le${service ? '' : ', service.name'}))`)) };
+    if (tile.histogram) return { fn: 'p95' as MetricFunction, series: series(await request(`histogram_quantile(0.95, sum(rate(${selector(`${tile.metric}_bucket`)}[5m])) by (${bucketLabels.join(', ')}${service ? '' : ', service.name'}))`)) };
     const raw = series(await request(`sum(${selector(tile.metric)})${by}`));
     // A series that only grows is a counter: its rate is what an operator reads.
     return monotonic(raw) ? { fn: 'rate' as MetricFunction, series: series(await request(`sum(rate(${selector(tile.metric)}[5m]))${by}`)) } : { fn: 'sum' as MetricFunction, series: raw };
@@ -92,15 +92,19 @@ function MetricTile({ tile, service, range, mode, onOpen }: { tile: Tile; servic
   const chart = (state.value?.series ?? []).map((entry, index) => ({ id: String(index), label: entry.labels['service.name'] ?? tile.metric, color: palette[index % palette.length]!,
     points: entry.samples.map((sample) => ({ x: Number(sample.timestampSeconds) * 1000, value: sample.value })) }));
   const empty = !!state.value && !chart.length;
-  const last = state.value?.series.length ? state.value.series.reduce((sum, entry) => sum + (Number(entry.samples.at(-1)?.value) || 0), 0) : undefined;
+  // A quantile across services is the worst one, not their sum.
+  const lasts = (state.value?.series ?? []).map((entry) => Number(entry.samples.at(-1)?.value) || 0);
+  const last = !lasts.length ? undefined : tile.histogram ? Math.max(...lasts) : lasts.reduce((sum, value) => sum + value, 0);
+  // A duration's quantile, or a duration gauge, reads in its unit; a rate of one does not.
+  const unit = state.value?.fn === 'rate' ? undefined : metricUnit(tile.metric);
   return <div ref={host} className={`min-w-0 self-start rounded-md border border-border bg-background ${empty ? 'opacity-70' : ''}`}>
     <button type="button" onClick={() => onOpen(tile.histogram ? `${tile.metric}_bucket` : tile.metric, state.value?.fn ?? (tile.histogram ? 'p95' : 'raw'))} className="flex w-full min-w-0 items-center gap-2 border-b border-border px-2.5 py-1.5 text-left hover:bg-raised" title={text('openInExplore')}>
       <span className="min-w-0 flex-1 truncate font-mono text-xs" title={tile.metric}>{tile.metric}</span>
       {state.value && <Badge variant="outline" className="h-4 shrink-0 px-1 text-2xs">{text(`fn_${state.value.fn}`)}</Badge>}
-      {last !== undefined && Number.isFinite(last) && <span className="shrink-0 font-mono text-xs text-foreground tabular-nums">{Number(last.toPrecision(4))}</span>}
+      {last !== undefined && Number.isFinite(last) && <span className="shrink-0 font-mono text-xs text-foreground tabular-nums">{unit ? formatValue(last, unit) : Number(last.toPrecision(4))}</span>}
     </button>
     {empty ? <div className="px-2.5 py-2 text-2xs text-muted-foreground">{text('noSamples')}</div> : <div className="h-40 px-1 pt-1">
-      {!state.value ? <Skeleton className="m-1 h-36" /> : <TimeSeriesChart label={tile.metric} series={chart} mode={mode} height={150} controls={false} timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone} />}
+      {!state.value ? <Skeleton className="m-1 h-36" /> : <TimeSeriesChart label={tile.metric} series={chart} mode={mode} height={150} unit={unit} controls={false} timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone} />}
     </div>}
   </div>;
 }

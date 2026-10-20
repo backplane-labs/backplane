@@ -108,7 +108,7 @@ func newCore(ctx context.Context, o options, conf configrt.State, cfg config.Bac
 
 	c.telemetry = telemetry.New(telemetry.Identity{
 		Service: id.Service, Version: id.Version, Instance: id.Instance, Environment: id.Environment,
-	}, log)
+	}, cfg.Telemetry.Metrics, log)
 	tn := c.svc.Child("telemetry", node.System, false)
 	tn.OnStart(c.telemetry.Start)
 	tn.OnStop(c.telemetry.Stop)

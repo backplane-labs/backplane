@@ -453,3 +453,27 @@ func TestUnsetLiveTakesKV(t *testing.T) {
 		t.Fatal("KV value never reached the unset Live field")
 	}
 }
+
+func TestHistogramRulesFromTheEnvironment(t *testing.T) {
+	t.Setenv("HELLO_POSTGRES_DSN", "x")
+	t.Setenv("BACKPLANE_TELEMETRY_METRICS_INTERVAL", "5s")
+	t.Setenv("BACKPLANE_TELEMETRY_METRICS_HISTOGRAMS",
+		`[{"instrument":"templates.*","aggregation":"exponential","max_size":40},{"instrument":"*","unit":"s","boundaries":[0.1,1]}]`)
+
+	cfg, err := config.Load[Config](t.Context(), config.Service("hello"), config.WithoutFile(), config.WithoutConsul())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := cfg.BackplaneConfig().Telemetry.Metrics
+	if m.Interval != 5*time.Second || len(m.Histograms) != 2 || m.Histograms[0].MaxSize != 40 ||
+		m.Histograms[0].Aggregation != config.AggregationExponential || m.Histograms[1].Unit != "s" ||
+		len(m.Histograms[1].Boundaries) != 2 {
+		t.Fatalf("metrics: %+v", m)
+	}
+
+	// An aggregation left out is explicit.
+	if m.Histograms[1].Aggregation != config.AggregationExplicit {
+		t.Fatalf("default aggregation: %q", m.Histograms[1].Aggregation)
+	}
+}
