@@ -141,3 +141,52 @@ type fatalRecorder struct {
 
 func (f *fatalRecorder) Fatalf(string, ...any) { f.fatal = true; runtime.Goexit() }
 func (f *fatalRecorder) Helper()               {}
+
+func TestFindByNameOrPath(t *testing.T) {
+	t.Parallel()
+
+	h := backplanetest.New(t)
+	sync := deps.NewComponent(h.Root(), "sync")
+	fanout := newProjector(sync, "fanout")
+	newProjector(h.Root(), "a")
+	newProjector(deps.NewComponent(h.Root(), "b"), "a")
+
+	h.Start()
+	waitTicks(t, fanout, 1)
+
+	found := backplanetest.Find(h, "fanout")
+	if found.Path() != fanout.Path() {
+		t.Fatalf("found %s, want %s", found.Path(), fanout.Path())
+	}
+
+	backplanetest.Stop(h, found)
+
+	if !fanout.stopped.Load() {
+		t.Fatal("Stop of the found node did not stop the component")
+	}
+
+	if got := backplanetest.Find(h, "b/a"); got.Path() != "b/a" {
+		t.Fatalf("by path: %s", got.Path())
+	}
+
+	for _, name := range []string{"a", "nope"} {
+		fake := &fatalRecorder{TB: t}
+		other := backplanetest.New(fake)
+		newProjector(other.Root(), "a")
+		newProjector(deps.NewComponent(other.Root(), "b"), "a")
+
+		done := make(chan struct{})
+
+		go func() {
+			defer close(done)
+
+			backplanetest.Find(other, name)
+		}()
+
+		<-done
+
+		if !fake.fatal {
+			t.Fatalf("Find(%q) did not fail", name)
+		}
+	}
+}

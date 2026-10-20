@@ -206,6 +206,46 @@ func Stop(h *Harness, scope deps.Scope) {
 	}
 }
 
+// Find is the node of h's tree named name — its Name, or its Path
+// under the root ("sync/fanout") — as a scope Stop takes: a test reaches a component
+// the service does not export. It fails the test when no node or more than
+// one matches (the failure lists the paths).
+func Find(h *Harness, name string) deps.Component {
+	h.t.Helper()
+
+	var found []*node.Node
+
+	h.app.Walk(func(n *node.Node) {
+		if n != h.app && (n.Name() == name || n.Path() == name) {
+			found = append(found, n)
+		}
+	})
+
+	switch len(found) {
+	case 1:
+		return link.Scope(found[0]).(deps.Component) //nolint:forcetypeassert,errcheck // deps installs it
+	case 0:
+		var paths []string
+
+		h.app.Walk(func(n *node.Node) {
+			if n != h.app {
+				paths = append(paths, n.Path())
+			}
+		})
+
+		h.t.Fatalf("backplanetest: Find: no node named %q; the tree: %s", name, strings.Join(paths, ", "))
+	default:
+		paths := make([]string, 0, len(found))
+		for _, n := range found {
+			paths = append(paths, n.Path())
+		}
+
+		h.t.Fatalf("backplanetest: Find: %q names %d nodes, use a path: %s", name, len(found), strings.Join(paths, ", "))
+	}
+
+	return deps.Component{}
+}
+
 // owns reports whether n is in the tree under Root (Root itself included).
 func (h *Harness) owns(n *node.Node) bool {
 	found := false

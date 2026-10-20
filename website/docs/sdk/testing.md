@@ -32,6 +32,7 @@ The `pkg/backplane/backplanetest` package and repository conformance tests provi
 | `SetLive(&field, value)` | Update a live field and notify its watchers |
 | `h.Manifest()` | Inspect declarations and declaration errors |
 | `Stop(h, component)` | Kill one component mid-test (a projection, a consumer): its goroutines' contexts end wherever they are, its subtree's `OnStop` hooks run, the rest keeps running |
+| `Find(h, name)` | A node of the tree by name or path (`sync/fanout`), for `Stop` or inspection, without the service exporting it |
 | `h.Stop()` | Stop the whole tree now, as the cleanup would; a restarted instance is a new harness on the same state |
 
 A chaos test kills and restarts on the same state:

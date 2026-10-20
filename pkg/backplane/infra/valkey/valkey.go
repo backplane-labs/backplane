@@ -11,6 +11,9 @@
 //	err := cache.Get().Do(ctx, cache.Get().B().Set().Key("k").Value("v").Build()).Error()
 //
 // The address is a seed: a cluster is discovered from it.
+//
+// NewAside is the same connection as a valkeyaside cache-aside client
+// (client-side caching with server invalidation): AsideClient.
 package valkey
 
 import (
@@ -78,15 +81,7 @@ func (p provider) Provide(ctx context.Context, s deps.Scope) (Client, error) {
 		return nil, err
 	}
 
-	tlsConfig, _ := p.cfg.TLS.ClientConfig() // Validate parsed it
-
-	client, err := valkeyotel.NewClient(valkeygo.ClientOption{
-		InitAddress: []string{p.cfg.Addr},
-		Username:    p.cfg.Username,
-		Password:    p.cfg.Password.Reveal(),
-		SelectDB:    int(p.cfg.DB),
-		TLSConfig:   tlsConfig,
-	})
+	client, err := valkeyotel.NewClient(p.cfg.clientOption())
 	if err != nil {
 		return nil, fmt.Errorf("valkey: connect %s: %w", p.cfg.Addr, err)
 	}
@@ -108,6 +103,19 @@ func (provider) Close(_ context.Context, c Client) error {
 	c.Close()
 
 	return nil
+}
+
+// clientOption is the connection of a validated section.
+func (c Config) clientOption() valkeygo.ClientOption {
+	tlsConfig, _ := c.TLS.ClientConfig() // Validate parsed it
+
+	return valkeygo.ClientOption{
+		InitAddress: []string{c.Addr},
+		Username:    c.Username,
+		Password:    c.Password.Reveal(),
+		SelectDB:    int(c.DB),
+		TLSConfig:   tlsConfig,
+	}
 }
 
 func ping(ctx context.Context, c Client) error {
