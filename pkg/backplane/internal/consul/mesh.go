@@ -13,6 +13,8 @@ import (
 	"github.com/hashicorp/consul/api"
 
 	"github.com/gopherex/xlog"
+
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/mtls"
 )
 
 // Mesh is a service's identity from Consul's CA and intentions, followed by
@@ -37,10 +39,20 @@ type Mesh struct {
 	failing map[string]error // per watch: the error last logged
 }
 
-// rule is one intention: a source (a service or "*") and its action.
+// rule is one intention: a source (a service or "*", in a namespace and
+// partition, "" or "*" for any) and its action.
 type rule struct {
-	source string
-	allow  bool
+	source, namespace, partition string
+	allow                        bool
+}
+
+// names reports whether r names a caller of this service's namespace and
+// partition (the only callers the handshake lets in).
+func (r rule) names(caller string, own mtls.Peer) bool {
+	matches := func(v, own string) bool { return v == "" || v == "*" || v == own }
+
+	return (r.source == caller || r.source == "*") && matches(r.namespace, own.Namespace) &&
+		matches(r.partition, own.Partition)
 }
 
 // MeshParams configure NewMesh.
@@ -84,13 +96,18 @@ func (m *Mesh) Ready() error {
 // Authorize decides from the intentions: the first naming caller or "*";
 // none: the default.
 func (m *Mesh) Authorize(caller string) (bool, string) {
-	rules := m.rules.Load()
-	if rules == nil {
-		return false, "intentions not fetched yet"
+	rules, cert := m.rules.Load(), m.leaf.Load()
+	if rules == nil || cert == nil || cert.Leaf == nil {
+		return false, "intentions or certificate not fetched yet"
+	}
+
+	own, ok := mtls.ServiceOf(cert.Leaf)
+	if !ok {
+		return false, "this service's certificate names no service"
 	}
 
 	for _, r := range *rules {
-		if r.source == caller || r.source == "*" {
+		if r.names(caller, own) {
 			verdict := "deny"
 			if r.allow {
 				verdict = "allow"
@@ -241,7 +258,10 @@ func (m *Mesh) fetchIntentions(q *api.QueryOptions) (uint64, error) {
 			continue
 		}
 
-		rules = append(rules, rule{source: in.SourceName, allow: in.Action == api.IntentionActionAllow})
+		rules = append(rules, rule{
+			source: in.SourceName, namespace: in.SourceNS, partition: in.SourcePartition,
+			allow: in.Action == api.IntentionActionAllow,
+		})
 	}
 
 	m.rules.Store(&rules)

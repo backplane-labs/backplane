@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"strings"
 
 	"github.com/soheilhy/cmux"
@@ -44,24 +45,85 @@ var (
 type Peer struct {
 	// Service is the peer's service name.
 	Service string
-	// URI is its SPIFFE identity (spiffe://<trust domain>/ns/<ns>/dc/<dc>/svc/<service>).
+	// Namespace, Partition and Datacenter of the service (Consul's; the
+	// partition is "default" when the URI names none).
+	Namespace, Partition, Datacenter string
+	// TrustDomain is the CA's (the URI's host).
+	TrustDomain string
+	// URI is its SPIFFE identity:
+	// spiffe://<trust domain>[/ap/<partition>]/ns/<ns>/dc/<dc>/svc/<service>.
 	URI string
 }
 
-// ServiceOf is the service a certificate speaks for: the last path element
-// after /svc/ of its spiffe URI.
+// ServiceOf is the service a certificate speaks for: its spiffe URI in
+// Consul's service identity form, exactly.
 func ServiceOf(cert *x509.Certificate) (Peer, bool) {
 	for _, uri := range cert.URIs {
-		if uri.Scheme != "spiffe" {
-			continue
-		}
-
-		if i := strings.LastIndex(uri.Path, "/svc/"); i >= 0 && len(uri.Path) > i+len("/svc/") {
-			return Peer{Service: uri.Path[i+len("/svc/"):], URI: uri.String()}, true
+		if p, ok := ParseURI(uri); ok {
+			return p, true
 		}
 	}
 
 	return Peer{}, false
+}
+
+// ParseURI reads a SPIFFE URI in Consul's service identity form:
+// spiffe://<trust domain>[/ap/<partition>]/ns/<ns>/dc/<dc>/svc/<service>,
+// every segment present and non-empty, nothing else.
+func ParseURI(uri *url.URL) (Peer, bool) {
+	if uri == nil || uri.Scheme != "spiffe" || uri.Host == "" || uri.RawQuery != "" || uri.Fragment != "" {
+		return Peer{}, false
+	}
+
+	p, ok := segments(strings.Split(strings.TrimPrefix(uri.Path, "/"), "/"))
+	if !ok {
+		return Peer{}, false
+	}
+
+	p.TrustDomain, p.URI = uri.Host, uri.String()
+
+	return p, true
+}
+
+// segments reads [ap/<partition>/]ns/<ns>/dc/<dc>/svc/<service>.
+func segments(parts []string) (Peer, bool) {
+	const (
+		short = 6 // ns/<ns>/dc/<dc>/svc/<svc>
+		long  = 8 // ap/<partition>/ns/...
+	)
+
+	p := Peer{Partition: "default"}
+
+	if len(parts) == long {
+		if parts[0] != "ap" || parts[1] == "" {
+			return Peer{}, false
+		}
+
+		p.Partition, parts = parts[1], parts[2:]
+	}
+
+	if len(parts) != short || parts[0] != "ns" || parts[2] != "dc" || parts[4] != "svc" ||
+		parts[1] == "" || parts[3] == "" || parts[5] == "" {
+		return Peer{}, false
+	}
+
+	p.Namespace, p.Datacenter, p.Service = parts[1], parts[3], parts[5]
+
+	return p, true
+}
+
+// sameMesh is nil when peer is of this service's trust domain, namespace
+// and partition: the mesh spans those, and intentions name services in them.
+func sameMesh(own, peer Peer) error {
+	switch {
+	case peer.TrustDomain != own.TrustDomain:
+		return fmt.Errorf("%w: trust domain %s, not %s", ErrPeer, peer.TrustDomain, own.TrustDomain)
+	case peer.Namespace != own.Namespace || peer.Partition != own.Partition:
+		return fmt.Errorf("%w: %s is in namespace %s/%s, not %s/%s", ErrPeer, peer.Service,
+			peer.Partition, peer.Namespace, own.Partition, own.Namespace)
+	}
+
+	return nil
 }
 
 // verify checks a presented chain against the source's current roots and
@@ -91,6 +153,20 @@ func verify(src Source, certs []*x509.Certificate) (Peer, error) {
 	p, ok := ServiceOf(certs[0])
 	if !ok {
 		return Peer{}, fmt.Errorf("%w: no service identity in the certificate", ErrPeer)
+	}
+
+	mine := src.Certificate()
+	if mine == nil || mine.Leaf == nil {
+		return Peer{}, ErrNoIdentity
+	}
+
+	own, ok := ServiceOf(mine.Leaf)
+	if !ok {
+		return Peer{}, fmt.Errorf("%w: this service's own certificate names no service", ErrNoIdentity)
+	}
+
+	if err := sameMesh(own, p); err != nil {
+		return Peer{}, err
 	}
 
 	return p, nil

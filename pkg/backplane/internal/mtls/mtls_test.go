@@ -75,12 +75,18 @@ func (c *ca) pool() *x509.CertPool {
 func (c *ca) issue(service string) *tls.Certificate {
 	c.t.Helper()
 
+	return c.issueURI("spiffe://11111111-2222.consul/ns/default/dc/dc1/svc/" + service)
+}
+
+func (c *ca) issueURI(raw string) *tls.Certificate {
+	c.t.Helper()
+
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		c.t.Fatal(err)
 	}
 
-	uri, _ := url.Parse("spiffe://11111111-2222.consul/ns/default/dc/dc1/svc/" + service)
+	uri, _ := url.Parse(raw)
 	tpl := &x509.Certificate{
 		SerialNumber: big.NewInt(c.serial.Add(1)), URIs: []*url.URL{uri},
 		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour),
@@ -235,6 +241,19 @@ func TestMutualTLS(t *testing.T) {
 		t.Fatal("a client without a certificate got in")
 	}
 
+	// The CA's own certificates for another namespace or trust domain are
+	// not of this mesh.
+	for _, uri := range []string{
+		"spiffe://11111111-2222.consul/ns/other/dc/dc1/svc/b",
+		"spiffe://11111111-2222.consul/ap/team/ns/default/dc/dc1/svc/b",
+		"spiffe://another.consul/ns/default/dc/dc1/svc/b",
+	} {
+		foreign := &source{cert: authority.issueURI(uri), roots: authority.pool()}
+		if err := callGRPC(t, addr, credentials.NewTLS(mtls.ClientConfig(foreign, "a", "h2"))); err == nil {
+			t.Fatalf("%s got in", uri)
+		}
+	}
+
 	// A server of another CA is refused by the client.
 	if err := callGRPC(t, server(t, &source{cert: stranger.issue("a"), roots: stranger.pool()}),
 		credentials.NewTLS(mtls.ClientConfig(b, "a", "h2"))); err == nil {
@@ -268,5 +287,38 @@ func TestServiceOf(t *testing.T) {
 
 	if _, named := mtls.ServiceOf(&x509.Certificate{}); named {
 		t.Fatal("a certificate without a URI named a service")
+	}
+}
+
+func TestParseURI(t *testing.T) {
+	t.Parallel()
+
+	for raw, want := range map[string]string{
+		"spiffe://td.consul/ns/default/dc/dc1/svc/sync":            "svc=sync ns=default ap=default dc=dc1 td=td.consul",
+		"spiffe://td.consul/ap/team/ns/ns1/dc/dc2/svc/feed":        "svc=feed ns=ns1 ap=team dc=dc2 td=td.consul",
+		"spiffe://td.consul/ns/default/dc/dc1/svc/a/svc/b":         "",
+		"spiffe://td.consul/x/ns/default/dc/dc1/svc/a":             "",
+		"spiffe://td.consul/ns//dc/dc1/svc/a":                      "",
+		"spiffe://td.consul/ns/default/dc/dc1/svc/":                "",
+		"spiffe:///ns/default/dc/dc1/svc/a":                        "",
+		"https://td.consul/ns/default/dc/dc1/svc/a":                "",
+		"spiffe://td.consul/ns/default/dc/dc1/svc/a?svc=b":         "",
+		"spiffe://td.consul/ap/team/ns/default/dc/dc1/agent/x/y/z": "",
+	} {
+		u, err := url.Parse(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		p, ok := mtls.ParseURI(u)
+
+		got := ""
+		if ok {
+			got = "svc=" + p.Service + " ns=" + p.Namespace + " ap=" + p.Partition + " dc=" + p.Datacenter + " td=" + p.TrustDomain
+		}
+
+		if got != want {
+			t.Errorf("%s: %q, want %q", raw, got, want)
+		}
 	}
 }

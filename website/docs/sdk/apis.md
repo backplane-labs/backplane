@@ -91,6 +91,12 @@ uses:
   The SDK follows the CA only once something uses it, so services without
   mTLS ask Consul for nothing. Readiness waits for the certificate.
 
+The mesh spans one trust domain, namespace and partition: those of the
+service's own certificate. A caller presenting a certificate of the same CA
+for another namespace or partition (Consul Enterprise) does not get past the
+handshake, and intentions naming sources elsewhere do not apply; datacenters
+of the trust domain are one mesh, as Consul's intentions are.
+
 In production protect the identity with Consul ACLs: whoever can get a
 certificate for `feed` (a token with `service:write` on it) is `feed`.
 

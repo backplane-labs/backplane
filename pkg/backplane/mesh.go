@@ -46,10 +46,16 @@ func WithMesh(factory MeshFactory) Option { return func(o *options) { o.mesh = f
 // ErrNoMesh: mutual TLS between services needs a mesh driver and Consul.
 var ErrNoMesh = errors.New("backplane: mutual TLS needs the Consul driver and backplane.consul.addr")
 
-// Caller is the service that made a request on an mTLS port (api.MTLS).
+// Caller is the service that made a request on an mTLS port (api.MTLS): of
+// this service's trust domain, namespace and partition (the mesh spans
+// those; a caller from another does not get past the handshake).
 type Caller struct {
 	// Service is the caller's service name.
 	Service string
+	// Namespace, Partition and Datacenter of the caller (Consul's).
+	Namespace, Partition, Datacenter string
+	// TrustDomain is the CA's.
+	TrustDomain string
 	// URI is its SPIFFE identity.
 	URI string
 }
