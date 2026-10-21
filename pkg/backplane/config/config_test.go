@@ -477,3 +477,114 @@ func TestHistogramRulesFromTheEnvironment(t *testing.T) {
 		t.Fatalf("default aggregation: %q", m.Histograms[1].Aggregation)
 	}
 }
+
+type limits struct {
+	Min int `json:"min" schemapb:"default=1"`
+	Max int `json:"max" schemapb:"default=10"`
+}
+
+func (l limits) Validate() error {
+	if l.Min > l.Max {
+		return fmt.Errorf("min %d above max %d", l.Min, l.Max)
+	}
+
+	return nil
+}
+
+type liveStruct struct {
+	config.Backplane `json:"backplane"`
+
+	Limits config.Live[limits] `json:"limits"`
+}
+
+// A Live struct changes as a whole: one KV key holds its JSON (the console
+// writes it so), one Get reads a consistent pair, a watcher sees each pair
+// once, and a pair its Validate refuses is not applied.
+func TestLiveStructFromConsul(t *testing.T) {
+	addr := os.Getenv("BACKPLANE_TEST_CONSUL")
+	if addr == "" {
+		t.Skip("BACKPLANE_TEST_CONSUL not set")
+	}
+
+	client, err := api.NewClient(&api.Config{Address: addr})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() { _, _ = client.KV().DeleteTree("config/live-struct/", nil) })
+	t.Setenv("BACKPLANE_CONSUL_ADDR", addr)
+
+	rt, err := config.Open[liveStruct](t.Context(), consuldriver.Config(), config.Service("live-struct"), config.WithoutFile())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rt.Close()
+
+	if got := rt.Value().Limits.Get(); got != (limits{Min: 1, Max: 10}) {
+		t.Fatalf("defaults: %+v", got)
+	}
+
+	applied := make(chan limits, 4)
+
+	rt.Value().Limits.Watch(func(v limits) { applied <- v })
+
+	put := func(value string) {
+		if _, err := client.KV().Put(&api.KVPair{Key: "config/live-struct/limits", Value: []byte(value)}, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	next := func() limits {
+		select {
+		case v := <-applied:
+			return v
+		case <-time.After(10 * time.Second):
+			t.Fatal("no live update")
+
+			return limits{}
+		}
+	}
+
+	// Both bounds move past each other's old values: no reader may see
+	// min 20 with max 10.
+	put(`{"min":20,"max":30}`)
+
+	if v := next(); v != (limits{Min: 20, Max: 30}) || rt.Value().Limits.Get() != v {
+		t.Fatalf("applied %+v, get %+v", v, rt.Value().Limits.Get())
+	}
+
+	put(`{"min":50,"max":40}`)
+
+	deadline := time.Now().Add(10 * time.Second)
+	for link.ConfigState(rt).Effective().Err == nil && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	if link.ConfigState(rt).Effective().Err == nil || rt.Value().Limits.Get() != (limits{Min: 20, Max: 30}) {
+		t.Fatalf("refused pair: rejected %v, value %+v", link.ConfigState(rt).Effective().Err, rt.Value().Limits.Get())
+	}
+
+	select {
+	case v := <-applied:
+		t.Fatalf("watcher saw a refused pair: %+v", v)
+	default:
+	}
+
+	// A field missing from the JSON takes its default.
+	put(`{"max":5}`)
+
+	if v := next(); v != (limits{Min: 1, Max: 5}) {
+		t.Fatalf("partial: %+v", v)
+	}
+}
+
+// The value of a Live field is validated like a section: at Open as on
+// every update.
+func TestLiveValueValidated(t *testing.T) {
+	t.Setenv("LIVE_STRUCT_LIMITS", `{"min":5,"max":1}`)
+
+	_, err := config.Open[liveStruct](t.Context(), config.Service("live-struct"), config.WithoutFile())
+	if err == nil || !strings.Contains(err.Error(), "limits: min 5 above max 1") {
+		t.Fatalf("open: %v", err)
+	}
+}

@@ -7,9 +7,10 @@ import (
 	"strings"
 )
 
-// Validator is implemented by a configuration, or any section of it, that
-// checks itself beyond the schema: Open fails with its error and a live
-// update it rejects is not applied. Value or pointer receiver.
+// Validator is implemented by a configuration, or any section of it (the
+// value of a Live field too), that checks itself beyond the schema: Open
+// fails with its error and a live update it rejects is not applied. Value
+// or pointer receiver.
 type Validator interface{ Validate() error }
 
 // maxValidateDepth bounds the walk; configurations are trees, not graphs.
@@ -42,6 +43,8 @@ func walkValidators(v reflect.Value, path string, depth int, self bool, errs *[]
 		return
 	case reflect.Struct:
 		if isLiveType(v.Type()) {
+			walkLive(v, path, depth, errs)
+
 			return
 		}
 
@@ -69,6 +72,25 @@ func walkValidators(v reflect.Value, path string, depth int, self bool, errs *[]
 			*errs = append(*errs, fmt.Errorf("%s: %w", path, err))
 		}
 	}
+}
+
+// walkLive checks the value of Live field v as a section: a Live struct
+// changes as a whole, so its Validate sees a consistent value.
+func walkLive(v reflect.Value, path string, depth int, errs *[]error) {
+	if l, ok := addr(v).(liveField); ok {
+		walkValidators(l.value(), path, depth+1, true, errs)
+	}
+}
+
+// addr is a pointer to v, to a copy when v is not addressable.
+func addr(v reflect.Value) any {
+	if !v.CanAddr() {
+		c := reflect.New(v.Type()).Elem()
+		c.Set(v)
+		v = c
+	}
+
+	return v.Addr().Interface()
 }
 
 // walkFields walks the exported fields of struct v.

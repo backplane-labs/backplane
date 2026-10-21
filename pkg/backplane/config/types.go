@@ -90,6 +90,13 @@ func (l *Live[T]) replaceFrom(next any) {
 	l.set(*n.c.value.Load())
 }
 
+// value is an addressable copy of the current value (validation).
+func (l *Live[T]) value() reflect.Value {
+	v := l.Get()
+
+	return reflect.ValueOf(&v).Elem()
+}
+
 // ensure gives a field no layer set its cell, so every copy of the
 // enclosing section shares it and later values reach them all.
 func (l *Live[T]) ensure() {
@@ -161,6 +168,7 @@ func (l *Live[T]) SchemaDecodeTarget() any {
 type liveField interface {
 	replaceFrom(next any)
 	ensure()
+	value() reflect.Value
 }
 
 // Secret is a string that never prints: every fmt verb, text, JSON and logs

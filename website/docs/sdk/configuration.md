@@ -24,6 +24,39 @@ cfg.Greeter.Suffix.Watch(func(value string) {
 })
 ```
 
+Values that only make sense together belong in one live struct: it changes as
+a whole, so one `Get()` reads a consistent pair and a watcher sees each pair
+once. The console stores it as one value and writes it in one transaction.
+
+```go
+type Limits struct {
+    Min int `json:"min" schemapb:"default=1"`
+    Max int `json:"max" schemapb:"default=10"`
+}
+
+func (l Limits) Validate() error {
+    if l.Min > l.Max {
+        return fmt.Errorf("min %d above max %d", l.Min, l.Max)
+    }
+    return nil
+}
+
+type Config struct {
+    config.Backplane `json:"backplane"`
+    Limits config.Live[Limits] `json:"limits"`
+}
+```
+
+A field the update leaves out takes its default. `Validate` on the value's type
+runs like a section's, so a pair it refuses is never applied. Separate
+`Live[int]` fields, by contrast, change one at a time and a reader can see one
+new bound with the other old.
+
+Live fields are the service's own settings. The SDK's connections (the
+`backplane` block's NATS, Temporal and Consul, and the `infra` PostgreSQL,
+Valkey and NATS sections) are startup configuration: a new address or
+credential takes a restart. The block's one live field is `log_level`.
+
 ## Sources and precedence
 
 The service combines file configuration, environment overrides and the distributed live configuration source. Environment variables override file values. The Consul source is filtered to declared live paths, so an operator cannot use live configuration to rewrite a startup-only listener or credential. See [exact configuration names](../reference/configuration.md).
