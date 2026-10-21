@@ -129,7 +129,13 @@ func withSession(ctx context.Context) context.Context {
 		return ctx
 	}
 
-	return context.WithValue(ctx, sessionKey{}, id)
+	return WithSession(ctx, id)
+}
+
+// WithSession is ctx carrying session as the console session of a call that
+// passed the guard (backplanetest.Operator).
+func WithSession(ctx context.Context, session uuid.UUID) context.Context {
+	return context.WithValue(ctx, sessionKey{}, session)
 }
 
 // Session is the console session of a call that passed the guard.

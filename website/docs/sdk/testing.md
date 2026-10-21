@@ -50,6 +50,15 @@ h2.Start()
 // ... assert it catches up without loss or duplicates
 ```
 
+An internal API handler is called directly as a console operator would call it:
+`backplanetest.Operator(ctx, session)` makes `backplane.OperatorOf` report that
+session, so the operator's branch of an audit is testable without the console.
+
+```go
+ctx := backplanetest.Operator(t.Context(), session)
+_, err := admin.CloseRoom(ctx, req) // audits actor console:<session>
+```
+
 The harness does not simulate JetStream redelivery or DLQ semantics. Its activity call executes once; retries belong in runtime integration tests. For Temporal code, use `pkg/backplane/workflows/workflowtest.New(t, h)`, which supplies a Temporal test environment with the service's registrations. This testing extension intentionally imports Temporal separately from core component tests.
 
 ## Repository commands
