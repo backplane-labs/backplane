@@ -131,6 +131,17 @@ relay sends each method to the service whose manifest declares it (a method two
 services declare is refused) and calls it directly; UI bundles and API files are fetched directly from that port.
 The public API is excluded from this relay.
 
+`api.Interceptors` and `api.StreamInterceptors` give the internal API its own
+middleware, as on `svc.GRPC`: they wrap only the services of that
+`Internal` call, the first outermost, and run after the internal secret is
+checked, so `backplane.OperatorOf` already answers in them.
+
+```go
+svc.Internal(func(r grpc.ServiceRegistrar) {
+    helloconsolev1.RegisterAdminServiceServer(r, st.Admin)
+}, api.Interceptors(audit, translateErrors))
+```
+
 ### The console operator
 
 A relayed call names the operator's console session, and

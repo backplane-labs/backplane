@@ -18,7 +18,8 @@ type stream []grpc.StreamServerInterceptor
 func (s stream) applyGRPC(m *routes.Managed) { m.Stream = append(m.Stream, s...) }
 func (s stream) applyWS(m *routes.Managed)   { m.Stream = append(m.Stream, s...) }
 
-// InterceptorOption applies to Service.GRPC and wsproto.Serve.
+// InterceptorOption applies to Service.GRPC, Service.Internal and
+// wsproto.Serve.
 type InterceptorOption interface {
 	GRPCOption
 	WSProtoOption

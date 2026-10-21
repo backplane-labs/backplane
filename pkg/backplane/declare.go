@@ -175,13 +175,24 @@ func setMatch(r *backplanev1.API, host, prefix string) {
 // service's own console plugin, behind the internal secret, served only
 // while the author's tree is up. Any proto package will do but grpc.* and,
 // outside the platform itself, backplane.*; the console relays a method to
-// the service whose manifest declares it.
-func (c *core) Internal(register func(r grpc.ServiceRegistrar)) {
+// the service whose manifest declares it. api.Interceptors and
+// api.StreamInterceptors wrap this registration's services only, inside the
+// internal secret's check: backplane.OperatorOf already answers in them.
+func (c *core) Internal(register func(r grpc.ServiceRegistrar), opts ...api.InterceptorOption) {
+	grpcOpts := make([]api.GRPCOption, len(opts))
+	for i, o := range opts {
+		grpcOpts[i] = o
+	}
+
+	spec := link.APIs.GRPC(grpcOpts)
+
 	c.declare("internal API", func() {
 		services, err := manifest.Register(c.internal, register)
 		if err != nil {
 			c.env.Manifest.Fail(err)
 		}
+
+		c.internals.Add(services, spec.Unary, spec.Stream)
 
 		for _, name := range services {
 			if strings.HasPrefix(name, "grpc.") || strings.HasPrefix(name, "backplane.") && c.id.Service != "backplane" {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"sync"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/recovery"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/routes"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/telemetry"
 )
 
@@ -65,8 +67,9 @@ type core struct {
 	health     *health.Health
 	guard      guard.Guard
 	gate       *gate.Gate
-	internal   *grpc.Server   // platform port, gRPC: internal API + health
-	platform   *http.ServeMux // platform port, HTTP behind the guard: UI bundle
+	internal   *grpc.Server     // platform port, gRPC: internal API + health
+	internals  *routes.Dispatch // per-registration interceptors of the internal API
+	platform   *http.ServeMux   // platform port, HTTP behind the guard: UI bundle
 	apiBundles map[string]bool
 	public     []*publicPort
 	// consulPresence is built by Run (it needs the manifest); nil without
@@ -96,8 +99,9 @@ func newCore(ctx context.Context, o options, conf configrt.State, cfg config.Bac
 		gate:     gate.New(),
 		platform: http.NewServeMux(),
 	}
+	c.internals = routes.NewDispatch()
 	c.internal = grpc.NewServer(c.serverOptions(recovery.GRPCInternal,
-		append(c.guard.ServerOptions(), c.gate.ServerOptions()...)...)...)
+		slices.Concat(c.guard.ServerOptions(), c.gate.ServerOptions(), c.internals.ServerOptions())...)...)
 	hv1.RegisterHealthServer(c.internal, c.health.GRPC())
 	backplanev1.RegisterActivityServiceServer(c.internal, direct.NewServer(id.Service, c.env, log))
 	c.platformRoutes()
