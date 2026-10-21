@@ -10,7 +10,8 @@
 //	cache := deps.NewDependency(root, valkey.New(cfg.Cache), deps.Name("cache"))
 //	err := cache.Get().Do(ctx, cache.Get().B().Set().Key("k").Value("v").Build()).Error()
 //
-// The address is a seed: a cluster is discovered from it.
+// The address is one node or a comma-separated list of seeds: a cluster is
+// discovered from whichever answers, a standalone server is used as is.
 //
 // NewAside is the same connection as a valkeyaside cache-aside client
 // (client-side caching with server invalidation): AsideClient.
@@ -20,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	valkeygo "github.com/valkey-io/valkey-go"
 	"github.com/valkey-io/valkey-go/valkeyotel"
@@ -39,19 +41,35 @@ var ErrNoAddr = errors.New("valkey: addr is required")
 
 // Config is the connection's section.
 type Config struct {
-	// Addr is host:port of a node.
+	// Addr is host:port of a node, or comma-separated seeds of a cluster
+	// (host:port,host:port): any one answering is enough to discover it.
 	Addr     string        `json:"addr,omitempty"`
 	Username string        `json:"username,omitempty"`
 	Password config.Secret `json:"password,omitempty"`
-	// DB is the logical database (standalone only). How many there are is
-	// the server's databases setting (16 by default); a number it does not
-	// have fails the connection.
+	// DB is the logical database. How many there are is the server's to
+	// say: databases on a standalone server (16 by default),
+	// cluster-databases on a Valkey 9+ cluster (1 by default); a classic
+	// cluster has only database 0. A number the server does not have fails
+	// the connection.
 	DB  int64      `json:"db"  schemapb:"default=0;gte=0"`
 	TLS config.TLS `json:"tls"`
 }
 
 // Enabled reports whether an address is set.
-func (c Config) Enabled() bool { return c.Addr != "" }
+func (c Config) Enabled() bool { return len(c.addrs()) > 0 }
+
+// addrs are the addresses of Addr.
+func (c Config) addrs() []string {
+	var out []string
+
+	for a := range strings.SplitSeq(c.Addr, ",") {
+		if a = strings.TrimSpace(a); a != "" {
+			out = append(out, a)
+		}
+	}
+
+	return out
+}
 
 // Validate checks what the schema cannot: the address is set and the TLS
 // material parses.
@@ -83,7 +101,7 @@ func (p provider) Provide(ctx context.Context, s deps.Scope) (Client, error) {
 
 	client, err := valkeyotel.NewClient(p.cfg.clientOption())
 	if err != nil {
-		return nil, fmt.Errorf("valkey: connect %s: %w", p.cfg.Addr, err)
+		return nil, p.cfg.connectError(err)
 	}
 
 	if err := ping(ctx, client); err != nil {
@@ -110,12 +128,25 @@ func (c Config) clientOption() valkeygo.ClientOption {
 	tlsConfig, _ := c.TLS.ClientConfig() // Validate parsed it
 
 	return valkeygo.ClientOption{
-		InitAddress: []string{c.Addr},
+		InitAddress: c.addrs(),
 		Username:    c.Username,
 		Password:    c.Password.Reveal(),
 		SelectDB:    int(c.DB),
 		TLSConfig:   tlsConfig,
 	}
+}
+
+// ErrClusterDB: a database other than 0 on a cluster without numbered
+// databases.
+var ErrClusterDB = errors.New("valkey: a cluster has only database 0 unless it is Valkey 9+ with cluster-databases")
+
+// connectError says why the connection failed.
+func (c Config) connectError(err error) error {
+	if c.DB != 0 && strings.Contains(err.Error(), "SELECT is not allowed in cluster mode") {
+		return fmt.Errorf("%w: db %d: %w", ErrClusterDB, c.DB, err)
+	}
+
+	return fmt.Errorf("valkey: connect %s: %w", c.Addr, err)
 }
 
 func ping(ctx context.Context, c Client) error {

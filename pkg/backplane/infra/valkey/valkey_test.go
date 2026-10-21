@@ -28,8 +28,83 @@ func TestValidate(t *testing.T) {
 		t.Fatalf("tls: %v", err)
 	}
 
-	if err := (valkey.Config{Addr: "v:6379"}).Validate(); err != nil {
+	if err := (valkey.Config{Addr: " , "}).Validate(); !errors.Is(err, valkey.ErrNoAddr) {
+		t.Fatalf("only commas: %v", err)
+	}
+
+	for _, addr := range []string{"v:6379", "a:6379, b:6379"} {
+		if err := (valkey.Config{Addr: addr}).Validate(); err != nil {
+			t.Fatalf("%q: %v", addr, err)
+		}
+	}
+}
+
+// A Valkey 9+ cluster with cluster-databases keeps numbered databases
+// apart, and is found from any seed that answers:
+// BACKPLANE_TEST_VALKEY_CLUSTER is such a cluster with cluster-databases
+// above 5.
+func TestClusterDatabases(t *testing.T) {
+	t.Parallel()
+
+	addr := os.Getenv("BACKPLANE_TEST_VALKEY_CLUSTER")
+	if addr == "" {
+		t.Skip("BACKPLANE_TEST_VALKEY_CLUSTER not set")
+	}
+
+	h := backplanetest.New(t)
+	h.Start()
+
+	open := func(db int64) valkey.Client {
+		// The first seed does not answer.
+		c, err := valkey.New(valkey.Config{Addr: "127.0.0.1:1," + addr, DB: db}).Provide(t.Context(), h.Root())
+		if err != nil {
+			t.Fatalf("db %d: %v", db, err)
+		}
+
+		t.Cleanup(c.Close)
+
+		return c
+	}
+
+	db0, db5 := open(0), open(5)
+	key := fmt.Sprintf("bp-test-%d", time.Now().UnixNano())
+
+	if err := db5.Do(t.Context(), db5.B().Set().Key(key).Value("five").Ex(time.Minute).Build()).Error(); err != nil {
 		t.Fatal(err)
+	}
+
+	if v, err := db5.Do(t.Context(), db5.B().Get().Key(key).Build()).ToString(); err != nil || v != "five" {
+		t.Fatalf("db 5: %q, %v", v, err)
+	}
+
+	if n, err := db0.Do(t.Context(), db0.B().Exists().Key(key).Build()).AsInt64(); err != nil || n != 0 {
+		t.Fatalf("db 0 sees db 5's key: %d, %v", n, err)
+	}
+}
+
+// A classic cluster has database 0 only, and says so:
+// BACKPLANE_TEST_VALKEY_CLASSIC_CLUSTER is a cluster without
+// cluster-databases (Valkey 8, say).
+func TestClassicClusterDatabase(t *testing.T) {
+	t.Parallel()
+
+	addr := os.Getenv("BACKPLANE_TEST_VALKEY_CLASSIC_CLUSTER")
+	if addr == "" {
+		t.Skip("BACKPLANE_TEST_VALKEY_CLASSIC_CLUSTER not set")
+	}
+
+	h := backplanetest.New(t)
+	h.Start()
+
+	c, err := valkey.New(valkey.Config{Addr: addr}).Provide(t.Context(), h.Root())
+	if err != nil {
+		t.Fatalf("db 0: %v", err)
+	}
+
+	c.Close()
+
+	if _, err := valkey.New(valkey.Config{Addr: addr, DB: 1}).Provide(t.Context(), h.Root()); !errors.Is(err, valkey.ErrClusterDB) {
+		t.Fatalf("db 1: %v", err)
 	}
 }
 

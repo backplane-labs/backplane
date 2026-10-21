@@ -2,7 +2,6 @@ package valkey
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	valkeygo "github.com/valkey-io/valkey-go"
@@ -69,7 +68,7 @@ func (p asideProvider) Provide(ctx context.Context, s deps.Scope) (AsideClient, 
 
 	client, err := valkeyaside.NewClient(option)
 	if err != nil {
-		return nil, fmt.Errorf("valkey: connect %s: %w", p.cfg.Addr, err)
+		return nil, p.cfg.connectError(err)
 	}
 
 	if err := ping(ctx, client.Client()); err != nil {
