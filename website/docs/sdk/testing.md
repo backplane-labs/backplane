@@ -59,6 +59,18 @@ ctx := backplanetest.Operator(t.Context(), session)
 _, err := admin.CloseRoom(ctx, req) // audits actor console:<session>
 ```
 
+A handler served with `api.MTLS` is called as another service of the mesh
+would call it: `backplanetest.Caller(ctx, backplane.Caller{Service: "sync"})`
+makes `backplane.CallerOf` report that caller. Over bufconn, without mutual
+TLS, set it from a server interceptor:
+
+```go
+srv := grpc.NewServer(grpc.UnaryInterceptor(
+	func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, h grpc.UnaryHandler) (any, error) {
+		return h(backplanetest.Caller(ctx, backplane.Caller{Service: "sync"}), req)
+	}))
+```
+
 The harness does not simulate JetStream redelivery or DLQ semantics. Its activity call executes once; retries belong in runtime integration tests. For Temporal code, use `pkg/backplane/workflows/workflowtest.New(t, h)`, which supplies a Temporal test environment with the service's registrations. This testing extension intentionally imports Temporal separately from core component tests.
 
 ## Repository commands
