@@ -131,6 +131,24 @@ relay sends each method to the service whose manifest declares it (a method two
 services declare is refused) and calls it directly; UI bundles and API files are fetched directly from that port.
 The public API is excluded from this relay.
 
+### The console operator
+
+A relayed call names the operator's console session, and
+`backplane.OperatorOf(ctx)` returns it as `Operator{Session}`;
+`Operator.Actor()` is `console:<session>`, the actor backplane's own audit
+uses (see [application audit](../reference/audit.md#application-audit)). The
+console signs in with the installation's admin token, so the session is all
+there is to know of the person; the console's session menu lists each one's
+address and user agent. Calls the console did not relay for a session
+(backplane's own activity calls) have no operator.
+
+The session is backplane's word, not the browser's: the relay drops every
+`bp-*` key the browser sends and sets the session itself, and the platform port
+admits only calls presenting the internal secret. That holds while
+`BACKPLANE_INTERNAL_SECRET` is set and the platform port is unreachable to
+anyone but backplane. Without a secret the port is open, and the session is
+whatever the caller claims.
+
 ## API documents
 
 HTTP APIs accept OpenAPI, gRPC/ws-proto use descriptor sets, and GraphQL uses

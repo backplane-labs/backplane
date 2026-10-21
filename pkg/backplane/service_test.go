@@ -367,6 +367,70 @@ func TestInternalAPIGate(t *testing.T) {
 	}
 }
 
+// operatorAdmin counts a greeting when the call names the console operator
+// operatorSession.
+type operatorAdmin struct {
+	helloconsolev1.UnimplementedAdminServiceServer
+}
+
+const operatorSession = "4b1e3f0a-6f2d-4c0e-9a51-0d3c2b7e8f11"
+
+func (operatorAdmin) GetStats(ctx context.Context, _ *helloconsolev1.GetStatsRequest) (*helloconsolev1.GetStatsResponse, error) {
+	op, ok := backplane.OperatorOf(ctx)
+	if !ok || op.Session != operatorSession || op.Actor() != "console:"+operatorSession {
+		return &helloconsolev1.GetStatsResponse{}, nil
+	}
+
+	return &helloconsolev1.GetStatsResponse{Greetings: 1}, nil
+}
+
+// TestOperatorOf: the internal API sees the console session the relay names,
+// and nothing for a call without one or with a malformed one.
+//
+//nolint:paralleltest // t.Setenv: the SDK block reads the process environment
+func TestOperatorOf(t *testing.T) {
+	p := setup(t, "")
+
+	svc, err := backplane.Open(t.Context(), func(backplane.Root[testConfig]) (*testState, error) {
+		return &testState{}, nil
+	}, baseOptions("hello")...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	svc.Internal(func(r grpc.ServiceRegistrar) { helloconsolev1.RegisterAdminServiceServer(r, operatorAdmin{}) })
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	done := run(ctx, svc)
+
+	eventually(t, "ready", ready(p))
+
+	client := helloconsolev1.NewAdminServiceClient(dial(t, p.platform))
+
+	for _, tc := range []struct {
+		session string
+		want    uint64
+	}{{operatorSession, 1}, {"", 0}, {"not-a-uuid", 0}} {
+		md := []string{guard.Header, secret}
+		if tc.session != "" {
+			md = append(md, guard.SessionHeader, tc.session)
+		}
+
+		out, err := client.GetStats(metadata.AppendToOutgoingContext(ctx, md...), &helloconsolev1.GetStatsRequest{})
+		if err != nil || out.GetGreetings() != tc.want {
+			t.Fatalf("session %q: %v, %d greetings", tc.session, err, out.GetGreetings())
+		}
+	}
+
+	cancel()
+
+	if err := wait(t, done); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+}
+
 // TestStopWhileDependencyRetries: a stop requested while a required
 // dependency is still retrying is not an error, and what was already
 // provided is closed.

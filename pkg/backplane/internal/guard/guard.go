@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -21,6 +22,9 @@ import (
 const (
 	Header     = "bp-internal-secret"
 	HTTPHeader = "Bp-Internal-Secret"
+	// SessionHeader names the console session of a call the console relays:
+	// the console drops the browser's bp-* keys and sets it itself.
+	SessionHeader = "bp-console-session"
 )
 
 const healthPrefix = "/grpc.health.v1.Health/"
@@ -89,7 +93,7 @@ func (g Guard) unary(ctx context.Context, req any, info *grpc.UnaryServerInfo, n
 		return nil, err
 	}
 
-	return next(ctx, req)
+	return next(withSession(ctx), req)
 }
 
 func (g Guard) stream(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, next grpc.StreamHandler) error {
@@ -97,7 +101,42 @@ func (g Guard) stream(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo
 		return err
 	}
 
-	return next(srv, ss)
+	return next(srv, &stream{ServerStream: ss, ctx: withSession(ss.Context())})
+}
+
+type stream struct {
+	grpc.ServerStream
+
+	ctx context.Context //nolint:containedctx // the stream's context with its session
+}
+
+func (s *stream) Context() context.Context { return s.ctx }
+
+type sessionKey struct{}
+
+// withSession is ctx carrying the console session of an authorized call,
+// when its metadata names one.
+func withSession(ctx context.Context) context.Context {
+	md, _ := metadata.FromIncomingContext(ctx)
+
+	values := md.Get(SessionHeader)
+	if len(values) != 1 {
+		return ctx
+	}
+
+	id, err := uuid.Parse(values[0])
+	if err != nil || id == uuid.Nil {
+		return ctx
+	}
+
+	return context.WithValue(ctx, sessionKey{}, id)
+}
+
+// Session is the console session of a call that passed the guard.
+func Session(ctx context.Context) (uuid.UUID, bool) {
+	id, ok := ctx.Value(sessionKey{}).(uuid.UUID)
+
+	return id, ok
 }
 
 // HTTP wraps a handler.

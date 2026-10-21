@@ -169,7 +169,7 @@ Collector.
 | --- | --- |
 | `backplane.audit` | `true`: the record is audit. Required; anything else is not stored. |
 | `event.name` | The action (`identity.deleted`); else the record's `event_name`, else its body cut to 256 characters. |
-| `backplane.audit.actor` | Who did it (`user:7`). |
+| `backplane.audit.actor` | Who did it (`user:7`; a console operator is `console:<session>`, as in backplane's own audit). |
 | `backplane.audit.subject` | What it was done to (`identity/42`). |
 | `backplane.audit.outcome` | `succeeded`, `failed`, `rejected` by convention. |
 | `backplane.audit.id` | Deduplicates retries within the service; without it the record's content (with its resource) does. |
@@ -182,6 +182,19 @@ as sent and are filterable. The Go SDK names these keys (`backplane.AuditLabel`,
 log.Info("identity deleted", backplane.Audit(),
     xlog.String("event.name", "identity.deleted"),
     xlog.String(backplane.AuditSubject, "identity/"+id))
+```
+
+A call on the internal API that the console relays carries the operator's
+session: `backplane.OperatorOf(ctx)` returns it, and `Operator.Actor()` is the
+actor in backplane's own form, so the console's audit lists a session's
+platform and application actions under one actor:
+
+```go
+if op, ok := backplane.OperatorOf(ctx); ok {
+    log.Info("room closed", backplane.Audit(),
+        xlog.String(backplane.AuditActor, op.Actor()),
+        xlog.String(backplane.AuditSubject, "room/"+id))
+}
 ```
 
 ### Delivery
