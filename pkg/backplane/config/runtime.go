@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -30,10 +31,12 @@ func init() {
 
 		return nil
 	}
-	link.SetLive = func(live, v any) {
-		if l, ok := live.(interface{ setAny(v any) }); ok {
-			l.setAny(v)
+	link.SetLive = func(live, v any) error {
+		if l, ok := live.(interface{ setAny(v any) error }); ok {
+			return l.setAny(v)
 		}
+
+		return nil
 	}
 }
 
@@ -221,6 +224,10 @@ func (r *Runtime[C]) handle(ctx context.Context, event xconf.Event) {
 		}
 	}
 
+	if err == nil {
+		err = apply(reflect.ValueOf(r.value).Elem(), reflect.ValueOf(&next).Elem())
+	}
+
 	if err != nil {
 		r.reject(ctx, err, rev)
 
@@ -357,6 +364,68 @@ func ensureLive(v reflect.Value) {
 		}
 	default:
 	}
+}
+
+// apply runs the appliers (Live.Apply) of every Live field next changes,
+// in field order; on an error the ones that succeeded are undone and the
+// error names the field.
+func apply(dst, next reflect.Value) error {
+	var undos []func()
+
+	var err error
+
+	walkLivePairs(dst, next, "", func(l liveField, n any, path string) bool {
+		run, undo := l.prepare(n)
+		if run == nil {
+			return true
+		}
+
+		if e := run(); e != nil {
+			err = fmt.Errorf("apply %s: %w", path, e)
+
+			return false
+		}
+
+		undos = append(undos, undo)
+
+		return true
+	})
+
+	if err != nil {
+		for _, undo := range slices.Backward(undos) {
+			undo()
+		}
+	}
+
+	return err
+}
+
+// walkLivePairs calls fn with every Live field of dst, next's counterpart
+// and its path, until fn returns false.
+func walkLivePairs(dst, next reflect.Value, path string, fn func(liveField, any, string) bool) bool {
+	if dst.CanAddr() {
+		if l, ok := dst.Addr().Interface().(liveField); ok {
+			return fn(l, next.Addr().Interface(), path)
+		}
+	}
+
+	switch dst.Kind() {
+	case reflect.Struct:
+		for i := range dst.NumField() {
+			if f := dst.Type().Field(i); f.IsExported() {
+				if !walkLivePairs(dst.Field(i), next.Field(i), join(path, fieldName(f)), fn) {
+					return false
+				}
+			}
+		}
+	case reflect.Pointer:
+		if !dst.IsNil() && !next.IsNil() {
+			return walkLivePairs(dst.Elem(), next.Elem(), path, fn)
+		}
+	default:
+	}
+
+	return true
 }
 
 func transfer(dst, next reflect.Value) {

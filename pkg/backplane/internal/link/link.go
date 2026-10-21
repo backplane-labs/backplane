@@ -26,10 +26,10 @@ var Scope func(n *node.Node) any
 //nolint:gochecknoglobals // set once by config at init
 var ConfigState func(rt any) configrt.State
 
-// SetLive sets a *config.Live[T] to v (backplanetest).
+// SetLive applies and sets a *config.Live[T] to v (backplanetest).
 //
 //nolint:gochecknoglobals // set once by config at init
-var SetLive func(live, v any)
+var SetLive func(live, v any) error
 
 // APIs extracts what the public api package keeps private.
 //

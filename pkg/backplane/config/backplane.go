@@ -73,6 +73,24 @@ type Server struct {
 	MaxHeaderBytes    int64         `json:"max_header_bytes"    schemapb:"default=1048576;gte=1"`
 	// gRPC: largest message received.
 	GRPCMaxRecvMsgSize int64 `json:"grpc_max_recv_msg_size" schemapb:"default=4194304;gte=1"`
+	// gRPC: largest message sent; 0: unlimited (grpc-go's default).
+	GRPCMaxSendMsgSize int64 `json:"grpc_max_send_msg_size" schemapb:"default=0;gte=0"`
+	// gRPC: concurrent streams per connection; 0: unlimited.
+	GRPCMaxConcurrentStreams int64 `json:"grpc_max_concurrent_streams" schemapb:"default=0;gte=0;lte=4294967295"`
+	// gRPC: the server pings a connection idle this long (long bidi streams
+	// behind NAT and load balancers that drop quiet connections).
+	GRPCKeepaliveTime time.Duration `json:"grpc_keepalive_time" schemapb:"default=2h;gte=1s"`
+	// gRPC: how long the server waits for the ping's answer before closing.
+	GRPCKeepaliveTimeout time.Duration `json:"grpc_keepalive_timeout" schemapb:"default=20s;gte=1s"`
+	// gRPC: a connection without streams this long is closed (GOAWAY);
+	// 0: never.
+	GRPCMaxConnectionIdle time.Duration `json:"grpc_max_connection_idle" schemapb:"default=0s;gte=0"`
+	// gRPC: a connection this old is closed (GOAWAY) so clients reconnect
+	// and rebalance; 0: never.
+	GRPCMaxConnectionAge time.Duration `json:"grpc_max_connection_age" schemapb:"default=0s;gte=0"`
+	// gRPC: how long streams of a connection past its age may finish; 0:
+	// as long as they take.
+	GRPCMaxConnectionAgeGrace time.Duration `json:"grpc_max_connection_age_grace" schemapb:"default=0s;gte=0"`
 	// gRPC: minimum interval of client keepalive pings; some clients ping more
 	// often than grpc-go's 5m default allows.
 	GRPCKeepaliveMinTime time.Duration `json:"grpc_keepalive_min_time" schemapb:"default=30s"`

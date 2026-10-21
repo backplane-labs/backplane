@@ -32,3 +32,6 @@ func TransportStatuses[St any](s *Service[St]) []*backplanev1.TransportStatus { 
 
 // ProbeKind is probeKind.
 func ProbeKind(args []string) (string, bool, error) { return probeKind(args) }
+
+// KeepaliveParams is keepaliveParams.
+var KeepaliveParams = keepaliveParams

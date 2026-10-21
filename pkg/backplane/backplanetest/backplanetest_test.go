@@ -152,7 +152,9 @@ func TestHarness(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	backplanetest.SetLive(&greeting, "Hi")
+	if err := backplanetest.SetLive(&greeting, "Hi"); err != nil {
+		t.Fatal(err)
+	}
 
 	registered, greetings := w.seen()
 	if fmt.Sprint(registered) != "[u1]" || fmt.Sprint(greetings) != "[Hi]" {

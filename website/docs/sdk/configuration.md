@@ -52,6 +52,23 @@ runs like a section's, so a pair it refuses is never applied. Separate
 `Live[int]` fields, by contrast, change one at a time and a reader can see one
 new bound with the other old.
 
+A live value that has to reach something outside the process (a pool size, a
+client, a limiter) is carried there by `Apply`, before anyone sees it:
+
+```go
+cfg.Pool.Apply(func(size int) error {
+    return pool.Resize(size) // an error rejects the update
+})
+```
+
+Appliers run after `Validate`, on every update (the value loaded at start is
+the component's to apply). An error or a panic rejects the whole revision: no
+live field changes, `Watch` callbacks do not fire, appliers that already took
+it are called again with their previous value, and the instance reports the
+revision rejected with `apply <field>: <error>`, as a failed `Validate` does.
+The SDK does not retry; the next revision is applied as usual.
+`backplanetest.SetLive` runs the appliers too and returns their error.
+
 Live fields are the service's own settings. The SDK's connections (the
 `backplane` block's NATS, Temporal and Consul, and the `infra` PostgreSQL,
 Valkey and NATS sections) are startup configuration: a new address or

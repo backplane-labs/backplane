@@ -60,10 +60,14 @@ the instance state.
 | `BACKPLANE_SERVER_READ_HEADER_TIMEOUT`, `_IDLE_TIMEOUT`, `_MAX_HEADER_BYTES` | `10s`, `2m`, `1048576` | HTTP limits of both port classes |
 | `BACKPLANE_SERVER_GRPC_MAX_RECV_MSG_SIZE` | `4194304` | gRPC message limit |
 | `BACKPLANE_SERVER_GRPC_KEEPALIVE_MIN_TIME`, `_GRPC_PERMIT_WITHOUT_STREAM` | `30s`, `true` | gRPC keepalive enforcement  |
+| `BACKPLANE_SERVER_GRPC_KEEPALIVE_TIME`, `_GRPC_KEEPALIVE_TIMEOUT` | `2h`, `20s` | gRPC server pings a quiet connection and closes it without an answer; shorten for long streams behind NAT or load balancers |
+| `BACKPLANE_SERVER_GRPC_MAX_CONNECTION_IDLE`, `_AGE`, `_AGE_GRACE` | `0s` | gRPC GOAWAY to idle / old connections and the grace of their streams; `0s`: never |
+| `BACKPLANE_SERVER_GRPC_MAX_SEND_MSG_SIZE`, `_GRPC_MAX_CONCURRENT_STREAMS` | `0` | gRPC send limit and streams per connection; `0`: unlimited |
 | `BACKPLANE_INSTANCE` | `<service>-<hostname>` | instance id = Consul service id |
 | `BACKPLANE_ADVERTISE` | `POD_IP`, else hostname's IP | address registered in Consul |
 | `BACKPLANE_ENVIRONMENT` | — | `deployment.environment.name` |
 | `BACKPLANE_TELEMETRY_METRICS_INTERVAL`, `_TIMEOUT` | `0s` | metric export timing; `0s`: `OTEL_METRIC_EXPORT_INTERVAL` / `_TIMEOUT`, else `30s` / `10s` |
+| `BACKPLANE_TELEMETRY_TRACES_SAMPLER`, `_RATIO` | `always_on`, `1` | trace sampler: `always_on` records every span whatever the parent decided (sampling is the collector's); `always_off`, `traceidratio`, `parentbased_always_on`, `parentbased_always_off`, `parentbased_traceidratio`; `OTEL_TRACES_SAMPLER` does not apply |
 | `BACKPLANE_TELEMETRY_METRICS_HISTOGRAMS` | — | histogram rules, a JSON list, first match wins ([histograms](../website/docs/guides/telemetry.md#metric-export-and-histograms)) |
 | `BACKPLANE_MESH_DEFAULT` | `allow` | mutual TLS between services (`api.MTLS`): what a caller no Consul intention names gets, `allow` or `deny` |
 | `BACKPLANE_INTERNAL_PORT` | `9400` | platform port |

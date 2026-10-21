@@ -311,5 +311,9 @@ func Ready(h *Harness) error {
 	return fmt.Errorf("%w: %w", ErrNotReady, errors.Join(errs...))
 }
 
-// SetLive changes a Live field as the console would; watchers fire.
-func SetLive[T any](l *config.Live[T], v T) { link.SetLive(l, v) }
+// SetLive changes a Live field as the console would: its appliers
+// (Live.Apply) run first and their error is returned with the field left as
+// it was; otherwise the value is published and watchers fire.
+//
+//nolint:wrapcheck // the applier's own error
+func SetLive[T any](l *config.Live[T], v T) error { return link.SetLive(l, v) }

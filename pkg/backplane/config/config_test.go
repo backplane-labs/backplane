@@ -588,3 +588,108 @@ func TestLiveValueValidated(t *testing.T) {
 		t.Fatalf("open: %v", err)
 	}
 }
+
+type applied struct {
+	config.Backplane `json:"backplane"`
+
+	Pool  config.Live[int]    `json:"pool"  schemapb:"default=1"`
+	Limit config.Live[string] `json:"limit" schemapb:"default=low"`
+}
+
+// An applier's error rejects the whole update: no field changes, watchers
+// stay quiet, an applier that took it gets its old value back, and the
+// state names the field.
+func TestLiveApplyRejects(t *testing.T) {
+	addr := os.Getenv("BACKPLANE_TEST_CONSUL")
+	if addr == "" {
+		t.Skip("BACKPLANE_TEST_CONSUL not set")
+	}
+
+	client, err := api.NewClient(&api.Config{Address: addr})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() { _, _ = client.KV().DeleteTree("config/live-apply/", nil) })
+	t.Setenv("BACKPLANE_CONSUL_ADDR", addr)
+
+	rt, err := config.Open[applied](t.Context(), consuldriver.Config(), config.Service("live-apply"), config.WithoutFile())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rt.Close()
+
+	pool := make(chan int, 8)
+	watched := make(chan int, 8)
+	cfg := rt.Value()
+
+	cfg.Pool.Apply(func(v int) error { pool <- v; return nil })
+	cfg.Pool.Watch(func(v int) { watched <- v })
+	cfg.Limit.Apply(func(v string) error {
+		if v == "broken" {
+			return errors.New("limiter refused")
+		}
+
+		return nil
+	})
+
+	txn := func(pool, limit string) {
+		ok, _, _, err := client.Txn().Txn(api.TxnOps{
+			{KV: &api.KVTxnOp{Verb: api.KVSet, Key: "config/live-apply/pool", Value: []byte(pool)}},
+			{KV: &api.KVTxnOp{Verb: api.KVSet, Key: "config/live-apply/limit", Value: []byte(limit)}},
+		}, nil)
+		if err != nil || !ok {
+			t.Fatalf("txn: %v %v", ok, err)
+		}
+	}
+
+	recv := func(ch chan int) int {
+		select {
+		case v := <-ch:
+			return v
+		case <-time.After(10 * time.Second):
+			t.Fatal("nothing applied")
+
+			return 0
+		}
+	}
+
+	txn("2", "broken")
+
+	if v := recv(pool); v != 2 {
+		t.Fatalf("pool applied %d", v)
+	}
+
+	if v := recv(pool); v != 1 {
+		t.Fatalf("pool not restored: %d", v)
+	}
+
+	deadline := time.Now().Add(10 * time.Second)
+	for link.ConfigState(rt).Effective().Err == nil && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	if e := link.ConfigState(rt).Effective().Err; e == nil || !strings.Contains(e.Error(), "apply limit: limiter refused") {
+		t.Fatalf("state: %v", e)
+	}
+
+	if cfg.Pool.Get() != 1 || cfg.Limit.Get() != "low" {
+		t.Fatalf("published: %d %q", cfg.Pool.Get(), cfg.Limit.Get())
+	}
+
+	select {
+	case v := <-watched:
+		t.Fatalf("watcher saw %d", v)
+	default:
+	}
+
+	txn("3", "high")
+
+	if v := recv(pool); v != 3 {
+		t.Fatalf("pool applied %d", v)
+	}
+
+	if v := recv(watched); v != 3 || cfg.Limit.Get() != "high" || link.ConfigState(rt).Effective().Err != nil {
+		t.Fatalf("applied: watch %d, limit %q, err %v", v, cfg.Limit.Get(), link.ConfigState(rt).Effective().Err)
+	}
+}

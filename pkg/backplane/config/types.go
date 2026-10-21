@@ -2,9 +2,11 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"reflect"
+	"slices"
 	"sync"
 	"sync/atomic"
 
@@ -30,6 +32,7 @@ type cell[T any] struct {
 	value    atomic.Pointer[T]
 	mu       sync.Mutex
 	watchers []func(T)
+	appliers []func(T) error
 	storage  T // decode target; published by value.Store
 }
 
@@ -65,6 +68,88 @@ func (l *Live[T]) Watch(fn func(T)) {
 
 	l.c.watchers = append(l.c.watchers, fn)
 }
+
+// Apply calls fn with every new value before it is published, to carry it
+// to something outside the process (a pool, a client, a limiter). An error
+// (or a panic) rejects the whole update: no Live field changes, Watch
+// callbacks do not fire, appliers that already took the update are called
+// again with the value they had, and the instance reports the revision
+// rejected with the error, as a failed Validate does. Appliers run in
+// order on the configuration's update goroutine, after Validate; the value
+// loaded at start is the component's to apply.
+func (l *Live[T]) Apply(fn func(T) error) {
+	if l.c == nil {
+		return
+	}
+
+	l.c.mu.Lock()
+	defer l.c.mu.Unlock()
+
+	l.c.appliers = append(l.c.appliers, fn)
+}
+
+// prepare is the application of next's value: nil when it does not change
+// this field or nothing applies it; undo gives the appliers the current
+// value back once apply succeeded.
+func (l *Live[T]) prepare(next any) (func() error, func()) {
+	n, _ := next.(*Live[T])
+	if n == nil || l.c == nil {
+		return nil, nil
+	}
+
+	var v T
+	if n.c != nil {
+		v = *n.c.value.Load()
+	}
+
+	cur := l.Get()
+	if reflect.DeepEqual(cur, v) {
+		return nil, nil
+	}
+
+	l.c.mu.Lock()
+	appliers := append([]func(T) error{}, l.c.appliers...)
+	l.c.mu.Unlock()
+
+	if len(appliers) == 0 {
+		return nil, nil
+	}
+
+	apply := func() error {
+		for i, fn := range appliers {
+			if err := applyOne(fn, v); err != nil {
+				for _, done := range slices.Backward(appliers[:i]) {
+					_ = applyOne(done, cur)
+				}
+
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	undo := func() {
+		for _, fn := range slices.Backward(appliers) {
+			_ = applyOne(fn, cur)
+		}
+	}
+
+	return apply, undo
+}
+
+// applyOne runs one applier; a panic is its error.
+func applyOne[T any](fn func(T) error, v T) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%w: %v", errApplierPanic, r)
+		}
+	}()
+
+	return fn(v)
+}
+
+var errApplierPanic = errors.New("applier panicked")
 
 // MarshalJSON writes the current value.
 func (l *Live[T]) MarshalJSON() ([]byte, error) { return json.Marshal(l.Get()) } //nolint:wrapcheck // plain value
@@ -106,10 +191,26 @@ func (l *Live[T]) ensure() {
 	}
 }
 
-func (l *Live[T]) setAny(v any) {
-	if t, ok := v.(T); ok {
-		l.set(t)
+// setAny applies and publishes v as an update would (backplanetest.SetLive):
+// an applier's error leaves the field as it was.
+func (l *Live[T]) setAny(v any) error {
+	t, ok := v.(T)
+	if !ok {
+		return nil
 	}
+
+	l.ensure()
+
+	next := LiveOf(t)
+	if apply, _ := l.prepare(&next); apply != nil {
+		if err := apply(); err != nil {
+			return err
+		}
+	}
+
+	l.set(t)
+
+	return nil
 }
 
 func (l *Live[T]) set(v T) {
@@ -169,6 +270,7 @@ type liveField interface {
 	replaceFrom(next any)
 	ensure()
 	value() reflect.Value
+	prepare(next any) (apply func() error, undo func())
 }
 
 // Secret is a string that never prints: every fmt verb, text, JSON and logs

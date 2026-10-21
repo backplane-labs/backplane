@@ -189,6 +189,10 @@ func validate(b config.Backplane) error {
 		histograms = fmt.Errorf("%w: telemetry.metrics.histograms: %w", ErrConfig, err)
 	}
 
+	if _, err := telemetry.Sampler(b.Telemetry.Traces); err != nil {
+		histograms = errors.Join(histograms, fmt.Errorf("%w: telemetry.traces.sampler: %w", ErrConfig, err))
+	}
+
 	var mesh error
 	if d := b.Mesh.Default; d != config.MeshAllow && d != config.MeshDeny {
 		mesh = fmt.Errorf("%w: mesh.default must be allow or deny, got %q", ErrConfig, d)

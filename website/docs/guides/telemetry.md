@@ -17,6 +17,18 @@ flowchart LR
   Read --> Explore[Explore and module views]
 ```
 
+## Trace sampling
+
+A service on the SDK records every span by default
+(`BACKPLANE_TELEMETRY_TRACES_SAMPLER=always_on`), whatever the caller's
+trace flags say: an unsampled parent from a client or a proxy does not drop
+the service's spans. Which traces are kept is the Collector's decision (tail
+sampling sees whole traces). The other samplers are OpenTelemetry's:
+`always_off`, `traceidratio` and the parent-based `parentbased_always_on`,
+`parentbased_always_off`, `parentbased_traceidratio`, the ratio ones taking
+`BACKPLANE_TELEMETRY_TRACES_RATIO` (0..1). `OTEL_TRACES_SAMPLER` does not
+apply to SDK services.
+
 ## Metric export and histograms
 
 Every service on the SDK exports Go runtime and process metrics and its own

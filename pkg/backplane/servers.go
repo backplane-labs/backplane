@@ -1,7 +1,9 @@
 package backplane
 
 import (
+	"math"
 	"net/http"
+	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/filters"
@@ -10,6 +12,7 @@ import (
 	hv1 "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/listener"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/mtls"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/recovery"
@@ -26,15 +29,45 @@ func (c *core) serverOptions(where string, extra ...grpc.ServerOption) []grpc.Se
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
 			MinTime: s.GRPCKeepaliveMinTime, PermitWithoutStream: s.GRPCPermitWithoutStream,
 		}),
+		grpc.KeepaliveParams(keepaliveParams(s)),
 	}
 
 	if s.GRPCMaxRecvMsgSize > 0 {
 		opts = append(opts, grpc.MaxRecvMsgSize(int(s.GRPCMaxRecvMsgSize)))
 	}
 
+	if s.GRPCMaxSendMsgSize > 0 {
+		opts = append(opts, grpc.MaxSendMsgSize(int(s.GRPCMaxSendMsgSize)))
+	}
+
+	if s.GRPCMaxConcurrentStreams > 0 {
+		streams := uint32(s.GRPCMaxConcurrentStreams) //nolint:gosec // the schema bounds it
+		opts = append(opts, grpc.MaxConcurrentStreams(streams))
+	}
+
 	opts = append(opts, recovery.ServerOptions(c.log, where)...)
 
 	return append(opts, extra...)
+}
+
+// keepaliveParams are the server's keepalive of s; a zero bound is
+// grpc-go's "never".
+func keepaliveParams(s config.Server) keepalive.ServerParameters {
+	never := func(d time.Duration) time.Duration {
+		if d <= 0 {
+			return time.Duration(math.MaxInt64)
+		}
+
+		return d
+	}
+
+	return keepalive.ServerParameters{
+		Time:                  s.GRPCKeepaliveTime,
+		Timeout:               s.GRPCKeepaliveTimeout,
+		MaxConnectionIdle:     never(s.GRPCMaxConnectionIdle),
+		MaxConnectionAge:      never(s.GRPCMaxConnectionAge),
+		MaxConnectionAgeGrace: never(s.GRPCMaxConnectionAgeGrace),
+	}
 }
 
 // limits of the HTTP side of every listener.

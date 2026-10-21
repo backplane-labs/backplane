@@ -6,6 +6,36 @@ import "time"
 // BACKPLANE_TELEMETRY_*. Fixed at start.
 type Telemetry struct {
 	Metrics Metrics `json:"metrics"`
+	Traces  Traces  `json:"traces"`
+}
+
+// Samplers of Traces.
+const (
+	// SamplerAlwaysOn records every span whatever the parent decided:
+	// sampling is the collector's (tail sampling sees whole traces).
+	SamplerAlwaysOn = "always_on"
+	// SamplerAlwaysOff records nothing.
+	SamplerAlwaysOff = "always_off"
+	// SamplerTraceIDRatio records Ratio of traces by trace id.
+	SamplerTraceIDRatio = "traceidratio"
+	// SamplerParentBasedAlwaysOn follows the parent, records roots
+	// (OpenTelemetry's default).
+	SamplerParentBasedAlwaysOn = "parentbased_always_on"
+	// SamplerParentBasedAlwaysOff follows the parent, drops roots.
+	SamplerParentBasedAlwaysOff = "parentbased_always_off"
+	// SamplerParentBasedTraceIDRatio follows the parent, records Ratio of
+	// roots.
+	SamplerParentBasedTraceIDRatio = "parentbased_traceidratio"
+)
+
+// Traces: which spans the service records. OTEL_TRACES_SAMPLER does not
+// apply: the sampler is this section's.
+type Traces struct {
+	// always_on, always_off, traceidratio, parentbased_always_on,
+	// parentbased_always_off or parentbased_traceidratio.
+	Sampler string `json:"sampler" schemapb:"default=always_on"`
+	// Share of traces the ratio samplers record, 0..1.
+	Ratio float64 `json:"ratio" schemapb:"default=1;gte=0;lte=1"`
 }
 
 // Metrics: export timing and how histograms aggregate.
