@@ -11,6 +11,28 @@ workflows.Declare(component, "Report", component.Report,
 
 These typed workflow functions accept `workflow.Context`. Declaring one exposes its contract for administrative runs and schedules. Register its implementation dependencies with `workflows.Register` and the supplied Temporal worker registry. Use `workflows.Activity` when exposing a workflow-backed operation as an activity to bindings.
 
+## Activities of your own workflows
+
+An activity only your workflows run (a saga's step) is registered with
+`workflows.HandleActivity`, not `activity.Handle`: it stays out of the
+manifest, so no binding or rule can call it, and keeps everything else of
+`activity.Handle` — payload encoding, `activity.InfoOf` (idempotency key,
+attempt, deadline), `activity.Heartbeat`, `activity.NonRetryable`,
+`activity.RetryAfter`, tracing, metrics and panic recovery.
+
+```go
+charge := workflows.HandleActivity(component, "ChargeCard", component.Charge)
+
+// in workflow code
+ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{StartToCloseTimeout: time.Minute})
+receipt, err := charge.Execute(ctx, card)
+```
+
+Timeouts and the retry policy are the workflow's (`workflow.ActivityOptions`).
+The name shares the service queue's activity names with `activity.Handle`;
+one taken twice panics at declaration. `workflowtest.New` registers these
+activities too.
+
 ## Determinism
 
 Workflow code must use Temporal workflow APIs for time, concurrency and activity execution. Do not read changing process configuration, access a database or publish an event directly during workflow replay. Perform those operations in activities and return their results into the workflow history.

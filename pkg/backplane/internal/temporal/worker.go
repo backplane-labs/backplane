@@ -65,6 +65,10 @@ func (c *Client) startWorker() error {
 		w.RegisterActivityWithOptions(c.activity(name, h), activity.RegisterOptions{Name: name})
 	}
 
+	for name, h := range c.p.Env.OwnActivities() {
+		w.RegisterActivityWithOptions(c.activity(name, h), activity.RegisterOptions{Name: name})
+	}
+
 	for _, register := range c.p.Env.WorkerRegistrations() {
 		register(w)
 	}

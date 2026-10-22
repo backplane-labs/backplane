@@ -22,7 +22,8 @@ import (
 
 // New creates a Temporal test environment (go.temporal.io/sdk/
 // testsuite) set up as the service's worker is: every activity declared
-// with activity.Handle (by name, over the envelope), every workflow of
+// with activity.Handle or workflows.HandleActivity (by name, over the
+// envelope), every workflow of
 // workflows.Declare and workflows.Activity, and what workflows.Register
 // registers. The service's hooks are a Nexus service of the environment
 // answered by Answer, so workflows.CallHook works in workflow code; an
@@ -46,6 +47,11 @@ func New(tb testing.TB, h *backplanetest.Harness) *testsuite.TestWorkflowEnviron
 	w := suite.NewTestWorkflowEnvironment()
 
 	for name, handler := range e.Activities() {
+		w.RegisterActivityWithOptions(internal.ActivityFunc(e.Service, name, handler),
+			tactivity.RegisterOptions{Name: name})
+	}
+
+	for name, handler := range e.OwnActivities() {
 		w.RegisterActivityWithOptions(internal.ActivityFunc(e.Service, name, handler),
 			tactivity.RegisterOptions{Name: name})
 	}

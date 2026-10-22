@@ -87,6 +87,7 @@ type Env struct {
 	broker     Broker
 	caller     Caller
 	activities map[string]Handler
+	own        map[string]Handler // activities only the service's workflows run
 	reactors   []Reactor
 	registers  []func(registry any)
 	workflows  func() (any, error)
@@ -101,7 +102,10 @@ type Env struct {
 
 // New creates the env of service.
 func New(service string, m *manifest.Builder) *Env {
-	return &Env{Service: service, Manifest: m, activities: map[string]Handler{}, boundSubs: map[chan struct{}]struct{}{}}
+	return &Env{
+		Service: service, Manifest: m, activities: map[string]Handler{}, own: map[string]Handler{},
+		boundSubs: map[chan struct{}]struct{}{},
+	}
 }
 
 // Of returns the env of the tree n belongs to.
@@ -143,12 +147,40 @@ func (e *Env) Caller() Caller {
 	return e.caller
 }
 
-// Activity stores the handler of a declared activity.
+// Activity stores the handler of a declared activity. A name an own
+// activity has panics: both are one Temporal activity name on the queue.
 func (e *Env) Activity(name string, h Handler) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
+	if _, ok := e.own[name]; ok {
+		panic("backplane: activity " + name + " declared twice: by workflows.HandleActivity and as a platform activity")
+	}
+
 	e.activities[name] = h
+}
+
+// OwnActivity stores the handler of an activity only the service's own
+// workflows run: registered on the worker as a declared one is, not in the
+// manifest and not callable by the platform. A name taken panics.
+func (e *Env) OwnActivity(name string, h Handler) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	_, platform := e.activities[name]
+	if _, own := e.own[name]; own || platform {
+		panic("backplane: activity " + name + " declared twice")
+	}
+
+	e.own[name] = h
+}
+
+// OwnActivities lists the activities of OwnActivity by name.
+func (e *Env) OwnActivities() map[string]Handler {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	return maps.Clone(e.own)
 }
 
 // Reactor stores a declared reactor.
