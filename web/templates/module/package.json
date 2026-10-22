@@ -31,7 +31,7 @@
     "@backplane-labs/backplane-charts": "0.1.1",
     "@backplane-labs/backplane-observability-ui": "0.1.1",
     "@backplane-labs/backplane-platform-ui": "0.1.1",
-    "@gopherex/schemapb": "1.7.0",
+    "@gopherex/schemapb": "1.9.7",
     "@gopherex/ws-proto-transport": "1.7.0"
   },
   "devDependencies": {

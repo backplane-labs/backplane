@@ -32,7 +32,7 @@
     "react-i18next": ">=17 <18"
   },
   "dependencies": {
-    "@gopherex/schemapb": "1.7.0",
+    "@gopherex/schemapb": "1.9.7",
     "@backplane-labs/backplane-ui": "0.1.1",
     "@bufbuild/protobuf": "2.16.0"
   }

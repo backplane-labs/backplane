@@ -41,7 +41,7 @@
     "@backplane-labs/backplane-react": "0.1.1",
     "@backplane-labs/backplane-schema-forms": "0.1.1",
     "@backplane-labs/backplane-ui": "0.1.1",
-    "@gopherex/schemapb": "1.7.0",
+    "@gopherex/schemapb": "1.9.7",
     "@xyflow/react": "12.10.2",
     "lossless-json": "4.3.1",
     "lucide-react": "1.48.0",

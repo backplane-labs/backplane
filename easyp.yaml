@@ -9,7 +9,7 @@ lint:
     # Sources live in backplanepb/v1, package is backplane.v1.
     - PACKAGE_DIRECTORY_MATCH
 deps:
-  - github.com/gopherex/schemapb@v1.7.0
+  - github.com/gopherex/schemapb@v1.9.7
 generate:
   inputs:
     - directory: backplanepb

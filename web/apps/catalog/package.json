@@ -23,7 +23,7 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "@backplane-labs/backplane-schema-forms": "0.1.1",
-    "@gopherex/schemapb": "1.7.0",
+    "@gopherex/schemapb": "1.9.7",
     "react-hook-form": "7.89.0",
     "@backplane-labs/backplane-editors": "0.1.1",
     "@backplane-labs/backplane-charts": "0.1.1",

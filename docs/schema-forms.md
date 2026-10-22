@@ -1,6 +1,6 @@
 # Schema forms
 
-`@backplane-labs/backplane-schema-forms` consumes `@gopherex/schemapb@1.7.0` from
+`@backplane-labs/backplane-schema-forms` consumes `@gopherex/schemapb@1.9.7` from
 GitHub Packages. It uses the existing engine for descriptor validation,
 defaults, normalization, CEL computation, conditional visibility, constraints
 and masking. It does not implement a second validation engine.
