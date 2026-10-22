@@ -51,14 +51,14 @@ const (
 // reserved word.
 type Config struct {
 	// Addr is the frontend's host:port.
-	Addr      string     `json:"addr,omitempty"`
-	Namespace string     `json:"ns"             schemapb:"default=default"`
-	TLS       config.TLS `json:"tls"`
+	Addr      string     `desc:"Frontend host:port."    json:"addr,omitempty"`
+	Namespace string     `desc:"Temporal namespace."    json:"ns"             schemapb:"default=default"`
+	TLS       config.TLS `desc:"TLS of the connection." json:"tls"`
 	// APIKey authenticates to Temporal Cloud; it turns TLS on even when TLS
 	// is not enabled.
-	APIKey config.Secret `json:"api_key,omitempty"`
+	APIKey config.Secret `desc:"Temporal Cloud API key; turns TLS on." json:"api_key,omitempty"`
 	// DialTimeout bounds one connection attempt.
-	DialTimeout time.Duration `json:"dial_timeout" schemapb:"default=2s"`
+	DialTimeout time.Duration `desc:"Bound of one connection attempt." json:"dial_timeout" schemapb:"default=2s"`
 }
 
 // Enabled reports whether an address is set.

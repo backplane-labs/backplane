@@ -51,20 +51,20 @@ var (
 type Config struct {
 	// DSN is a libpq URL or key=value string (secret: it may hold the
 	// password).
-	DSN config.Secret `json:"dsn,omitempty"`
+	DSN config.Secret `desc:"libpq URL or key=value string." json:"dsn,omitempty"`
 	// QueryLog is the lowest level of the per-query log: trace, debug,
 	// info, warn, error or none. Arguments are never logged.
-	QueryLog string `json:"query_log" schemapb:"default=warn"`
-	Pool     Pool   `json:"pool"`
+	QueryLog string `desc:"Lowest level of the per-query log: trace, debug, info, warn, error or none. Arguments are never logged." json:"query_log" schemapb:"default=warn"`
+	Pool     Pool   `desc:"Connection pool."                                                                                        json:"pool"`
 }
 
 // Pool bounds the pgx pool; a zero field is pgx's default. Set MaxConns
 // explicitly in production: the default follows the node's CPUs.
 type Pool struct {
-	MaxConns        int64         `json:"max_conns"          schemapb:"default=0;gte=0"`
-	MinConns        int64         `json:"min_conns"          schemapb:"default=0;gte=0"`
-	MaxConnLifetime time.Duration `json:"max_conn_lifetime"  schemapb:"default=0s;gte=0"`
-	MaxConnIdleTime time.Duration `json:"max_conn_idle_time" schemapb:"default=0s;gte=0"`
+	MaxConns        int64         `desc:"Most open connections; 0: pgx's default."                 json:"max_conns"          schemapb:"default=0;gte=0"`
+	MinConns        int64         `desc:"Connections kept open when idle."                         json:"min_conns"          schemapb:"default=0;gte=0"`
+	MaxConnLifetime time.Duration `desc:"A connection this old is closed; 0: pgx's default."       json:"max_conn_lifetime"  schemapb:"default=0s;gte=0"`
+	MaxConnIdleTime time.Duration `desc:"A connection idle this long is closed; 0: pgx's default." json:"max_conn_idle_time" schemapb:"default=0s;gte=0"`
 }
 
 // Enabled reports whether a connection string is set.

@@ -4,9 +4,9 @@ Embed `config.Backplane` in your application configuration and give domain field
 
 ```go
 type GreeterConfig struct {
-    Salute string `json:"salute" schemapb:"default=Hello;description=Word before the name"`
-    Suffix config.Live[string] `json:"suffix" schemapb:"default=!;description=Greeting suffix"`
-    Excited config.Live[bool] `json:"excited" schemapb:"default=false"`
+    Salute string `json:"salute" schemapb:"default=Hello" desc:"Word before the name."`
+    Suffix config.Live[string] `json:"suffix" schemapb:"default=!" desc:"Greeting suffix."`
+    Excited config.Live[bool] `json:"excited" schemapb:"default=false" desc:"Add an exclamation."`
 }
 
 type Config struct {
@@ -14,6 +14,10 @@ type Config struct {
     Greeter GreeterConfig `json:"greeter"`
 }
 ```
+
+The `desc` tag is the field's description: the console shows it under the
+field. Every field of the SDK's own sections (`backplane`, and the `nats`,
+`postgres`, `temporal`, `valkey` connection sections) has one.
 
 Normal fields are startup configuration. `config.Live[T]` marks fields that can change without restarting. Read them with `Get()` at the point of use; copying a live value into an ordinary field would freeze it.
 

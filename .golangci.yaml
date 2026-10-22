@@ -304,6 +304,10 @@ linters:
       - linters:
           - lll
         source: ^//\s*go:generate\s
+      # A field's console description is a struct tag: one line.
+      - linters:
+          - lll
+        source: '[`\s]desc:"'
       - linters:
           - godot
         source: (noinspection|TODO)

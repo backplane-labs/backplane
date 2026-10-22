@@ -43,16 +43,16 @@ var ErrNoAddr = errors.New("valkey: addr is required")
 type Config struct {
 	// Addr is host:port of a node, or comma-separated seeds of a cluster
 	// (host:port,host:port): any one answering is enough to discover it.
-	Addr     string        `json:"addr,omitempty"`
-	Username string        `json:"username,omitempty"`
-	Password config.Secret `json:"password,omitempty"`
+	Addr     string        `desc:"host:port of a node, or comma-separated seeds of a cluster." json:"addr,omitempty"`
+	Username string        `desc:"ACL user."                                                   json:"username,omitempty"`
+	Password config.Secret `desc:"Password."                                                   json:"password,omitempty"`
 	// DB is the logical database. How many there are is the server's to
 	// say: databases on a standalone server (16 by default),
 	// cluster-databases on a Valkey 9+ cluster (1 by default); a classic
 	// cluster has only database 0. A number the server does not have fails
 	// the connection.
-	DB  int64      `json:"db"  schemapb:"default=0;gte=0"`
-	TLS config.TLS `json:"tls"`
+	DB  int64      `desc:"Logical database; a number the server does not have fails the connection." json:"db"  schemapb:"default=0;gte=0"`
+	TLS config.TLS `desc:"TLS of the connection."                                                    json:"tls"`
 }
 
 // Enabled reports whether an address is set.

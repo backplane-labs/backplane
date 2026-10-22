@@ -6,7 +6,7 @@ package config
 type Mesh struct {
 	// What a caller no intention names gets: allow (Consul's own default
 	// without ACLs) or deny.
-	Default string `json:"default" schemapb:"default=allow"`
+	Default string `desc:"What a caller no intention names gets: allow or deny." json:"default" schemapb:"default=allow"`
 }
 
 // Mesh defaults.

@@ -51,10 +51,10 @@ const (
 // Config is the connection's section.
 type Config struct {
 	// URL is one server or a comma-separated list.
-	URL config.Secret `json:"url,omitempty"`
+	URL config.Secret `desc:"Server URL, or comma-separated URLs." json:"url,omitempty"`
 	// Creds is the content of a .creds file (user JWT and seed).
-	Creds config.Secret `json:"creds,omitempty"`
-	TLS   config.TLS    `json:"tls"`
+	Creds config.Secret `desc:"Content of a .creds file (user JWT and seed)." json:"creds,omitempty"`
+	TLS   config.TLS    `desc:"TLS of the connection."                        json:"tls"`
 }
 
 // Enabled reports whether a URL is set.
