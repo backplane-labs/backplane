@@ -35,14 +35,26 @@ func Env(scope any, what string) (*env.Env, *node.Node) {
 	return e, n
 }
 
-// Schema reflects T under <service>/<name>@1.0.0, or nil when T cannot be
-// described: the declaration stays, the payload is plain JSON.
-// Schema reflects T as the manifest's schema of name. A type schemapb
-// cannot reflect (an unsupported field, a malformed schemapb tag) leaves
-// the payload plain JSON: the console shows no form for it, so the
-// author is told on scope's log.
+// Schema is T's schema under <service>/<name>@1.0.0, as Encode writes T:
+// a proto message's from its descriptor (protoSchema), any other type
+// reflected by schemapb. A type that cannot be described (an unsupported
+// field, a malformed schemapb tag) leaves the payload plain JSON: the
+// console shows no form for it, so the author is told on scope's log.
 func Schema[T any](scope deps.Scope, service, name string) *sp.Schema {
-	s, err := sp.ReflectType[T](sp.ID(sp.Namespace(service), sp.SchemaName(name), sp.Ver(1, 0, 0)))
+	id := sp.ID(sp.Namespace(service), sp.SchemaName(name), sp.Ver(1, 0, 0))
+
+	var (
+		s   *sp.Schema
+		err error
+	)
+
+	if m, ok := any(*new(T)).(proto.Message); ok {
+		s = protoSchema(m, id)
+		err = s.CheckDescriptor()
+	} else {
+		s, err = sp.ReflectType[T](id)
+	}
+
 	if err != nil {
 		if scope != nil {
 			scope.Log().Warn("payload schema not reflected: the console gets plain JSON for it",
@@ -55,10 +67,13 @@ func Schema[T any](scope deps.Scope, service, name string) *sp.Schema {
 	return s
 }
 
-// Encode is protojson for proto messages, encoding/json otherwise.
+// Encode is protojson for proto messages, encoding/json otherwise. Proto
+// fields keep their proto names, the names a binding reads in the .proto,
+// and are written when unset too (a oneof's unset members aside), as a Go
+// struct's are: a binding reads a zero count as 0, not as a missing key.
 func Encode(v any) ([]byte, error) {
 	if m, ok := v.(proto.Message); ok {
-		return protojson.Marshal(m) //nolint:wrapcheck // one encoder per path
+		return marshal.Marshal(m) //nolint:wrapcheck // one encoder per path
 	}
 
 	return json.Marshal(v) //nolint:wrapcheck // one encoder per path
@@ -79,6 +94,7 @@ func Decode(data []byte, v any) error {
 
 //nolint:gochecknoglobals // immutable options
 var (
+	marshal      = protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: true}
 	unmarshal    = protojson.UnmarshalOptions{DiscardUnknown: true}
 	protoMessage = reflect.TypeFor[proto.Message]()
 )

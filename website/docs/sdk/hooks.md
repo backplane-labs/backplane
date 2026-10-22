@@ -13,6 +13,26 @@ greet := hook.Declare[GreetIn, GreetOut](component, "Greet",
 
 Declarations belong to a component during tree construction. The fully qualified identity includes the service (`hello.Greet`). `Required` communicates that the hook expects a binding; it does not implement a local fallback for you.
 
+## Payloads
+
+A payload is a Go struct encoded with `encoding/json`, or a generated proto
+message encoded with protojson. The manifest's schema, which bindings and
+rules are checked against, describes the payload exactly as it is sent:
+
+- a struct: its `json` names and Go types;
+- a proto message: its `SchemaPB()` when protoc-gen-go-schemapb generated
+  one, otherwise its descriptor. Fields carry their **proto names**
+  (`req.identity_id`), every field is written, unset too (a binding reads a
+  zero `seq_no` as `0`), except unset oneof members and `optional` fields;
+  enums are their value names (`"STATE_ACTIVE"`), `int64`/`uint64` are JSON
+  strings that bindings read as integers, `Timestamp` and `Duration` are
+  RFC 3339 and `"1.5s"` strings, wrappers are nullable scalars, `Struct`,
+  `Value` and `Any` are free JSON.
+
+A consumer decodes with the same rules: a proto message with protojson
+(either field naming is accepted), a struct with `encoding/json` — for a
+proto producer's 64-bit integers that is a string field or `json:",string"`.
+
 ## Offer an activity
 
 ```go

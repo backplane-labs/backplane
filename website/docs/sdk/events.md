@@ -29,7 +29,7 @@ event.React(component, "hello.Greeted", handle,
     event.StartAt(event.StartNew))
 ```
 
-`handle` receives your locally defined compatible payload type. `event.DeliveryOf(ctx)` exposes the event ID, attempt and extension metadata. Use a stable consumer name to retain delivery position across component refactors.
+An event payload is encoded and described as a hook's ([payloads](hooks.md#payloads)). `handle` receives your locally defined compatible payload type. `event.DeliveryOf(ctx)` exposes the event ID, attempt and extension metadata. Use a stable consumer name to retain delivery position across component refactors.
 
 ## Idempotency and failures
 
