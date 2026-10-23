@@ -48,3 +48,12 @@ describe('schema form engine boundary', () => {
     expect(result.resolved.password).toBe('hidden-value');
   });
 });
+
+describe('schema table cells', () => {
+  it('shows 16 bytes as a uuid and other bytes as hex', async () => {
+    const { bytesText } = await import('../packages/schema-forms/src/table');
+    const id = new Uint8Array(16); id[0] = 0xde; id[15] = 1;
+    expect(bytesText(id)).toBe('de000000-0000-0000-0000-000000000001');
+    expect(bytesText(new Uint8Array([1, 0xab]))).toBe('01ab');
+  });
+});

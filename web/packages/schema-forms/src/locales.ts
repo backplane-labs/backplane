@@ -11,4 +11,5 @@ export const schemaFormsEnglish = {
   schemaError: 'This schema cannot be rendered.', submitError: 'Could not save. Your changes are preserved.',
   errors: 'Validation messages', depth: 'Use the structured editor for deeper values.',
   preview: 'Masked values', warning: 'Warning', error: 'Error',
+  yes: 'Yes', no: 'No', actions: 'Actions', loadMore: 'Load more', loadingMore: 'Loading…',
 } as const;

@@ -9,7 +9,7 @@ All public packages use the `@backplane-labs` scope and GitHub Packages. They sh
 | `@backplane-labs/backplane-react` | Providers, `useClient`, connection and snapshot-watch hooks |
 | `@backplane-labs/backplane-theme` | Semantic tokens, light/dark theme and Grafana theme bridge |
 | `@backplane-labs/backplane-ui` | Primitive controls, tables, trees, layout and common compositions |
-| `@backplane-labs/backplane-schema-forms` | Schema-driven editing with schemapb defaults, validation and masking |
+| `@backplane-labs/backplane-schema-forms` | Schema-driven editing with schemapb defaults, validation and masking (`SchemaForm`), and schema-driven tables (`SchemaTable`) |
 | `@backplane-labs/backplane-editors` | Lazy code/structured editors and language integrations |
 | `@backplane-labs/backplane-charts` | Charts, graphs and exact-value representations |
 | `@backplane-labs/backplane-observability-ui` | Reusable logs, metrics and trace views |
@@ -48,6 +48,32 @@ const result = await catalog.listServices(create(ListServicesRequestSchema));
 The host wraps its content in `BackplaneProvider client={runtime}`. A page calls `useClient(CatalogServiceClient)`; it must not create another connection or dispose the host's client. Abort requests when a page unmounts or its selection changes.
 
 `useSnapshotWatch` is for full-snapshot catalog/configuration/wiring streams. Reconnection replaces the snapshot; it is not durable event replay. Audit and Errors use paginated queries and refresh. Mutations are never automatically replayed after an uncertain network outcome.
+
+## Tables from a schema
+
+`SchemaTable` lays out the rows of a list method from the schemapb `Schema` of
+one item: a column per field, cells formatted by kind — a choice by its label
+(a proto enum by its value name), 64-bit integers without rounding, 16 bytes
+as a uuid and other bytes as hex, timestamps as dates, secrets hidden. Choose
+and order the columns, add derived ones, put actions in each row; the viewer
+can still hide, reorder, pin, sort and filter them. `useCursorPages` follows
+a method paginated by cursor (`next_cursor` / `has_more`) and appends pages:
+
+```tsx
+const pages = useCursorPages(async (cursor, signal) => {
+  const res = await client.listDevices({ cursor, limit: 50 }, { signal });
+  return { items: res.devices.map((d) => toNative(d)), nextCursor: res.nextCursor, hasMore: res.hasMore };
+}, [userId]);
+
+<SchemaTable schema={deviceSchema} rows={pages.rows} label="Devices"
+  columns={['name', 'status', { id: 'os', label: 'OS', value: (row) => String(row.os ?? '') }, 'seen_at']}
+  actions={(row) => <Button onClick={() => revoke(row.id)}>Revoke</Button>}
+  more={{ hasMore: pages.hasMore, loading: pages.loading, onMore: pages.more }} />
+```
+
+Rows are native schemapb values, as `SchemaForm` takes them. Without
+`columns` every field with a cell of its own is shown in schema order;
+structured fields (messages, lists, maps) are shown through a derived column.
 
 ## Styling and translations
 
