@@ -100,6 +100,35 @@ of the trust domain are one mesh, as Consul's intentions are.
 In production protect the identity with Consul ACLs: whoever can get a
 certificate for `feed` (a token with `service:write` on it) is `feed`.
 
+### The platform port
+
+The platform port (`BACKPLANE_INTERNAL_PORT`, 9400) carries backplane's calls
+of the service's activities, the services' hook calls to backplane and the
+console's relay to internal APIs. Without TLS, the internal secret every
+call presents travels in clear text. `BACKPLANE_MESH_PLATFORM` puts the port
+under the same mutual TLS:
+
+- `plain` (default): no TLS, as before.
+- `accept`: the port serves mutual TLS next to plain connections; the
+  service still calls the others plain.
+- `mtls`: the service calls the platform ports of others (and backplane's)
+  over mutual TLS; a plain connection reaches only the probes
+  (`/healthz/*` and `grpc.health.v1.Health`, which kubelet and Consul checks
+  use). Anything else plain is 401 (HTTP) or `Unauthenticated` (gRPC).
+
+Who may call is the same intentions as above (backplane calls every service;
+every service calling hooks calls backplane). The internal secret stays
+required on top. A setting other than `plain` needs the Consul driver and
+Consul with Connect enabled, or Open fails.
+
+Roll it out in two steps, since a caller in `mtls` needs a callee in at least
+`accept`: set `accept` on every service and on backplane, then `mtls`
+everywhere. Every service must run an SDK that knows the setting.
+
+Backplane dials with the same credentials a service can use itself:
+`root.PlatformCredentials("sync")` and `root.PlatformTLS("sync")` are mutual
+TLS in `mtls` and plain otherwise.
+
 ## Independently served APIs
 
 Describe an API that your own server already serves:

@@ -53,7 +53,7 @@ func TestAPIFileProxy(t *testing.T) {
 		svc.Instances = append(svc.Instances, registry.Instance{Registered: true, Healthy: true, State: &backplanev1.InstanceState{Version: version, Phase: backplanev1.InstancePhase_INSTANCE_PHASE_SERVING, Address: version + ".example", PlatformPort: 9000}})
 	}
 
-	c := &Console{sessions: sessions, now: func() time.Time { return now }, src: apiSource{catalog: registry.Catalog{Services: map[string]registry.Service{"hello": svc}}}, bundles: newBundles("relay-secret", defaultCacheBytes)}
+	c := &Console{sessions: sessions, now: func() time.Time { return now }, src: apiSource{catalog: registry.Catalog{Services: map[string]registry.Service{"hello": svc}}}, bundles: newBundles("relay-secret", defaultCacheBytes, nil)}
 	hits := 0
 
 	c.bundles.store(bundleFile{key: "hello/" + hash + "/api.yaml", body: []byte("UI cache entry")})

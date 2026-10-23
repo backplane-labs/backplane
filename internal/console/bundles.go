@@ -97,7 +97,7 @@ func (c *Console) serveBundle(w http.ResponseWriter, r *http.Request, prefix str
 
 		var err error
 
-		f, err = c.bundles.fetchAt(r.Context(), key, hash, clean, prefix, platformAddrs(append(preferred, fallback...)))
+		f, err = c.bundles.fetchAt(r.Context(), name, key, hash, clean, prefix, platformAddrs(append(preferred, fallback...)))
 
 		switch {
 		case errors.Is(err, errBundleNotFound), errors.Is(err, errNoInstance):
@@ -138,9 +138,13 @@ type bundleFile struct {
 //
 // bundles are shared by pointer: they hold the cache.
 type bundles struct {
-	secret config.Secret
-	client *http.Client
-	group  singleflight.Group
+	secret   config.Secret
+	client   *http.Client
+	platform Platform
+
+	tlsMu   sync.Mutex
+	clients map[string]*http.Client // mutual TLS, by service
+	group   singleflight.Group
 
 	mu    sync.Mutex
 	max   int64
@@ -149,9 +153,9 @@ type bundles struct {
 	items map[string]*list.Element // of bundleFile
 }
 
-func newBundles(secret config.Secret, maxBytes int64) *bundles {
+func newBundles(secret config.Secret, maxBytes int64, platform Platform) *bundles {
 	return &bundles{
-		secret: secret,
+		secret: secret, platform: platform, clients: map[string]*http.Client{},
 		client: &http.Client{
 			Timeout:       fetchTimeout,
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
@@ -160,6 +164,36 @@ func newBundles(secret config.Secret, maxBytes int64) *bundles {
 		order: list.New(),
 		items: map[string]*list.Element{},
 	}
+}
+
+// schemePlain is the scheme of a platform port without TLS.
+const schemePlain = "http"
+
+// clientOf is the client of service's platform port and its scheme: mutual
+// TLS when the platform serves it, plain otherwise.
+func (b *bundles) clientOf(service string) (*http.Client, string) {
+	if b.platform == nil {
+		return b.client, schemePlain
+	}
+
+	cfg := b.platform.PlatformTLS(service)
+	if cfg == nil {
+		return b.client, schemePlain
+	}
+
+	b.tlsMu.Lock()
+	defer b.tlsMu.Unlock()
+
+	client, ok := b.clients[service]
+	if !ok {
+		client = &http.Client{
+			Timeout: fetchTimeout, CheckRedirect: b.client.CheckRedirect,
+			Transport: &http.Transport{TLSClientConfig: cfg},
+		}
+		b.clients[service] = client
+	}
+
+	return client, "https"
 }
 
 func (b *bundles) cached(key string) (bundleFile, bool) {
@@ -205,7 +239,9 @@ func (b *bundles) store(f bundleFile) {
 
 // fetch gets one file from the first instance of addrs that has it,
 // once for concurrent requests of the same key, and caches it.
-func (b *bundles) fetchAt(ctx context.Context, key, hash, file, prefix string, addrs []string) (bundleFile, error) {
+func (b *bundles) fetchAt(
+	ctx context.Context, service, key, hash, file, prefix string, addrs []string,
+) (bundleFile, error) {
 	if len(addrs) == 0 {
 		return bundleFile{}, errNoInstance
 	}
@@ -218,7 +254,7 @@ func (b *bundles) fetchAt(ctx context.Context, key, hash, file, prefix string, a
 		var errs []error
 
 		for _, addr := range addrs {
-			f, err := b.fetchFromAt(ctx, addr, hash, file, prefix)
+			f, err := b.fetchFromAt(ctx, service, addr, hash, file, prefix)
 			if err == nil {
 				f.key = key
 				b.store(f)
@@ -246,8 +282,9 @@ func (b *bundles) fetchAt(ctx context.Context, key, hash, file, prefix string, a
 
 // fetchFrom gets the file from one platform port; the ETag must be the
 // hash (the instance serves that bundle).
-func (b *bundles) fetchFromAt(ctx context.Context, addr, hash, file, prefix string) (bundleFile, error) {
-	u := url.URL{Scheme: "http", Host: addr, Path: prefix + file}
+func (b *bundles) fetchFromAt(ctx context.Context, service, addr, hash, file, prefix string) (bundleFile, error) {
+	client, scheme := b.clientOf(service)
+	u := url.URL{Scheme: scheme, Host: addr, Path: prefix + file}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), http.NoBody)
 	if err != nil {
@@ -258,7 +295,7 @@ func (b *bundles) fetchFromAt(ctx context.Context, addr, hash, file, prefix stri
 		req.Header.Set(SecretHTTPHeader, s)
 	}
 
-	res, err := b.client.Do(req)
+	res, err := client.Do(req)
 	if err != nil {
 		return bundleFile{}, fmt.Errorf("console: bundle from %s: %w", addr, err)
 	}

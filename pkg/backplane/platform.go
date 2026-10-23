@@ -13,7 +13,9 @@ import (
 
 	"github.com/backplane-labs/backplane/pkg/backplane/build"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/health"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/listener"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/mtls"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/recovery"
 )
 
@@ -35,8 +37,28 @@ func (c *core) platformHandler() http.Handler {
 	mux.Handle(probesPath, c.health.HTTP())
 	mux.Handle("/", c.guard.HTTP(c.platform))
 
-	return recovery.HTTP(c.log, recovery.HTTPPlatform, mux)
+	var h http.Handler = mux
+	if p := c.mesh.platformTLS(); p != nil {
+		h = p.Middleware(h)
+	}
+
+	return recovery.HTTP(c.log, recovery.HTTPPlatform, h)
 }
+
+// platformListenOptions are the TLS of the platform port when it serves
+// mutual TLS: next to plain connections, which the probes use.
+func (c *core) platformListenOptions() []listener.Option {
+	p := c.mesh.platformTLS()
+	if p == nil {
+		return nil
+	}
+
+	return []listener.Option{listener.TLSOptional(mtls.ServerConfig(p.Src)), listener.ConnContext(mtls.ConnContext)}
+}
+
+// backplaneService is backplane's own service name: the target a hook call
+// verifies over mutual TLS.
+const backplaneService = "backplane"
 
 // platformRoutes adds the SDK's own guarded endpoints: build info and,
 // when enabled, pprof.

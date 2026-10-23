@@ -235,6 +235,13 @@ func PeerOf(conn net.Conn) (Peer, bool) {
 		conn = mc.Conn
 	}
 
+	// A connection of a listener serving TLS and plain alike.
+	if s, ok := conn.(interface{ TLS() *tls.Conn }); ok {
+		if t := s.TLS(); t != nil {
+			conn = t
+		}
+	}
+
 	tc, ok := conn.(*tls.Conn)
 	if !ok {
 		return Peer{}, false

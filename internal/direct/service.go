@@ -73,6 +73,10 @@ func Retention(d time.Duration) Option { return func(s *Service) { s.retention =
 // WithCaller replaces the activity transport (tests).
 func WithCaller(c Caller) Option { return func(s *Service) { s.caller = c } }
 
+// WithPlatform dials the services' platform ports with p (mutual TLS when
+// the installation serves it); without it they are dialed plain.
+func WithPlatform(p Platform) Option { return func(s *Service) { s.platform = p } }
+
 // WithTemporal installs how Temporal-runtime bindings run when called
 // through HookService.
 func WithTemporal(t TemporalRunner) Option { return func(s *Service) { s.temporal = t } }
@@ -83,6 +87,7 @@ func Author(fn func(ctx context.Context) string) Option { return func(s *Service
 // Service is the runtime: the component owning the activity transport,
 // the run recorder and the runs in flight.
 type Service struct {
+	platform Platform
 	deps.Component
 
 	bindings   Bindings
@@ -128,7 +133,7 @@ func New(
 	s.metrics = newMetrics(s.Meter())
 
 	if s.caller == nil {
-		s.acts = NewActivities(src, secret)
+		s.acts = NewActivities(src, secret, s.platform)
 		s.caller = s.acts
 	}
 

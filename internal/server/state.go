@@ -95,7 +95,8 @@ type State struct {
 func NewState(root backplane.Root[Config]) (*State, error) {
 	cfg := root.Config()
 
-	var consoleOptions []console.Option
+	// The services' platform ports are dialed as backplane.mesh.platform says.
+	consoleOptions := []console.Option{console.WithPlatform(root)}
 
 	if cfg.Console.AssetsDir != "" {
 		shell := os.DirFS(cfg.Console.AssetsDir)
@@ -194,7 +195,8 @@ func (st *State) runtime(root backplane.Root[Config],
 	registerErrors func(grpc.ServiceRegistrar),
 ) []console.Option {
 	st.Direct = direct.New(root, st.Bindings, st.Registry, st.Store, cfg.InternalSecret.Reveal(),
-		direct.Author(sessionAuthor), direct.RunTimeout(cfg.Direct.RunTimeout), direct.Retention(cfg.Direct.Retention))
+		direct.Author(sessionAuthor), direct.RunTimeout(cfg.Direct.RunTimeout), direct.Retention(cfg.Direct.Retention),
+		direct.WithPlatform(root))
 	st.Ops.SetDirect(st.Direct)
 
 	registerBindings := st.Direct.RegisterBindings(st.Bindings.BindingAPI(), st.Bindings, nil)

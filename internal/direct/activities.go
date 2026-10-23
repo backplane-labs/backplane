@@ -10,6 +10,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -37,19 +38,30 @@ type Caller interface {
 type Activities struct {
 	src    registry.Source
 	secret string
-	dial   func(addr string) (*grpc.ClientConn, error)
+	dial   func(service, addr string) (*grpc.ClientConn, error)
 
 	mu    sync.Mutex
 	conns map[string]*grpc.ClientConn
 }
 
+// Platform is how backplane dials the services' platform ports: plain, or
+// mutual TLS as the service (backplane.mesh.platform).
+type Platform interface {
+	PlatformCredentials(target string) credentials.TransportCredentials
+}
+
 // NewActivities creates the transport over the registry, presenting the
-// installation's internal secret.
-func NewActivities(src registry.Source, secret string) *Activities {
+// installation's internal secret; platform nil dials plain.
+func NewActivities(src registry.Source, secret string, platform Platform) *Activities {
 	return &Activities{
 		src: src, secret: secret, conns: map[string]*grpc.ClientConn{},
-		dial: func(addr string) (*grpc.ClientConn, error) {
-			return grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()),
+		dial: func(service, addr string) (*grpc.ClientConn, error) {
+			creds := insecure.NewCredentials()
+			if platform != nil {
+				creds = platform.PlatformCredentials(service)
+			}
+
+			return grpc.NewClient(addr, grpc.WithTransportCredentials(creds),
 				grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxMessage), grpc.MaxCallSendMsgSize(maxMessage)))
 		},
 	}
@@ -80,7 +92,7 @@ func (a *Activities) Call(
 	var last error
 
 	for i, addr := range addrs {
-		res, err := a.callOne(ctx, addr, call)
+		res, err := a.callOne(ctx, service, addr, call)
 		if err == nil {
 			return res, nil
 		}
@@ -96,9 +108,9 @@ func (a *Activities) Call(
 }
 
 func (a *Activities) callOne(
-	ctx context.Context, addr string, call *backplanev1.ActivityCall,
+	ctx context.Context, service, addr string, call *backplanev1.ActivityCall,
 ) (*backplanev1.ActivityResult, error) {
-	conn, err := a.conn(addr)
+	conn, err := a.conn(service, addr)
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "dial %s: %v", addr, err)
 	}
@@ -152,7 +164,7 @@ func declares(m *backplanev1.Manifest, activity string) bool {
 	return false
 }
 
-func (a *Activities) conn(addr string) (*grpc.ClientConn, error) {
+func (a *Activities) conn(service, addr string) (*grpc.ClientConn, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -160,7 +172,7 @@ func (a *Activities) conn(addr string) (*grpc.ClientConn, error) {
 		return cc, nil
 	}
 
-	cc, err := a.dial(addr)
+	cc, err := a.dial(service, addr)
 	if err != nil {
 		return nil, err
 	}

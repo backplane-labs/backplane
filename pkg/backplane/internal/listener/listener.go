@@ -40,6 +40,7 @@ type Listener struct {
 	log    *xlog.Logger
 	ln     *tracking
 	tls    *tls.Config
+	mixed  bool          // tls only for connections that start a handshake
 	silent time.Duration // cmux read timeout
 }
 
@@ -50,6 +51,14 @@ type Option func(*Listener)
 // apart: the servers see the decrypted connection (mtls.PeerOf reads its
 // peer).
 func TLS(cfg *tls.Config) Option { return func(l *Listener) { l.tls = cfg } }
+
+// TLSOptional terminates TLS on the connections that start with a TLS
+// handshake and serves the others plain: one port for callers with a
+// certificate and for those without (probes). The servers tell them apart
+// by mtls.PeerOf.
+func TLSOptional(cfg *tls.Config) Option {
+	return func(l *Listener) { l.tls, l.mixed = cfg, true }
+}
 
 // ConnContext sets the HTTP server's ConnContext.
 func ConnContext(fn func(ctx context.Context, c net.Conn) context.Context) Option {
@@ -93,7 +102,11 @@ func (l *Listener) Start(ctx context.Context, g node.Group) error {
 	l.ln = &tracking{Listener: ln, conns: map[*trackedConn]struct{}{}}
 
 	var served net.Listener = l.ln
-	if l.tls != nil {
+
+	switch {
+	case l.tls != nil && l.mixed:
+		served = &sniffing{Listener: l.ln, tls: l.tls}
+	case l.tls != nil:
 		// Under cmux the handshake runs on the first read, bounded by the
 		// same read timeout as an idle connection.
 		served = tls.NewListener(l.ln, l.tls)

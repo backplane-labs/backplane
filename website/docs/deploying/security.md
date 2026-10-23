@@ -20,7 +20,7 @@ PostgreSQL-backed login protection coordinates attempts across replicas. An unav
 
 ## Internal services
 
-Protect platform ports and set installation secrets. Rotation supports previous secrets where documented; keep the overlap bounded operationally. A reachable private port without a configured authentication boundary is not safe merely because its route is called internal: serve APIs only services call with [`api.MTLS()`](../sdk/apis.md#calls-between-services-mutual-tls), and protect certificate issuance with Consul ACLs (a token with `service:write` on a service can get its certificate).
+Protect platform ports and set installation secrets. Rotation supports previous secrets where documented; keep the overlap bounded operationally. A reachable private port without a configured authentication boundary is not safe merely because its route is called internal: serve APIs only services call with [`api.MTLS()`](../sdk/apis.md#calls-between-services-mutual-tls), put the platform ports under mutual TLS with [`BACKPLANE_MESH_PLATFORM=mtls`](../sdk/apis.md#the-platform-port) so the internal secret no longer crosses the network in clear text, and protect certificate issuance with Consul ACLs (a token with `service:write` on a service can get its certificate).
 
 The module host runs trusted same-origin JavaScript. Review module code and its dependency supply chain. The route contract, SDK version check and CSP do not make hostile modules safe to install.
 

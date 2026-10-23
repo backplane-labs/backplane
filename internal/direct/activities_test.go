@@ -116,7 +116,7 @@ func TestActivities(t *testing.T) {
 	// A dead address (nothing listens) and the live one, both healthy.
 	publish(hub, instance("smtp-dead", "smtp", "127.0.0.1", 1, true), instance("smtp-1", "smtp", host, port, true))
 
-	acts := direct.NewActivities(hub, "s3cret")
+	acts := direct.NewActivities(hub, "s3cret", nil)
 	t.Cleanup(acts.Close)
 
 	call := &backplanev1.ActivityCall{Activity: "smtp.Send", Payload: []byte(`{"to":"a"}`), Step: "send"}

@@ -6,9 +6,11 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/gopherex/xlog"
 	"github.com/gopherex/xprobe/pkg/probe"
@@ -76,13 +78,15 @@ type meshState struct {
 	err  error // why there is no mesh
 	use  chan struct{}
 	once sync.Once
+	// platform is backplane.mesh.platform: plain, accept or mtls.
+	platform string
 }
 
 // newMesh builds the mesh node ahead of the author's tree: its goroutine
 // waits for the first use, then follows the identity; readiness requires a
 // certificate once it is used.
 func (c *core) newMesh() *meshState {
-	m := &meshState{use: make(chan struct{})}
+	m := &meshState{use: make(chan struct{}), platform: c.cfg.Mesh.Platform}
 
 	switch {
 	case c.opts.mesh == nil || !c.cfg.Consul.Enabled():
@@ -173,6 +177,56 @@ func (m *meshState) ServiceCredentials(target string) credentials.TransportCrede
 	return credentials.NewTLS(mtls.ClientConfig(m.clientSource(), target, "h2"))
 }
 
+// PlatformCredentials are the gRPC credentials of a call to target's
+// platform port: mutual TLS when backplane.mesh.platform is mtls, plain
+// otherwise.
+//
+//nolint:ireturn // gRPC's credentials
+func (m *meshState) PlatformCredentials(target string) credentials.TransportCredentials {
+	if m.platform != config.PlatformMTLS {
+		return insecure.NewCredentials()
+	}
+
+	return m.ServiceCredentials(target)
+}
+
+// PlatformTLS is PlatformCredentials for an HTTP client; nil when plain.
+func (m *meshState) PlatformTLS(target string) *tls.Config {
+	if m.platform != config.PlatformMTLS {
+		return nil
+	}
+
+	return m.ServiceTLS(target)
+}
+
+// platformTLS is how the platform port serves mutual TLS; nil when it
+// does not (plain, or no mesh — Open refused that).
+func (m *meshState) platformTLS() *mtls.Platform {
+	if m.platform == "" || m.platform == config.PlatformPlain {
+		return nil
+	}
+
+	src, err := m.source()
+	if err != nil {
+		return nil
+	}
+
+	return &mtls.Platform{
+		Src: src, Required: m.platform == config.PlatformMTLS,
+		OpenHTTP: func(path string) bool { return strings.HasPrefix(path, probesPath) },
+		OpenGRPC: mtls.HealthMethod,
+	}
+}
+
+// platformErr: the platform port asks for mutual TLS without a mesh.
+func (m *meshState) platformErr() error {
+	if m.platform == "" || m.platform == config.PlatformPlain || m.src != nil {
+		return nil
+	}
+
+	return fmt.Errorf("%w: mesh.platform=%s: %w", ErrConfig, m.platform, m.err)
+}
+
 // ServiceCredentials are Root.ServiceCredentials, after Open.
 //
 //nolint:ireturn // gRPC's credentials
@@ -182,3 +236,13 @@ func (c *core) ServiceCredentials(target string) credentials.TransportCredential
 
 // ServiceTLS is Root.ServiceTLS, after Open.
 func (c *core) ServiceTLS(target string) *tls.Config { return c.mesh.ServiceTLS(target) }
+
+// PlatformCredentials are Root.PlatformCredentials, after Open.
+//
+//nolint:ireturn // gRPC's credentials
+func (c *core) PlatformCredentials(target string) credentials.TransportCredentials {
+	return c.mesh.PlatformCredentials(target)
+}
+
+// PlatformTLS is Root.PlatformTLS, after Open.
+func (c *core) PlatformTLS(target string) *tls.Config { return c.mesh.PlatformTLS(target) }

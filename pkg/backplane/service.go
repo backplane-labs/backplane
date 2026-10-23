@@ -98,6 +98,19 @@ func (r Root[C]) ServiceCredentials(target string) credentials.TransportCredenti
 // &http.Transport{TLSClientConfig: root.ServiceTLS("sync")}.
 func (r Root[C]) ServiceTLS(target string) *tls.Config { return r.meshState().ServiceTLS(target) }
 
+// PlatformCredentials are the gRPC credentials of a call to target's
+// platform port (port 9400: its activities, internal API): mutual TLS when
+// backplane.mesh.platform is mtls, plain otherwise. What backplane and the
+// SDK dial platform ports with.
+//
+//nolint:ireturn // gRPC's credentials
+func (r Root[C]) PlatformCredentials(target string) credentials.TransportCredentials {
+	return r.meshState().PlatformCredentials(target)
+}
+
+// PlatformTLS is PlatformCredentials for an HTTP client; nil when plain.
+func (r Root[C]) PlatformTLS(target string) *tls.Config { return r.meshState().PlatformTLS(target) }
+
 func (r Root[C]) meshState() *meshState {
 	if r.mesh == nil {
 		return &meshState{err: ErrNoMesh}
@@ -164,6 +177,10 @@ func Open[C config.Backplaner, St any](
 
 	c := newCore(ctx, o, link.ConfigState(conf), block)
 
+	if err := c.mesh.platformErr(); err != nil {
+		return nil, errors.Join(fmt.Errorf("backplane: %w", err), c.Close())
+	}
+
 	scope := link.Scope(c.app).(deps.Component) //nolint:forcetypeassert,errcheck // deps installs it
 	root := Root[C]{Component: scope, cfg: conf.Value(), id: c.id, mesh: c.mesh}
 
@@ -196,6 +213,13 @@ func validate(b config.Backplane) error {
 	var mesh error
 	if d := b.Mesh.Default; d != config.MeshAllow && d != config.MeshDeny {
 		mesh = fmt.Errorf("%w: mesh.default must be allow or deny, got %q", ErrConfig, d)
+	}
+
+	switch b.Mesh.Platform {
+	case config.PlatformPlain, config.PlatformAccept, config.PlatformMTLS:
+	default:
+		mesh = errors.Join(mesh,
+			fmt.Errorf("%w: mesh.platform must be plain, accept or mtls, got %q", ErrConfig, b.Mesh.Platform))
 	}
 
 	return errors.Join(validateShutdown(b.Shutdown), validateHealth(b.Health), validateNATS(b.NATS), histograms, mesh)

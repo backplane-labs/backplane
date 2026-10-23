@@ -48,26 +48,27 @@ var relayDesc = &grpc.StreamDesc{StreamName: "relay", ServerStreams: true, Clien
 //
 // A relay is shared by pointer: it holds the pool.
 type relay struct {
-	src    registry.Source
-	secret config.Secret
+	src      registry.Source
+	secret   config.Secret
+	platform Platform
 
 	mu    sync.Mutex
 	pool  map[string]*grpc.ClientConn // by platform address
 	ended bool
 }
 
-func newRelay(src registry.Source, secret config.Secret) *relay {
-	return &relay{src: src, secret: secret, pool: map[string]*grpc.ClientConn{}}
+func newRelay(src registry.Source, secret config.Secret, platform Platform) *relay {
+	return &relay{src: src, secret: secret, platform: platform, pool: map[string]*grpc.ClientConn{}}
 }
 
 // handle is the unknown-method handler of /ws.
 func (rl *relay) handle(ctx context.Context, down *wsrpc.Stream) error {
-	addr, err := rl.target(down.Method())
+	service, addr, err := rl.target(down.Method())
 	if err != nil {
 		return err
 	}
 
-	cc, err := rl.conn(addr)
+	cc, err := rl.conn(service, addr)
 	if err != nil {
 		return err
 	}
@@ -141,13 +142,14 @@ func pumpUp(down *wsrpc.Stream, upstream grpc.ClientStream, cancel context.Cance
 	}
 }
 
-// target is the platform address of an instance serving method's service:
+// target is the service owning method and the platform address of one of
+// its serving instances:
 // PERMISSION_DENIED unless a service's latest manifest declares it as its
 // internal API, UNAVAILABLE without a serving instance.
-func (rl *relay) target(method string) (string, error) {
+func (rl *relay) target(method string) (string, string, error) {
 	name, ok := serviceOf(method)
 	if !ok {
-		return "", status.Errorf(codes.PermissionDenied, "%s: not a method", method)
+		return "", "", status.Errorf(codes.PermissionDenied, "%s: not a method", method)
 	}
 
 	cat := rl.src.Current()
@@ -161,11 +163,11 @@ func (rl *relay) target(method string) (string, error) {
 	}
 
 	if len(owners) == 0 {
-		return "", status.Errorf(codes.PermissionDenied, "%s is not the internal API of any service", method)
+		return "", "", status.Errorf(codes.PermissionDenied, "%s is not the internal API of any service", method)
 	}
 
 	if len(owners) > 1 {
-		return "", status.Errorf(codes.FailedPrecondition,
+		return "", "", status.Errorf(codes.FailedPrecondition,
 			"%s is declared by multiple services: %s", name, strings.Join(owners, ", "))
 	}
 
@@ -177,10 +179,10 @@ func (rl *relay) target(method string) (string, error) {
 	}
 
 	if len(preferred) == 0 {
-		return "", status.Errorf(codes.Unavailable, "%s: no serving instance of %s", method, owners[0])
+		return "", "", status.Errorf(codes.Unavailable, "%s: no serving instance of %s", method, owners[0])
 	}
 
-	return platformAddr(preferred[rand.IntN(len(preferred))]), nil //nolint:gosec // load spreading
+	return owners[0], platformAddr(preferred[rand.IntN(len(preferred))]), nil //nolint:gosec // load spreading
 }
 
 // serviceOf is the full service name of "/pkg.Service/Method".
@@ -191,7 +193,7 @@ func serviceOf(method string) (string, bool) {
 }
 
 // conn is the pooled connection to addr.
-func (rl *relay) conn(addr string) (*grpc.ClientConn, error) {
+func (rl *relay) conn(service, addr string) (*grpc.ClientConn, error) {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
@@ -203,8 +205,13 @@ func (rl *relay) conn(addr string) (*grpc.ClientConn, error) {
 		return cc, nil
 	}
 
+	creds := insecure.NewCredentials()
+	if rl.platform != nil {
+		creds = rl.platform.PlatformCredentials(service)
+	}
+
 	cc, err := grpc.NewClient(addr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(creds),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxRelayMessage), grpc.MaxCallSendMsgSize(maxRelayMessage)))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "dial %s: %v", addr, err)

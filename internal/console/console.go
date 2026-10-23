@@ -20,6 +20,7 @@ package console
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -31,6 +32,7 @@ import (
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/gopherex/xlog"
 
@@ -110,7 +112,21 @@ type options struct {
 	shell            fs.FS
 	telemetry        http.Handler
 	sessionTelemetry http.Handler
+	platform         Platform
 }
+
+// Platform is how the console dials the services' platform ports (the
+// relay, the module bundles): plain, or mutual TLS as backplane
+// (backplane.mesh.platform).
+type Platform interface {
+	PlatformCredentials(target string) credentials.TransportCredentials
+	// PlatformTLS is nil when plain.
+	PlatformTLS(target string) *tls.Config
+}
+
+// WithPlatform dials the platform ports with p; without it they are
+// dialed plain.
+func WithPlatform(p Platform) Option { return func(o *options) { o.platform = p } }
 
 // WithClock replaces time.Now (tests).
 func WithClock(now func() time.Time) Option { return func(o *options) { o.now = now } }
@@ -195,8 +211,8 @@ func New(
 		c.origins = append(c.origins, strings.ToLower(strings.TrimSuffix(origin, "/")))
 	}
 
-	c.relay = newRelay(src, s.InternalSecret)
-	c.bundles = newBundles(s.InternalSecret, o.cacheBytes)
+	c.relay = newRelay(src, s.InternalSecret, o.platform)
+	c.bundles = newBundles(s.InternalSecret, o.cacheBytes, o.platform)
 	c.handler = c.routes(c.newWS(o.services), o.shell, o.telemetry, o.sessionTelemetry)
 
 	c.OnStart(func(context.Context) error { return s.Validate() })

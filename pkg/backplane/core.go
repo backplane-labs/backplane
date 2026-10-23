@@ -99,15 +99,23 @@ func newCore(ctx context.Context, o options, conf configrt.State, cfg config.Bac
 		gate:     gate.New(),
 		platform: http.NewServeMux(),
 	}
-	c.internals = routes.NewDispatch()
-	c.internal = grpc.NewServer(c.serverOptions(recovery.GRPCInternal,
-		slices.Concat(c.guard.ServerOptions(), c.gate.ServerOptions(), c.internals.ServerOptions())...)...)
-	hv1.RegisterHealthServer(c.internal, c.health.GRPC())
-	backplanev1.RegisterActivityServiceServer(c.internal, direct.NewServer(id.Service, c.env, log))
 	c.platformRoutes()
 
 	c.svc = node.New(id.Service, log, c.env)
 	c.svc.SetProbeInterval(cfg.Health.Interval)
+	c.mesh = c.newMesh()
+
+	// Mutual TLS of the platform port authorizes first, then the secret.
+	var mutual []grpc.ServerOption
+	if p := c.mesh.platformTLS(); p != nil {
+		mutual = p.GRPCServerOptions()
+	}
+
+	c.internals = routes.NewDispatch()
+	c.internal = grpc.NewServer(c.serverOptions(recovery.GRPCInternal,
+		slices.Concat(mutual, c.guard.ServerOptions(), c.gate.ServerOptions(), c.internals.ServerOptions())...)...)
+	hv1.RegisterHealthServer(c.internal, c.health.GRPC())
+	backplanev1.RegisterActivityServiceServer(c.internal, direct.NewServer(id.Service, c.env, log))
 
 	cn := c.svc.Child("config", node.System, false)
 	cn.OnStop(func(context.Context) error { return conf.Close() })
@@ -122,11 +130,10 @@ func newCore(ctx context.Context, o options, conf configrt.State, cfg config.Bac
 	hn := c.svc.Child("health", node.System, false)
 	hn.OnStart(func(ctx context.Context) error { return c.health.Start(ctx, hn) })
 
-	c.listen("platform", listenAddr(cfg.InternalPort), c.internal, c.platformHandler())
+	c.listen("platform", listenAddr(cfg.InternalPort), c.internal, c.platformHandler(), c.platformListenOptions()...)
 	c.presenceNode()
 	c.connect()
 	c.requireTransports()
-	c.mesh = c.newMesh()
 
 	c.app = c.svc.Child(id.Service, node.Root, false)
 	c.health.Add(health.Ready, c.app.Readiness())
@@ -263,9 +270,13 @@ func (c *core) hookTransport() {
 			return
 		}
 
+		creds := c.mesh.PlatformCredentials(backplaneService)
 		caller := direct.NewCaller(direct.CallerParams{
 			Service: c.id.Service, Instance: c.id.Instance, Secret: c.cfg.InternalSecret.Reveal(),
 			Timeout: c.cfg.Temporal.HookTimeout, Discovery: find,
+			Dial: func(addr string) (*grpc.ClientConn, error) {
+				return grpc.NewClient(addr, grpc.WithTransportCredentials(creds))
+			},
 		})
 		c.env.SetHookTimeout(c.cfg.Temporal.HookTimeout)
 		c.env.SetCaller(caller)
