@@ -5,11 +5,9 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
 	"github.com/backplane-labs/backplane/pkg/backplane/sections"
 )
@@ -56,29 +54,7 @@ func TestFollow(t *testing.T) {
 
 	changes := modules.Changes(t.Context())
 
-	publish := func(services map[string]proto.Message) {
-		t.Helper()
-
-		set := &backplanev1.SectionSet{Services: map[string]*anypb.Any{}}
-
-		for service, msg := range services {
-			value, err := anypb.New(msg)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			set.Services[service] = value
-		}
-
-		raw, err := proto.Marshal(set)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		sections.Publish(h.Root(), "komeet.module", raw)
-	}
-
-	publish(map[string]proto.Message{"media": wrapperspb.String("m"), "odd": durationpb.New(time.Second)})
+	backplanetest.SetSections(h, "komeet.module", map[string]proto.Message{"media": wrapperspb.String("m"), "odd": durationpb.New(time.Second)})
 
 	got := modules.Get()
 	if !modules.Known() || len(got) != 1 || got["media"].GetValue() != "m" {
@@ -91,7 +67,7 @@ func TestFollow(t *testing.T) {
 		t.Fatal("no change signaled")
 	}
 
-	publish(map[string]proto.Message{"media": wrapperspb.String("m")})
+	backplanetest.SetSections(h, "komeet.module", map[string]proto.Message{"media": wrapperspb.String("m")})
 
 	select {
 	case <-changes:
@@ -99,9 +75,36 @@ func TestFollow(t *testing.T) {
 	default:
 	}
 
-	sections.Publish(h.Root(), "komeet.module", nil)
+	backplanetest.SetSections(h, "komeet.module", nil)
 
-	if len(modules.Get()) != 0 {
+	if !modules.Known() || len(modules.Get()) != 0 {
 		t.Fatalf("after removal %v", modules.Get())
+	}
+
+	select {
+	case <-changes:
+	default:
+		t.Fatal("removal not signaled")
+	}
+}
+
+// A set published empty is known.
+func TestFollowKnownEmpty(t *testing.T) {
+	t.Parallel()
+
+	h := backplanetest.New(t)
+	modules := sections.Follow[*wrapperspb.StringValue](h.Root(), "komeet.module")
+	changes := modules.Changes(t.Context())
+
+	backplanetest.SetSections(h, "komeet.module", map[string]proto.Message{})
+
+	if !modules.Known() || len(modules.Get()) != 0 {
+		t.Fatalf("known %v, set %v", modules.Known(), modules.Get())
+	}
+
+	select {
+	case <-changes:
+	default:
+		t.Fatal("first set not signaled")
 	}
 }

@@ -41,3 +41,7 @@ the follower's set.
 Declare `Offer` and `Follow` before `Run`, like routes and hooks. A section
 that does not marshal is a declaration error that `Run` fails with and
 `Service.Validate` reports.
+
+In tests, `h.Manifest().GetSections()` shows what a service offers, and
+`backplanetest.SetSections(h, name, services)` publishes a set to the
+harness's followers as Backplane would (see [Testing](testing.md)).
