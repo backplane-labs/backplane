@@ -8,6 +8,8 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/gopherex/pgtx/pkg/tx"
+
 	"github.com/backplane-labs/backplane/internal/store/db"
 )
 
@@ -61,7 +63,11 @@ func (s *Store) AppendAudit(ctx context.Context, draft AuditDraft) (db.InsertAud
 
 	var entry db.InsertAuditEntryRow
 
-	err = s.InTx(ctx, func(ctx context.Context) error {
+	// On its own the entry is a read committed transaction: concurrent
+	// entries queue on the clock's row lock instead of failing serializable
+	// (40001) and burning their retries on the one hot row. Inside the
+	// caller's transaction it joins with the caller's isolation.
+	err = tx.DoReadCommitted(ctx, s.Trm, func(ctx context.Context) error {
 		sequence, seqErr := s.Q.NextAuditSequence(ctx)
 		if seqErr != nil {
 			return fmt.Errorf("audit sequence: %w", seqErr)
@@ -84,9 +90,9 @@ func (s *Store) AppendAudit(ctx context.Context, draft AuditDraft) (db.InsertAud
 		}
 
 		return nil
-	})
+	}, tx.WithRetry(tx.DefaultRetryPolicy))
 
-	return entry, err
+	return entry, err //nolint:wrapcheck // fn's error as is
 }
 
 // AuditControl is the transaction participant for a completed database mutation.

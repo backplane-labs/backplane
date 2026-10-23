@@ -134,3 +134,38 @@ func TestAuditCommitOrderAcrossReplicas(t *testing.T) {
 		}
 	}
 }
+
+// Concurrent entries on their own all commit: they queue on the clock
+// instead of failing serializable on it. Not parallel: the burst would
+// starve the serializable transactions of the other tests.
+func TestAuditConcurrentAppends(t *testing.T) { //nolint:paralleltest // see above
+	st := open(t)
+	operation := uuid.New()
+
+	const writers = 16
+
+	var writing sync.WaitGroup
+
+	errs := make(chan error, writers)
+
+	for range writers {
+		writing.Go(func() {
+			_, err := st.AppendAudit(t.Context(), store.AuditDraft{Actor: "test", Action: "test.concurrent", Subject: operation.String(), Outcome: "intent", OperationID: operation})
+			errs <- err
+		})
+	}
+
+	writing.Wait()
+	close(errs)
+
+	for err := range errs {
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	var count int
+	if err := st.Pool.QueryRow(t.Context(), "SELECT count(*) FROM backplane.audit_entry WHERE operation_id=$1", operation).Scan(&count); err != nil || count != writers {
+		t.Fatalf("entries %d, want %d: %v", count, writers, err)
+	}
+}
