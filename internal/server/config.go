@@ -67,7 +67,7 @@ type Wiring struct {
 	// Runtime of a binding or rule that names none: "temporal", "direct",
 	// or "auto": temporal when Temporal is configured, else direct.
 	Runtime string `json:"runtime" schemapb:"default=auto"`
-	// Dir holds bindings and rules as YAML files, kept in force: the
+	// Dir holds bindings, rules and schedules as YAML files, kept in force: the
 	// console only reads what they define (website guides/wiring.md).
 	// Empty: everything is the console's.
 	Dir string `json:"dir,omitempty"`

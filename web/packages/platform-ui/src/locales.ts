@@ -71,6 +71,7 @@ export const platformEnglish = {
   workflowIdOptional: 'Workflow ID (optional)', workflowIdDefault: 'console/{{service}}/{{workflow}}/<uuid>', timeoutOptional: 'Execution timeout (optional)',
   timeoutPlaceholder: 'e.g. 90s, 5m, 1h', invalidTimeout: 'Use a number followed by s, m or h.',
   notInTemporal: 'Not in Temporal', notInTemporalHelp: 'Declared, but Temporal has no such schedule yet: the owning service has not reconciled it.',
+  managedBy: 'From {{file}}', managedHelp: 'A wiring file manages this schedule: edit or remove it in {{file}}. Pause, resume and trigger stay here.',
   drift: 'Differs from declaration', driftHelp: 'Declared {{declared}}; Temporal says {{actual}}.', nextActions: 'Next runs', recentActions: 'Recent runs',
   runningRuns: 'Running', missedCatchup: 'Missed (catch-up window)', overlapSkipped: 'Skipped (overlap)', created: 'Created', updated: 'Updated', owner: 'Owner',
   note: 'Note', notePlaceholder: 'Why (optional)', scheduleDetails: 'Details of {{name}}',

@@ -304,6 +304,10 @@ message ScheduleInfo {
   backplane.v1.Schedule declared = 4;
   // Unset: Temporal has no such schedule (not reconciled yet).
   ScheduleState state = 5;
+  // The wiring file that manages the schedule; empty when the console
+  // does. A managed schedule is edited in its file: UpdateSchedule and
+  // DeleteSchedule refuse it, pause, unpause and trigger do not.
+  string managed_by = 6;
 }
 
 message ListSchedulesRequest {

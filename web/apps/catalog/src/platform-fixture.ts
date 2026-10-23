@@ -252,6 +252,8 @@ export class PlatformFixture implements ClientRuntime {
         const at = (seconds: bigint) => ({ seconds, nanos: 0 });
         return create(api.ListSchedulesResponseSchema, { schedules: [
           { service: 'hello', name: 'Nightly', id: 'hello/Nightly', declared: { name: 'Nightly', workflow: 'Welcome', spec: { case: 'cron', value: '0 3 * * *' } } },
+          { service: 'hello', name: 'Collect', id: 'hello/Collect', managedBy: 'schedules/hello.yaml',
+            state: { paused: false, actionCount: 12n, workflowType: 'Welcome', owner: 'hello', created: at(1790679600n), nextActions: [at(1790686800n)] } },
           { service: 'hello', name: 'Welcome', id: 'hello/Welcome', declared: { name: 'Welcome', workflow: 'Welcome', spec: { case: 'every', value: { seconds: 3600n } } },
             state: { paused: true, note: 'maintenance (console:fixture)', actionCount: 9007199254740993n, missedCatchupWindow: 2n, overlapSkipped: 1n, workflowType: 'Welcome', owner: 'hello', created: at(1790679600n),
               nextActions: [at(1790686800n), at(1790690400n)], recentActions: [{ workflowId: 'hello/Welcome-2026-09-30T11:00:00Z', runId: 'run-9', actualTime: at(1790679600n), scheduleTime: at(1790679600n) }] } },

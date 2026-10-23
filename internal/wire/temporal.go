@@ -29,6 +29,9 @@ const (
 	// MemoFingerprint, on its workflow action, the declaration's hash.
 	MemoService     = "backplane.service"
 	MemoFingerprint = "backplane.schedule"
+	// MemoWiring marks a schedule a wiring file manages: on the schedule
+	// (set at creation) and on its workflow action, the file's name.
+	MemoWiring = "backplane.wiring"
 )
 
 // Queue is the task queue of service: its name.

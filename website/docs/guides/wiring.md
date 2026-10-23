@@ -68,8 +68,8 @@ History supports review and rollback. A removed/changed service contract can inv
 
 ## Keep wiring in files
 
-An installation can keep bindings and rules in YAML files instead of saving
-them from the console. Point `BACKPLANE_WIRING_DIR` at a directory: a
+An installation can keep bindings, rules and workflow schedules in YAML files
+instead of saving them from the console. Point `BACKPLANE_WIRING_DIR` at a directory: a
 mounted Kubernetes ConfigMap, a directory baked into the image, a checkout.
 Every replica reads it at start, every `BACKPLANE_WIRING_POLL` (5s) and on
 every new manifest, and keeps the platform's versions equal to it. You do not
@@ -122,5 +122,35 @@ What the files define, the console only reads:
   files defined before.
 
 To roll back, revert the file. History stays in the platform as for any version.
+
+### Schedules
+
+The same files hold the Temporal schedules of the services' own workflows
+(Temporal must be configured):
+
+```yaml
+# wiring/media.yaml
+schedules:
+  - service: media                 # with name, the schedule's identity: media/collect
+    name: collect
+    workflow: Collect              # a workflow the service declares
+    input: {older_than: 24h}       # checked against the workflow's input schema
+    timing: {cron: ["0 3 * * *"], timezone: Europe/Moscow}   # or {interval: 3600s}
+    execution_timeout: 1h
+    paused: false                  # only when the schedule is created
+```
+
+- A missing schedule is created; one whose definition differs from its file
+  is updated. Its state stays the operator's: pausing, resuming and
+  triggering from the console keep working, and `paused` in the file applies
+  only at creation.
+- A schedule of the same id made in the console is taken over: deleted and
+  created again from the file.
+- Editing or deleting a file's schedule from the console is refused
+  (`FAILED_PRECONDITION`); the console shows the file it comes from.
+- A schedule removed from every file is deleted; running workflows it started
+  keep running.
+- A schedule whose workflow no manifest declares yet waits for the service to
+  register.
 
 See the [language reference](wiring-language.md), [WiringService](../reference/services/wiring-service.md), [BindingService](../reference/services/binding-service.md), [RuleService](../reference/services/rule-service.md) and the [editor behavior reference](../reference/platform-ui.md#wiring).

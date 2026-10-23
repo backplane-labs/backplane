@@ -156,6 +156,7 @@ func NewState(root backplane.Root[Config]) (*State, error) {
 
 	if cfg.Wiring.Dir != "" {
 		bindings.NewFiles(root, st.Bindings, cfg.Wiring.Dir, cfg.Wiring.Poll)
+		ops.NewScheduleFiles(root, st.Ops, cfg.Wiring.Dir, cfg.Wiring.Poll)
 	}
 
 	consoleOptions = append(consoleOptions, st.runtime(root, cfg, st.Errors.Register)...)

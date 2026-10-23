@@ -70,3 +70,11 @@ func (o *Ops) HookCallOf(ctx context.Context, req *consolev1.CallHookRequest) (s
 
 	return opts.ID, call, err
 }
+
+// ReadSchedules is readSchedules: the schedules' count, or why the
+// directory does not read.
+func ReadSchedules(dir string) (int, error) {
+	want, _, err := readSchedules(dir)
+
+	return len(want), err
+}

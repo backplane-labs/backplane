@@ -174,10 +174,11 @@ function ScheduleRow({ schedule, onOpenRun, onShowRuns, onChanged, onEdit }: { o
   };
   const noteField = <label className="grid gap-1 text-xs text-muted-foreground">{text('note')}<Input className="h-8" value={note} placeholder={text('notePlaceholder')} onChange={(event) => setNote(event.target.value)} /></label>;
   const runLink = (run: RunRef, children: ReactNode) => <button type="button" className="min-w-0 truncate text-left text-link hover:underline" title={run.workflowId} onClick={() => onOpenRun(run)}>{children}</button>;
-  const blocked = !live || action.pending || action.disabled;
+  const blocked = !live || action.pending || action.disabled, managed = schedule.managedBy !== '';
   return <div role="group" aria-label={schedule.name} className="grid gap-1.5 border-b border-border px-3 py-2.5 last:border-b-0">
     <div className="flex flex-wrap items-center gap-2"><span className="font-mono text-xs">{schedule.name}</span>
       {!live ? <StatusBadge tone="neutral" title={text('notInTemporalHelp')}>{text('notInTemporal')}</StatusBadge> : <StatusBadge tone={paused ? 'warning' : 'success'}>{text(paused ? 'paused' : 'active')}</StatusBadge>}
+      {managed && <Badge variant="outline" className="font-mono" title={text('managedHelp', { file: schedule.managedBy })}>{text('managedBy', { file: schedule.managedBy })}</Badge>}
       {drift && <Badge variant="outline" className="text-warning" title={text('driftHelp', { declared: text(schedule.declared!.paused ? 'paused' : 'active'), actual: text(paused ? 'paused' : 'active') })}>{text('drift')}</Badge>}
       <span className="ml-auto text-2xs text-muted-foreground">{text('runsCount', { count: Number(live?.actionCount ?? 0n) })}</span></div>
     <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
@@ -192,8 +193,8 @@ function ScheduleRow({ schedule, onOpenRun, onShowRuns, onChanged, onEdit }: { o
       {live?.note && <span className="italic">{live.note}</span>}
     </div>
     <div className="flex flex-wrap items-center gap-1.5">
-      <Button size="sm" variant="ghost" disabled={blocked} onClick={onEdit}>{text('editSchedule')}</Button>
-      <ConfirmAction trigger={text('deleteSchedule')} title={text('deleteSchedule')} description={text('deleteScheduleHelp')} disabled={blocked} onConfirm={control('delete')} />
+      {!managed && <Button size="sm" variant="ghost" disabled={blocked} onClick={onEdit}>{text('editSchedule')}</Button>}
+      {!managed && <ConfirmAction trigger={text('deleteSchedule')} title={text('deleteSchedule')} description={text('deleteScheduleHelp')} disabled={blocked} onConfirm={control('delete')} />}
       {paused ? <ConfirmAction trigger={<><Play className="size-3.5" />{text('resume')}</>} title={text('resumeConfirm', { name: schedule.name })} description={text('resumeHelp')} disabled={blocked} onConfirm={control('resume')}>{noteField}</ConfirmAction>
         : <ConfirmAction trigger={<><Pause className="size-3.5" />{text('pause')}</>} title={text('pauseConfirm', { name: schedule.name })} description={text('pauseHelp')} disabled={blocked} onConfirm={control('pause')}>{noteField}</ConfirmAction>}
       <ConfirmAction trigger={<><Zap className="size-3.5" />{text('trigger')}</>} title={text('triggerConfirm', { name: schedule.name })} description={text('triggerHelp')} disabled={blocked} onConfirm={control('trigger')} />

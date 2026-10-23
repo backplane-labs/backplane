@@ -89,6 +89,7 @@ func (a ScheduleAPI) ListSchedules(
 		}
 
 		info.State = scheduleStatePB(desc)
+		info.ManagedBy = managedBy(desc.Memo)
 		out.Schedules = append(out.Schedules, info)
 	}
 

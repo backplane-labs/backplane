@@ -402,6 +402,8 @@ func readWiring(dir string) (desired, error) {
 type wiringDocument struct {
 	Bindings []map[string]any `yaml:"bindings"`
 	Rules    []map[string]any `yaml:"rules"`
+	// Schedules are ops.ScheduleFiles's.
+	Schedules []map[string]any `yaml:"schedules"`
 }
 
 // add reads one file's documents into want.

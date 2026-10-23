@@ -1663,7 +1663,11 @@ type ScheduleInfo struct {
 	// The declaration; unset when no latest manifest declares it.
 	Declared *v1.Schedule `protobuf:"bytes,4,opt,name=declared,proto3" json:"declared,omitempty"`
 	// Unset: Temporal has no such schedule (not reconciled yet).
-	State         *ScheduleState `protobuf:"bytes,5,opt,name=state,proto3" json:"state,omitempty"`
+	State *ScheduleState `protobuf:"bytes,5,opt,name=state,proto3" json:"state,omitempty"`
+	// The wiring file that manages the schedule; empty when the console
+	// does. A managed schedule is edited in its file: UpdateSchedule and
+	// DeleteSchedule refuse it, pause, unpause and trigger do not.
+	ManagedBy     string `protobuf:"bytes,6,opt,name=managed_by,json=managedBy,proto3" json:"managed_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1731,6 +1735,13 @@ func (x *ScheduleInfo) GetState() *ScheduleState {
 		return x.State
 	}
 	return nil
+}
+
+func (x *ScheduleInfo) GetManagedBy() string {
+	if x != nil {
+		return x.ManagedBy
+	}
+	return ""
 }
 
 type ListSchedulesRequest struct {
@@ -2818,13 +2829,15 @@ const file_backplanepb_console_v1_workflows_proto_rawDesc = "" +
 	"\aupdated\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\aupdated\x12#\n" +
 	"\rworkflow_type\x18\v \x01(\tR\fworkflowType\x12\x14\n" +
-	"\x05owner\x18\f \x01(\tR\x05owner\"\xbb\x01\n" +
+	"\x05owner\x18\f \x01(\tR\x05owner\"\xda\x01\n" +
 	"\fScheduleInfo\x12\x18\n" +
 	"\aservice\x18\x01 \x01(\tR\aservice\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x0e\n" +
 	"\x02id\x18\x03 \x01(\tR\x02id\x122\n" +
 	"\bdeclared\x18\x04 \x01(\v2\x16.backplane.v1.ScheduleR\bdeclared\x129\n" +
-	"\x05state\x18\x05 \x01(\v2#.backplane.console.v1.ScheduleStateR\x05state\"l\n" +
+	"\x05state\x18\x05 \x01(\v2#.backplane.console.v1.ScheduleStateR\x05state\x12\x1d\n" +
+	"\n" +
+	"managed_by\x18\x06 \x01(\tR\tmanagedBy\"l\n" +
 	"\x14ListSchedulesRequest\x12\x18\n" +
 	"\aservice\x18\x01 \x01(\tR\aservice\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\rR\bpageSize\x12\x1d\n" +

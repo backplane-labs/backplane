@@ -79,10 +79,11 @@ func (a ScheduleAPI) GetSchedule(ctx context.Context,
 
 	return &consolev1.GetScheduleResponse{
 		Schedule: &consolev1.ScheduleInfo{
-			Service: req.GetService(),
-			Name:    req.GetName(),
-			Id:      id,
-			State:   scheduleStatePB(native),
+			Service:   req.GetService(),
+			Name:      req.GetName(),
+			Id:        id,
+			State:     scheduleStatePB(native),
+			ManagedBy: managedBy(desc.GetMemo()),
 		},
 		Definition: &consolev1.ScheduleDefinition{
 			Workflow:         action.GetWorkflowType().GetName(),
@@ -172,6 +173,10 @@ func (a ScheduleAPI) UpdateSchedule(ctx context.Context,
 		return nil, status.Error(codes.Aborted, "schedule changed; reload before editing")
 	}
 
+	if file := managedBy(desc.GetMemo()); file != "" {
+		return nil, a.o.status(ctx, fmt.Errorf("%w %s: edit the file", ErrManaged, file))
+	}
+
 	schedule := proto.CloneOf(desc.GetSchedule())
 
 	requestID, err := patchScheduleAction(schedule, replacement)
@@ -218,6 +223,15 @@ func (a ScheduleAPI) DeleteSchedule(ctx context.Context,
 	c, err := a.o.client()
 	if err != nil {
 		return nil, a.o.status(ctx, err)
+	}
+
+	desc, err := a.describeSchedule(ctx, c.WorkflowService(), id)
+	if err != nil {
+		return nil, err
+	}
+
+	if file := managedBy(desc.GetMemo()); file != "" {
+		return nil, a.o.status(ctx, fmt.Errorf("%w %s: remove it from the file", ErrManaged, file))
 	}
 
 	if err = c.ScheduleClient().GetHandle(ctx, id).Delete(ctx); err != nil {
