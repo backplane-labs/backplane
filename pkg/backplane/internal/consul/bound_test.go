@@ -1,6 +1,7 @@
 package consul_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"net/http"
@@ -118,4 +119,50 @@ func TestWatchBound(t *testing.T) {
 		t.Fatalf("unexpected update %v", hooks)
 	case <-time.After(300 * time.Millisecond):
 	}
+}
+
+// A section's published set is delivered raw, nil when the key goes away.
+func TestWatchSection(t *testing.T) {
+	t.Parallel()
+
+	kv := &boundKV{index: 1, value: []byte("v1"), changed: make(chan struct{})}
+
+	mux := http.NewServeMux()
+	mux.Handle("GET /v1/kv/backplane/sections/komeet.module", kv)
+
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	client, err := api.NewClient(&api.Config{Address: srv.Listener.Addr().String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := make(chan []byte, 10)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	go func() {
+		_ = consul.NewDiscovery(client).WatchSection(ctx, "komeet.module", func(raw []byte) { got <- raw })
+	}()
+
+	expect := func(want []byte) {
+		t.Helper()
+
+		select {
+		case raw := <-got:
+			if !bytes.Equal(raw, want) || (raw == nil) != (want == nil) {
+				t.Fatalf("raw %q, want %q", raw, want)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("no update, want %q", want)
+		}
+	}
+
+	expect([]byte("v1"))
+	kv.set([]byte("v2"))
+	expect([]byte("v2"))
+	kv.set(nil)
+	expect(nil)
 }

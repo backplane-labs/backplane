@@ -24,6 +24,7 @@ import (
 	"github.com/backplane-labs/backplane/internal/platform"
 	"github.com/backplane-labs/backplane/internal/registry"
 	"github.com/backplane-labs/backplane/internal/rules"
+	"github.com/backplane-labs/backplane/internal/sections"
 	"github.com/backplane-labs/backplane/internal/store"
 	"github.com/backplane-labs/backplane/pkg/backplane"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
@@ -151,6 +152,7 @@ func NewState(root backplane.Root[Config]) (*State, error) {
 	st.Bindings = bindings.New(root, st.Store, st.Registry, bindings.Author(sessionAuthor),
 		bindings.DefaultRuntime(cfg.Wiring.Resolve(cfg.Temporal.Enabled())))
 	bindings.NewPublisher(root, st.Bindings, client)
+	sections.NewPublisher(root, st.Registry, client)
 
 	if cfg.Wiring.Dir != "" {
 		bindings.NewFiles(root, st.Bindings, cfg.Wiring.Dir, cfg.Wiring.Poll)

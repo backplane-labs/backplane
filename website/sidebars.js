@@ -6,7 +6,7 @@ module.exports = {
       'concepts/architecture', 'concepts/contracts', 'concepts/decisions', 'concepts/dependencies',
     ] },
     { type: 'category', label: 'Go service SDK', items: [
-      'sdk/go', 'sdk/components', 'sdk/configuration', 'sdk/apis', 'sdk/hooks', 'sdk/events', 'sdk/workflows', 'sdk/testing',
+      'sdk/go', 'sdk/components', 'sdk/configuration', 'sdk/apis', 'sdk/hooks', 'sdk/events', 'sdk/sections', 'sdk/workflows', 'sdk/testing',
     ] },
     { type: 'category', label: 'Frontend and modules', items: [
       'sdk/frontend', 'sdk/modules', 'sdk/service-api', 'reference/frontend-contract',

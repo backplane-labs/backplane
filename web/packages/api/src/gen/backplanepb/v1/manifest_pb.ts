@@ -4,6 +4,8 @@
 
 import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Any } from "../../google/protobuf/any_pb.js";
+import { file_google_protobuf_any } from "../../google/protobuf/any_pb.js";
 import type { Duration } from "../../google/protobuf/duration_pb.js";
 import { file_google_protobuf_duration } from "../../google/protobuf/duration_pb.js";
 import type { Schema } from "../../schemapb/schema_pb.js";
@@ -14,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file backplanepb/v1/manifest.proto.
  */
 export const file_backplanepb_v1_manifest: GenFile = /*@__PURE__*/
-  fileDesc("Ch1iYWNrcGxhbmVwYi92MS9tYW5pZmVzdC5wcm90bxIMYmFja3BsYW5lLnYxIscECghNYW5pZmVzdBIPCgdzZXJ2aWNlGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSEwoLc2RrX3ZlcnNpb24YAyABKAkSKwoGY29uZmlnGAQgASgLMhsuYmFja3BsYW5lLnYxLkNvbmZpZ1NlY3Rpb24SHwoEYXBpcxgGIAMoCzIRLmJhY2twbGFuZS52MS5BUEkSGQoRaW50ZXJuYWxfc2VydmljZXMYByADKAkSIwoGZXZlbnRzGAggAygLMhMuYmFja3BsYW5lLnYxLkV2ZW50EiEKBWhvb2tzGAkgAygLMhIuYmFja3BsYW5lLnYxLkhvb2sSKgoKYWN0aXZpdGllcxgKIAMoCzIWLmJhY2twbGFuZS52MS5BY3Rpdml0eRIcCgJ1aRgLIAEoCzIQLmJhY2twbGFuZS52MS5VSRIhCgVub2RlcxgMIAMoCzISLmJhY2twbGFuZS52MS5Ob2RlEhMKC2Rlc2NyaXB0b3JzGA0gASgMEjEKDXN1YnNjcmlwdGlvbnMYDiADKAsyGi5iYWNrcGxhbmUudjEuU3Vic2NyaXB0aW9uEikKCXNjaGVkdWxlcxgPIAMoCzIWLmJhY2twbGFuZS52MS5TY2hlZHVsZRIpCgl3b3JrZmxvd3MYECADKAsyFi5iYWNrcGxhbmUudjEuV29ya2Zsb3cSMQoJdGVsZW1ldHJ5GBEgASgLMh4uYmFja3BsYW5lLnYxLlRlbGVtZXRyeVNvdXJjZXNKBAgFEAZSBnN0YXRpY1IHZHluYW1pYyKRAQoXVGVsZW1ldHJ5U291cmNlU2VsZWN0b3ISRQoIcmVzb3VyY2UYASADKAsyMy5iYWNrcGxhbmUudjEuVGVsZW1ldHJ5U291cmNlU2VsZWN0b3IuUmVzb3VyY2VFbnRyeRovCg1SZXNvdXJjZUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiTAoQVGVsZW1ldHJ5U291cmNlcxI4CglzZWxlY3RvcnMYASADKAsyJS5iYWNrcGxhbmUudjEuVGVsZW1ldHJ5U291cmNlU2VsZWN0b3IiTQoNQ29uZmlnU2VjdGlvbhIMCgRrZXlzGAEgAygJEiAKBnNjaGVtYRgCIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIMCgRsaXZlGAMgAygJIkwKBE5vZGUSDAoEcGF0aBgBIAEoCRIkCgRraW5kGAIgASgOMhYuYmFja3BsYW5lLnYxLk5vZGVLaW5kEhAKCG9wdGlvbmFsGAMgASgIIu4BCgNBUEkSDgoGcHJlZml4GAEgASgJEgwKBGhvc3QYAiABKAkSIwoEa2luZBgDIAEoDjIVLmJhY2twbGFuZS52MS5BcGlLaW5kEgwKBHBvcnQYBCABKA0SEAoIc2VydmljZXMYCCADKAkSEQoHb3BlbmFwaRgFIAEoDEgAEhUKC2Rlc2NyaXB0b3JzGAYgASgMSAASEQoHZ3JhcGhxbBgHIAEoDEgAEi8KBmJ1bmRsZRgKIAEoCzIdLmJhY2twbGFuZS52MS5BUElTY2hlbWFCdW5kbGVIAEIICgZzY2hlbWFKBAgJEApSBnBvbGljeSJaCg9BUElTY2hlbWFCdW5kbGUSDAoEaGFzaBgBIAEoCRINCgVlbnRyeRgCIAEoCRIqCgZmb3JtYXQYAyABKA4yGi5iYWNrcGxhbmUudjEuU2NoZW1hRm9ybWF0IkwKBUV2ZW50EgwKBG5hbWUYASABKAkSIAoGc2NoZW1hGAIgASgLMhAuc2NoZW1hcGIuU2NoZW1hEhMKC2Rlc2NyaXB0aW9uGAMgASgJIi8KDFN1YnNjcmlwdGlvbhINCgVldmVudBgBIAEoCRIQCghjb25zdW1lchgCIAEoCSKqAQoESG9vaxIMCgRuYW1lGAEgASgJEh8KBWlucHV0GAIgASgLMhAuc2NoZW1hcGIuU2NoZW1hEiAKBm91dHB1dBgDIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIQCghyZXF1aXJlZBgEIAEoCBIqCgd0aW1lb3V0GAUgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhMKC2Rlc2NyaXB0aW9uGAYgASgJIqcCCghBY3Rpdml0eRIMCgRuYW1lGAEgASgJEh8KBWlucHV0GAIgASgLMhAuc2NoZW1hcGIuU2NoZW1hEiAKBm91dHB1dBgDIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIoCgRraW5kGAQgASgOMhouYmFja3BsYW5lLnYxLkFjdGl2aXR5S2luZBIxCg5zdGFydF90b19jbG9zZRgFIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIsCgloZWFydGJlYXQYBiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SKgoFcmV0cnkYByABKAsyGy5iYWNrcGxhbmUudjEuQWN0aXZpdHlSZXRyeRITCgtkZXNjcmlwdGlvbhgIIAEoCSJlCg1BY3Rpdml0eVJldHJ5EhAKCGF0dGVtcHRzGAEgASgNEjIKD3Blcl90cnlfdGltZW91dBgCIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbkoECAMQBFIIcmV0cnlfb24icAoIV29ya2Zsb3cSDAoEbmFtZRgBIAEoCRIfCgVpbnB1dBgCIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIgCgZvdXRwdXQYAyABKAsyEC5zY2hlbWFwYi5TY2hlbWESEwoLZGVzY3JpcHRpb24YBCABKAkiJQoCVUkSDAoEaGFzaBgBIAEoCRIRCglzZGtfbWFqb3IYAiABKA0i7AEKCFNjaGVkdWxlEgwKBG5hbWUYASABKAkSDgoEY3JvbhgCIAEoCUgAEioKBWV2ZXJ5GAMgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uSAASEAoId29ya2Zsb3cYBCABKAkSLgoHb3ZlcmxhcBgFIAEoDjIdLmJhY2twbGFuZS52MS5TY2hlZHVsZU92ZXJsYXASDgoGcGF1c2VkGAYgASgIEhEKCXRpbWVfem9uZRgHIAEoCRIpCgZqaXR0ZXIYCCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb25CBgoEc3BlYypxCghOb2RlS2luZBIZChVOT0RFX0tJTkRfVU5TUEVDSUZJRUQQABIXChNOT0RFX0tJTkRfQ09NUE9ORU5UEAESGAoUTk9ERV9LSU5EX0RFUEVOREVOQ1kQAhIXChNOT0RFX0tJTkRfU0lOR0xFVE9OEAMqYwoMU2NoZW1hRm9ybWF0Eh0KGVNDSEVNQV9GT1JNQVRfVU5TUEVDSUZJRUQQABIZChVTQ0hFTUFfRk9STUFUX09QRU5BUEkQARIZChVTQ0hFTUFfRk9STUFUX0dSQVBIUUwQAiqQAQoHQXBpS2luZBIYChRBUElfS0lORF9VTlNQRUNJRklFRBAAEhEKDUFQSV9LSU5EX0hUVFAQARIRCg1BUElfS0lORF9HUlBDEAISFQoRQVBJX0tJTkRfV1NfUFJPVE8QBBIUChBBUElfS0lORF9HUkFQSFFMEAUiBAgDEAMqElJPVVRFX0tJTkRfQ09OTkVDVCplCgxBY3Rpdml0eUtpbmQSHQoZQUNUSVZJVFlfS0lORF9VTlNQRUNJRklFRBAAEhoKFkFDVElWSVRZX0tJTkRfQUNUSVZJVFkQARIaChZBQ1RJVklUWV9LSU5EX1dPUktGTE9XEAIq+QEKD1NjaGVkdWxlT3ZlcmxhcBIgChxTQ0hFRFVMRV9PVkVSTEFQX1VOU1BFQ0lGSUVEEAASGQoVU0NIRURVTEVfT1ZFUkxBUF9TS0lQEAESHwobU0NIRURVTEVfT1ZFUkxBUF9CVUZGRVJfT05FEAISHwobU0NIRURVTEVfT1ZFUkxBUF9CVUZGRVJfQUxMEAMSIQodU0NIRURVTEVfT1ZFUkxBUF9DQU5DRUxfT1RIRVIQBBIkCiBTQ0hFRFVMRV9PVkVSTEFQX1RFUk1JTkFURV9PVEhFUhAFEh4KGlNDSEVEVUxFX09WRVJMQVBfQUxMT1dfQUxMEAZCQFo+Z2l0aHViLmNvbS9iYWNrcGxhbmUtbGFicy9iYWNrcGxhbmUvYmFja3BsYW5lcGIvdjE7YmFja3BsYW5ldjFiBnByb3RvMw", [file_google_protobuf_duration, file_schemapb_schema]);
+  fileDesc("Ch1iYWNrcGxhbmVwYi92MS9tYW5pZmVzdC5wcm90bxIMYmFja3BsYW5lLnYxIsYFCghNYW5pZmVzdBIPCgdzZXJ2aWNlGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSEwoLc2RrX3ZlcnNpb24YAyABKAkSKwoGY29uZmlnGAQgASgLMhsuYmFja3BsYW5lLnYxLkNvbmZpZ1NlY3Rpb24SHwoEYXBpcxgGIAMoCzIRLmJhY2twbGFuZS52MS5BUEkSGQoRaW50ZXJuYWxfc2VydmljZXMYByADKAkSIwoGZXZlbnRzGAggAygLMhMuYmFja3BsYW5lLnYxLkV2ZW50EiEKBWhvb2tzGAkgAygLMhIuYmFja3BsYW5lLnYxLkhvb2sSKgoKYWN0aXZpdGllcxgKIAMoCzIWLmJhY2twbGFuZS52MS5BY3Rpdml0eRIcCgJ1aRgLIAEoCzIQLmJhY2twbGFuZS52MS5VSRIhCgVub2RlcxgMIAMoCzISLmJhY2twbGFuZS52MS5Ob2RlEhMKC2Rlc2NyaXB0b3JzGA0gASgMEjEKDXN1YnNjcmlwdGlvbnMYDiADKAsyGi5iYWNrcGxhbmUudjEuU3Vic2NyaXB0aW9uEikKCXNjaGVkdWxlcxgPIAMoCzIWLmJhY2twbGFuZS52MS5TY2hlZHVsZRIpCgl3b3JrZmxvd3MYECADKAsyFi5iYWNrcGxhbmUudjEuV29ya2Zsb3cSMQoJdGVsZW1ldHJ5GBEgASgLMh4uYmFja3BsYW5lLnYxLlRlbGVtZXRyeVNvdXJjZXMSNgoIc2VjdGlvbnMYEiADKAsyJC5iYWNrcGxhbmUudjEuTWFuaWZlc3QuU2VjdGlvbnNFbnRyeRpFCg1TZWN0aW9uc0VudHJ5EgsKA2tleRgBIAEoCRIjCgV2YWx1ZRgCIAEoCzIULmdvb2dsZS5wcm90b2J1Zi5Bbnk6AjgBSgQIBRAGUgZzdGF0aWNSB2R5bmFtaWMijQEKClNlY3Rpb25TZXQSOAoIc2VydmljZXMYASADKAsyJi5iYWNrcGxhbmUudjEuU2VjdGlvblNldC5TZXJ2aWNlc0VudHJ5GkUKDVNlcnZpY2VzRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuZ29vZ2xlLnByb3RvYnVmLkFueToCOAEikQEKF1RlbGVtZXRyeVNvdXJjZVNlbGVjdG9yEkUKCHJlc291cmNlGAEgAygLMjMuYmFja3BsYW5lLnYxLlRlbGVtZXRyeVNvdXJjZVNlbGVjdG9yLlJlc291cmNlRW50cnkaLwoNUmVzb3VyY2VFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkwKEFRlbGVtZXRyeVNvdXJjZXMSOAoJc2VsZWN0b3JzGAEgAygLMiUuYmFja3BsYW5lLnYxLlRlbGVtZXRyeVNvdXJjZVNlbGVjdG9yIk0KDUNvbmZpZ1NlY3Rpb24SDAoEa2V5cxgBIAMoCRIgCgZzY2hlbWEYAiABKAsyEC5zY2hlbWFwYi5TY2hlbWESDAoEbGl2ZRgDIAMoCSJMCgROb2RlEgwKBHBhdGgYASABKAkSJAoEa2luZBgCIAEoDjIWLmJhY2twbGFuZS52MS5Ob2RlS2luZBIQCghvcHRpb25hbBgDIAEoCCLuAQoDQVBJEg4KBnByZWZpeBgBIAEoCRIMCgRob3N0GAIgASgJEiMKBGtpbmQYAyABKA4yFS5iYWNrcGxhbmUudjEuQXBpS2luZBIMCgRwb3J0GAQgASgNEhAKCHNlcnZpY2VzGAggAygJEhEKB29wZW5hcGkYBSABKAxIABIVCgtkZXNjcmlwdG9ycxgGIAEoDEgAEhEKB2dyYXBocWwYByABKAxIABIvCgZidW5kbGUYCiABKAsyHS5iYWNrcGxhbmUudjEuQVBJU2NoZW1hQnVuZGxlSABCCAoGc2NoZW1hSgQICRAKUgZwb2xpY3kiWgoPQVBJU2NoZW1hQnVuZGxlEgwKBGhhc2gYASABKAkSDQoFZW50cnkYAiABKAkSKgoGZm9ybWF0GAMgASgOMhouYmFja3BsYW5lLnYxLlNjaGVtYUZvcm1hdCJMCgVFdmVudBIMCgRuYW1lGAEgASgJEiAKBnNjaGVtYRgCIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRITCgtkZXNjcmlwdGlvbhgDIAEoCSIvCgxTdWJzY3JpcHRpb24SDQoFZXZlbnQYASABKAkSEAoIY29uc3VtZXIYAiABKAkiqgEKBEhvb2sSDAoEbmFtZRgBIAEoCRIfCgVpbnB1dBgCIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIgCgZvdXRwdXQYAyABKAsyEC5zY2hlbWFwYi5TY2hlbWESEAoIcmVxdWlyZWQYBCABKAgSKgoHdGltZW91dBgFIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhITCgtkZXNjcmlwdGlvbhgGIAEoCSKnAgoIQWN0aXZpdHkSDAoEbmFtZRgBIAEoCRIfCgVpbnB1dBgCIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIgCgZvdXRwdXQYAyABKAsyEC5zY2hlbWFwYi5TY2hlbWESKAoEa2luZBgEIAEoDjIaLmJhY2twbGFuZS52MS5BY3Rpdml0eUtpbmQSMQoOc3RhcnRfdG9fY2xvc2UYBSABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SLAoJaGVhcnRiZWF0GAYgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEioKBXJldHJ5GAcgASgLMhsuYmFja3BsYW5lLnYxLkFjdGl2aXR5UmV0cnkSEwoLZGVzY3JpcHRpb24YCCABKAkiZQoNQWN0aXZpdHlSZXRyeRIQCghhdHRlbXB0cxgBIAEoDRIyCg9wZXJfdHJ5X3RpbWVvdXQYAiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb25KBAgDEARSCHJldHJ5X29uInAKCFdvcmtmbG93EgwKBG5hbWUYASABKAkSHwoFaW5wdXQYAiABKAsyEC5zY2hlbWFwYi5TY2hlbWESIAoGb3V0cHV0GAMgASgLMhAuc2NoZW1hcGIuU2NoZW1hEhMKC2Rlc2NyaXB0aW9uGAQgASgJIiUKAlVJEgwKBGhhc2gYASABKAkSEQoJc2RrX21ham9yGAIgASgNIuwBCghTY2hlZHVsZRIMCgRuYW1lGAEgASgJEg4KBGNyb24YAiABKAlIABIqCgVldmVyeRgDIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbkgAEhAKCHdvcmtmbG93GAQgASgJEi4KB292ZXJsYXAYBSABKA4yHS5iYWNrcGxhbmUudjEuU2NoZWR1bGVPdmVybGFwEg4KBnBhdXNlZBgGIAEoCBIRCgl0aW1lX3pvbmUYByABKAkSKQoGaml0dGVyGAggASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uQgYKBHNwZWMqcQoITm9kZUtpbmQSGQoVTk9ERV9LSU5EX1VOU1BFQ0lGSUVEEAASFwoTTk9ERV9LSU5EX0NPTVBPTkVOVBABEhgKFE5PREVfS0lORF9ERVBFTkRFTkNZEAISFwoTTk9ERV9LSU5EX1NJTkdMRVRPThADKmMKDFNjaGVtYUZvcm1hdBIdChlTQ0hFTUFfRk9STUFUX1VOU1BFQ0lGSUVEEAASGQoVU0NIRU1BX0ZPUk1BVF9PUEVOQVBJEAESGQoVU0NIRU1BX0ZPUk1BVF9HUkFQSFFMEAIqkAEKB0FwaUtpbmQSGAoUQVBJX0tJTkRfVU5TUEVDSUZJRUQQABIRCg1BUElfS0lORF9IVFRQEAESEQoNQVBJX0tJTkRfR1JQQxACEhUKEUFQSV9LSU5EX1dTX1BST1RPEAQSFAoQQVBJX0tJTkRfR1JBUEhRTBAFIgQIAxADKhJST1VURV9LSU5EX0NPTk5FQ1QqZQoMQWN0aXZpdHlLaW5kEh0KGUFDVElWSVRZX0tJTkRfVU5TUEVDSUZJRUQQABIaChZBQ1RJVklUWV9LSU5EX0FDVElWSVRZEAESGgoWQUNUSVZJVFlfS0lORF9XT1JLRkxPVxACKvkBCg9TY2hlZHVsZU92ZXJsYXASIAocU0NIRURVTEVfT1ZFUkxBUF9VTlNQRUNJRklFRBAAEhkKFVNDSEVEVUxFX09WRVJMQVBfU0tJUBABEh8KG1NDSEVEVUxFX09WRVJMQVBfQlVGRkVSX09ORRACEh8KG1NDSEVEVUxFX09WRVJMQVBfQlVGRkVSX0FMTBADEiEKHVNDSEVEVUxFX09WRVJMQVBfQ0FOQ0VMX09USEVSEAQSJAogU0NIRURVTEVfT1ZFUkxBUF9URVJNSU5BVEVfT1RIRVIQBRIeChpTQ0hFRFVMRV9PVkVSTEFQX0FMTE9XX0FMTBAGQkBaPmdpdGh1Yi5jb20vYmFja3BsYW5lLWxhYnMvYmFja3BsYW5lL2JhY2twbGFuZXBiL3YxO2JhY2twbGFuZXYxYgZwcm90bzM", [file_google_protobuf_any, file_google_protobuf_duration, file_schemapb_schema]);
 
 /**
  * Manifest is everything a service declares. The SDK assembles it at start
@@ -127,6 +129,17 @@ export type Manifest = Message<"backplane.v1.Manifest"> & {
    * @generated from field: backplane.v1.TelemetrySources telemetry = 17;
    */
   telemetry?: TelemetrySources | undefined;
+
+  /**
+   * Sections of the service's own: proto messages by name the product
+   * defines (sections.Offer). Backplane publishes those of the serving
+   * services to Consul KV `backplane/sections/<name>` (SectionSet); a
+   * service follows a name with sections.Follow — discovery without a
+   * registry of the product's.
+   *
+   * @generated from field: map<string, google.protobuf.Any> sections = 18;
+   */
+  sections: { [key: string]: Any };
 };
 
 /**
@@ -135,6 +148,27 @@ export type Manifest = Message<"backplane.v1.Manifest"> & {
  */
 export const ManifestSchema: GenMessage<Manifest> = /*@__PURE__*/
   messageDesc(file_backplanepb_v1_manifest, 0);
+
+/**
+ * SectionSet is one section name across the installation: by service,
+ * the section of its highest serving version. Backplane writes it to
+ * Consul KV `backplane/sections/<name>` as protobuf binary.
+ *
+ * @generated from message backplane.v1.SectionSet
+ */
+export type SectionSet = Message<"backplane.v1.SectionSet"> & {
+  /**
+   * @generated from field: map<string, google.protobuf.Any> services = 1;
+   */
+  services: { [key: string]: Any };
+};
+
+/**
+ * Describes the message backplane.v1.SectionSet.
+ * Use `create(SectionSetSchema)` to create a new message.
+ */
+export const SectionSetSchema: GenMessage<SectionSet> = /*@__PURE__*/
+  messageDesc(file_backplanepb_v1_manifest, 1);
 
 /**
  * Selectors are OR alternatives; attributes within one selector are AND exact
@@ -155,7 +189,7 @@ export type TelemetrySourceSelector = Message<"backplane.v1.TelemetrySourceSelec
  * Use `create(TelemetrySourceSelectorSchema)` to create a new message.
  */
 export const TelemetrySourceSelectorSchema: GenMessage<TelemetrySourceSelector> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 1);
+  messageDesc(file_backplanepb_v1_manifest, 2);
 
 /**
  * @generated from message backplane.v1.TelemetrySources
@@ -172,7 +206,7 @@ export type TelemetrySources = Message<"backplane.v1.TelemetrySources"> & {
  * Use `create(TelemetrySourcesSchema)` to create a new message.
  */
 export const TelemetrySourcesSchema: GenMessage<TelemetrySources> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 2);
+  messageDesc(file_backplanepb_v1_manifest, 3);
 
 /**
  * The configuration. `keys` is the declaration; `schema` is optional and,
@@ -204,7 +238,7 @@ export type ConfigSection = Message<"backplane.v1.ConfigSection"> & {
  * Use `create(ConfigSectionSchema)` to create a new message.
  */
 export const ConfigSectionSchema: GenMessage<ConfigSection> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 3);
+  messageDesc(file_backplanepb_v1_manifest, 4);
 
 /**
  * A node of the service tree: component, dependency or singleton.
@@ -237,7 +271,7 @@ export type Node = Message<"backplane.v1.Node"> & {
  * Use `create(NodeSchema)` to create a new message.
  */
 export const NodeSchema: GenMessage<Node> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 4);
+  messageDesc(file_backplanepb_v1_manifest, 5);
 
 /**
  * An API served by the service. Does not configure external routing.
@@ -326,7 +360,7 @@ export type API = Message<"backplane.v1.API"> & {
  * Use `create(APISchema)` to create a new message.
  */
 export const APISchema: GenMessage<API> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 5);
+  messageDesc(file_backplanepb_v1_manifest, 6);
 
 /**
  * An immutable API file snapshot, delivered separately from the manifest.
@@ -357,7 +391,7 @@ export type APISchemaBundle = Message<"backplane.v1.APISchemaBundle"> & {
  * Use `create(APISchemaBundleSchema)` to create a new message.
  */
 export const APISchemaBundleSchema: GenMessage<APISchemaBundle> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 6);
+  messageDesc(file_backplanepb_v1_manifest, 7);
 
 /**
  * @generated from message backplane.v1.Event
@@ -384,7 +418,7 @@ export type Event = Message<"backplane.v1.Event"> & {
  * Use `create(EventSchema)` to create a new message.
  */
 export const EventSchema: GenMessage<Event> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 7);
+  messageDesc(file_backplanepb_v1_manifest, 8);
 
 /**
  * A reactor: a durable consumer of another service's event.
@@ -413,7 +447,7 @@ export type Subscription = Message<"backplane.v1.Subscription"> & {
  * Use `create(SubscriptionSchema)` to create a new message.
  */
 export const SubscriptionSchema: GenMessage<Subscription> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 8);
+  messageDesc(file_backplanepb_v1_manifest, 9);
 
 /**
  * An operation the service calls without implementing it.
@@ -461,7 +495,7 @@ export type Hook = Message<"backplane.v1.Hook"> & {
  * Use `create(HookSchema)` to create a new message.
  */
 export const HookSchema: GenMessage<Hook> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 9);
+  messageDesc(file_backplanepb_v1_manifest, 10);
 
 /**
  * An operation the service implements; a binding step target.
@@ -517,7 +551,7 @@ export type Activity = Message<"backplane.v1.Activity"> & {
  * Use `create(ActivitySchema)` to create a new message.
  */
 export const ActivitySchema: GenMessage<Activity> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 10);
+  messageDesc(file_backplanepb_v1_manifest, 11);
 
 /**
  * Default retries for a binding step executing this activity or workflow.
@@ -541,7 +575,7 @@ export type ActivityRetry = Message<"backplane.v1.ActivityRetry"> & {
  * Use `create(ActivityRetrySchema)` to create a new message.
  */
 export const ActivityRetrySchema: GenMessage<ActivityRetry> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 11);
+  messageDesc(file_backplanepb_v1_manifest, 12);
 
 /**
  * A workflow of the service the console may start with a form.
@@ -577,7 +611,7 @@ export type Workflow = Message<"backplane.v1.Workflow"> & {
  * Use `create(WorkflowSchema)` to create a new message.
  */
 export const WorkflowSchema: GenMessage<Workflow> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 12);
+  messageDesc(file_backplanepb_v1_manifest, 13);
 
 /**
  * @generated from message backplane.v1.UI
@@ -601,7 +635,7 @@ export type UI = Message<"backplane.v1.UI"> & {
  * Use `create(UISchema)` to create a new message.
  */
 export const UISchema: GenMessage<UI> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 13);
+  messageDesc(file_backplanepb_v1_manifest, 14);
 
 /**
  * A Temporal Schedule the service declares; the SDK reconciles it at start.
@@ -680,7 +714,7 @@ export type Schedule = Message<"backplane.v1.Schedule"> & {
  * Use `create(ScheduleSchema)` to create a new message.
  */
 export const ScheduleSchema: GenMessage<Schedule> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 14);
+  messageDesc(file_backplanepb_v1_manifest, 15);
 
 /**
  * @generated from enum backplane.v1.NodeKind

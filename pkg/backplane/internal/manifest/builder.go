@@ -18,6 +18,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	sp "github.com/gopherex/schemapb/go/schemapb"
 
@@ -172,6 +173,19 @@ func (b *Builder) Event(e *backplanev1.Event) {
 		m.Events = append(m.Events, e)
 
 		return b.unique("event", e.GetName())
+	})
+}
+
+// Section records the service's section name.
+func (b *Builder) Section(name string, value *anypb.Any) {
+	b.with("section", func(m *backplanev1.Manifest) error {
+		if m.Sections == nil {
+			m.Sections = map[string]*anypb.Any{}
+		}
+
+		m.Sections[name] = value
+
+		return b.unique("section", name)
 	})
 }
 

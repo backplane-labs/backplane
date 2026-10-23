@@ -1,6 +1,7 @@
 package consul
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -83,11 +84,34 @@ const boundRetry = 5 * time.Second
 // none) now and after every change, until ctx ends. A failed query is
 // retried; fn keeps the last set meanwhile.
 func (d *Discovery) WatchBound(ctx context.Context, service string, fn func(hooks []string)) error {
-	key := boundPrefix + service
+	return d.watch(ctx, boundPrefix+service, func(raw []byte) {
+		if raw == nil {
+			raw = []byte("[]")
+		}
 
+		hooks := []string{}
+		if json.Unmarshal(raw, &hooks) == nil {
+			fn(hooks)
+		}
+	})
+}
+
+// sectionsPrefix mirrors backplane's internal/sections.Prefix: the
+// published sections by name.
+const sectionsPrefix = "backplane/sections/"
+
+// WatchSection calls fn with section name's published set (nil when there
+// is none) now and after every change, until ctx ends.
+func (d *Discovery) WatchSection(ctx context.Context, name string, fn func(raw []byte)) error {
+	return d.watch(ctx, sectionsPrefix+name, fn)
+}
+
+// watch calls fn with key's value (nil when absent) now and after every
+// change, until ctx ends. A failed query is retried after boundRetry.
+func (d *Discovery) watch(ctx context.Context, key string, fn func(raw []byte)) error {
 	var (
 		index uint64
-		last  string
+		last  []byte
 		seen  bool
 	)
 
@@ -106,28 +130,24 @@ func (d *Discovery) WatchBound(ctx context.Context, service string, fn func(hook
 
 		// A lower index means the KV store was reset: start over; an index
 		// must stay above zero or the query never blocks.
-		index = max(meta.LastIndex, 1)
 		if meta.LastIndex < index {
 			index = 1
+		} else {
+			index = max(meta.LastIndex, 1)
 		}
 
-		raw := "[]"
+		var raw []byte
 		if pair != nil {
-			raw = string(pair.Value)
+			raw = pair.Value
 		}
 
-		if seen && raw == last {
-			continue
-		}
-
-		hooks := []string{}
-		if err := json.Unmarshal([]byte(raw), &hooks); err != nil {
+		if seen && bytes.Equal(raw, last) && (raw == nil) == (last == nil) {
 			continue
 		}
 
 		seen, last = true, raw
 
-		fn(hooks)
+		fn(raw)
 	}
 
 	return nil

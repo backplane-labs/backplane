@@ -144,6 +144,8 @@ func (c *core) tail(m *backplanev1.Manifest) {
 	sd := c.cfg.Shutdown
 	listeners := &window{d: sd.Listeners, reserve: sd.Reserve}
 
+	c.watchSections()
+
 	gn := c.svc.Child("internal-api", node.System, false)
 	gn.OnStart(func(context.Context) error { c.gate.Open(); return nil })
 	gn.OnStop(c.gate.Close)

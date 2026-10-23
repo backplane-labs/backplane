@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"sync"
 	"time"
 
@@ -98,14 +99,40 @@ type Env struct {
 	// nil until backplane's set is known.
 	bound     map[string]bool
 	boundSubs map[chan struct{}]struct{}
+
+	// followed: the section names the service follows, each with the
+	// functions told of its published set.
+	followed map[string][]func(raw []byte)
 }
 
 // New creates the env of service.
 func New(service string, m *manifest.Builder) *Env {
 	return &Env{
 		Service: service, Manifest: m, activities: map[string]Handler{}, own: map[string]Handler{},
-		boundSubs: map[chan struct{}]struct{}{},
+		boundSubs: map[chan struct{}]struct{}{}, followed: map[string][]func([]byte){},
 	}
+}
+
+// FollowSection has fn told of section name's published set (a
+// backplanev1.SectionSet; nil when there is none) while the service runs.
+func (e *Env) FollowSection(name string, fn func(raw []byte)) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.followed[name] = append(e.followed[name], fn)
+}
+
+// Followed is every followed section name with its functions.
+func (e *Env) Followed() map[string][]func(raw []byte) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	out := make(map[string][]func([]byte), len(e.followed))
+	for name, fns := range e.followed {
+		out[name] = slices.Clone(fns)
+	}
+
+	return out
 }
 
 // Of returns the env of the tree n belongs to.

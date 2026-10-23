@@ -193,6 +193,45 @@ func (c *core) watchBound() {
 	n.Go(func(ctx context.Context) error { return w.WatchBound(ctx, c.id.Service, c.env.SetBound) })
 }
 
+// sectionWatcher is a discovery that also follows published sections (the
+// Consul driver's).
+type sectionWatcher interface {
+	WatchSection(ctx context.Context, name string, fn func(raw []byte)) error
+}
+
+// watchSections follows the section names the service follows
+// (sections.Follow) while it runs; without Consul they stay unknown.
+func (c *core) watchSections() {
+	followed := c.env.Followed()
+	if len(followed) == 0 || !c.directHooks() {
+		return
+	}
+
+	find, err := c.opts.discovery(c.cfg, c.log)
+	if err != nil {
+		c.log.Warn("sections watch", xlog.Err(err))
+
+		return
+	}
+
+	w, ok := find.(sectionWatcher)
+	if !ok {
+		return
+	}
+
+	n := c.svc.Child("sections", node.System, false)
+
+	for name, fns := range followed {
+		n.Go(func(ctx context.Context) error {
+			return w.WatchSection(ctx, name, func(raw []byte) {
+				for _, fn := range fns {
+					fn(raw)
+				}
+			})
+		})
+	}
+}
+
 // directHooks reports whether the direct hook transport is possible:
 // Consul is configured and a discovery driver is installed.
 func (c *core) directHooks() bool { return c.cfg.Consul.Enabled() && c.opts.discovery != nil }

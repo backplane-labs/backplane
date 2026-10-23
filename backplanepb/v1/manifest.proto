@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package backplane.v1;
 
+import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 import "schemapb/schema.proto";
 
@@ -44,6 +45,19 @@ message Manifest {
   // Optional telemetry view presets. Absence uses service.name convention;
   // an explicitly empty declaration disables presets, never signal ingestion.
   TelemetrySources telemetry = 17;
+  // Sections of the service's own: proto messages by name the product
+  // defines (sections.Offer). Backplane publishes those of the serving
+  // services to Consul KV `backplane/sections/<name>` (SectionSet); a
+  // service follows a name with sections.Follow — discovery without a
+  // registry of the product's.
+  map<string, google.protobuf.Any> sections = 18;
+}
+
+// SectionSet is one section name across the installation: by service,
+// the section of its highest serving version. Backplane writes it to
+// Consul KV `backplane/sections/<name>` as protobuf binary.
+message SectionSet {
+  map<string, google.protobuf.Any> services = 1;
 }
 
 // Selectors are OR alternatives; attributes within one selector are AND exact
