@@ -7,7 +7,7 @@ require (
 	github.com/exaring/otelpgx v0.12.0
 	github.com/google/cel-go v0.30.0
 	github.com/google/uuid v1.6.0
-	github.com/gopherex/pgtx v1.1.1
+	github.com/gopherex/pgtx v1.1.2
 	github.com/gopherex/schemapb/go v1.9.9
 	github.com/gopherex/sqld v1.1.3
 	github.com/gopherex/ws-proto v1.7.0
@@ -61,7 +61,8 @@ require (
 	cel.dev/expr v0.25.2 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
-	github.com/avito-tech/go-transaction-manager v1.5.1 // indirect
+	github.com/avito-tech/go-transaction-manager/drivers/pgxv5/v2 v2.0.5 // indirect
+	github.com/avito-tech/go-transaction-manager/trm/v2 v2.0.5 // indirect
 	github.com/cbroglie/mustache v1.4.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/coder/websocket v1.8.14 // indirect
