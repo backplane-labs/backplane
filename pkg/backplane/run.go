@@ -95,6 +95,21 @@ func (c *core) Run(ctx context.Context) error {
 	return cause
 }
 
+// Validate reports the declaration errors Run would fail with — a prefix
+// served twice, api.MTLS and plain routes on one port, api.MTLS without a
+// mesh, a reserved package, ... — without starting anything. Declarations
+// stay open: call it after the last one, e.g. in a test of the function
+// that declares the service's routes.
+func (c *core) Validate() error {
+	c.env.Manifest.Nodes(nodes(c.app))
+
+	if _, err := c.env.Manifest.Build(); err != nil {
+		return fmt.Errorf("backplane: build: %w", err)
+	}
+
+	return nil
+}
+
 // seal ends declarations and builds the manifest; an unstamped version gets
 // the manifest's content hash so dev builds do not overwrite each other.
 func (c *core) seal() (*backplanev1.Manifest, error) {

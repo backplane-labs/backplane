@@ -29,6 +29,7 @@ import (
 	helloconsolev1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1"
 	hellov1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane"
+	bpapi "github.com/backplane-labs/backplane/pkg/backplane/api"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 	"github.com/backplane-labs/backplane/pkg/backplane/drivers/standard"
@@ -597,6 +598,14 @@ func TestDeclarationErrorsFailRun(t *testing.T) {
 			},
 			want: "backplane.console.v1.Fake: is in a reserved proto package",
 		},
+		{
+			name: "api.MTLS without a mesh", service: "svc-mtls",
+			declare: func(svc *backplane.Service[testState]) {
+				svc.HTTP("/plain", http.NotFoundHandler())
+				svc.HTTP("/mutual", http.NotFoundHandler(), bpapi.MTLS())
+			},
+			want: "api.MTLS",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			p := setup(t, "")
@@ -609,6 +618,11 @@ func TestDeclarationErrorsFailRun(t *testing.T) {
 			}
 
 			tc.declare(svc)
+
+			// Validate finds it without starting anything.
+			if err := svc.Validate(); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("validate: %v, want %q", err, tc.want)
+			}
 
 			err = wait(t, run(t.Context(), svc))
 			if err == nil || !strings.Contains(err.Error(), tc.want) {

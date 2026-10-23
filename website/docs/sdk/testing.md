@@ -73,6 +73,30 @@ srv := grpc.NewServer(grpc.UnaryInterceptor(
 
 The harness does not simulate JetStream redelivery or DLQ semantics. Its activity call executes once; retries belong in runtime integration tests. For Temporal code, use `pkg/backplane/workflows/workflowtest.New(t, h)`, which supplies a Temporal test environment with the service's registrations. This testing extension intentionally imports Temporal separately from core component tests.
 
+## Check declarations without starting
+
+Declaration mistakes — a prefix served twice, `api.MTLS` and plain routes on
+one port, `api.MTLS` without a mesh, a gRPC service registered twice — fail
+`Run`, so a service with them restarts in a loop. `svc.Validate()` reports
+them without listening on anything. Keep the declarations in a function
+`main` calls and test it:
+
+```go
+func TestDeclare(t *testing.T) {
+    svc, err := backplane.Open(t.Context(), newState, backplane.ConfigOptions(config.WithoutFile()))
+    if err != nil {
+        t.Fatal(err)
+    }
+    t.Cleanup(func() { _ = svc.Close() })
+
+    declare(svc) // the same function main calls before Run
+
+    if err := svc.Validate(); err != nil {
+        t.Fatal(err)
+    }
+}
+```
+
 ## Repository commands
 
 ```bash
