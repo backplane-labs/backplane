@@ -2,6 +2,7 @@ package ops
 
 import (
 	"context"
+	"os"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -77,4 +78,20 @@ func ReadSchedules(dir string) (int, error) {
 	want, _, err := readSchedules(dir)
 
 	return len(want), err
+}
+
+// ScheduleDefinition is the definition read for service.name in dir.
+func ScheduleDefinition(dir, service, name string) (*consolev1.ScheduleDefinition, error) {
+	want, _, err := readSchedules(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, e := range want {
+		if e.service == service && e.name == name {
+			return e.def, nil
+		}
+	}
+
+	return nil, os.ErrNotExist
 }

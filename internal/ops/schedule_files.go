@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +32,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/gopherex/xlog"
 
@@ -499,12 +501,14 @@ func parseSchedule(file string, tree map[string]any) (fileSchedule, error) {
 		delete(tree, k)
 	}
 
+	e.def = &consolev1.ScheduleDefinition{}
+	goDurations(tree, e.def.ProtoReflect().Descriptor())
+
 	raw, err := json.Marshal(tree)
 	if err != nil {
 		return e, fmt.Errorf("%w: %s: %w", ErrScheduleFile, e.id(), err)
 	}
 
-	e.def = &consolev1.ScheduleDefinition{}
 	if err := protojson.Unmarshal(raw, e.def); err != nil {
 		return e, fmt.Errorf("%w: %s: %w", ErrScheduleFile, e.id(), err)
 	}
@@ -523,6 +527,60 @@ func parseSchedule(file string, tree map[string]any) (fileSchedule, error) {
 	e.digest = hex.EncodeToString(sum[:])
 
 	return e, nil
+}
+
+// goDurations rewrites the google.protobuf.Duration fields of tree, a
+// message md as YAML, from Go durations ("30m", "1h30m") to the seconds
+// protojson reads ("1800s"), as everywhere else in backplane's YAML. What is
+// not a Go duration is left for protojson to judge.
+func goDurations(tree map[string]any, md protoreflect.MessageDescriptor) {
+	for key, value := range tree {
+		fd := md.Fields().ByJSONName(key)
+		if fd == nil {
+			fd = md.Fields().ByName(protoreflect.Name(key))
+		}
+
+		if fd == nil || fd.Message() == nil || fd.IsMap() {
+			continue
+		}
+
+		convert := func(v any) any {
+			if fd.Message().FullName() == "google.protobuf.Duration" {
+				if text, ok := v.(string); ok {
+					if d, err := time.ParseDuration(text); err == nil {
+						return protoSeconds(d)
+					}
+				}
+
+				return v
+			}
+
+			if nested, ok := v.(map[string]any); ok {
+				goDurations(nested, fd.Message())
+			}
+
+			return v
+		}
+
+		if list, ok := value.([]any); ok && fd.IsList() {
+			for i := range list {
+				list[i] = convert(list[i])
+			}
+
+			continue
+		}
+
+		tree[key] = convert(value)
+	}
+}
+
+// protoSeconds is d as protojson writes a Duration.
+func protoSeconds(d time.Duration) string {
+	if d%time.Second == 0 {
+		return fmt.Sprintf("%ds", d/time.Second)
+	}
+
+	return strconv.FormatFloat(d.Seconds(), 'f', -1, 64) + "s"
 }
 
 // inOrderKeys are m's keys sorted.

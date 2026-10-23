@@ -135,11 +135,13 @@ schedules:
     name: collect
     workflow: Collect              # a workflow the service declares
     input: {older_than: 24h}       # checked against the workflow's input schema
-    timing: {cron: ["0 3 * * *"], timezone: Europe/Moscow}   # or {interval: 3600s}
+    timing: {cron: ["0 3 * * *"], timezone: Europe/Moscow}   # or {interval: 1h}
     execution_timeout: 1h
     paused: false                  # only when the schedule is created
 ```
 
+- Durations (`interval`, `execution_timeout`) are Go durations (`30m`,
+  `1h30m`) or protojson seconds (`1800s`).
 - A missing schedule is created; one whose definition differs from its file
   is updated. Its state stays the operator's: pausing, resuming and
   triggering from the console keep working, and `paused` in the file applies
