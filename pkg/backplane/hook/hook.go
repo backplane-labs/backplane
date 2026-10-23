@@ -27,6 +27,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/metrics"
+	"github.com/backplane-labs/backplane/pkg/backplane/meta"
 )
 
 var (
@@ -108,6 +109,7 @@ type CallOption interface{ applyCall(o *callOptions) }
 type callOptions struct {
 	key     string
 	timeout time.Duration
+	meta    map[string]string
 }
 
 type callFunc func(o *callOptions)
@@ -123,6 +125,26 @@ func (f callFunc) applyCall(o *callOptions) { f(o) }
 // direct/binding/<service>.<Name>/key/<k> for its run retention.
 // workflows.CallHook ignores the key: a workflow is durable already.
 func Key(k string) CallOption { return callFunc(func(o *callOptions) { o.key = k }) }
+
+// Metadata adds pairs (key, value, ...) to the call's metadata, over the
+// context's (meta.With): they travel to every activity the binding's run
+// calls. The way to set them on workflows.CallHook, whose context is a
+// workflow's. An odd count panics.
+func Metadata(kv ...string) CallOption {
+	if len(kv)%2 != 0 {
+		panic("hook: Metadata needs key, value pairs")
+	}
+
+	return callFunc(func(o *callOptions) {
+		if o.meta == nil {
+			o.meta = map[string]string{}
+		}
+
+		for i := 0; i < len(kv); i += 2 {
+			o.meta[kv[i]] = kv[i+1]
+		}
+	})
+}
 
 // Timeout is the call's deadline, over the declared DefaultTimeout; the
 // context's own deadline still applies when earlier. d <= 0 is ignored.
@@ -206,7 +228,7 @@ func (r Ref[Req, Res]) call(ctx context.Context, in Req, o callOptions) (Res, er
 		defer cancel()
 	}
 
-	res, err := t.Call(env.WithCallKey(ctx, o.key), r.Name(), payload)
+	res, err := t.Call(env.WithCallKey(meta.Merge(ctx, o.meta), o.key), r.Name(), payload)
 	if err != nil {
 		return out, fmt.Errorf("hook %s: %w", r.Name(), err)
 	}
@@ -242,6 +264,12 @@ func outcome(err error) string {
 	default:
 		return metrics.Error
 	}
+}
+
+// CallMetadata is the metadata opts set (Metadata); nil when none. Native
+// workflow adapters use it without importing a backend into hook.
+func (r Ref[Req, Res]) CallMetadata(opts ...CallOption) map[string]string {
+	return r.callOptions(opts).meta
 }
 
 // CallTimeout resolves the declared, per-call and transport default timeout.

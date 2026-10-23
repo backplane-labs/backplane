@@ -156,6 +156,8 @@ func run(t *testing.T, e *testsuite.TestWorkflowEnvironment, p *bindings.Program
 		t.Fatal(err)
 	}
 
+	in.Metadata = map[string]string{"user": "u-1"}
+
 	e.ExecuteWorkflow(wire.BindingWorkflow, in)
 
 	if !e.IsWorkflowCompleted() {
@@ -221,7 +223,7 @@ result: {message_id: send.id, size: send.size}
 	}
 
 	send := rec.of("send")
-	if send.GetBinding() != "iam.SendEmail@3" || send.GetTrace()["traceparent"] == "" ||
+	if send.GetBinding() != "iam.SendEmail@3" || send.GetTrace()["traceparent"] == "" || send.GetMetadata()["user"] != "u-1" ||
 		string(send.GetPayload()) != `{"subject":"Hi Ann","text":"body","to":"ann@example.com"}` {
 		t.Errorf("envelope: %v", send)
 	}

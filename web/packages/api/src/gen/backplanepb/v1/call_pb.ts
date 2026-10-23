@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file backplanepb/v1/call.proto.
  */
 export const file_backplanepb_v1_call: GenFile = /*@__PURE__*/
-  fileDesc("ChliYWNrcGxhbmVwYi92MS9jYWxsLnByb3RvEgxiYWNrcGxhbmUudjEi1QEKCEhvb2tDYWxsEgwKBGhvb2sYASABKAkSEAoIaW5zdGFuY2UYAiABKAkSDwoHcGF5bG9hZBgDIAEoDBIwCgV0cmFjZRgEIAMoCzIhLmJhY2twbGFuZS52MS5Ib29rQ2FsbC5UcmFjZUVudHJ5EisKCGRlYWRsaW5lGAUgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEgsKA2tleRgGIAEoCRosCgpUcmFjZUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiHQoKSG9va1Jlc3VsdBIPCgdwYXlsb2FkGAEgASgMItIBCgxBY3Rpdml0eUNhbGwSEAoIYWN0aXZpdHkYASABKAkSDwoHcGF5bG9hZBgCIAEoDBI0CgV0cmFjZRgDIAMoCzIlLmJhY2twbGFuZS52MS5BY3Rpdml0eUNhbGwuVHJhY2VFbnRyeRIPCgdiaW5kaW5nGAQgASgJEgwKBHN0ZXAYBSABKAkSDwoHYXR0ZW1wdBgGIAEoBRILCgNrZXkYByABKAkaLAoKVHJhY2VFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIiEKDkFjdGl2aXR5UmVzdWx0Eg8KB3BheWxvYWQYASABKAwiXgoLQ2FsbEZhaWx1cmUSDAoEdHlwZRgBIAEoCRIRCglyZXRyeWFibGUYAiABKAgSLgoLcmV0cnlfYWZ0ZXIYAyABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24iNgoKUnVuUmVxdWVzdBIoCgRjYWxsGAEgASgLMhouYmFja3BsYW5lLnYxLkFjdGl2aXR5Q2FsbCI7CgtSdW5SZXNwb25zZRIsCgZyZXN1bHQYASABKAsyHC5iYWNrcGxhbmUudjEuQWN0aXZpdHlSZXN1bHQyTQoPQWN0aXZpdHlTZXJ2aWNlEjoKA1J1bhIYLmJhY2twbGFuZS52MS5SdW5SZXF1ZXN0GhkuYmFja3BsYW5lLnYxLlJ1blJlc3BvbnNlQkBaPmdpdGh1Yi5jb20vYmFja3BsYW5lLWxhYnMvYmFja3BsYW5lL2JhY2twbGFuZXBiL3YxO2JhY2twbGFuZXYxYgZwcm90bzM", [file_google_protobuf_duration]);
+  fileDesc("ChliYWNrcGxhbmVwYi92MS9jYWxsLnByb3RvEgxiYWNrcGxhbmUudjEivgIKCEhvb2tDYWxsEgwKBGhvb2sYASABKAkSEAoIaW5zdGFuY2UYAiABKAkSDwoHcGF5bG9hZBgDIAEoDBIwCgV0cmFjZRgEIAMoCzIhLmJhY2twbGFuZS52MS5Ib29rQ2FsbC5UcmFjZUVudHJ5EisKCGRlYWRsaW5lGAUgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEgsKA2tleRgGIAEoCRI2CghtZXRhZGF0YRgHIAMoCzIkLmJhY2twbGFuZS52MS5Ib29rQ2FsbC5NZXRhZGF0YUVudHJ5GiwKClRyYWNlRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ARovCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiHQoKSG9va1Jlc3VsdBIPCgdwYXlsb2FkGAEgASgMIr8CCgxBY3Rpdml0eUNhbGwSEAoIYWN0aXZpdHkYASABKAkSDwoHcGF5bG9hZBgCIAEoDBI0CgV0cmFjZRgDIAMoCzIlLmJhY2twbGFuZS52MS5BY3Rpdml0eUNhbGwuVHJhY2VFbnRyeRIPCgdiaW5kaW5nGAQgASgJEgwKBHN0ZXAYBSABKAkSDwoHYXR0ZW1wdBgGIAEoBRILCgNrZXkYByABKAkSOgoIbWV0YWRhdGEYCCADKAsyKC5iYWNrcGxhbmUudjEuQWN0aXZpdHlDYWxsLk1ldGFkYXRhRW50cnkaLAoKVHJhY2VFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBGi8KDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASIhCg5BY3Rpdml0eVJlc3VsdBIPCgdwYXlsb2FkGAEgASgMIl4KC0NhbGxGYWlsdXJlEgwKBHR5cGUYASABKAkSEQoJcmV0cnlhYmxlGAIgASgIEi4KC3JldHJ5X2FmdGVyGAMgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uIjYKClJ1blJlcXVlc3QSKAoEY2FsbBgBIAEoCzIaLmJhY2twbGFuZS52MS5BY3Rpdml0eUNhbGwiOwoLUnVuUmVzcG9uc2USLAoGcmVzdWx0GAEgASgLMhwuYmFja3BsYW5lLnYxLkFjdGl2aXR5UmVzdWx0Mk0KD0FjdGl2aXR5U2VydmljZRI6CgNSdW4SGC5iYWNrcGxhbmUudjEuUnVuUmVxdWVzdBoZLmJhY2twbGFuZS52MS5SdW5SZXNwb25zZUJAWj5naXRodWIuY29tL2JhY2twbGFuZS1sYWJzL2JhY2twbGFuZS9iYWNrcGxhbmVwYi92MTtiYWNrcGxhbmV2MWIGcHJvdG8z", [file_google_protobuf_duration]);
 
 /**
  * Input of the Nexus operation a service raises.
@@ -56,6 +56,15 @@ export type HookCall = Message<"backplane.v1.HookCall"> & {
    * @generated from field: string key = 6;
    */
   key: string;
+
+  /**
+   * The call's metadata (pkg/backplane/meta): the product's pairs, carried
+   * to every activity the binding's run calls. Backplane does not read
+   * them.
+   *
+   * @generated from field: map<string, string> metadata = 7;
+   */
+  metadata: { [key: string]: string };
 };
 
 /**
@@ -129,6 +138,13 @@ export type ActivityCall = Message<"backplane.v1.ActivityCall"> & {
    * @generated from field: string key = 7;
    */
   key: string;
+
+  /**
+   * Metadata of the hook call whose run calls this activity (HookCall.metadata).
+   *
+   * @generated from field: map<string, string> metadata = 8;
+   */
+  metadata: { [key: string]: string };
 };
 
 /**

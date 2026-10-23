@@ -58,6 +58,28 @@ In a Temporal workflow use `workflows.CallHook(ctx, ref, input, options...)`. Wo
 
 The hello example records the delivered greeting and emits `Greeted` after both bound and local execution. Side effects that describe the final result must run on both paths. An HTTP idempotency key can deduplicate hook execution without automatically deduplicating the whole HTTP handler or its later event emission.
 
+## Call metadata
+
+A hook call carries the product's own string pairs to every activity its
+binding's run calls, on either runtime and either transport. What they mean is
+the product's: the user a request acts for, a tenant, a locale. Backplane does
+not read them.
+
+```go
+ctx = meta.With(ctx, "user", userID, "tenant", tenant)
+out, err := sendEmail.Call(ctx, in)
+```
+
+An activity handler reads them from its context with `meta.Get(ctx, "user")`
+or `meta.From(ctx)`; a hook it calls with that context carries them on. In a
+workflow, whose context is not a `context.Context`, pass them as a call
+option: `workflows.CallHook(ctx, ref, in, hook.Metadata("user", userID))`.
+
+They are as trustworthy as the service that set them: backplane accepts a hook
+call only from a service holding the internal secret and calls activities with
+it. Do not put secrets in them: on the Temporal runtime they are part of the
+run's history.
+
 ## Skip work for an unbound hook
 
 `ref.Bound()` reports whether a binding may be in force. Backplane publishes each service's bound hooks to Consul KV (`backplane/bindings/<service>`) and the SDK watches its own key, so the answer is local and follows saves in Wiring within seconds. It is `false` only when the published set is known and lacks the hook; without Consul it is `true` and `Call` decides. `ref.BindingChanges(ctx)` signals each change.

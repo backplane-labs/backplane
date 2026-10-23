@@ -22,6 +22,10 @@ message HookCall {
   // failed or canceled run runs again. The SDK's direct transport sends it
   // as the bp-call-key header, which backplane reads when this is empty.
   string key = 6;
+  // The call's metadata (pkg/backplane/meta): the product's pairs, carried
+  // to every activity the binding's run calls. Backplane does not read
+  // them.
+  map<string, string> metadata = 7;
 }
 
 message HookResult {
@@ -42,6 +46,8 @@ message ActivityCall {
   // Temporal supplies its own.
   int32 attempt = 6;
   string key = 7;
+  // Metadata of the hook call whose run calls this activity (HookCall.metadata).
+  map<string, string> metadata = 8;
 }
 
 message ActivityResult {

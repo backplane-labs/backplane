@@ -587,6 +587,7 @@ func (r *runner) call(
 	_, name := bindings.SplitName(full)
 	call := &backplanev1.ActivityCall{
 		Activity: full, Payload: input, Trace: r.trace, Binding: r.in.Identity.String(), Step: label,
+		Metadata: r.in.Metadata,
 	}
 	retry := &temporal.RetryPolicy{
 		InitialInterval: plan.Retry.InitialInterval, BackoffCoefficient: plan.Retry.Backoff,

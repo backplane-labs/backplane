@@ -28,6 +28,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/temporal"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/temporal/temporaltest"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
+	"github.com/backplane-labs/backplane/pkg/backplane/meta"
 )
 
 // step plays a binding step with a heartbeat timeout: a workflow with id
@@ -62,7 +63,10 @@ func step(t *testing.T, svc, name, wfID string, heartbeat time.Duration) (*backp
 	defer cancel()
 
 	r, err := tc.ExecuteWorkflow(ctx, client.StartWorkflowOptions{ID: wfID, TaskQueue: queue}, "step",
-		&backplanev1.ActivityCall{Activity: name, Payload: []byte(`{}`), Binding: svc + ".Hook", Step: "render"})
+		&backplanev1.ActivityCall{
+			Activity: name, Payload: []byte(`{}`), Binding: svc + ".Hook", Step: "render",
+			Metadata: map[string]string{"user": "u-1"},
+		})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,6 +87,7 @@ func TestActivityInfoHeartbeatPanic(t *testing.T) {
 
 	var (
 		seen   atomic.Pointer[env.ActivityInfo]
+		user   atomic.Pointer[string]
 		panics atomic.Int32
 	)
 
@@ -94,6 +99,9 @@ func TestActivityInfoHeartbeatPanic(t *testing.T) {
 			}
 
 			seen.Store(&info)
+
+			u := meta.Get(ctx, "user")
+			user.Store(&u)
 
 			return []byte(`{}`), nil
 		})
@@ -125,6 +133,10 @@ func TestActivityInfoHeartbeatPanic(t *testing.T) {
 	if info == nil || info.Attempt != 1 || info.Binding != svc+".Hook" || info.Step != "render" ||
 		info.Key != wfID+"/a1" || info.Deadline.IsZero() || time.Until(info.Deadline) > 10*time.Second {
 		t.Fatalf("info: %+v", info)
+	}
+
+	if u := user.Load(); u == nil || *u != "u-1" {
+		t.Fatalf("metadata: %v", u)
 	}
 
 	// 1.2s of work under a 500ms heartbeat timeout.

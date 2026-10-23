@@ -23,6 +23,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/exception"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/metrics"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
+	"github.com/backplane-labs/backplane/pkg/backplane/meta"
 )
 
 // StartWorker runs the service's worker on its task queue: every declared
@@ -162,7 +163,7 @@ func (c *Client) activity(
 		ctx, end := continueTrace(ctx, tracer, full, call.GetTrace())
 		defer end()
 
-		ctx = env.WithActivityInfo(ctx, activityInfo(ctx, call))
+		ctx = meta.Replace(env.WithActivityInfo(ctx, activityInfo(ctx, call)), call.GetMetadata())
 		out, err := c.handle(ctx, full, h, call.GetPayload())
 		metrics.ActivityHandled(ctx, full, outcome(err), time.Since(start))
 

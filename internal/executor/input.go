@@ -43,6 +43,9 @@ type Input struct {
 	// headers): ActivityCall.trace of every step when the workflow has no
 	// span of its own.
 	Trace map[string]string `json:"trace,omitempty"`
+	// Metadata of the hook call (HookCall.metadata): ActivityCall.metadata
+	// of every step. Bindings only.
+	Metadata map[string]string `json:"metadata,omitempty"`
 }
 
 // Identity is what a run executes.

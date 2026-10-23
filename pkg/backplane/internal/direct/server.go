@@ -25,6 +25,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/exception"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/metrics"
+	"github.com/backplane-labs/backplane/pkg/backplane/meta"
 )
 
 const scopeName = "github.com/backplane-labs/backplane/pkg/backplane/internal/direct"
@@ -78,6 +79,7 @@ func (s *Server) Run(ctx context.Context, req *backplanev1.RunRequest) (*backpla
 		Attempt: max(call.GetAttempt(), 1), Binding: call.GetBinding(), Step: call.GetStep(), Key: call.GetKey(),
 		Deadline: deadline,
 	})
+	ctx = meta.Replace(ctx, call.GetMetadata())
 
 	out, err := s.handle(ctx, full, h, call.GetPayload())
 	metrics.ActivityHandled(ctx, full, outcome(err), time.Since(start))

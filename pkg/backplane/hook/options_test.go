@@ -9,12 +9,14 @@ import (
 
 	"github.com/backplane-labs/backplane/pkg/backplane/hook"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/meta"
 )
 
 // probe is a transport recording what a call brought.
 type probe struct {
 	deadline time.Duration // left at the call; 0 without one
 	key      string
+	meta     map[string]string
 }
 
 func (p *probe) Call(ctx context.Context, _ string, _ []byte) ([]byte, error) {
@@ -24,6 +26,7 @@ func (p *probe) Call(ctx context.Context, _ string, _ []byte) ([]byte, error) {
 	}
 
 	p.key = env.CallKeyOf(ctx)
+	p.meta = meta.From(ctx)
 
 	return []byte(`{"total":1}`), nil
 }
@@ -62,6 +65,17 @@ func TestCallOptions(t *testing.T) {
 
 	if _, err := bounded.Call(ctx, Quote{}, hook.Timeout(time.Minute)); err != nil || !near(p.deadline, time.Second) {
 		t.Fatalf("ctx earlier: %v %v", err, p.deadline)
+	}
+
+	// Metadata: the context's, with the call's over it.
+	mctx := meta.With(t.Context(), "user", "u-1", "tenant", "t-1")
+	if _, err := plain.Call(mctx, Quote{}, hook.Metadata("tenant", "t-2")); err != nil ||
+		p.meta["user"] != "u-1" || p.meta["tenant"] != "t-2" {
+		t.Fatalf("metadata: %v %v", err, p.meta)
+	}
+
+	if got := plain.CallMetadata(hook.Metadata("a", "1"), hook.Metadata("b", "2")); len(got) != 2 || got["b"] != "2" {
+		t.Fatalf("call metadata: %v", got)
 	}
 
 	// Ignored non-positive values.

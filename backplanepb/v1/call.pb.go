@@ -35,7 +35,11 @@ type HookCall struct {
 	// key answers with the first one's outcome while its run is retained; a
 	// failed or canceled run runs again. The SDK's direct transport sends it
 	// as the bp-call-key header, which backplane reads when this is empty.
-	Key           string `protobuf:"bytes,6,opt,name=key,proto3" json:"key,omitempty"`
+	Key string `protobuf:"bytes,6,opt,name=key,proto3" json:"key,omitempty"`
+	// The call's metadata (pkg/backplane/meta): the product's pairs, carried
+	// to every activity the binding's run calls. Backplane does not read
+	// them.
+	Metadata      map[string]string `protobuf:"bytes,7,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -112,6 +116,13 @@ func (x *HookCall) GetKey() string {
 	return ""
 }
 
+func (x *HookCall) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
 type HookResult struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Payload       []byte                 `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`
@@ -169,8 +180,10 @@ type ActivityCall struct {
 	// Direct runtime: the attempt (1 for the first) and the key of the step
 	// execution — the same for every attempt — as activity.Info shows them;
 	// Temporal supplies its own.
-	Attempt       int32  `protobuf:"varint,6,opt,name=attempt,proto3" json:"attempt,omitempty"`
-	Key           string `protobuf:"bytes,7,opt,name=key,proto3" json:"key,omitempty"`
+	Attempt int32  `protobuf:"varint,6,opt,name=attempt,proto3" json:"attempt,omitempty"`
+	Key     string `protobuf:"bytes,7,opt,name=key,proto3" json:"key,omitempty"`
+	// Metadata of the hook call whose run calls this activity (HookCall.metadata).
+	Metadata      map[string]string `protobuf:"bytes,8,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -252,6 +265,13 @@ func (x *ActivityCall) GetKey() string {
 		return x.Key
 	}
 	return ""
+}
+
+func (x *ActivityCall) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
 }
 
 type ActivityResult struct {
@@ -454,21 +474,25 @@ var File_backplanepb_v1_call_proto protoreflect.FileDescriptor
 
 const file_backplanepb_v1_call_proto_rawDesc = "" +
 	"\n" +
-	"\x19backplanepb/v1/call.proto\x12\fbackplane.v1\x1a\x1egoogle/protobuf/duration.proto\"\x90\x02\n" +
+	"\x19backplanepb/v1/call.proto\x12\fbackplane.v1\x1a\x1egoogle/protobuf/duration.proto\"\x8f\x03\n" +
 	"\bHookCall\x12\x12\n" +
 	"\x04hook\x18\x01 \x01(\tR\x04hook\x12\x1a\n" +
 	"\binstance\x18\x02 \x01(\tR\binstance\x12\x18\n" +
 	"\apayload\x18\x03 \x01(\fR\apayload\x127\n" +
 	"\x05trace\x18\x04 \x03(\v2!.backplane.v1.HookCall.TraceEntryR\x05trace\x125\n" +
 	"\bdeadline\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\bdeadline\x12\x10\n" +
-	"\x03key\x18\x06 \x01(\tR\x03key\x1a8\n" +
+	"\x03key\x18\x06 \x01(\tR\x03key\x12@\n" +
+	"\bmetadata\x18\a \x03(\v2$.backplane.v1.HookCall.MetadataEntryR\bmetadata\x1a8\n" +
 	"\n" +
 	"TraceEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"&\n" +
 	"\n" +
 	"HookResult\x12\x18\n" +
-	"\apayload\x18\x01 \x01(\fR\apayload\"\x95\x02\n" +
+	"\apayload\x18\x01 \x01(\fR\apayload\"\x98\x03\n" +
 	"\fActivityCall\x12\x1a\n" +
 	"\bactivity\x18\x01 \x01(\tR\bactivity\x12\x18\n" +
 	"\apayload\x18\x02 \x01(\fR\apayload\x12;\n" +
@@ -476,9 +500,13 @@ const file_backplanepb_v1_call_proto_rawDesc = "" +
 	"\abinding\x18\x04 \x01(\tR\abinding\x12\x12\n" +
 	"\x04step\x18\x05 \x01(\tR\x04step\x12\x18\n" +
 	"\aattempt\x18\x06 \x01(\x05R\aattempt\x12\x10\n" +
-	"\x03key\x18\a \x01(\tR\x03key\x1a8\n" +
+	"\x03key\x18\a \x01(\tR\x03key\x12D\n" +
+	"\bmetadata\x18\b \x03(\v2(.backplane.v1.ActivityCall.MetadataEntryR\bmetadata\x1a8\n" +
 	"\n" +
 	"TraceEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"*\n" +
 	"\x0eActivityResult\x12\x18\n" +
@@ -508,7 +536,7 @@ func file_backplanepb_v1_call_proto_rawDescGZIP() []byte {
 	return file_backplanepb_v1_call_proto_rawDescData
 }
 
-var file_backplanepb_v1_call_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_backplanepb_v1_call_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_backplanepb_v1_call_proto_goTypes = []any{
 	(*HookCall)(nil),            // 0: backplane.v1.HookCall
 	(*HookResult)(nil),          // 1: backplane.v1.HookResult
@@ -518,23 +546,27 @@ var file_backplanepb_v1_call_proto_goTypes = []any{
 	(*RunRequest)(nil),          // 5: backplane.v1.RunRequest
 	(*RunResponse)(nil),         // 6: backplane.v1.RunResponse
 	nil,                         // 7: backplane.v1.HookCall.TraceEntry
-	nil,                         // 8: backplane.v1.ActivityCall.TraceEntry
-	(*durationpb.Duration)(nil), // 9: google.protobuf.Duration
+	nil,                         // 8: backplane.v1.HookCall.MetadataEntry
+	nil,                         // 9: backplane.v1.ActivityCall.TraceEntry
+	nil,                         // 10: backplane.v1.ActivityCall.MetadataEntry
+	(*durationpb.Duration)(nil), // 11: google.protobuf.Duration
 }
 var file_backplanepb_v1_call_proto_depIdxs = []int32{
-	7, // 0: backplane.v1.HookCall.trace:type_name -> backplane.v1.HookCall.TraceEntry
-	9, // 1: backplane.v1.HookCall.deadline:type_name -> google.protobuf.Duration
-	8, // 2: backplane.v1.ActivityCall.trace:type_name -> backplane.v1.ActivityCall.TraceEntry
-	9, // 3: backplane.v1.CallFailure.retry_after:type_name -> google.protobuf.Duration
-	2, // 4: backplane.v1.RunRequest.call:type_name -> backplane.v1.ActivityCall
-	3, // 5: backplane.v1.RunResponse.result:type_name -> backplane.v1.ActivityResult
-	5, // 6: backplane.v1.ActivityService.Run:input_type -> backplane.v1.RunRequest
-	6, // 7: backplane.v1.ActivityService.Run:output_type -> backplane.v1.RunResponse
-	7, // [7:8] is the sub-list for method output_type
-	6, // [6:7] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	7,  // 0: backplane.v1.HookCall.trace:type_name -> backplane.v1.HookCall.TraceEntry
+	11, // 1: backplane.v1.HookCall.deadline:type_name -> google.protobuf.Duration
+	8,  // 2: backplane.v1.HookCall.metadata:type_name -> backplane.v1.HookCall.MetadataEntry
+	9,  // 3: backplane.v1.ActivityCall.trace:type_name -> backplane.v1.ActivityCall.TraceEntry
+	10, // 4: backplane.v1.ActivityCall.metadata:type_name -> backplane.v1.ActivityCall.MetadataEntry
+	11, // 5: backplane.v1.CallFailure.retry_after:type_name -> google.protobuf.Duration
+	2,  // 6: backplane.v1.RunRequest.call:type_name -> backplane.v1.ActivityCall
+	3,  // 7: backplane.v1.RunResponse.result:type_name -> backplane.v1.ActivityResult
+	5,  // 8: backplane.v1.ActivityService.Run:input_type -> backplane.v1.RunRequest
+	6,  // 9: backplane.v1.ActivityService.Run:output_type -> backplane.v1.RunResponse
+	9,  // [9:10] is the sub-list for method output_type
+	8,  // [8:9] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_backplanepb_v1_call_proto_init() }
@@ -548,7 +580,7 @@ func file_backplanepb_v1_call_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_backplanepb_v1_call_proto_rawDesc), len(file_backplanepb_v1_call_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

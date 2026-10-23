@@ -21,6 +21,7 @@ import (
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/guard"
+	"github.com/backplane-labs/backplane/pkg/backplane/meta"
 )
 
 // NoBindingType is the failure type of a required hook without a binding.
@@ -125,6 +126,7 @@ func (c *Caller) Call(ctx context.Context, hook string, in []byte) ([]byte, erro
 
 	call := &backplanev1.HookCall{
 		Hook: hook, Instance: c.instance, Payload: in, Trace: carrier, Deadline: durationpb.New(timeout),
+		Metadata: meta.From(ctx),
 	}
 	ctx = metadata.AppendToOutgoingContext(ctx, guard.Header, c.secret, KeyHeader, env.CallKeyOf(ctx))
 

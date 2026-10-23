@@ -44,6 +44,8 @@ type Run struct {
 	// Trace is the caller's W3C trace context: ActivityCall.trace of every
 	// step when the run's context has no span of its own.
 	Trace map[string]string
+	// Metadata of the hook call: ActivityCall.metadata of every step.
+	Metadata map[string]string
 }
 
 // Recorder is told of every call of a run, for the console. Calls come
@@ -314,7 +316,7 @@ func (e *execution) call(ctx context.Context, plan bindings.StepPlan, label stri
 
 	call := &backplanev1.ActivityCall{
 		Activity: plan.Activity, Payload: input, Trace: e.trace, Binding: e.run.Identity, Step: label,
-		Attempt: 1, Key: e.run.ID + "/" + label,
+		Attempt: 1, Key: e.run.ID + "/" + label, Metadata: e.run.Metadata,
 	}
 
 	res, err := e.attempts(ctx, plan, call)

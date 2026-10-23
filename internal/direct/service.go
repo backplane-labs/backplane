@@ -465,7 +465,7 @@ func (s *Service) RaiseHook(ctx context.Context, call *backplanev1.HookCall) (*b
 		Keyed: key != "",
 	}, Run{
 		ID: id, Kind: KindBinding, Program: prog, Payload: payload, Identity: identity(hook, version),
-		Trace: call.GetTrace(),
+		Trace: call.GetTrace(), Metadata: call.GetMetadata(),
 	}, key != "")
 	if errors.Is(err, ErrAlreadyStarted) {
 		out, err = s.await(ctx, id)

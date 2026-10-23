@@ -150,6 +150,8 @@ func (x *Executor) RunBinding(
 		return nil, err
 	}
 
+	in.Metadata = call.GetMetadata()
+
 	c, err := x.client()
 	if err != nil {
 		return nil, err

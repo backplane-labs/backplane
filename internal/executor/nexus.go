@@ -317,6 +317,8 @@ func (x *Executor) prepare(
 		return Input{}, nil, failure(err.Error(), wire.HookFailedType)
 	}
 
+	in.Metadata = call.GetMetadata()
+
 	return in, prog, nil
 }
 

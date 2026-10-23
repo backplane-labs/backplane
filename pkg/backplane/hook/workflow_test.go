@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -33,8 +34,8 @@ type outcome struct {
 	Err       string `json:"err"`
 }
 
-// price plays backplane's binding of <svc>.Price: doubles the amount,
-// declines negatives, has no binding for zero.
+// price plays backplane's binding of <svc>.Price: doubles the amount (plus
+// the call's metadata bonus), declines negatives, has no binding for zero.
 func price() nexus.Operation[*backplanev1.HookCall, *backplanev1.HookResult] {
 	return nexus.NewSyncOperation("Price", func(
 		_ context.Context, call *backplanev1.HookCall, _ nexus.StartOperationOptions,
@@ -51,7 +52,8 @@ func price() nexus.Operation[*backplanev1.HookCall, *backplanev1.HookResult] {
 			return nil, nexus.NewOperationFailedErrorf("%w", errDeclined)
 		}
 
-		out, _ := json.Marshal(Price{Total: in.Amount * 2})
+		bonus, _ := strconv.Atoi(call.GetMetadata()["bonus"])
+		out, _ := json.Marshal(Price{Total: in.Amount*2 + bonus})
 
 		return &backplanev1.HookResult{Payload: out}, nil
 	})
@@ -71,7 +73,7 @@ func TestWorkflowCall(t *testing.T) {
 
 	// A workflow returns an error last, whether it uses it or not.
 	quote := func(ctx workflow.Context, amount int) (outcome, error) { //nolint:unparam // workflow signature
-		out, err := workflows.CallHook(ctx, ref, Quote{Amount: amount})
+		out, err := workflows.CallHook(ctx, ref, Quote{Amount: amount}, hook.Metadata("bonus", "1"))
 		if err != nil {
 			return outcome{NoBinding: errors.Is(err, hook.ErrNoBinding), Err: err.Error()}, nil
 		}
@@ -88,7 +90,7 @@ func TestWorkflowCall(t *testing.T) {
 		amount int
 		want   outcome
 	}{
-		{21, outcome{Total: 42}},
+		{21, outcome{Total: 43}},
 		{0, outcome{NoBinding: true, Err: "hook " + svc + ".Price: no binding"}},
 		{-1, outcome{Err: "hook " + svc + ".Price: declined"}},
 	} {

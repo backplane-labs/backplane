@@ -120,13 +120,15 @@ result: {id: send.id}
 
 	res, err := s.CallHook(t.Context(), &backplanev1.HookCall{
 		Hook: "iam.SendEmail", Instance: "iam-1", Payload: []byte(`{"to":"ann"}`), Deadline: durationpb.New(5 * time.Second),
+		Metadata: map[string]string{"user": "u-1"},
 	})
 	if err != nil || string(res.GetPayload()) != `{"id":"m-ann"}` {
 		t.Fatalf("%s %v", res.GetPayload(), err)
 	}
 
 	call := f.of("send")
-	if call.GetBinding() != "iam.SendEmail@3" || !strings.HasPrefix(call.GetKey(), wire.DirectRunPrefix+"binding/iam.SendEmail/") {
+	if call.GetBinding() != "iam.SendEmail@3" || !strings.HasPrefix(call.GetKey(), wire.DirectRunPrefix+"binding/iam.SendEmail/") ||
+		call.GetMetadata()["user"] != "u-1" {
 		t.Fatalf("call %v", call)
 	}
 

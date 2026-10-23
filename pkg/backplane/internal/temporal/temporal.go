@@ -36,6 +36,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/backoff"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
+	"github.com/backplane-labs/backplane/pkg/backplane/meta"
 )
 
 const (
@@ -293,6 +294,7 @@ func (c *Client) Call(ctx context.Context, hook string, in []byte) ([]byte, erro
 
 	call := &backplanev1.HookCall{
 		Hook: hook, Instance: c.p.Instance, Payload: in, Trace: Inject(ctx), Deadline: durationpb.New(timeout),
+		Metadata: meta.From(ctx),
 	}
 
 	run, err := conn.ExecuteWorkflow(ctx, c.startOptions(ctx, conn, name, timeout), CallHookWorkflow, call)

@@ -21,6 +21,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
+	"github.com/backplane-labs/backplane/pkg/backplane/meta"
 )
 
 // serve runs a gRPC server over an in-memory connection and is a dial of
@@ -51,10 +52,14 @@ func TestServer(t *testing.T) {
 
 	e := env.New("smtp", manifest.New("smtp", "1.0.0"))
 
-	var info env.ActivityInfo
+	var (
+		info env.ActivityInfo
+		user string
+	)
 
 	e.Activity("Send", func(ctx context.Context, in []byte) ([]byte, error) {
 		info, _ = env.ActivityInfoOf(ctx)
+		user = meta.Get(ctx, "user")
 
 		return []byte(`{"got":` + string(in) + `}`), nil
 	})
@@ -80,14 +85,15 @@ func TestServer(t *testing.T) {
 
 	res, err := client.Run(t.Context(), &backplanev1.RunRequest{Call: &backplanev1.ActivityCall{
 		Activity: "smtp.Send", Payload: []byte(`{"to":"a"}`), Binding: "iam.SendEmail@3", Step: "send", Attempt: 2,
-		Key: "run-1/send",
+		Key: "run-1/send", Metadata: map[string]string{"user": "u-1"},
 	}})
 	if err != nil || string(res.GetResult().GetPayload()) != `{"got":{"to":"a"}}` {
 		t.Fatalf("%s %v", res.GetResult().GetPayload(), err)
 	}
 
-	if info.Attempt != 2 || info.Binding != "iam.SendEmail@3" || info.Step != "send" || info.Key != "run-1/send" {
-		t.Fatalf("info %+v", info)
+	if info.Attempt != 2 || info.Binding != "iam.SendEmail@3" || info.Step != "send" || info.Key != "run-1/send" ||
+		user != "u-1" {
+		t.Fatalf("info %+v user %q", info, user)
 	}
 
 	for _, tc := range []struct {
@@ -139,12 +145,15 @@ type hookServer struct {
 	calls  atomic.Int32
 	secret atomic.Pointer[string]
 	key    atomic.Pointer[string]
+	meta   atomic.Pointer[map[string]string]
 }
 
 func (s *hookServer) Raise(ctx context.Context, req *consolev1.RaiseRequest) (*consolev1.RaiseResponse, error) {
 	s.calls.Add(1)
 
 	call := req.GetCall()
+	callMeta := call.GetMetadata()
+	s.meta.Store(&callMeta)
 
 	if s.down.Load() {
 		return nil, status.Error(codes.Unavailable, "down")
@@ -207,13 +216,14 @@ func TestCaller(t *testing.T) {
 	})
 	t.Cleanup(c.Close)
 
-	out, err := c.Call(env.WithCallKey(t.Context(), "k-1"), "iam.SendEmail", []byte(`{"to":"a"}`))
+	out, err := c.Call(env.WithCallKey(meta.With(t.Context(), "user", "u-1"), "k-1"), "iam.SendEmail", []byte(`{"to":"a"}`))
 	if err != nil || len(out) == 0 {
 		t.Fatalf("%s %v", out, err)
 	}
 
-	if b.secret.Load() == nil || *b.secret.Load() != "s3cret" || b.key.Load() == nil || *b.key.Load() != "k-1" {
-		t.Fatalf("secret %v key %v", b.secret.Load(), b.key.Load())
+	if b.secret.Load() == nil || *b.secret.Load() != "s3cret" || b.key.Load() == nil || *b.key.Load() != "k-1" ||
+		(*b.meta.Load())["user"] != "u-1" {
+		t.Fatalf("secret %v key %v meta %v", b.secret.Load(), b.key.Load(), b.meta.Load())
 	}
 
 	if _, err := c.Call(t.Context(), "iam.Missing", nil); !errors.Is(err, env.ErrNoBinding) {
