@@ -17,6 +17,11 @@ message HookCall {
   // W3C trace context: traceparent, tracestate, baggage.
   map<string, string> trace = 4;
   google.protobuf.Duration deadline = 5;
+  // Idempotency key (hook.Key): a call repeating one with the same hook and
+  // key answers with the first one's outcome while its run is retained; a
+  // failed or canceled run runs again. The SDK's direct transport sends it
+  // as the bp-call-key header, which backplane reads when this is empty.
+  string key = 6;
 }
 
 message HookResult {

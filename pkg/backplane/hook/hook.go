@@ -117,9 +117,11 @@ func (f callFunc) applyCall(o *callOptions) { f(o) }
 // Key makes the call idempotent under k: calls with the same key run the
 // binding once. A call while the first runs waits for it; a call after it
 // succeeded gets its result (the input of the later call is not looked at);
-// a call after it failed runs again. The workflow id is
-// hook/<service>/<Name>/<k>; Temporal remembers it for the namespace's
-// retention. workflows.CallHook ignores the key: a workflow is durable already.
+// a call after it failed runs again. On the Temporal transport the workflow
+// id is hook/<service>/<Name>/<k>, remembered for the namespace's
+// retention; on the direct transport backplane keeps the run
+// direct/binding/<service>.<Name>/key/<k> for its run retention.
+// workflows.CallHook ignores the key: a workflow is durable already.
 func Key(k string) CallOption { return callFunc(func(o *callOptions) { o.key = k }) }
 
 // Timeout is the call's deadline, over the declared DefaultTimeout; the

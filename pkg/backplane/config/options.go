@@ -20,6 +20,8 @@ type settings struct {
 	noEnv      bool
 	noConsul   bool
 	extra      []xconf.Source
+	defaults   map[string]any
+	block      map[string]any
 	remote     RemoteFactory
 	backoffMin time.Duration
 	backoffMax time.Duration
@@ -42,6 +44,20 @@ func EnvPrefix(prefix string) Option {
 
 // WithoutEnv disables the environment layer.
 func WithoutEnv() Option { return func(s *settings) { s.noEnv = true } }
+
+// Defaults are the service's own defaults, in the configuration's JSON
+// shape (durations as strings, "30s"): a layer above the schema's defaults
+// and below the file, so the file, the environment and Consul override
+// them. Later calls merge over earlier ones.
+func Defaults(values map[string]any) Option {
+	return func(s *settings) { s.defaults = mergeValues(s.defaults, values) }
+}
+
+// BlockDefaults are Defaults of the SDK block, relative to it ("server":
+// {...}) whatever key the configuration embeds it under.
+func BlockDefaults(values map[string]any) Option {
+	return func(s *settings) { s.block = mergeValues(s.block, values) }
+}
 
 // Source appends layers above file and environment, below Consul KV, in
 // order.

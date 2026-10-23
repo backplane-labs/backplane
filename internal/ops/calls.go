@@ -367,6 +367,7 @@ func (a CallAPI) hookCall(
 
 	return opts, &backplanev1.HookCall{
 		Hook: req.GetHook(), Instance: author, Payload: payload, Trace: carrier, Deadline: durationpb.New(timeout),
+		Key: req.GetKey(),
 	}, nil
 }
 

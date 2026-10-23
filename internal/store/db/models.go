@@ -159,6 +159,7 @@ type BackplaneDirectRun struct {
 	Attempt     int32
 	Input       json.RawMessage
 	Result      json.RawMessage
+	Reply       []byte
 	Error       string
 	ErrorType   string
 	ProgramHash string

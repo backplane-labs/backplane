@@ -2,10 +2,12 @@
 // backplane's own process, without Temporal. Steps and expressions are the
 // compiled program's; activities are called over gRPC on the services'
 // platform ports (the SDK's ActivityService); a run is recorded in
-// PostgreSQL for the console. The run as a whole is retried by its caller
-// (a hook's) or by event redelivery (a rule's): there are no retries per
-// step, no undo, no heartbeat, no child workflow — the compiler rejects a
-// definition using them for this runtime.
+// PostgreSQL for the console. A step's activity is retried by the step's
+// policy (attempts, backoff, the handler's RetryAfter up to the maximum
+// interval) within the run; a failed run is retried as a whole by its
+// caller (a hook's) or by event redelivery (a rule's). There is no undo,
+// no heartbeat, no child workflow — the compiler rejects a definition
+// using them for this runtime.
 package direct
 
 import (

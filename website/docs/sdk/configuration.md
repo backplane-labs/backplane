@@ -19,6 +19,13 @@ The `desc` tag is the field's description: the console shows it under the
 field. Every field of the SDK's own sections (`backplane`, and the `nats`,
 `postgres`, `temporal`, `valkey` connection sections) has one.
 
+A service ships its own defaults with `config.Defaults` (its fields) and
+`config.BlockDefaults` (the SDK block), passed through
+`backplane.ConfigOptions`. They sit above the schema's defaults and below the
+file, the environment and Consul. `backplane.ServerKeepalive(30*time.Second)`
+is the block default of `server.grpc_keepalive_time`, for services with long
+streams behind NAT; `BACKPLANE_SERVER_GRPC_KEEPALIVE_TIME` still overrides it.
+
 Normal fields are startup configuration. `config.Live[T]` marks fields that can change without restarting. Read them with `Get()` at the point of use; copying a live value into an ordinary field would freeze it.
 
 ```go

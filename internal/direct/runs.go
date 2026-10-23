@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -266,6 +267,9 @@ type Start struct {
 	// Program.Hash: the run references the program by it.
 	Program     []byte
 	ProgramHash string
+	// Keyed: a hook call with a key. A canceled run is claimed again too,
+	// and the unmasked result is kept for the calls that repeat it.
+	Keyed bool
 }
 
 // program is the record of a run's program: one row per content. A hash
@@ -303,6 +307,26 @@ func (r *Runs) Claim(ctx context.Context, s Start, prog *redact.Program) (bool, 
 		return false, fmt.Errorf("direct runs: %w", deps.ErrNotReady)
 	}
 
+	claimed, err := r.claim(ctx, s, prog)
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation {
+		// Its program was expired after this process wrote it: write it
+		// again.
+		r.mu.Lock()
+		delete(r.stored, s.ProgramHash)
+		r.mu.Unlock()
+
+		claimed, err = r.claim(ctx, s, prog)
+	}
+
+	return claimed, err
+}
+
+// foreignKeyViolation is PostgreSQL's foreign_key_violation.
+const foreignKeyViolation = "23503"
+
+func (r *Runs) claim(ctx context.Context, s Start, prog *redact.Program) (bool, error) {
 	queries := r.st.Get().Q
 
 	if put := r.program(s); put != nil {
@@ -313,7 +337,7 @@ func (r *Runs) Claim(ctx context.Context, s Start, prog *redact.Program) (bool, 
 
 	_, err := queries.ClaimDirectRun(ctx, db.ClaimDirectRunParams{
 		ID: s.ID, Kind: string(s.Kind), Source: s.Source, Version: s.Version, Test: s.Test, Caller: s.Caller,
-		Input: jsonb(prog.MaskInput(s.Input)), ProgramHash: s.ProgramHash,
+		Input: jsonb(prog.MaskInput(s.Input)), ProgramHash: s.ProgramHash, RerunCanceled: s.Keyed,
 	})
 
 	switch {
@@ -350,7 +374,8 @@ func (r *Runs) Begin(s Start, prog *redact.Program) {
 
 // Finish records the end of a run: its result masked by prog, or its
 // error; incomplete marks a record missing step records (Recorder.Incomplete).
-func (r *Runs) Finish(id string, prog *redact.Program, result []byte, err error, incomplete bool) {
+// reply, the unmasked result, is kept for a keyed call (nil otherwise).
+func (r *Runs) Finish(id string, prog *redact.Program, result, reply []byte, err error, incomplete bool) {
 	status := statusCompleted
 	msg, typ := Readable(err)
 
@@ -365,7 +390,7 @@ func (r *Runs) Finish(id string, prog *redact.Program, result []byte, err error,
 
 	r.enqueue(func(ctx context.Context, q *db.Queries) error {
 		return q.FinishDirectRun(ctx, db.FinishDirectRunParams{
-			ID: id, Status: status, Result: masked, Error: msg, ErrorType: typ, Incomplete: incomplete,
+			ID: id, Status: status, Result: masked, Reply: reply, Error: msg, ErrorType: typ, Incomplete: incomplete,
 		})
 	})
 }
@@ -494,6 +519,11 @@ func (r *Runs) Expire(ctx context.Context, cutoff time.Time) error {
 		return fmt.Errorf("direct runs: expire programs: %w", err)
 	}
 
+	// Programs may be gone: the next run of each writes its own again.
+	r.mu.Lock()
+	clear(r.stored)
+	r.mu.Unlock()
+
 	return nil
 }
 
@@ -514,6 +544,35 @@ func (r *Runs) Sweep(ctx context.Context, cutoff time.Time) (int64, error) {
 	}
 
 	return n, nil
+}
+
+// Outcome is how run id ended: its reply when it completed, a *Failure
+// when it failed or was canceled; done is false while it is running.
+func (r *Runs) Outcome(ctx context.Context, id string) ([]byte, bool, error) {
+	if !r.ready() {
+		return nil, false, fmt.Errorf("direct runs: %w", deps.ErrNotReady)
+	}
+
+	row, err := r.st.Get().Q.GetDirectRunOutcome(ctx, id)
+
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return nil, false, fmt.Errorf("%w: %s", ErrNoRun, id)
+	case err != nil:
+		return nil, false, fmt.Errorf("direct runs: outcome of %s: %w", id, err)
+	}
+
+	switch row.Status {
+	case statusRunning:
+		return nil, false, nil
+	case statusCompleted:
+		return row.Reply, true, nil
+	case statusCanceled:
+		// A repeat runs it again.
+		return nil, true, &Failure{Msg: row.Error, Type: row.ErrorType, Retryable: true}
+	}
+
+	return nil, true, &Failure{Msg: row.Error, Type: row.ErrorType}
 }
 
 // Info is what a run is: for the console's binding and rule run RPCs.

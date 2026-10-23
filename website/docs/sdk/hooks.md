@@ -48,6 +48,12 @@ Here `format` is your typed `func(context.Context, Input) (Output, error)`. Decl
 
 Call the declared reference from request code using its `Call` method. Handle `hook.ErrNoBinding` explicitly if the service has a local fallback. Propagate other failures rather than disguising an unavailable durable execution as an unbound hook.
 
+`hook.Key(k)` makes a call idempotent: calls with the same hook and key run
+the binding once. A call while the first runs waits for it, a later one
+gets its result whatever its own input, a call after a failure runs again.
+Both transports keep the key: Temporal for the namespace's retention, the
+direct transport for backplane's run retention.
+
 In a Temporal workflow use `workflows.CallHook(ctx, ref, input, options...)`. Workflow code must remain deterministic; ordinary network calls belong in activities.
 
 The hello example records the delivered greeting and emits `Greeted` after both bound and local execution. Side effects that describe the final result must run on both paths. An HTTP idempotency key can deduplicate hook execution without automatically deduplicating the whole HTTP handler or its later event emission.

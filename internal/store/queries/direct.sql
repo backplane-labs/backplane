@@ -7,22 +7,29 @@ ON CONFLICT (hash) DO NOTHING;
 
 -- name: ClaimDirectRun :one
 -- A new run, or a failed run of the same id claimed again (a rule's event
--- redelivered); no row when the id is running or completed already.
+-- redelivered; a keyed hook call repeated, which also runs a canceled one
+-- again); no row when the id is running or completed already.
 INSERT INTO backplane.direct_run (id, kind, source, version, test, caller, status, input, program_hash)
 VALUES (@id, @kind, @source, @version, @test, @caller, 'running', @input, @program_hash)
 ON CONFLICT (id) DO UPDATE SET
   status = 'running', attempt = backplane.direct_run.attempt + 1, started_at = clock_timestamp(),
-  closed_at = NULL, result = NULL, error = '', error_type = '', incomplete = false,
+  closed_at = NULL, result = NULL, reply = NULL, error = '', error_type = '', incomplete = false,
   input = EXCLUDED.input, program_hash = EXCLUDED.program_hash,
   version = EXCLUDED.version, caller = EXCLUDED.caller
 WHERE backplane.direct_run.status = 'failed'
+  OR (@rerun_canceled::boolean AND backplane.direct_run.status = 'canceled')
 RETURNING id, attempt, started_at;
 
 -- name: FinishDirectRun :exec
 UPDATE backplane.direct_run
-SET status = @status, result = @result, error = @error, error_type = @error_type, incomplete = @incomplete,
-  closed_at = clock_timestamp()
+SET status = @status, result = @result, reply = @reply, error = @error, error_type = @error_type,
+  incomplete = @incomplete, closed_at = clock_timestamp()
 WHERE id = @id;
+
+-- name: GetDirectRunOutcome :one
+-- How a run ended, for a repeated keyed hook call: its unmasked reply or
+-- its error.
+SELECT status, reply, error, error_type FROM backplane.direct_run WHERE id = @id;
 
 -- name: SweepDirectRuns :execrows
 -- Runs still running past cutoff: their end was never recorded (the

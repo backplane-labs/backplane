@@ -29,8 +29,13 @@ type HookCall struct {
 	Instance string                 `protobuf:"bytes,2,opt,name=instance,proto3" json:"instance,omitempty"`
 	Payload  []byte                 `protobuf:"bytes,3,opt,name=payload,proto3" json:"payload,omitempty"`
 	// W3C trace context: traceparent, tracestate, baggage.
-	Trace         map[string]string    `protobuf:"bytes,4,rep,name=trace,proto3" json:"trace,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Deadline      *durationpb.Duration `protobuf:"bytes,5,opt,name=deadline,proto3" json:"deadline,omitempty"`
+	Trace    map[string]string    `protobuf:"bytes,4,rep,name=trace,proto3" json:"trace,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Deadline *durationpb.Duration `protobuf:"bytes,5,opt,name=deadline,proto3" json:"deadline,omitempty"`
+	// Idempotency key (hook.Key): a call repeating one with the same hook and
+	// key answers with the first one's outcome while its run is retained; a
+	// failed or canceled run runs again. The SDK's direct transport sends it
+	// as the bp-call-key header, which backplane reads when this is empty.
+	Key           string `protobuf:"bytes,6,opt,name=key,proto3" json:"key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -98,6 +103,13 @@ func (x *HookCall) GetDeadline() *durationpb.Duration {
 		return x.Deadline
 	}
 	return nil
+}
+
+func (x *HookCall) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
 }
 
 type HookResult struct {
@@ -442,13 +454,14 @@ var File_backplanepb_v1_call_proto protoreflect.FileDescriptor
 
 const file_backplanepb_v1_call_proto_rawDesc = "" +
 	"\n" +
-	"\x19backplanepb/v1/call.proto\x12\fbackplane.v1\x1a\x1egoogle/protobuf/duration.proto\"\xfe\x01\n" +
+	"\x19backplanepb/v1/call.proto\x12\fbackplane.v1\x1a\x1egoogle/protobuf/duration.proto\"\x90\x02\n" +
 	"\bHookCall\x12\x12\n" +
 	"\x04hook\x18\x01 \x01(\tR\x04hook\x12\x1a\n" +
 	"\binstance\x18\x02 \x01(\tR\binstance\x12\x18\n" +
 	"\apayload\x18\x03 \x01(\fR\apayload\x127\n" +
 	"\x05trace\x18\x04 \x03(\v2!.backplane.v1.HookCall.TraceEntryR\x05trace\x125\n" +
-	"\bdeadline\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\bdeadline\x1a8\n" +
+	"\bdeadline\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\bdeadline\x12\x10\n" +
+	"\x03key\x18\x06 \x01(\tR\x03key\x1a8\n" +
 	"\n" +
 	"TraceEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +

@@ -2,6 +2,7 @@ package backplane
 
 import (
 	"os"
+	"time"
 
 	"google.golang.org/grpc"
 
@@ -51,6 +52,17 @@ func Logger(l *xlog.Logger) Option { return func(o *options) { o.log = l } }
 // ConfigOptions pass options to configuration loading.
 func ConfigOptions(opts ...config.Option) Option {
 	return func(o *options) { o.config = append(o.config, opts...) }
+}
+
+// ServerKeepalive is the service's default of server.grpc_keepalive_time:
+// how long a connection stays idle before the server pings it. Long
+// streams behind NAT and load balancers that drop quiet connections need
+// less than the SDK's 2h. The file and BACKPLANE_SERVER_GRPC_KEEPALIVE_TIME
+// override it.
+func ServerKeepalive(d time.Duration) Option {
+	return ConfigOptions(config.BlockDefaults(map[string]any{
+		"server": map[string]any{"grpc_keepalive_time": d.String()},
+	}))
 }
 
 // KeepSlog leaves the log/slog default alone. By default Run routes it into

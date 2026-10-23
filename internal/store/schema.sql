@@ -255,6 +255,9 @@ CREATE TABLE backplane.direct_run (
   attempt    integer     NOT NULL DEFAULT 1 CHECK (attempt > 0),
   input      json,
   result     json,
+  -- The unmasked result of a hook call made with a key: a repeated call
+  -- with the key answers it. NULL for every other run; never shown.
+  reply      bytea,
   error      text        NOT NULL DEFAULT '',
   error_type text        NOT NULL DEFAULT '',
   program_hash text      NOT NULL REFERENCES backplane.direct_program (hash),

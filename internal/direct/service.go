@@ -337,7 +337,13 @@ func (s *Service) Execute(ctx context.Context, start Start, run Run, claim bool)
 	began := time.Now()
 	rec := s.runs.Recorder(start.ID, masks)
 	out, err := s.runner.Execute(ctx, run, rec)
-	s.runs.Finish(start.ID, masks, out, err, rec.Incomplete())
+
+	var reply []byte
+	if start.Keyed && err == nil {
+		reply = out
+	}
+
+	s.runs.Finish(start.ID, masks, out, reply, err, rec.Incomplete())
 	s.metrics.run(ctx, start.Kind, err, time.Since(began))
 
 	return out, err
@@ -447,19 +453,62 @@ func (s *Service) RaiseHook(ctx context.Context, call *backplanev1.HookCall) (*b
 	}
 
 	ctx = continueTrace(ctx, call.GetTrace())
+	key := call.GetKey()
+
 	id := wire.DirectRunID(hook, uuid.NewString())
+	if key != "" {
+		id = wire.DirectRunID(hook, keyRunPrefix+key)
+	}
 
 	out, err := s.Execute(ctx, Start{
 		ID: id, Kind: KindBinding, Source: hook, Version: version, Caller: call.GetInstance(), Input: payload,
+		Keyed: key != "",
 	}, Run{
 		ID: id, Kind: KindBinding, Program: prog, Payload: payload, Identity: identity(hook, version),
 		Trace: call.GetTrace(),
-	}, false)
+	}, key != "")
+	if errors.Is(err, ErrAlreadyStarted) {
+		out, err = s.await(ctx, id)
+	}
+
 	if err != nil {
 		return nil, id, err
 	}
 
 	return &backplanev1.HookResult{Payload: out}, id, nil
+}
+
+// keyRunPrefix starts the last part of the id of a keyed call's run:
+// direct/binding/<hook>/key/<key>.
+const keyRunPrefix = "key/"
+
+// Polling of a keyed call's run another call started.
+const (
+	awaitFirst = 20 * time.Millisecond
+	awaitMax   = time.Second
+	// awaitGrowth multiplies the delay after each poll.
+	awaitGrowth = 2
+)
+
+// await is the outcome of run id, which another call with the same key
+// started: it waits while the run is running, within ctx.
+func (s *Service) await(ctx context.Context, id string) ([]byte, error) {
+	delay := awaitFirst
+
+	for {
+		reply, done, err := s.runs.Outcome(ctx, id)
+		if done || err != nil {
+			return reply, err
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err() //nolint:wrapcheck // the caller's context, as Execute's
+		case <-time.After(delay):
+		}
+
+		delay = min(delay*awaitGrowth, awaitMax)
+	}
 }
 
 // identity is "<hook>@<version>" ("@draft" for an unsaved definition).

@@ -27,6 +27,8 @@ const (
 	SourceFile   = "file:"
 	SourceEnv    = "env:"
 	SourceConsul = "consul:"
+	// SourceDefaults: the service's own defaults, reported as defaults.
+	SourceDefaults = "defaults:"
 )
 
 // State is the SDK's view of a live configuration.

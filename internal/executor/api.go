@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/propagation"
+	enumspb "go.temporal.io/api/enums/v1"
 	historypb "go.temporal.io/api/history/v1"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/temporal"
@@ -162,6 +163,14 @@ func (x *Executor) RunBinding(
 	opts := client.StartWorkflowOptions{
 		ID: wire.BindingRunID(hook, uuid.NewString()), TaskQueue: x.queue, WorkflowExecutionTimeout: deadline,
 		Memo: map[string]any{wire.MemoSource: call.GetInstance(), wire.MemoBinding: in.Identity.String()},
+	}
+
+	// A keyed call joins the run of the first call with the key, as the
+	// Temporal transport's hook calls do.
+	if key := call.GetKey(); key != "" {
+		opts.ID = wire.BindingRunID(hook, "key/"+key)
+		opts.WorkflowIDConflictPolicy = enumspb.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING
+		opts.WorkflowIDReusePolicy = enumspb.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
 	}
 
 	res, err := x.execute(ctx, c, opts, in, deadline+waitSlack)

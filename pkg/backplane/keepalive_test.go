@@ -31,3 +31,37 @@ func TestKeepaliveParams(t *testing.T) {
 		t.Fatalf("bounds: %+v", got)
 	}
 }
+
+// ServerKeepalive is the service's default; the environment overrides it.
+func TestServerKeepalive(t *testing.T) {
+	setup(t, "")
+
+	open := func() time.Duration {
+		var got time.Duration
+
+		svc, err := backplane.Open(t.Context(), func(root backplane.Root[testConfig]) (*testState, error) {
+			got = root.Config().BackplaneConfig().Server.GRPCKeepaliveTime
+
+			return &testState{}, nil
+		}, baseOptions("svc-keepalive", backplane.ServerKeepalive(30*time.Second))...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := svc.Close(); err != nil {
+			t.Fatal(err)
+		}
+
+		return got
+	}
+
+	if got := open(); got != 30*time.Second {
+		t.Fatalf("service default: %v", got)
+	}
+
+	t.Setenv("BACKPLANE_SERVER_GRPC_KEEPALIVE_TIME", "1m")
+
+	if got := open(); got != time.Minute {
+		t.Fatalf("environment: %v", got)
+	}
+}

@@ -86,10 +86,14 @@ func newSettings(opts []Option) (*settings, error) {
 	return st, nil
 }
 
-// baseSources: file < BACKPLANE_* for the block (when t embeds it) <
+// baseSources: Defaults < file < BACKPLANE_* for the block (when t embeds it) <
 // <SERVICE>_* < extra.
 func (st *settings) baseSources(t reflect.Type) ([]xconf.Source, error) {
 	var sources []xconf.Source
+	if src := st.defaultsSource(blockKey(t)); src != nil {
+		sources = append(sources, src)
+	}
+
 	if src := st.fileSource(); src != nil {
 		sources = append(sources, src)
 	}
@@ -115,6 +119,72 @@ func (st *settings) baseSources(t reflect.Type) ([]xconf.Source, error) {
 
 func (st *settings) env(prefix string) xconf.Source {
 	return env.New(env.Prefix(prefix), env.Name(configrt.SourceEnv+prefix))
+}
+
+// defaultsSource is the layer of Defaults and BlockDefaults (under key, the
+// block's; dropped when the configuration carries no block); nil when empty.
+func (st *settings) defaultsSource(key string) xconf.Source {
+	values := st.defaults
+	if key != "" && len(st.block) > 0 {
+		values = mergeValues(values, map[string]any{key: st.block})
+	}
+
+	if len(values) == 0 {
+		return nil
+	}
+
+	return xconf.SourceFunc{
+		ID: configrt.SourceDefaults + st.service,
+		ReadFunc: func(ctx context.Context, _ *sp.Schema) (xconf.Layer, error) {
+			if err := ctx.Err(); err != nil {
+				return xconf.Layer{}, fmt.Errorf("config: defaults: %w", err)
+			}
+
+			return xconf.Layer{Values: cloneValues(values)}, nil
+		},
+	}
+}
+
+// mergeValues is over merged onto a copy of base, objects key by key.
+func mergeValues(base, over map[string]any) map[string]any {
+	out := cloneValues(base)
+	if out == nil {
+		out = map[string]any{}
+	}
+
+	for k, v := range over {
+		if sub, ok := v.(map[string]any); ok {
+			if prev, found := out[k].(map[string]any); found {
+				out[k] = mergeValues(prev, sub)
+
+				continue
+			}
+
+			v = cloneValues(sub)
+		}
+
+		out[k] = v
+	}
+
+	return out
+}
+
+// cloneValues copies the objects of values; leaves are shared.
+func cloneValues(values map[string]any) map[string]any {
+	if values == nil {
+		return nil
+	}
+
+	out := make(map[string]any, len(values))
+	for k, v := range values {
+		if sub, ok := v.(map[string]any); ok {
+			v = cloneValues(sub)
+		}
+
+		out[k] = v
+	}
+
+	return out
 }
 
 func (st *settings) fileSource() xconf.Source {

@@ -6,6 +6,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	"github.com/gopherex/xlog"
@@ -29,11 +30,23 @@ func (s *Service) Register(r grpc.ServiceRegistrar) {
 	consolev1.RegisterHookServiceServer(r, s.HookService())
 }
 
-// Raise implements HookService.
+// keyHeader carries the call's key from the SDK's direct transport
+// (pkg/backplane/internal/direct.KeyHeader).
+const keyHeader = "bp-call-key"
+
+// Raise implements HookService. A call with a key (the envelope's, else
+// the bp-call-key header) answers with the outcome of the first call with
+// that hook and key.
 func (a HookAPI) Raise(ctx context.Context, req *consolev1.RaiseRequest) (*consolev1.RaiseResponse, error) {
 	call := req.GetCall()
 	if call.GetHook() == "" {
 		return nil, status.Error(codes.InvalidArgument, "hook is required") //nolint:wrapcheck // a gRPC status
+	}
+
+	if call.GetKey() == "" {
+		if v := metadata.ValueFromIncomingContext(ctx, keyHeader); len(v) > 0 {
+			call.Key = v[0]
+		}
 	}
 
 	res, err := a.s.CallHook(ctx, call)
