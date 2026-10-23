@@ -7,7 +7,7 @@ import { initReactI18next, I18nextProvider, useTranslation } from 'react-i18next
 import { ThemeContext } from '@grafana/ui';
 import { createGrafanaTheme, type ThemeMode } from '@backplane-labs/backplane-theme';
 import { BackplaneProvider, useConnection } from '@backplane-labs/backplane-react';
-import { englishResources } from '@backplane-labs/backplane-ui';
+import { englishResources, Toaster } from '@backplane-labs/backplane-ui';
 import { BackplaneClient } from '@backplane-labs/backplane-client';
 import '@backplane-labs/backplane-ui/style.css';
 import '@backplane-labs/backplane-theme/style.css';
@@ -40,6 +40,8 @@ function Host() {
   if (!connection.session) return <Login client={runtime} state={connection.connection} mode={mode} onThemeChange={setMode} />;
   return <ThemeContext.Provider value={createGrafanaTheme(mode)}>
     <Suspense fallback={<p role="status">{t('loading')}</p>}><Console key={connection.session.id} mode={mode} onThemeChange={setMode} onLogout={() => runtime.logout()} /></Suspense>
+    {/* One toast region for the shell and every plugin: the ui kit (and its toast store) is shared. */}
+    <Toaster theme={mode} position="bottom-right" />
   </ThemeContext.Provider>;
 }
 void runtime.start();

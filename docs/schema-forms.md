@@ -15,10 +15,17 @@ a schema error state. Only English resources are supplied; the exported
 The renderer supports scalar kinds, Choice and dynamic options, Object, Ref,
 OneOf, List and Map. JSON and deep structures use a typed protobuf JSON editor,
 which preserves integer precision. Missing and null values remain distinct.
+A missing scalar, choice or bool is edited in place: typing or choosing sets
+it, and clearing an optional one makes it missing again. Structures (Object,
+List, Map, JSON) keep an explicit "Set value" step, since an empty structure
+is itself a value. "Unset" and "Set null" sit beside the field's label.
 Computed/immutable fields cannot be edited. Inactive values remain in the draft
 and reappear when their CEL condition becomes true. Structured validation paths
 match literal keys, including dots and brackets. Schema-authored descriptions,
 titles, units and deprecation markers are rendered as text.
+
+A field's validation messages appear once it is edited; a submit attempt shows
+every message and the summary. An untouched form shows none.
 
 Submit produces the engine's canonical Baked snapshot. Blocking validation or
 malformed JSON prevents submission. A failed submit preserves the draft and
@@ -35,5 +42,5 @@ original editable configuration and for handling server-side validation.
 
 Catalog: `Kit/Schema forms` includes editable and read-only fixtures. Browser
 checks cover both themes, accessibility, exact uint64, dynamic controls,
-variant switching, save failure recovery and masked previews. Model tests
+variant switching, message visibility, save failure recovery and masked previews. Model tests
 cover defaults/CEL, nanosecond timestamps, literal path segments and masking.

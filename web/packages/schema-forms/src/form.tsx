@@ -50,6 +50,10 @@ function FormBody({ engine, initialValues = {}, onSubmit, onDirtyChange, ...prop
   const [resetEpoch, setResetEpoch] = useState(0);
   const [saving, setSaving] = useState(false);
   const [submitFailed, setSubmitFailed] = useState(false);
+  // Messages appear for a field once it is edited, and for every field once
+  // a submit was attempted: an untouched form is not an error.
+  const [touched, setTouched] = useState(() => new Set<string>());
+  const [attempted, setAttempted] = useState(false);
   const active = useRef<AbortController | null>(null);
   const outcome = useMemo(() => evaluateForm(engine, values), [engine, values]);
   const dirty = encodeValue(values) !== encodeValue(baseline) || invalidEditors.size > 0;
@@ -64,13 +68,18 @@ function FormBody({ engine, initialValues = {}, onSubmit, onDirtyChange, ...prop
   const disabled = props.disabled || props.readOnly || saving;
   const context: Context = {
     engine, values: outcome.resolved, errors: outcome.result.errors, disabled: !!disabled,
-    update: (path, value) => { setValues((old) => setValue(old, path, value)); setSubmitFailed(false); },
+    shown: (path) => attempted || touched.has(pathKey(path)),
+    update: (path, value) => {
+      setValues((old) => setValue(old, path, value)); setSubmitFailed(false);
+      setTouched((old) => old.has(pathKey(path)) ? old : new Set(old).add(pathKey(path)));
+    },
     invalid: (path, invalid) => setInvalidEditors((old) => {
       const next = new Set(old); if (invalid) next.add(path); else next.delete(path); return next;
     }),
   };
   return <form aria-label={props.label} aria-busy={saving} style={stack} noValidate onSubmit={async (event) => {
     event.preventDefault();
+    setAttempted(true);
     if (disabled || active.current || invalidEditors.size || !outcome.baked || resultBlocking(outcome.result)) return;
     const controller = new AbortController(); active.current = controller; setSaving(true); setSubmitFailed(false);
     try {
@@ -82,16 +91,17 @@ function FormBody({ engine, initialValues = {}, onSubmit, onDirtyChange, ...prop
     <div key={resetEpoch} style={stack}>
       {engine.schema.fields.map((field) => <FormField key={field.name} field={field} path={[field.name]} context={context} />)}
     </div>
-    {!!outcome.result.errors.length && <section aria-label={t('errors')}>
+    {attempted && !!outcome.result.errors.length && <section aria-label={t('errors')}>
       <ul>{outcome.result.errors.map((error, index) => <li key={index}>
         <strong>{error.path || props.label}</strong>: {error.message}
       </li>)}</ul>
     </section>}
     {submitFailed && <p role="alert">{t('submitError')}</p>}
     {!props.readOnly && <div style={row}>
-      <Button type="submit" disabled={disabled || !outcome.baked || invalidEditors.size > 0}>{saving ? t('saving') : props.submitLabel ?? t('save')}</Button>
+      <Button type="submit" disabled={disabled || invalidEditors.size > 0}>{saving ? t('saving') : props.submitLabel ?? t('save')}</Button>
       <Button type="button" variant="outline" disabled={disabled || !dirty} onClick={() => {
         setValues(baseline); setInvalidEditors(new Set()); setResetEpoch((old) => old + 1); setSubmitFailed(false);
+        setTouched(new Set()); setAttempted(false);
       }}>{t('reset')}</Button>
       {dirty && <span role="status">{t('dirty')}</span>}
     </div>}
@@ -103,6 +113,8 @@ interface Context {
   values: NativeStruct;
   errors: ValidationError[];
   disabled: boolean;
+  /** Whether the field's validation messages are shown yet. */
+  shown: (path: FieldPath) => boolean;
   update: (path: FieldPath, value: Native | undefined) => void;
   invalid: (path: string, invalid: boolean) => void;
 }
@@ -113,12 +125,22 @@ function FormField({ field, path, context, depth = 0 }: { field: Schema_Field; p
   const value = valueAt(context.values, path);
   const title = field.title || field.name || String(path[path.length - 1]);
   const disabled = context.disabled || field.immutable || field.kind.case === 'computed';
-  const errors = context.errors.filter((error) => pathKey(error.pathSegments.map((p) => p.segment.case === 'index' ? Number(p.segment.value) : p.segment.value ?? '')) === pathKey(path));
+  const errors = context.shown(path) ? context.errors.filter((error) => pathKey(error.pathSegments.map((p) => p.segment.case === 'index' ? Number(p.segment.value) : p.segment.value ?? '')) === pathKey(path)) : [];
   if (!fieldIsActive(context.engine, field, context.values, '', undefined)) return null;
   const set = (next: Native | undefined) => context.update(path, next);
   const aria = { id, 'aria-describedby': `${id}-help ${id}-errors`, 'aria-invalid': errors.length > 0, disabled };
+  // Plain values are edited in place even while absent: typing sets the
+  // value, clearing an optional one unsets it. Structures keep the explicit
+  // "set value" step, as an empty object or list is itself a value.
+  const inline = !field.secret && value === undefined && inlineKinds.has(field.kind.case ?? '');
   let control: ReactNode;
-  if (value === undefined || value === null) {
+  if (inline && field.kind.case === 'bool') {
+    control = <div style={row}><Checkbox {...aria} checked={false} onCheckedChange={(checked) => set(checked === true)} /><span>{t('absent')}</span></div>;
+  } else if (inline && field.kind.case === 'choice') {
+    control = <ChoiceControl {...aria} field={field} value={undefined} onChange={set} context={context} />;
+  } else if (inline) {
+    control = <ScalarControl {...aria} field={field} value={undefined} onChange={set} optional={!field.required} />;
+  } else if (value === undefined || value === null) {
     control = <div style={row}><span>{t(value === null ? 'null' : 'absent')}</span>
       {!disabled && <Button type="button" variant="outline" onClick={() => set(scaffoldValue(context.engine.schema, field))}>{t('add')}</Button>}
     </div>;
@@ -149,32 +171,32 @@ function FormField({ field, path, context, depth = 0 }: { field: Schema_Field; p
       </div>;
     })}{!disabled && <MapEntry title={title} value={value as NativeStruct} onAdd={(key) => context.update([...path, key], map.valueField ? emptyValue(map.valueField) : {})} />}</div>;
   } else if (field.kind.case === 'bool') {
-    control = <Checkbox {...aria} checked={value === true} onCheckedChange={(checked) => set(checked === true)} />;
+    // The field column stretches its children; a checkbox keeps its size.
+    control = <div style={row}><Checkbox {...aria} checked={value === true} onCheckedChange={(checked) => set(checked === true)} /></div>;
   } else if (field.kind.case === 'choice') {
-    const choice = field.kind.value;
-    const dynamic = choice.optionsExpr ? context.engine.eval(choice.optionsExpr, { root: context.values }) : undefined;
-    const options = dynamic?.ok && Array.isArray(dynamic.value) ? dynamic.value : choice.options.map((option) => toNative(option.value));
-    const selected = options.findIndex((option) => encodeValue(option) === encodeValue(value));
-    control = <div style={stack}><SelectControl {...aria} value={selected < 0 ? '' : String(selected)} onValueChange={(next) => set(options[Number(next)])}
-      options={[{ value: '', label: selected < 0 ? scalarText(value) || t('choose') : t('choose'), disabled: true }, ...options.map((option, index) => ({ value: String(index), label: !choice.optionsExpr && choice.options[index]?.label || scalarText(option) }))]} />{choice.open && <StructuredControl id={`${id}-custom`} value={value} path={path} context={context} disabled={disabled} />}</div>;
+    control = <div style={stack}><ChoiceControl {...aria} field={field} value={value} onChange={set} context={context} />
+      {field.kind.value.open && <StructuredControl id={`${id}-custom`} value={value} path={path} context={context} disabled={disabled} />}</div>;
   } else if (field.kind.case === 'json' || !field.kind.case || typeof value === 'object' && field.kind.case === 'computed') {
     control = <StructuredControl {...aria} value={value} path={path} context={context} />;
   } else {
-    control = <ScalarControl {...aria} field={field} value={value} onChange={set} />;
+    control = <ScalarControl {...aria} field={field} value={value} onChange={set} optional={!field.required} />;
   }
+  // Clearing an inline value already unsets it; only structures need the
+  // explicit action. Both presence actions sit beside the label.
+  const unsettable = value !== undefined && !field.required && (value === null || !inlineKinds.has(field.kind.case ?? '') || !!field.secret);
   return <Field data-invalid={errors.length > 0}>
     <div style={row}><FieldLabel htmlFor={id}>{title}{field.required ? ' *' : ''}{field.unit ? ` (${field.unit})` : ''}</FieldLabel>
       {field.deprecated && <Badge variant="outline">{t('deprecated')}</Badge>}
       {field.immutable && <Badge variant="outline">{t('immutable')}</Badge>}
       {field.kind.case === 'computed' && <Badge variant="outline">{t('computed')}</Badge>}
+      {!disabled && (unsettable || value !== null && field.nullable) && <span style={{ ...row, marginInlineStart: 'auto' }}>
+        {unsettable && <Button type="button" variant="ghost" size="sm" onClick={() => set(undefined)}>{t('unset')}</Button>}
+        {value !== null && field.nullable && <Button type="button" variant="ghost" size="sm" onClick={() => set(null)}>{t('nullValue')}</Button>}
+      </span>}
     </div>
     {control}
     <FieldDescription id={`${id}-help`}>{field.description}{field.secret ? ` ${t('secret')}` : ''}</FieldDescription>
     <FieldError id={`${id}-errors`} errors={errors} />
-    {!disabled && <div style={row}>
-      {value !== undefined && !field.required && <Button type="button" variant="ghost" size="sm" onClick={() => set(undefined)}>{t('unset')}</Button>}
-      {value !== null && field.nullable && <Button type="button" variant="ghost" size="sm" onClick={() => set(null)}>{t('nullValue')}</Button>}
-    </div>}
   </Field>;
 }
 
@@ -201,13 +223,41 @@ function ListControl({ list, value, title, id, path, context, disabled, depth }:
   }}>{t('addItem')}</Button>}</div>;
 }
 
+/** The kinds edited in place while absent. */
+const inlineKinds = new Set(['string', 'int32', 'int64', 'uint32', 'uint64', 'double', 'float', 'duration', 'timestamp', 'bytes', 'bool', 'choice']);
+
 type ControlProps = { id: string; disabled?: boolean; value: Native; 'aria-describedby'?: string; 'aria-invalid'?: boolean };
-function ScalarControl({ field, value, onChange, ...props }: ControlProps & { field: Schema_Field; onChange: (value: Native) => void }) {
+function ScalarControl({ field, value, onChange, optional, ...props }: Omit<ControlProps, 'value'> & {
+  field: Schema_Field; value: Native | undefined; onChange: (value: Native | undefined) => void; optional?: boolean;
+}) {
+  const t = useText();
   // Keep lexical edits such as '-', '1.' and leading zeros until blur.
   const [draft, setDraft] = useState<string | null>(null);
-  return <Input {...props} value={draft ?? scalarText(value)} onFocus={() => setDraft(scalarText(value))} onBlur={() => setDraft(null)}
+  return <Input {...props} value={draft ?? scalarText(value)} placeholder={value === undefined ? t('absent') : undefined}
+    onFocus={() => setDraft(scalarText(value))} onBlur={() => setDraft(null)}
     inputMode={['int32', 'int64', 'uint32', 'uint64', 'double', 'float'].includes(field.kind.case ?? '') ? 'decimal' : undefined}
-    onChange={(event) => { setDraft(event.target.value); onChange(parseScalar(field, event.target.value)); }} />;
+    onChange={(event) => {
+      setDraft(event.target.value);
+      onChange(optional && event.target.value === '' ? undefined : parseScalar(field, event.target.value));
+    }} />;
+}
+
+function ChoiceControl({ field, value, onChange, context, ...props }: Omit<ControlProps, 'value'> & {
+  field: Schema_Field; value: Native | undefined; onChange: (value: Native | undefined) => void; context: Context;
+}) {
+  const t = useText();
+  if (field.kind.case !== 'choice') return null;
+  const choice = field.kind.value;
+  const dynamic = choice.optionsExpr ? context.engine.eval(choice.optionsExpr, { root: context.values }) : undefined;
+  const options = dynamic?.ok && Array.isArray(dynamic.value) ? dynamic.value : choice.options.map((option) => toNative(option.value));
+  const selected = value === undefined ? -1 : options.findIndex((option) => encodeValue(option) === encodeValue(value));
+  // An optional choice can return to "not set"; a value outside the options
+  // (an open choice's custom entry) is shown as the placeholder.
+  const placeholder = value === undefined ? t('absent') : selected < 0 ? scalarText(value) || t('choose') : t('choose');
+  return <SelectControl {...props} value={selected < 0 ? '' : String(selected)}
+    onValueChange={(next) => onChange(next === '' ? undefined : options[Number(next)])}
+    options={[{ value: '', label: placeholder, disabled: !!field.required || value === undefined },
+      ...options.map((option, index) => ({ value: String(index), label: !choice.optionsExpr && choice.options[index]?.label || scalarText(option) }))]} />;
 }
 
 function SecretControl({ field, value, title, onChange, path, context, ...props }: ControlProps & { field: Schema_Field; title: string; onChange: (value: Native) => void; path: FieldPath; context: Context }) {

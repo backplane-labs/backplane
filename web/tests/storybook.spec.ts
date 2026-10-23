@@ -103,6 +103,17 @@ for (const theme of ['dark', 'light']) {
     await expect(page.getByLabel('Sequence', { exact: true })).toHaveValue('18446744073709551615');
     await expect(page.getByLabel('Capacity (MB)', { exact: true })).toHaveValue('256');
     await expect(page.getByLabel('Region', { exact: true })).toHaveCount(0);
+    // An untouched form shows no messages; editing a field shows its own,
+    // and a submit attempt summarizes every one without saving.
+    await expect(page.getByRole('region', { name: 'Validation messages' })).toHaveCount(0);
+    const name = page.getByLabel('Service name *', { exact: true });
+    const original = await name.inputValue();
+    await name.fill('');
+    await expect(name).toHaveAttribute('aria-invalid', 'true');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Validation messages' })).toBeVisible();
+    await name.fill(original);
+    await expect(name).toHaveAttribute('aria-invalid', 'false');
     await page.getByRole('checkbox', { name: 'Advanced', exact: true }).check();
     await expect(page.getByLabel('Region', { exact: true })).toBeVisible();
     await page.getByLabel('Replicas', { exact: true }).fill('6');

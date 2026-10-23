@@ -50,7 +50,7 @@ classes the module would have to generate.
 | Forms | FormControl plus Field components | React Hook Form Controller, field labels/descriptions/errors and native RHF rules |
 | Time | DateTimeInput, TimeRangeControl, RefreshControl | ISO calendar/time controls; relative/absolute ranges, timezone, week start; no overlapping refreshes |
 | Files | FileUpload | Type/size/count limits, drag/drop, progress, retry and cancellation; caller-owned upload transport |
-| Feedback | StateMessage, Toaster, toast | Empty/error/offline/partial state and token-styled notifications |
+| Feedback | StateMessage, Toaster, toast | Empty/error/offline/partial state and token-styled notifications. The console shell mounts the one `Toaster`; plugins call `toast` (the kit is shared) and never mount their own |
 | Tables | DataTable, DataColumn | Stable IDs, exact values, sorting, global filter and column filters behind a Filters toggle, visibility/order/pinning/resize, selection, hierarchy, optional paging |
 | Trees | ResourceTree, TreeNode | Unique IDs, flattened virtual hierarchy, levels/positions, keyboard selection and expansion |
 
