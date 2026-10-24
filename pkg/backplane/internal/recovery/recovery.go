@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/gopherex/ws-proto/wsrpc"
 	"github.com/gopherex/xlog"
 
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/exception"
@@ -81,6 +82,24 @@ func Stream(log *xlog.Logger, where string) grpc.StreamServerInterceptor {
 		}()
 
 		return next(srv, stream)
+	}
+}
+
+// Calls recovers a panicking ws-proto call (its handler and the middleware
+// after this one) into codes.Internal.
+func Calls(log *xlog.Logger, where string) wsrpc.Middleware {
+	return func(next wsrpc.Handler) wsrpc.Handler {
+		return func(ctx context.Context, s *wsrpc.Stream) (err error) {
+			defer func() {
+				if v := recover(); v != nil {
+					report(ctx, log, where, s.Method(), v)
+
+					err = internal()
+				}
+			}()
+
+			return next(ctx, s)
+		}
 	}
 }
 

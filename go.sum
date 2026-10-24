@@ -127,8 +127,8 @@ github.com/gopherex/schemapb/go v1.9.9 h1:W4G6P8j+3zk1KOr8aVZapI+eCZvePTnR+jClig
 github.com/gopherex/schemapb/go v1.9.9/go.mod h1:BwQdhiN79lmQ/jEPuoLW7HC7dltWVWb3wAR9/WAzMo8=
 github.com/gopherex/sqld v1.1.3 h1:5E3sFzPrv9Wk/gLQtHUZxatvED7dYQ8Vjk55S0eae68=
 github.com/gopherex/sqld v1.1.3/go.mod h1:J/HwPz/WO9lJFALOQZipoG7KTXJV2N8E9qwu9aNIz2k=
-github.com/gopherex/ws-proto v1.7.0 h1:IEHyj3lA6//MdgX2MS5cC0HJQQGdNEhi+LPpfb71INY=
-github.com/gopherex/ws-proto v1.7.0/go.mod h1:2ejdGUg2gfPd16K+PkCKhcvQ+i4fg21PPtbyM1+5wPg=
+github.com/gopherex/ws-proto v1.8.1 h1:igTcu3MTEopiUdHrhAUYoqWKCOGBBaGvRk0ZJEmza90=
+github.com/gopherex/ws-proto v1.8.1/go.mod h1:2ejdGUg2gfPd16K+PkCKhcvQ+i4fg21PPtbyM1+5wPg=
 github.com/gopherex/xconf v1.4.0 h1:v2bkAF1tGtyMuriQ0bRWnsUmLRx/bQo+q6fHvtAtJGs=
 github.com/gopherex/xconf v1.4.0/go.mod h1:01BWSs9nYIpIC6niGr4ZR9iCNF3URfmbFSZrESaALAY=
 github.com/gopherex/xconf/contrib/decoders/json v1.4.0 h1:1eh2ua8L9rJqotNfL4W4/cIXocqP+NdJdd5A/DxexB8=

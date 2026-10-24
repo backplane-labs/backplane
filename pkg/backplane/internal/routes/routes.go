@@ -9,6 +9,8 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/gopherex/ws-proto/wsrpc"
+
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/apifiles"
 )
@@ -30,6 +32,8 @@ type Managed struct {
 	Stream []grpc.StreamServerInterceptor
 	// HTTP and ws-proto: wraps this route's handler; the first is outermost.
 	Middleware []func(http.Handler) http.Handler
+	// ws-proto: options of the endpoint's server (call middleware, keepalive).
+	WS []wsrpc.ServerOption
 	// gRPC: serve grpc.reflection on the route's port.
 	Reflection bool
 	// The route's port takes services of the mesh only (mutual TLS).

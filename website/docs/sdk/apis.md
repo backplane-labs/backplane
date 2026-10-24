@@ -36,6 +36,33 @@ gRPC reflection on that listener. Shared listener limits are configured with
 Request timeouts, body bounds, browser CORS and other application behavior belong to
 handlers, middleware or the external proxy. There are no declarative proxy policy options.
 
+### ws-proto endpoints
+
+`wsproto.Serve` registers either gRPC services, with the same function as `svc.GRPC`,
+or handlers generated for ws-proto itself (`Register<Service>Handler`) on the endpoint's
+`*wsrpc.Server`. In both cases the endpoint announces the registered services. It is
+connection-oriented, and the options follow the connection:
+
+```go
+wsproto.Serve(svc, "/ws/", origins,
+    func(s *wsrpc.Server) { gatewayv1.RegisterGatewayHandler(s, gw) },
+    api.Middleware(gw.Connection), // once per connection
+    api.CallMiddleware(gw.Call),   // every call on it
+    api.Keepalive(20*time.Second, 10*time.Second))
+```
+
+- **`api.Middleware`** wraps the upgrade and lasts for the whole connection:
+  - it rejects the connection by answering without calling `next`;
+  - the request context it passes to `next` becomes the connection's context. Every
+    call's context derives from it, so identity attached once is visible to every
+    call, and canceling it closes the socket (for example, on session revocation);
+  - `next` returns when the connection closes.
+- **`api.CallMiddleware`** (`wsrpc.Middleware`) wraps every call, whichever way the
+  services were registered. It runs inside the SDK's panic recovery and tracing.
+- **`api.Interceptors`** and **`api.StreamInterceptors`** wrap only gRPC-registered
+  services.
+- **`api.Keepalive`** tunes pings. The default is every 20s with a 10s timeout.
+
 ## Calls between services: mutual TLS
 
 An API only other services call (a domain's admin API, a sync service)

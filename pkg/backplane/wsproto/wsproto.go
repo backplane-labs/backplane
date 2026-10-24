@@ -1,13 +1,14 @@
-// Package wsproto serves gRPC services over ws-proto (protobuf RPC over
-// WebSocket) as a managed public api. It takes the same register function
-// as Service.GRPC, so one implementation serves both, recovers a panicking
-// call into codes.Internal and traces every call like the gRPC server does.
+// Package wsproto serves services over ws-proto (protobuf RPC over
+// WebSocket) as a managed public api: gRPC services, with the same register
+// function as Service.GRPC so one implementation serves both, or handlers
+// generated for ws-proto itself. Every call is traced and a panicking one
+// ends with codes.Internal, like on the gRPC server.
 package wsproto
 
 import (
 	"context"
-	"maps"
 	"slices"
+	"strings"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -26,34 +27,57 @@ import (
 
 const instrumentation = "github.com/backplane-labs/backplane/pkg/backplane/wsproto"
 
+// Register is what Serve registers the endpoint's services with: the
+// register function of Service.GRPC, or one that registers ws-proto
+// generated handlers (Register<Service>Handler) on the endpoint's server.
+type Register interface {
+	func(grpc.ServiceRegistrar) | func(*wsrpc.Server)
+}
+
 // Serve mounts a ws-proto endpoint at prefix on a public port of svc and
 // announces it with the registered services' descriptors. origins is the
 // browser origin policy: the zero value admits same-origin browsers and
-// non-browser clients only. api.Interceptors and
-// api.StreamInterceptors wrap this endpoint's calls only;
-// api.Middleware wraps its upgrade handler.
-func Serve[St any](
-	svc *backplane.Service[St], prefix string, origins api.Origins,
-	register func(grpc.ServiceRegistrar), opts ...api.WSProtoOption,
+// non-browser clients only.
+//
+// api.Middleware wraps the endpoint once per connection: the connection's
+// context is the one it passes on (see api.Middleware). api.CallMiddleware
+// wraps every call; api.Interceptors and api.StreamInterceptors wrap the
+// calls of gRPC-registered services only. api.Keepalive tunes pings.
+func Serve[St any, R Register](
+	svc *backplane.Service[St], prefix string, origins api.Origins, register R, opts ...api.WSProtoOption,
 ) {
 	spec := link.APIs.WS(opts)
-	srv := wsrpc.NewServer(originOption(origins))
+	srv := wsrpc.NewServer(append([]wsrpc.ServerOption{
+		originOption(origins),
+		wsrpc.WithMiddleware(recovery.Calls(svc.Log(), recovery.WSProto), traced),
+	}, spec.WS...)...)
 
-	u := append([]grpc.UnaryServerInterceptor{recovery.Unary(svc.Log(), recovery.WSProto), unary}, spec.Unary...)
-	st := append([]grpc.StreamServerInterceptor{recovery.Stream(svc.Log(), recovery.WSProto), stream}, spec.Stream...)
-
-	reg := wsrpc.GRPCRegistrar(srv,
-		wsrpc.WithUnaryInterceptor(routes.ChainUnary(u)), wsrpc.WithStreamInterceptor(routes.ChainStream(st)))
-	register(reg)
-
-	var services []string
-	if si, ok := reg.(interface {
-		GetServiceInfo() map[string]grpc.ServiceInfo
-	}); ok {
-		services = slices.Sorted(maps.Keys(si.GetServiceInfo()))
+	switch register := any(register).(type) {
+	case func(grpc.ServiceRegistrar):
+		register(wsrpc.GRPCRegistrar(srv,
+			wsrpc.WithUnaryInterceptor(routes.ChainUnary(spec.Unary)),
+			wsrpc.WithStreamInterceptor(routes.ChainStream(spec.Stream))))
+	case func(*wsrpc.Server):
+		register(srv)
 	}
 
-	link.MountWS(svc, prefix, srv, services, spec)
+	link.MountWS(svc, prefix, srv, services(srv.Methods()), spec)
+}
+
+// services are the full names of the services the methods
+// ("/pkg.Service/Method") belong to, sorted.
+func services(methods []string) []string {
+	var out []string
+
+	for _, m := range methods {
+		if name, _, ok := strings.Cut(strings.TrimPrefix(m, "/"), "/"); ok {
+			out = append(out, name)
+		}
+	}
+
+	slices.Sort(out)
+
+	return slices.Compact(out)
 }
 
 // originOption maps the policy onto wsrpc.
@@ -68,46 +92,20 @@ func originOption(o api.Origins) wsrpc.ServerOption {
 	}
 }
 
-// traced runs fn in a server span named after the method.
-func traced(ctx context.Context, method string, fn func(ctx context.Context) error) error {
-	ctx, s := otel.Tracer(instrumentation).Start(ctx, method,
-		trace.WithSpanKind(trace.SpanKindServer),
-		trace.WithAttributes(attribute.String("rpc.system", "ws-proto"), attribute.String("rpc.method", method)))
-	defer s.End()
+// traced runs every call in a server span named after its method.
+func traced(next wsrpc.Handler) wsrpc.Handler {
+	return func(ctx context.Context, s *wsrpc.Stream) error {
+		ctx, span := otel.Tracer(instrumentation).Start(ctx, s.Method(),
+			trace.WithSpanKind(trace.SpanKindServer),
+			trace.WithAttributes(attribute.String("rpc.system", "ws-proto"), attribute.String("rpc.method", s.Method())))
+		defer span.End()
 
-	err := fn(ctx)
-	if err != nil {
-		s.RecordError(err)
-		s.SetStatus(codes.Error, err.Error())
-	}
-
-	return err
-}
-
-func unary(ctx context.Context, req any, info *grpc.UnaryServerInfo, next grpc.UnaryHandler) (any, error) {
-	var res any
-
-	err := traced(ctx, info.FullMethod, func(ctx context.Context) error {
-		var err error
-
-		res, err = next(ctx, req)
+		err := next(ctx, s)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
 
 		return err
-	})
-
-	return res, err
-}
-
-type tracedStream struct {
-	grpc.ServerStream
-
-	ctx context.Context //nolint:containedctx // a ServerStream carries its context by contract
-}
-
-func (t tracedStream) Context() context.Context { return t.ctx }
-
-func stream(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, next grpc.StreamHandler) error {
-	return traced(ss.Context(), info.FullMethod, func(ctx context.Context) error {
-		return next(srv, tracedStream{ServerStream: ss, ctx: ctx})
-	})
+	}
 }

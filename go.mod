@@ -10,7 +10,7 @@ require (
 	github.com/gopherex/pgtx v1.1.2
 	github.com/gopherex/schemapb/go v1.9.9
 	github.com/gopherex/sqld v1.1.3
-	github.com/gopherex/ws-proto v1.7.0
+	github.com/gopherex/ws-proto v1.8.1
 	github.com/gopherex/xconf v1.4.0
 	github.com/gopherex/xconf/contrib/decoders/json v1.4.0
 	github.com/gopherex/xconf/contrib/decoders/yaml v1.4.0

@@ -2,8 +2,11 @@ package api
 
 import (
 	"net/http"
+	"time"
 
 	"google.golang.org/grpc"
+
+	"github.com/gopherex/ws-proto/wsrpc"
 
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/routes"
 )
@@ -52,8 +55,31 @@ type MiddlewareOption interface {
 }
 
 // Middleware wraps this route's handler; repeated, the first is outermost.
-// On ws-proto it sees the upgrade request.
+// On ws-proto it runs once per connection, around its whole life: it sees
+// the upgrade request and rejects it by answering without calling next;
+// the request context it passes to next is the connection's, every call's
+// context derives from it and canceling it closes the connection; next
+// returns when the connection has closed.
 func Middleware(mw func(http.Handler) http.Handler) MiddlewareOption { return middleware(mw) }
+
+type wsServer []wsrpc.ServerOption
+
+func (o wsServer) applyWS(m *routes.Managed) { m.WS = append(m.WS, o...) }
+
+// CallMiddleware wraps every call of a ws-proto endpoint, however its
+// services were registered, the first outermost, inside the SDK's recovery
+// and tracing. Its context is the call's, derived from the connection's
+// (see Middleware).
+func CallMiddleware(mw ...wsrpc.Middleware) WSProtoOption {
+	return wsServer{wsrpc.WithMiddleware(mw...)}
+}
+
+// Keepalive pings the clients of a ws-proto endpoint every interval and
+// closes a connection whose pong does not come within timeout; interval
+// <= 0 disables pinging. Without it: every 20s, timeout 10s.
+func Keepalive(interval, timeout time.Duration) WSProtoOption {
+	return wsServer{wsrpc.WithKeepalive(interval, timeout)}
+}
 
 type reflection struct{}
 
