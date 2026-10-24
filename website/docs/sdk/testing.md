@@ -31,6 +31,7 @@ The `pkg/backplane/backplanetest` package and repository conformance tests provi
 | `ReactConsumer(ctx, h, consumer, value)` | Deliver once to a pinned reactor |
 | `SetLive(&field, value)` | Update a live field and notify its watchers |
 | `SetSections(h, name, services)` | Publish section `name` to the tree's `sections.Follow` as Backplane would: `services` by service; empty is a known empty set; a repeat signals no change |
+| `Offered(h, name)` | Section `name` as the tree offers it: the value a `sections.OfferLive` set last, else the manifest's; nil when none |
 | `h.Manifest()` | Inspect declarations and declaration errors |
 | `Stop(h, component)` | Kill one component mid-test (a projection, a consumer): its goroutines' contexts end wherever they are, its subtree's `OnStop` hooks run, the rest keeps running |
 | `Find(h, name)` | A node of the tree by name or path (`sync/fanout`), for `Stop` or inspection, without the service exporting it |

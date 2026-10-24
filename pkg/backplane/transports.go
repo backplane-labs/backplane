@@ -3,6 +3,8 @@ package backplane
 import (
 	"context"
 
+	"google.golang.org/protobuf/types/known/anypb"
+
 	"github.com/gopherex/xlog"
 
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
@@ -98,6 +100,8 @@ type PresenceParams struct {
 	Commit        string
 	Transports    func() []*backplanev1.TransportStatus
 	Nodes         func() []*backplanev1.NodeStatus
+	// Sections are the live section values (sections.OfferLive), by name.
+	Sections func() map[string]*anypb.Any
 }
 
 // PresenceFactory builds a discovery session without starting it.

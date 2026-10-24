@@ -38,10 +38,31 @@ registered, healthy, serving instance — to Consul KV
 A service that offers the name with a message other than `T` is left out of
 the follower's set.
 
+## Live sections
+
+A section the manifest holds is fixed for a version. When the value follows
+something that changes while the service runs — its live configuration, say —
+offer it live and set it whenever that changes:
+
+```go
+login := sections.OfferLive[*kratosv1.LoginSection](root, "kratos.login")
+
+// on start and on every settings change
+if err := login.Set(section(settings)); err != nil { ... }
+```
+
+The manifest declares the name with `T`'s empty message. Each instance
+publishes the value it set with its instance state, at once; Backplane takes
+the value of a serving instance of the version it publishes and, when it
+changes, rewrites the name's key, so followers see `Changes`. Until an
+instance sets a value, followers see the empty message. Setting an equal
+value changes nothing.
+
 Declare `Offer` and `Follow` before `Run`, like routes and hooks. A section
 that does not marshal is a declaration error that `Run` fails with and
 `Service.Validate` reports.
 
-In tests, `h.Manifest().GetSections()` shows what a service offers, and
+In tests, `backplanetest.Offered(h, name)` shows what a service offers (its
+live value when one is set, else the manifest's), and
 `backplanetest.SetSections(h, name, services)` publishes a set to the
 harness's followers as Backplane would (see [Testing](testing.md)).

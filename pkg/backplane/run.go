@@ -245,10 +245,16 @@ func (c *core) presence(m *backplanev1.Manifest) Presence { //nolint:ireturn // 
 		Config: c.cfg, Identity: c.id, Manifest: m, Log: c.log, Configuration: c.conf,
 		PlatformPort: port16(c.cfg.InternalPort),
 		PrimaryPort:  c.primaryPort(), Commit: build.Get().Commit, Transports: c.transports, Nodes: c.nodes,
+		Sections: c.env.LiveSections,
 	})
 	if err != nil {
 		c.log.Warn("discovery presence", xlog.Err(err))
 		return nil
+	}
+
+	// A live section is published at once, not on the next renew.
+	if changed, ok := presence.(interface{ Changed() }); ok {
+		c.env.OnSectionChange(changed.Changed)
 	}
 
 	return presence

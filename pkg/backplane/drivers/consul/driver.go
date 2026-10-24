@@ -51,6 +51,7 @@ func Driver() backplane.Option {
 			Config:     p.Configuration,
 			Transports: p.Transports,
 			Nodes:      p.Nodes,
+			Sections:   p.Sections,
 		})
 	})
 

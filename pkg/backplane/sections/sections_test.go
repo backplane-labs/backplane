@@ -39,6 +39,35 @@ func TestOffer(t *testing.T) {
 	}
 }
 
+// A live section is declared with T's empty message; Set replaces the
+// offered value, and setting an equal one again changes nothing.
+func TestOfferLive(t *testing.T) {
+	t.Parallel()
+
+	h := backplanetest.New(t, backplanetest.Name("kratos"))
+	login := sections.OfferLive[*wrapperspb.StringValue](h.Root(), "kratos.login")
+
+	var declared wrapperspb.StringValue
+	if got := h.Manifest().GetSections()["kratos.login"]; got == nil || got.UnmarshalTo(&declared) != nil || declared.GetValue() != "" {
+		t.Fatalf("declared %v", got)
+	}
+
+	for _, v := range []string{"password", "password", "code"} {
+		if err := login.Set(wrapperspb.String(v)); err != nil {
+			t.Fatal(err)
+		}
+
+		var value wrapperspb.StringValue
+		if got := backplanetest.Offered(h, "kratos.login"); got == nil || got.UnmarshalTo(&value) != nil || value.GetValue() != v {
+			t.Fatalf("offered %v, want %q", got, v)
+		}
+	}
+
+	if err := (sections.Live[*wrapperspb.StringValue]{}).Set(wrapperspb.String("x")); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // A followed name is unknown until published; then the services that
 // offer it as T, by service; a service offering another message is left
 // out; a change is signaled, a repeat is not.

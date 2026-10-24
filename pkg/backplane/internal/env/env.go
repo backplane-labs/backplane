@@ -13,6 +13,9 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
+
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/backoff"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
@@ -103,6 +106,11 @@ type Env struct {
 	// followed: the section names the service follows, each with the
 	// functions told of its published set.
 	followed map[string][]func(raw []byte)
+
+	// live: the values of the sections the service offers live, by name,
+	// and the functions told when one changes.
+	live     map[string]*anypb.Any
+	liveSubs []func()
 }
 
 // New creates the env of service.
@@ -110,6 +118,7 @@ func New(service string, m *manifest.Builder) *Env {
 	return &Env{
 		Service: service, Manifest: m, activities: map[string]Handler{}, own: map[string]Handler{},
 		boundSubs: map[chan struct{}]struct{}{}, followed: map[string][]func([]byte){},
+		live: map[string]*anypb.Any{},
 	}
 }
 
@@ -133,6 +142,42 @@ func (e *Env) Followed() map[string][]func(raw []byte) {
 	}
 
 	return out
+}
+
+// SetSection sets the live value of section name; an equal value tells
+// no one.
+func (e *Env) SetSection(name string, value *anypb.Any) {
+	e.mu.Lock()
+
+	if proto.Equal(e.live[name], value) {
+		e.mu.Unlock()
+
+		return
+	}
+
+	e.live[name] = value
+	subs := slices.Clone(e.liveSubs)
+	e.mu.Unlock()
+
+	for _, fn := range subs {
+		fn()
+	}
+}
+
+// LiveSections are the live section values set so far, by name.
+func (e *Env) LiveSections() map[string]*anypb.Any {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	return maps.Clone(e.live)
+}
+
+// OnSectionChange has fn called after every change of a live section.
+func (e *Env) OnSectionChange(fn func()) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.liveSubs = append(e.liveSubs, fn)
 }
 
 // Of returns the env of the tree n belongs to.

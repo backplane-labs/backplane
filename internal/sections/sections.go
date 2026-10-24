@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -86,14 +88,20 @@ func (p *Publisher) loop(ctx context.Context) error {
 }
 
 // Sets are the sections of cat by name: each serving service's highest
-// serving version's.
+// serving version's, a live value (sections.OfferLive) replacing the
+// manifest's.
 func Sets(cat registry.Catalog) map[string]*backplanev1.SectionSet {
 	sets := map[string]*backplanev1.SectionSet{}
 
 	for name, svc := range cat.Services {
 		m := svc.Available()
+		live := liveValues(svc, m.GetVersion())
 
 		for section, value := range m.GetSections() {
+			if v, ok := live[section]; ok && v.GetTypeUrl() == value.GetTypeUrl() {
+				value = v
+			}
+
 			set := sets[section]
 			if set == nil {
 				set = &backplanev1.SectionSet{Services: map[string]*anypb.Any{}}
@@ -105,6 +113,26 @@ func Sets(cat registry.Catalog) map[string]*backplanev1.SectionSet {
 	}
 
 	return sets
+}
+
+// liveValues are the live section values of svc's serving instances of
+// version. Instances agree but for a change in flight; the one with the
+// highest id wins, so the choice does not flap between them.
+func liveValues(svc registry.Service, version string) map[string]*anypb.Any {
+	out := map[string]*anypb.Any{}
+	instances := slices.SortedFunc(slices.Values(svc.Instances), func(a, b registry.Instance) int {
+		return strings.Compare(a.ID, b.ID)
+	})
+
+	for _, in := range instances {
+		if !in.Available() || in.State.GetVersion() != version {
+			continue
+		}
+
+		maps.Copy(out, in.State.GetSections())
+	}
+
+	return out
 }
 
 // publish writes every name's set and deletes the keys of names no

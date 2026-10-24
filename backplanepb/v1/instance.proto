@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package backplane.v1;
 
+import "google/protobuf/any.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/backplane-labs/backplane/backplanepb/v1;backplanev1";
@@ -34,6 +35,9 @@ message InstanceState {
   repeated TransportStatus transports = 14;
   string sdk_version = 15;
   string commit = 16;
+  // Live values of sections the manifest declares (sections.OfferLive), by
+  // name: they replace the manifest's value while the instance runs.
+  map<string, google.protobuf.Any> sections = 17;
 }
 
 enum InstancePhase {

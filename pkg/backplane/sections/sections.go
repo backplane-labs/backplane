@@ -27,6 +27,7 @@ import (
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 )
 
 // sectionName is lower case, segments joined by '.', '_' or '-'.
@@ -54,6 +55,48 @@ func Offer(scope deps.Scope, name string, msg proto.Message) {
 	}
 
 	e.Manifest.Section(name, value)
+}
+
+// Live is a section the service offers whose value changes while it runs,
+// e.g. with its live configuration. It is immutable and safe for
+// concurrent use; the zero Live sets nothing.
+type Live[T proto.Message] struct {
+	e    *env.Env
+	name string
+}
+
+// OfferLive declares the service's section name as T, with a value the
+// service sets while it runs (Live.Set). The manifest, shared by every
+// instance of a version, holds T's empty message; each instance publishes
+// its value with its state, and followers see the value of the service's
+// highest serving version, from one of its instances. Until an instance
+// sets it, followers see the empty message.
+func OfferLive[T proto.Message](scope deps.Scope, name string) Live[T] {
+	var zero T
+
+	Offer(scope, name, zero.ProtoReflect().New().Interface())
+
+	e, _ := decl.Env(scope, "section "+name)
+
+	return Live[T]{e: e, name: name}
+}
+
+// Set publishes msg as the section's value; setting an equal value again
+// changes nothing.
+func (l Live[T]) Set(msg T) error {
+	if l.e == nil {
+		return nil
+	}
+
+	// Deterministic: an equal value encodes equally and changes nothing.
+	value := &anypb.Any{}
+	if err := anypb.MarshalFrom(value, msg, proto.MarshalOptions{Deterministic: true}); err != nil {
+		return fmt.Errorf("section %s: %w", l.name, err)
+	}
+
+	l.e.SetSection(l.name, value)
+
+	return nil
 }
 
 // Ref follows one section name: the section of every serving service

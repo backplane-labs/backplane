@@ -34,3 +34,16 @@ func SetSections(h *Harness, name string, services map[string]proto.Message) {
 		fn(raw)
 	}
 }
+
+// Offered is section name as the service in h's tree offers it: the value
+// it set last (sections.OfferLive), else its manifest's; nil when it offers
+// none.
+func Offered(h *Harness, name string) *anypb.Any {
+	h.t.Helper()
+
+	if value, ok := h.env.LiveSections()[name]; ok {
+		return value
+	}
+
+	return h.Manifest().GetSections()[name]
+}

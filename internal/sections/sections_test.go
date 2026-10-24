@@ -72,6 +72,52 @@ func TestSets(t *testing.T) {
 	}
 }
 
+// A live value of a serving instance of the published version replaces
+// the manifest's; one of another version or another message type does not.
+func TestSetsLive(t *testing.T) {
+	t.Parallel()
+
+	live := func(id, version string, value proto.Message) registry.Instance {
+		in := serving(version, true)
+		in.ID = id
+
+		v, err := anypb.New(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		in.State.Sections = map[string]*anypb.Any{"komeet.module": v}
+
+		return in
+	}
+
+	cat := registry.Catalog{Services: map[string]registry.Service{
+		"media": {
+			Name:      "media",
+			Manifests: map[string]*backplanev1.Manifest{"1.0.0": section(t, "1.0.0", "old"), "1.1.0": section(t, "1.1.0", "")},
+			Instances: []registry.Instance{
+				live("a", "1.1.0", wrapperspb.String("live-a")),
+				live("b", "1.1.0", wrapperspb.String("live-b")),
+				live("c", "1.0.0", wrapperspb.String("older version")),
+			},
+		},
+		"typed": {
+			Name:      "typed",
+			Manifests: map[string]*backplanev1.Manifest{"1.0.0": section(t, "1.0.0", "declared")},
+			Instances: []registry.Instance{live("d", "1.0.0", wrapperspb.Int64(7))},
+		},
+	}}
+
+	set := sections.Sets(cat)["komeet.module"]
+
+	for service, want := range map[string]string{"media": "live-b", "typed": "declared"} {
+		var value wrapperspb.StringValue
+		if err := set.GetServices()[service].UnmarshalTo(&value); err != nil || value.GetValue() != want {
+			t.Fatalf("%s: %q %v, want %q", service, value.GetValue(), err, want)
+		}
+	}
+}
+
 // The publisher writes a name's set and removes the key when no serving
 // service offers it any more.
 func TestPublisher(t *testing.T) {
