@@ -74,7 +74,7 @@ func (p PG) Create(ctx context.Context, tokenHash []byte, s Session) (uuid.UUID,
 
 	var id uuid.UUID
 
-	err := st.InTx(ctx, func(ctx context.Context) error {
+	err := st.InAuditedTx(ctx, func(ctx context.Context) error {
 		row, createErr := p.q().CreateSession(ctx, db.CreateSessionParams{
 			TokenHash: tokenHash, CreatedAt: s.CreatedAt, ExpiresAt: s.ExpiresAt, Address: s.Address, UserAgent: s.UserAgent,
 		})
@@ -151,7 +151,7 @@ func (p PG) Delete(ctx context.Context, id uuid.UUID) (bool, error) {
 
 	var deleted bool
 
-	err := st.InTx(ctx, func(ctx context.Context) error {
+	err := st.InAuditedTx(ctx, func(ctx context.Context) error {
 		n, deleteErr := p.q().DeleteSession(ctx, id)
 		if deleteErr != nil {
 			return fmt.Errorf("console: delete session: %w", deleteErr)
@@ -182,7 +182,7 @@ func (p PG) DeleteOthers(ctx context.Context, keep uuid.UUID) (int64, error) {
 
 	var affected int64
 
-	err := st.InTx(ctx, func(ctx context.Context) error {
+	err := st.InAuditedTx(ctx, func(ctx context.Context) error {
 		n, deleteErr := p.q().DeleteOtherSessions(ctx, keep)
 		if deleteErr != nil {
 			return fmt.Errorf("console: delete other sessions: %w", deleteErr)
@@ -210,7 +210,7 @@ func (p PG) DeleteStale(ctx context.Context, now, idleSince time.Time) (int64, e
 
 	var affected int64
 
-	err := st.InTx(ctx, func(ctx context.Context) error {
+	err := st.InAuditedTx(ctx, func(ctx context.Context) error {
 		n, deleteErr := p.q().DeleteStaleSessions(ctx, db.DeleteStaleSessionsParams{Now: now, IdleSince: idleSince})
 		if deleteErr != nil {
 			return fmt.Errorf("console: delete stale sessions: %w", deleteErr)

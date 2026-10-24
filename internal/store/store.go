@@ -70,6 +70,21 @@ func (s *Store) InTx(ctx context.Context, fn func(ctx context.Context) error) er
 	return tx.DoSerializable(ctx, s.Trm, fn, tx.WithRetry(tx.DefaultRetryPolicy))
 }
 
+// InAuditedTx is InTx for a transaction that appends audit or moves the audit
+// clock. Its first statement locks the clock before the serializable snapshot
+// is taken, so the transaction queues behind concurrent entries instead of
+// failing on the clock row with 40001 whenever one commits first. Joined to an
+// outer transaction the lock comes too late to help; open it outermost.
+func (s *Store) InAuditedTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	return s.InTx(ctx, func(ctx context.Context) error {
+		if err := s.Q.LockAuditClock(ctx); err != nil {
+			return fmt.Errorf("audit clock lock: %w", err)
+		}
+
+		return fn(ctx)
+	})
+}
+
 // New is the provider of the store: a required dependency whose start
 // connects, creates the schema and applies pending migrations (retried
 // with backoff while PostgreSQL is down); its probe pings.

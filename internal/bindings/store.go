@@ -424,7 +424,7 @@ func (m *Manager) insertBinding(
 
 	var saved db.InsertBindingVersionRow
 
-	err := st.InTx(ctx, func(ctx context.Context) error {
+	err := st.InAuditedTx(ctx, func(ctx context.Context) error {
 		current, err := st.Q.GetCurrentBinding(ctx, hook)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("current version: %w", err)
@@ -647,7 +647,7 @@ func (m *Manager) DeleteRule(ctx context.Context, id uuid.UUID, comment string, 
 func (m *Manager) PauseRule(ctx context.Context, id uuid.UUID, paused bool, base Base) (RuleEntry, error) {
 	st := m.store.Get()
 
-	err := st.InTx(ctx, func(ctx context.Context) error {
+	err := st.InAuditedTx(ctx, func(ctx context.Context) error {
 		if base.set {
 			current, err := st.Q.GetCurrentRule(ctx, id)
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -760,7 +760,7 @@ func (m *Manager) insertRule(
 
 	var saved db.InsertRuleVersionRow
 
-	err := st.InTx(ctx, func(ctx context.Context) error {
+	err := st.InAuditedTx(ctx, func(ctx context.Context) error {
 		ruleID := id
 
 		if err := ruleWritable(ctx, st, ruleID, w); err != nil {

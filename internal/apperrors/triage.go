@@ -128,7 +128,7 @@ func (a API) SetErrorGroupState(
 
 	var row db.SetErrorGroupStateRow
 
-	err := st.InTx(ctx, func(ctx context.Context) error {
+	err := st.InAuditedTx(ctx, func(ctx context.Context) error {
 		var err error
 
 		row, err = st.Q.SetErrorGroupState(ctx, db.SetErrorGroupStateParams{

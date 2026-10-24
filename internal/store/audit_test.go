@@ -135,23 +135,36 @@ func TestAuditCommitOrderAcrossReplicas(t *testing.T) {
 	}
 }
 
-// Concurrent entries on their own all commit: they queue on the clock
-// instead of failing serializable on it. Not parallel: the burst would
-// starve the serializable transactions of the other tests.
+// Concurrent entries all commit, on their own or inside audited serializable
+// transactions: both queue on the clock instead of failing on it with 40001.
+// Not parallel: the burst would starve the unaudited serializable
+// transactions of the other tests.
 func TestAuditConcurrentAppends(t *testing.T) { //nolint:paralleltest // see above
 	st := open(t)
 	operation := uuid.New()
 
-	const writers = 16
+	const writers = 32
 
 	var writing sync.WaitGroup
 
 	errs := make(chan error, writers)
 
-	for range writers {
+	draft := store.AuditDraft{Actor: "test", Action: "test.concurrent", Subject: operation.String(), Outcome: "intent", OperationID: operation}
+
+	for i := range writers {
 		writing.Go(func() {
-			_, err := st.AppendAudit(t.Context(), store.AuditDraft{Actor: "test", Action: "test.concurrent", Subject: operation.String(), Outcome: "intent", OperationID: operation})
-			errs <- err
+			if i%2 == 0 {
+				_, err := st.AppendAudit(t.Context(), draft)
+				errs <- err
+
+				return
+			}
+
+			errs <- st.InAuditedTx(t.Context(), func(ctx context.Context) error {
+				_, err := st.AppendAudit(ctx, draft)
+
+				return err
+			})
 		})
 	}
 

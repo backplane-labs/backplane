@@ -94,7 +94,7 @@ func (s *Service) cleanupLoop(ctx context.Context) error {
 func (s *Service) Expire(ctx context.Context, cutoff time.Time) error {
 	st := s.store.Get()
 
-	err := st.InTx(ctx, func(ctx context.Context) error {
+	err := st.InAuditedTx(ctx, func(ctx context.Context) error {
 		clock, err := st.Q.GetAuditClock(ctx)
 		if err != nil {
 			return fmt.Errorf("read audit retention clock: %w", err)

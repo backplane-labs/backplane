@@ -275,7 +275,7 @@ func (m *Manager) insert(
 
 	var saved db.InsertConfigRevisionRow
 
-	err = st.InTx(ctx, func(ctx context.Context) error {
+	err = st.InAuditedTx(ctx, func(ctx context.Context) error {
 		next, err := st.Q.NextConfigRevision(ctx, service)
 		if err != nil {
 			return fmt.Errorf("next revision: %w", err)

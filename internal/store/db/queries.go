@@ -534,6 +534,13 @@ func (q *Queries) AdvanceAuditRetention(ctx context.Context, throughSequence int
 	return err
 }
 
+const lockAuditClockSQL = `LOCK TABLE backplane.audit_clock IN EXCLUSIVE MODE;`
+
+func (q *Queries) LockAuditClock(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockAuditClockSQL)
+	return err
+}
+
 const nextBindingVersionSQL = `SELECT (COALESCE(max(version), 0) + 1)::bigint AS version
 FROM backplane.binding_version WHERE hook = $1;`
 

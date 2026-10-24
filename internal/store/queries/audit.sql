@@ -55,3 +55,6 @@ DELETE FROM backplane.audit_entry WHERE sequence <= @through_sequence;
 -- name: AdvanceAuditRetention :exec
 UPDATE backplane.audit_clock SET retained_after = @through_sequence
 WHERE singleton = true AND retained_after < @through_sequence AND sequence >= @through_sequence;
+
+-- name: LockAuditClock :exec
+LOCK TABLE backplane.audit_clock IN EXCLUSIVE MODE;
