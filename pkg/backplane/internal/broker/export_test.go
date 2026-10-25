@@ -66,6 +66,10 @@ func (b *Broker) OwnStreams() (jetstream.StreamConfig, jetstream.StreamConfig) {
 	return eventStream(b.p.Service, byEmitter, b.p.Streams), deadStream(b.p.Service, b.p.Streams)
 }
 
+// SourceStream is the configuration of a missing source stream a reactor
+// creates.
+func (b *Broker) SourceStream(source string) jetstream.StreamConfig { return b.sourceStream(source) }
+
 // PublishRaw publishes payload as event with key.
 func (b *Broker) PublishRaw(ctx context.Context, event, key string, payload []byte) error {
 	return b.Publish(ctx, env.Message{Event: event, Key: key, Payload: payload})

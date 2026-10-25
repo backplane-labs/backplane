@@ -140,8 +140,9 @@ type NATS struct {
 	MaxAge time.Duration `desc:"Retention of the service's events; 0: unlimited." json:"max_age" schemapb:"default=168h"`
 	// Size of the event stream in bytes; the oldest events go first.
 	MaxBytes int64 `desc:"Size of the event stream in bytes, the oldest events go first; 0: unlimited." json:"max_bytes" schemapb:"default=0;gte=0"`
-	// Replicas of both streams (JetStream cluster).
-	Replicas int64 `desc:"Replicas of the event and dead-letter streams (JetStream cluster)." json:"replicas" schemapb:"default=1;gte=1;lte=5"`
+	// Replicas of the streams the process creates: both of its own and a
+	// missing stream it subscribes to (JetStream cluster).
+	Replicas int64 `desc:"Replicas of the streams the process creates: its events, its dead letters, a missing stream it subscribes to (JetStream cluster)." json:"replicas" schemapb:"default=1;gte=1;lte=5"`
 	// Window in which a repeated publish (same ce-id) is dropped; at most
 	// max_age.
 	DedupWindow time.Duration `desc:"Window in which a repeated publish (same ce-id) is dropped; at most max_age." json:"dedup_window" schemapb:"default=2m"`

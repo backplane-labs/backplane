@@ -153,6 +153,18 @@ func Concurrency(n int) Option {
 	}
 }
 
+// StreamReplicas is the replica count of an event stream the engine
+// creates because it is missing (default 1): the installation's
+// nats.replicas, so a stream made for a subscriber on a JetStream cluster
+// is replicated before its emitter applies its own configuration.
+func StreamReplicas(n int) Option {
+	return func(e *Engine) {
+		if n > 0 {
+			e.replicas = n
+		}
+	}
+}
+
 // Resync is how often a full reconciliation runs without changes
 // (default 1 min).
 func Resync(d time.Duration) Option {
@@ -183,6 +195,7 @@ type Engine struct {
 	queue           string
 	workflow        string
 	concurrency     int
+	replicas        int
 	resync          time.Duration
 	retry           time.Duration
 	startTimeout    time.Duration
@@ -233,6 +246,7 @@ var errNotConfigured = errors.New("not configured")
 func (e *Engine) init(src Source, reg registry.Source, opts []Option) {
 	e.src, e.reg = src, reg
 	e.concurrency, e.resync, e.retry, e.startTimeout = defaultConcurrency, defaultResync, defaultRetry, defaultStartTimeout
+	e.replicas = 1
 	e.workflow = Workflow
 	e.temporalEnabled = true
 	e.kick = make(chan struct{}, 1)
@@ -501,7 +515,7 @@ func (e *Engine) apply(ctx context.Context, jet jetstream.JetStream, a action) e
 // start ensures the event's stream and the rule's consumer and consumes
 // it; work is the context of the deliveries.
 func (e *Engine) start(work, ctx context.Context, jet jetstream.JetStream, d desired) error {
-	if err := ensureStream(ctx, jet, d.service); err != nil {
+	if err := ensureStream(ctx, jet, e.eventStream(d.service)); err != nil {
 		return err
 	}
 
@@ -678,8 +692,9 @@ func ruleOf(metadata map[string]string) (uuid.UUID, int64, bool) {
 }
 
 // eventStream is the configuration of service's event stream a subscriber
-// creates when it is missing: the platform's defaults (§8).
-func eventStream(service string) jetstream.StreamConfig {
+// creates when it is missing: the platform's defaults (§8), replicated as
+// the installation's streams are.
+func (e *Engine) eventStream(service string) jetstream.StreamConfig {
 	return jetstream.StreamConfig{
 		Name:        wire.StreamName(service),
 		Description: "backplane events of " + service,
@@ -690,18 +705,16 @@ func eventStream(service string) jetstream.StreamConfig {
 		MaxAge:      streamMaxAge,
 		MaxBytes:    -1,
 		Duplicates:  streamDedup,
-		Replicas:    1,
+		Replicas:    e.replicas,
 		Metadata: map[string]string{
 			wire.MetaService: service, wire.MetaBy: wire.BySubscriber, wire.MetaKind: wire.KindEvents,
 		},
 	}
 }
 
-// ensureStream creates the event's stream when it is missing and leaves
-// an existing one alone: its emitter owns the configuration.
-func ensureStream(ctx context.Context, jet jetstream.JetStream, service string) error {
-	cfg := eventStream(service)
-
+// ensureStream creates the event's stream cfg when it is missing and
+// leaves an existing one alone: its emitter owns the configuration.
+func ensureStream(ctx context.Context, jet jetstream.JetStream, cfg jetstream.StreamConfig) error {
 	_, err := jet.Stream(ctx, cfg.Name)
 	if err == nil {
 		return nil

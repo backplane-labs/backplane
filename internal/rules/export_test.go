@@ -32,6 +32,9 @@ func (e *Engine) Handle(
 	return e.handle(ctx, id, &program{prog: prog, version: version}, msg)
 }
 
+// EventStream is the configuration of a missing stream the engine creates.
+func (e *Engine) EventStream(service string) jetstream.StreamConfig { return e.eventStream(service) }
+
 // NakDelay is nakDelay.
 func NakDelay(n uint64) time.Duration { return nakDelay(n) }
 

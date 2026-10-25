@@ -109,6 +109,21 @@ func (b *Broker) ensureDead(ctx context.Context, jet jetstream.JetStream) error 
 	return nil
 }
 
+// sourceStream is the configuration of source's event stream a reactor
+// creates when it is missing: the service's own settings for its own
+// stream; for another service's the platform defaults until its emitter
+// applies its own, replicated as this installation's streams are.
+func (b *Broker) sourceStream(source string) jetstream.StreamConfig {
+	if source == b.p.Service {
+		return eventStream(source, bySubscribe, b.p.Streams)
+	}
+
+	lim := DefaultStreams()
+	lim.Replicas = b.p.Streams.Replicas
+
+	return eventStream(source, bySubscribe, lim)
+}
+
 // ensureExists creates a missing stream and leaves an existing one alone.
 func ensureExists(ctx context.Context, jet jetstream.JetStream, cfg jetstream.StreamConfig) error {
 	_, err := jet.Stream(ctx, cfg.Name)

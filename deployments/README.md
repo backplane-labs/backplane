@@ -41,7 +41,7 @@ the instance state.
 | `BACKPLANE_NATS_TLS_ENABLED`, `_TLS_CA`, `_TLS_CERT`, `_TLS_KEY`, `_TLS_SERVER_NAME`, `_TLS_INSECURE_SKIP_VERIFY` | `false`, … | TLS to NATS, as for Consul |
 | `BACKPLANE_NATS_PUBLISH_TIMEOUT` | `5s` | bound of a publish whose context has no deadline |
 | `BACKPLANE_NATS_MAX_AGE`, `_MAX_BYTES` | `168h`, `0` | retention of the service's event stream `bp_<service>`; `0`: unlimited |
-| `BACKPLANE_NATS_REPLICAS` | `1` | replicas of the event and dead-letter streams (1..5) |
+| `BACKPLANE_NATS_REPLICAS` | `1` | replicas of the streams the process creates: its events, its dead letters and a missing stream it subscribes to (1..5) |
 | `BACKPLANE_NATS_DEDUP_WINDOW` | `2m` | dedup window of the event stream, at most `max_age` |
 | `BACKPLANE_NATS_DLQ_MAX_AGE` | `720h` | retention of dead letters `bp_dlq_<service>`; `0`: unlimited |
 | `BACKPLANE_TEMPORAL_ADDR` | — | Temporal frontend; empty: no hooks, activities, workflows |

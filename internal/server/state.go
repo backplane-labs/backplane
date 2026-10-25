@@ -215,7 +215,10 @@ func (st *State) runtime(root backplane.Root[Config],
 	}
 
 	if cfg.NATS.Enabled() {
-		ruleOptions := []rules.Option{rules.WithDirect(st.Direct), rules.TemporalEnabled(cfg.Temporal.Enabled())}
+		ruleOptions := []rules.Option{
+			rules.WithDirect(st.Direct), rules.TemporalEnabled(cfg.Temporal.Enabled()),
+			rules.StreamReplicas(int(cfg.NATS.Replicas)),
+		}
 		if cfg.Temporal.Enabled() {
 			ruleOptions = append(ruleOptions, rules.WithRuns(st.Ops.Workflows()))
 		}

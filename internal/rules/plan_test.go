@@ -256,3 +256,18 @@ func TestParseMeta(t *testing.T) {
 		t.Fatalf("empty trace %v", tr)
 	}
 }
+
+// A stream the engine creates for a rule is replicated as the
+// installation's streams are (nats.replicas).
+func TestEventStreamReplicas(t *testing.T) {
+	t.Parallel()
+
+	cfg := rules.Detached(nil).EventStream("iam")
+	if cfg.Name != wire.StreamName("iam") || cfg.Replicas != 1 || cfg.Metadata[wire.MetaBy] != wire.BySubscriber {
+		t.Fatalf("default: %+v", cfg)
+	}
+
+	if replicated := rules.Detached(nil, rules.StreamReplicas(3)).EventStream("iam"); replicated.Replicas != 3 {
+		t.Fatalf("replicated: %+v", replicated)
+	}
+}

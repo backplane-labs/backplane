@@ -284,3 +284,28 @@ func TestOwnStreams(t *testing.T) {
 		t.Fatalf("unlimited dead letters: %+v", dead)
 	}
 }
+
+// A reactor creating another service's missing stream gives it the
+// platform defaults, replicated as this installation's streams are; its
+// own stream gets its own settings.
+func TestSourceStream(t *testing.T) {
+	t.Parallel()
+
+	b := broker.New(broker.Params{Service: "mail", Streams: broker.Streams{
+		MaxAge: time.Hour, Replicas: 3, Duplicates: 30 * time.Second, DeadMaxAge: time.Minute,
+	}})
+
+	other := b.SourceStream("iam")
+	if other.Name != broker.StreamName("iam") || other.Replicas != 3 || other.MaxAge != 7*24*time.Hour ||
+		other.Duplicates != 2*time.Minute {
+		t.Fatalf("other service: %+v", other)
+	}
+
+	if own := b.SourceStream("mail"); own.Replicas != 3 || own.MaxAge != time.Hour || own.Duplicates != 30*time.Second {
+		t.Fatalf("own: %+v", own)
+	}
+
+	if single := broker.New(broker.Params{Service: "mail"}).SourceStream("iam"); single.Replicas != 1 {
+		t.Fatalf("default: %+v", single)
+	}
+}

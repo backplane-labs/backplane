@@ -334,12 +334,7 @@ func (b *Broker) consume(
 		return nil, nil, err
 	}
 
-	lim := DefaultStreams()
-	if re.source == b.p.Service {
-		lim = b.p.Streams
-	}
-
-	if err := ensureExists(ctx, jet, eventStream(re.source, bySubscribe, lim)); err != nil {
+	if err := ensureExists(ctx, jet, b.sourceStream(re.source)); err != nil {
 		return nil, nil, err
 	}
 
