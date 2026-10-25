@@ -18,6 +18,7 @@ import (
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/internal/bindings"
 	"github.com/backplane-labs/backplane/internal/registry"
+	"github.com/backplane-labs/backplane/pkg/backplane/meshdial"
 )
 
 // internalSecretHeader is the SDK guard's gRPC metadata key.
@@ -61,7 +62,7 @@ func NewActivities(src registry.Source, secret string, platform Platform) *Activ
 				creds = platform.PlatformCredentials(service)
 			}
 
-			return grpc.NewClient(addr, grpc.WithTransportCredentials(creds),
+			return meshdial.Dial(addr, creds,
 				grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxMessage), grpc.MaxCallSendMsgSize(maxMessage)))
 		},
 	}

@@ -30,6 +30,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/recovery"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/routes"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/telemetry"
+	"github.com/backplane-labs/backplane/pkg/backplane/meshdial"
 )
 
 const (
@@ -275,7 +276,7 @@ func (c *core) hookTransport() {
 			Service: c.id.Service, Instance: c.id.Instance, Secret: c.cfg.InternalSecret.Reveal(),
 			Timeout: c.cfg.Temporal.HookTimeout, Discovery: find,
 			Dial: func(addr string) (*grpc.ClientConn, error) {
-				return grpc.NewClient(addr, grpc.WithTransportCredentials(creds))
+				return meshdial.Dial(addr, creds)
 			},
 		})
 		c.env.SetHookTimeout(c.cfg.Temporal.HookTimeout)

@@ -46,6 +46,7 @@ import (
 	"os"
 	"regexp"
 
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
 	"github.com/backplane-labs/backplane/pkg/backplane/build"
@@ -53,6 +54,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/telemetry"
+	"github.com/backplane-labs/backplane/pkg/backplane/meshdial"
 )
 
 // Root is the root of the author's tree, handed to the State constructor:
@@ -86,12 +88,30 @@ func (r Root[C]) Identity() Identity { return r.id }
 //
 //	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(root.ServiceCredentials("sync")))
 //
-// Without a mesh (the Consul driver and Consul) every handshake fails with
+// DialService builds the channel with them and recovers from address
+// changes. Without a mesh (the Consul driver and Consul) every handshake fails with
 // ErrNoMesh.
 //
 //nolint:ireturn // gRPC's credentials
 func (r Root[C]) ServiceCredentials(target string) credentials.TransportCredentials {
 	return r.meshState().ServiceCredentials(target)
+}
+
+// DialService is a channel to target's api.MTLS port at addr (host:port)
+// with ServiceCredentials: the server verified as target on every
+// handshake, the channel recovering within seconds when the peer's address
+// moves (meshdial). Calls are not retried; one may wait for readiness
+// within its deadline with grpc.WaitForReady(true). opts apply last.
+//
+//	conn, err := root.DialService("sync", cfg.Sync.Addr)
+func (r Root[C]) DialService(target, addr string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	return meshdial.Dial(addr, r.ServiceCredentials(target), opts...) //nolint:wrapcheck // meshdial's
+}
+
+// DialPlatform is DialService of target's platform port, with
+// PlatformCredentials.
+func (r Root[C]) DialPlatform(target, addr string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	return meshdial.Dial(addr, r.PlatformCredentials(target), opts...) //nolint:wrapcheck // meshdial's
 }
 
 // ServiceTLS is ServiceCredentials for an HTTP client:

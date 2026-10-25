@@ -21,6 +21,7 @@ import (
 
 	"github.com/backplane-labs/backplane/internal/registry"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/meshdial"
 )
 
 // Metadata the relay sets on a forwarded call (§11.1, §17).
@@ -210,8 +211,7 @@ func (rl *relay) conn(service, addr string) (*grpc.ClientConn, error) {
 		creds = rl.platform.PlatformCredentials(service)
 	}
 
-	cc, err := grpc.NewClient(addr,
-		grpc.WithTransportCredentials(creds),
+	cc, err := meshdial.Dial(addr, creds,
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxRelayMessage), grpc.MaxCallSendMsgSize(maxRelayMessage)))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "dial %s: %v", addr, err)

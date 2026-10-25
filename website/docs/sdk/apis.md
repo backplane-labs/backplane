@@ -80,9 +80,24 @@ func (a admin) Purge(ctx context.Context, in *syncv1.PurgeRequest) (*syncv1.Purg
 }
 
 // A client, in its newState: its own certificate, the server verified as "sync".
-conn, err := grpc.NewClient("sync:9090", grpc.WithTransportCredentials(root.ServiceCredentials("sync")))
+conn, err := root.DialService("sync", "sync:9090")
+// A call that may wait while the channel reconnects, bounded by its deadline:
+//   client.Purge(ctx, req, grpc.WaitForReady(true))
 // HTTP: &http.Transport{TLSClientConfig: root.ServiceTLS("sync")}
 ```
+
+`DialService` (and `DialPlatform` for a platform port) builds the channel
+with `ServiceCredentials` and recovers when the peer's address moves: the
+channel resolves the host itself, looks it up again at most every 500 ms
+when a connection is lost or refused (also when the address now answers
+as another service: the handshake refuses it), retries a failing lookup
+within 5 s and reconnects with a 250 ms–5 s backoff. gRPC's own DNS
+resolver waits 30 s between lookups; nothing process-wide is changed.
+Calls are not retried: a call made while the channel reconnects fails
+with `Unavailable`, unless it waits for readiness with
+`grpc.WaitForReady(true)` and a deadline. Backplane and the SDK dial their
+own channels (hooks, activities, the console relay) the same way
+(`pkg/backplane/meshdial`).
 
 Nothing is configured for it beyond Consul, which the Consul driver already
 uses:
