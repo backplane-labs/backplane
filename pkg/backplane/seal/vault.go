@@ -26,6 +26,10 @@ var ErrVault = errors.New("seal: vault")
 // Vault is the Transit engine of a HashiCorp Vault (or OpenBao): the key
 // never leaves it. Every Seal takes a fresh data key from Transit and
 // keeps it wrapped next to the value; Open has Transit unwrap it.
+//
+// Give the sealer a Transit key of its own and grant no one encrypt on it:
+// whoever can encrypt with the key can wrap a data key they chose and
+// forge a value Open accepts. The token needs datakey, decrypt and rewrap.
 type Vault struct {
 	// Addr is Vault's URL; empty: no Vault, the section's keys seal.
 	Addr  string        `desc:"Vault URL, e.g. https://vault:8200; empty: the section's keys seal." json:"addr,omitempty"`
@@ -94,7 +98,14 @@ func newTransit(v Vault, previous *keyring) (transit, error) {
 		v.Timeout = defaultVaultTimeout
 	}
 
-	return transit{cfg: v, http: &http.Client{Transport: transport, Timeout: v.Timeout}, previous: previous}, nil
+	// No redirect is followed: X-Vault-Token would go along to wherever it
+	// points.
+	client := &http.Client{
+		Transport: transport, Timeout: v.Timeout,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+
+	return transit{cfg: v, http: client, previous: previous}, nil
 }
 
 const (

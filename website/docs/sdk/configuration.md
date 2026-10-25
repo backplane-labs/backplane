@@ -148,6 +148,11 @@ seal:
   associated data, and keeps the wrapped data key. `Open` has Transit unwrap
   the key. The Transit key itself never leaves Vault.
 - **Token.** The token needs `datakey`, `decrypt` and `rewrap` on the key.
+- **A key of its own.** Grant no one `encrypt` on the sealer's Transit key.
+  Whoever can encrypt with the key can wrap a data key of their choosing
+  and forge a value `Open` accepts.
+- **Connection.** Use https. The sealer follows no redirect, so the token
+  never goes anywhere other than `addr`.
 - **Probe.** The dependency probes `sys/health`.
 - **Moving from `key` to Vault.** Keep `key` set while values are moved:
   it still opens what it sealed, and `Rewrap` re-seals those values through
