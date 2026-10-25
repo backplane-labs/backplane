@@ -21,6 +21,11 @@ for service, m := range modules.Get() {
 Names are lower case, segments joined by `.`, `_` or `-`; the product chooses
 them, so prefix them with the product's name. A service offers a name once.
 
+`Offer` and `Follow` are declarations: call them while the service is
+declared (in a constructor), not in a component's goroutine. The followed
+names are read when the service starts, so `Follow` after `Run` panics
+instead of silently following nothing.
+
 ## What a follower sees
 
 The section goes into the offering service's manifest. Backplane publishes, by

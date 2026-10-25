@@ -113,10 +113,17 @@ type state[T proto.Message] struct {
 
 // Follow follows section name, decoded as T (a pointer to a generated
 // message). A service that offers name with another message is left out.
+// It is a declaration: call it before Run (in a constructor, not in a
+// component's goroutine); after Run it panics.
 func Follow[T proto.Message](scope deps.Scope, name string) Ref[T] {
 	checkName(name)
 
 	e, _ := decl.Env(scope, "section "+name)
+	if e.Manifest.Sealed() {
+		// The followed names are read when the service starts: a later
+		// Follow would never see a change.
+		panic("sections: Follow(" + name + ") after Run: follow while declaring, not in a component's goroutine")
+	}
 
 	var zero T
 

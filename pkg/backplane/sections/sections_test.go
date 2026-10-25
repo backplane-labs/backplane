@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
 	"github.com/backplane-labs/backplane/pkg/backplane/sections"
 )
 
@@ -136,4 +137,22 @@ func TestFollowKnownEmpty(t *testing.T) {
 	default:
 		t.Fatal("first set not signaled")
 	}
+}
+
+// Follow is a declaration: after Run it panics instead of following
+// nothing.
+func TestFollowAfterRun(t *testing.T) {
+	t.Parallel()
+
+	h := backplanetest.New(t)
+	e, _ := decl.Env(h.Root(), "test")
+	e.Manifest.Seal() // as Run does before the sections are watched
+
+	defer func() {
+		if recover() == nil {
+			t.Fatal("Follow after Run did not panic")
+		}
+	}()
+
+	sections.Follow[*wrapperspb.StringValue](h.Root(), "komeet.module")
 }
