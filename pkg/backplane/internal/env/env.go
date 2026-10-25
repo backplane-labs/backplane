@@ -95,6 +95,7 @@ type Env struct {
 	reactors   []Reactor
 	registers  []func(registry any)
 	workflows  func() (any, error)
+	codec      any // infra/temporal Codec of workflow payloads
 
 	hookTimeout time.Duration // platform default of a hook call
 
@@ -331,6 +332,23 @@ func (e *Env) SetWorkflowClient(fn func() (any, error)) {
 	defer e.mu.Unlock()
 
 	e.workflows = fn
+}
+
+// SetPayloadCodec installs the codec of workflow payloads (an
+// infra/temporal Codec).
+func (e *Env) SetPayloadCodec(codec any) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.codec = codec
+}
+
+// PayloadCodec is the installed codec; nil without the transport.
+func (e *Env) PayloadCodec() any {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	return e.codec
 }
 
 // WorkflowClient is the connected Temporal client (a client.Client).

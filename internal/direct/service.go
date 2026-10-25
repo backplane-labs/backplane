@@ -23,6 +23,8 @@ import (
 	"github.com/backplane-labs/backplane/internal/store"
 	"github.com/backplane-labs/backplane/internal/wire"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/seal"
+	"github.com/backplane-labs/backplane/pkg/backplane/workflows"
 )
 
 // Defaults of the runtime.
@@ -139,6 +141,7 @@ func New(
 
 	s.runner = NewRunner(s.caller)
 	s.runs = NewRuns(st, s.Log(), s.metrics.dropped)
+	s.runs.SealReplies(func() seal.Sealer { return workflows.Codec(s).Sealer() })
 
 	s.Go(s.runs.Write)
 	s.Go(s.expire)

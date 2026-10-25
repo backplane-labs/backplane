@@ -15,6 +15,8 @@ import (
 	"github.com/backplane-labs/backplane/internal/bindings"
 	"github.com/backplane-labs/backplane/internal/direct"
 	"github.com/backplane-labs/backplane/internal/wire"
+	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/seal"
 )
 
 // A keyed hook call runs once: a repeat, concurrent or later, answers the
@@ -148,5 +150,69 @@ func TestClaimAfterProgramExpired(t *testing.T) {
 
 	if err := start("ce-2"); err != nil {
 		t.Fatalf("after expiry: %v", err)
+	}
+}
+
+// With history encryption a kept reply is sealed to its run: a repeat
+// answers it, and without the key it does not open.
+func TestKeyedReplySealed(t *testing.T) {
+	t.Parallel()
+
+	ms := secretInstallation(t)
+	fakeB := &fakeBindings{
+		cat: bindings.WithDefaults(ms, bindings.Defaults{Runtime: consolev1.Runtime_RUNTIME_DIRECT}),
+		active: map[string]bindings.Binding{
+			"iam.SendOTP": binding(t, "hook: iam.SendOTP\nsteps: {send: {activity: smtp.Send, input: {to: req.to}}}\n"+
+				"result: {code: req.code, id: send.id}\n"),
+		},
+	}
+
+	var sent atomic.Int32
+
+	s, _ := live(t, map[string]handler{
+		"smtp.Send": func(context.Context, map[string]any) (any, error) {
+			return map[string]any{"id": "m-" + strconv.Itoa(int(sent.Add(1)))}, nil
+		},
+	}, fakeB)
+
+	sealer, err := seal.Open(config.Seal{Key: config.Secret(seal.GenerateKey())})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var keyed atomic.Bool
+
+	keyed.Store(true)
+	s.Runs().SealReplies(func() seal.Sealer {
+		if keyed.Load() {
+			return sealer
+		}
+
+		return nil
+	})
+
+	raise := func(key string) (string, error) {
+		res, err := s.HookService().Raise(t.Context(), &consolev1.RaiseRequest{Call: &backplanev1.HookCall{
+			Hook: "iam.SendOTP", Instance: "iam-1", Key: key, Payload: []byte(`{"to":"a","code":"1234"}`),
+		}})
+
+		return string(res.GetResult().GetPayload()), err
+	}
+
+	first, err := raise("k1")
+	if err != nil || first != `{"code":"1234","id":"m-1"}` {
+		t.Fatalf("first: %q %v", first, err)
+	}
+
+	awaitRun(t, s, wire.DirectRunID("iam.SendOTP", "key/k1"), consolev1.RunStatus_RUN_STATUS_COMPLETED)
+
+	if again, err := raise("k1"); err != nil || again != first || sent.Load() != 1 {
+		t.Fatalf("repeat: %q %v (sent %d)", again, err, sent.Load())
+	}
+
+	keyed.Store(false)
+
+	if _, err := raise("k1"); err == nil {
+		t.Fatal("a sealed reply answered without the key")
 	}
 }

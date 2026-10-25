@@ -19,12 +19,17 @@ func Driver() backplane.Option {
 		transport := temporal.New(temporal.Params{
 			Conn: inftemporal.Config{
 				Addr: cfg.Temporal.Addr, Namespace: cfg.Temporal.Namespace, TLS: cfg.Temporal.TLS,
-				APIKey: cfg.Temporal.APIKey, DialTimeout: cfg.Temporal.DialTimeout,
+				APIKey: cfg.Temporal.APIKey, DialTimeout: cfg.Temporal.DialTimeout, Encryption: cfg.Temporal.Encryption,
 			},
 			Service: id.Service, Instance: id.Instance, Log: scope.Log(), Env: e,
 			Worker: tuning(cfg.Temporal.Worker), HookTimeout: cfg.Temporal.HookTimeout,
 		})
 		e.SetWorkflowClient(func() (any, error) { return transport.SDK() })
+
+		// Options failed already, and Run reports it, when this does.
+		if codec, err := inftemporal.NewCodec(cfg.Temporal.Encryption); err == nil && cfg.Temporal.Encryption.Enabled() {
+			e.SetPayloadCodec(codec)
+		}
 
 		return transport
 	})

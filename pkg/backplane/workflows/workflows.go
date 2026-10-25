@@ -30,6 +30,7 @@ import (
 	"go.temporal.io/sdk/worker"
 
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/temporal"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
 )
 
@@ -66,6 +67,20 @@ func Client(scope deps.Scope) (client.Client, error) {
 	}
 
 	return tc, nil
+}
+
+// Codec is the codec of the installation's workflow payloads
+// (BACKPLANE_TEMPORAL_ENCRYPTION_*): history read through the raw service
+// API is decoded with it. Without encryption it is temporal.Plain, which
+// changes nothing.
+func Codec(scope deps.Scope) temporal.Codec {
+	e, _ := decl.Env(scope, "workflows codec")
+
+	if c, ok := e.PayloadCodec().(temporal.Codec); ok {
+		return c
+	}
+
+	return temporal.Plain
 }
 
 // Queue is the service's task queue.

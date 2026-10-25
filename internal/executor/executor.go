@@ -62,6 +62,7 @@ import (
 	"github.com/backplane-labs/backplane/internal/direct"
 	"github.com/backplane-labs/backplane/internal/registry"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/temporal"
 	"github.com/backplane-labs/backplane/pkg/backplane/workflows"
 )
 
@@ -151,6 +152,7 @@ type Executor struct {
 	bindings     Bindings
 	src          registry.Source
 	temporal     TemporalFunc
+	codec        func() temporal.Codec // of history read through the raw API
 	queue        string
 	ns           string
 	author       func(ctx context.Context) string
@@ -183,6 +185,7 @@ func New(parent deps.Scope, b Bindings, src registry.Source, opts ...Option) *Ex
 		programs: map[string]compiled{}, warned: map[string]bool{},
 	}
 	x.temporal = func() (client.Client, error) { return workflows.Client(x) }
+	x.codec = func() temporal.Codec { return workflows.Codec(x) }
 	x.queue = workflows.Queue(parent)
 
 	for _, o := range opts {

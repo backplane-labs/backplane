@@ -25,6 +25,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.temporal.io/sdk/client"
 	otelsdk "go.temporal.io/sdk/contrib/opentelemetry"
+	"go.temporal.io/sdk/converter"
 	"go.temporal.io/sdk/interceptor"
 	tlog "go.temporal.io/sdk/log"
 
@@ -59,6 +60,8 @@ type Config struct {
 	APIKey config.Secret `desc:"Temporal Cloud API key; turns TLS on." json:"api_key,omitempty"`
 	// DialTimeout bounds one connection attempt.
 	DialTimeout time.Duration `desc:"Bound of one connection attempt." json:"dial_timeout" schemapb:"default=2s"`
+	// Encryption of the payloads in workflow history; empty: off.
+	Encryption config.Seal `desc:"Encrypts payloads in workflow history; empty: off." json:"encryption"`
 }
 
 // Enabled reports whether an address is set.
@@ -126,6 +129,15 @@ func Options(cfg Config, identity string, log *xlog.Logger) (client.Options, err
 
 	if key := cfg.APIKey.Reveal(); key != "" {
 		opts.Credentials = client.NewAPIKeyStaticCredentials(key)
+	}
+
+	if cfg.Encryption.Enabled() {
+		codec, err := NewCodec(cfg.Encryption)
+		if err != nil {
+			return client.Options{}, err
+		}
+
+		opts.DataConverter = converter.NewCodecDataConverter(converter.GetDefaultDataConverter(), codec)
 	}
 
 	return opts, nil

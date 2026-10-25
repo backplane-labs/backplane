@@ -164,6 +164,9 @@ type Temporal struct {
 	// Deadline of a hook call whose context and declaration set none.
 	HookTimeout time.Duration `desc:"Deadline of a hook call whose context and declaration set none." json:"hook_timeout" schemapb:"default=30s"`
 	Worker      Worker        `desc:"Worker on the service's task queue."                             json:"worker"`
+	// Encryption of the payloads in workflow history; empty: off. Every
+	// service of the installation and backplane need the same.
+	Encryption Seal `desc:"Encrypts payloads in workflow history (and backplane's hook replies); empty: off. The same in every service and backplane." json:"encryption"`
 }
 
 // Worker on the service's task queue: an operational setting, the same

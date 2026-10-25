@@ -64,6 +64,10 @@ func (a ScheduleAPI) ListSchedules(
 	page, err := c.WorkflowService().ListSchedules(ctx, &workflowservice.ListSchedulesRequest{
 		Namespace: a.o.namespace, MaximumPageSize: int32(size), NextPageToken: req.GetPageToken(), Query: query,
 	})
+	if err == nil {
+		err = a.o.decode(ctx, page)
+	}
+
 	if err != nil {
 		return nil, a.o.status(ctx, err)
 	}

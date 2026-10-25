@@ -101,9 +101,35 @@ A server can save a schema-valid revision that an instance rejects with its cust
 
 Use secret annotations and deployment secret injection. Do not copy a masked value back as if it were the secret. Keep startup-only secrets outside the operator's live-edit surface. Custom validation errors and watch logs must not disclose values merely because the schema masks them elsewhere.
 
-A `secret` mark masks a value in the console only. Run history in Temporal,
-the direct runtime's tables, NATS and service logs keep the payload as it
-was.
+A `secret` mark masks a value in the console, and the direct runtime records
+runs already masked. Temporal history, NATS and service logs keep payloads as
+they were, unless history encryption is on (below).
+
+## History encryption
+
+`BACKPLANE_TEMPORAL_ENCRYPTION_*` (`backplane.temporal.encryption`, a seal
+section) encrypts the payloads of workflow history. It is off by default.
+
+```yaml
+backplane:
+  temporal:
+    encryption: {key: ${HISTORY_KEY}}      # or vault: {...}
+```
+
+- **What it seals.** A payload codec seals every payload whole, metadata
+  included: the inputs and results of workflows, activities, signals and
+  hook calls, and schedule inputs.
+- **What stays readable.** Temporal UI and `tctl` show ciphertext. The
+  console decodes and then masks as before.
+- **Hook replies.** Backplane also seals the unmasked reply it keeps for a
+  keyed hook call.
+- **Same key everywhere.** Every service of the installation and backplane
+  must carry the same section: a worker opens what a workflow sealed.
+- **Turning it on.** Payloads written before encryption pass through
+  unchanged, so it can be turned on without a migration. Turning it off
+  leaves the sealed history unreadable.
+- **Rotation.** Same as for any seal section: a new `key`, the old one in
+  `previous`.
 
 ## Sealing what a service stores
 

@@ -23,46 +23,8 @@ import (
 // ErrVault: Vault answered with an error or could not be reached.
 var ErrVault = errors.New("seal: vault")
 
-// Vault is the Transit engine of a HashiCorp Vault (or OpenBao): the key
-// never leaves it. Every Seal takes a fresh data key from Transit and
-// keeps it wrapped next to the value; Open has Transit unwrap it.
-//
-// Give the sealer a Transit key of its own and grant no one encrypt on it:
-// whoever can encrypt with the key can wrap a data key they chose and
-// forge a value Open accepts. The token needs datakey, decrypt and rewrap.
-type Vault struct {
-	// Addr is Vault's URL; empty: no Vault, the section's keys seal.
-	Addr  string        `desc:"Vault URL, e.g. https://vault:8200; empty: the section's keys seal." json:"addr,omitempty"`
-	Token config.Secret `desc:"Token with datakey, decrypt and rewrap on the key."                  json:"token,omitempty"`
-	// Key is the Transit key's name (type aes256-gcm96).
-	Key       string        `desc:"Name of the Transit key."                     json:"key,omitempty"`
-	Mount     string        `desc:"Mount path of the Transit engine."            json:"mount"               schemapb:"default=transit"`
-	Namespace string        `desc:"Vault Enterprise namespace; empty: the root." json:"namespace,omitempty"`
-	TLS       config.TLS    `desc:"TLS of the connection to Vault."              json:"tls"`
-	Timeout   time.Duration `desc:"Bound of one call to Vault."                  json:"timeout"             schemapb:"default=10s"`
-}
-
-// Enabled reports whether Vault seals.
-func (v Vault) Enabled() bool { return v.Addr != "" }
-
-func (v Vault) validate() error {
-	switch {
-	case v.Token.Reveal() == "" || v.Key == "":
-		return fmt.Errorf("%w: vault needs token and key", ErrConfig)
-	case strings.ContainsAny(v.Key, "/?#") || strings.ContainsAny(v.Mount, "?#"):
-		return fmt.Errorf("%w: vault key or mount is not a path segment", ErrConfig)
-	}
-
-	if _, err := url.Parse(v.Addr); err != nil {
-		return fmt.Errorf("%w: vault addr: %w", ErrConfig, err)
-	}
-
-	if _, err := v.TLS.ClientConfig(); err != nil {
-		return fmt.Errorf("%w: vault tls: %w", ErrConfig, err)
-	}
-
-	return nil
-}
+// Vault is the section's Vault Transit (config.SealVault).
+type Vault = config.SealVault
 
 // version of the Vault format: version, length of the wrapped data key
 // (uint16), the wrapped key, nonce, ciphertext.
@@ -77,8 +39,8 @@ type transit struct {
 }
 
 func newTransit(v Vault, previous *keyring) (transit, error) {
-	if err := v.validate(); err != nil {
-		return transit{}, err
+	if err := v.Validate(); err != nil {
+		return transit{}, err //nolint:wrapcheck // ErrConfig
 	}
 
 	tlsConfig, _ := v.TLS.ClientConfig() // validate parsed it

@@ -27,6 +27,7 @@ import (
 	"github.com/backplane-labs/backplane/internal/direct"
 	"github.com/backplane-labs/backplane/internal/redact"
 	"github.com/backplane-labs/backplane/internal/wire"
+	inftemporal "github.com/backplane-labs/backplane/pkg/backplane/infra/temporal"
 )
 
 // Bounds of the console's runs.
@@ -323,7 +324,7 @@ func (x *Executor) getRun(
 		return nil, x.status(ctx, err)
 	}
 
-	steps, id, err := Timeline(ctx, c, run)
+	steps, id, err := Timeline(ctx, c, x.codec(), run)
 	if err != nil {
 		return nil, x.status(ctx, err)
 	}
@@ -343,13 +344,13 @@ func (x *Executor) getRun(
 // name, its call from the run's history (c reads it) or NOT_RUN, then the
 // compensations in the order they were scheduled.
 func Timeline(
-	ctx context.Context, c client.Client, run *consolev1.GetRunResponse,
+	ctx context.Context, c client.Client, codec inftemporal.Codec, run *consolev1.GetRunResponse,
 ) ([]*consolev1.StepRun, Identity, error) {
 	var in Input
 
 	_ = json.Unmarshal([]byte(run.GetInput()), &in)
 
-	events, err := history(ctx, c, run.GetRun().GetWorkflowId(), run.GetRun().GetRunId())
+	events, err := history(ctx, c, codec, run.GetRun().GetWorkflowId(), run.GetRun().GetRunId())
 	if err != nil {
 		return nil, in.Identity, err
 	}
@@ -358,7 +359,9 @@ func Timeline(
 }
 
 // history is a run's events, at most maxEvents.
-func history(ctx context.Context, c client.Client, workflowID, runID string) ([]*historypb.HistoryEvent, error) {
+func history(
+	ctx context.Context, c client.Client, codec inftemporal.Codec, workflowID, runID string,
+) ([]*historypb.HistoryEvent, error) {
 	iter := c.GetWorkflowHistory(ctx, workflowID, runID, false, historyFilter)
 
 	var out []*historypb.HistoryEvent
@@ -366,6 +369,10 @@ func history(ctx context.Context, c client.Client, workflowID, runID string) ([]
 	for iter.HasNext() && len(out) < maxEvents {
 		e, err := iter.Next()
 		if err != nil {
+			return nil, fmt.Errorf("history of %s: %w", workflowID, err)
+		}
+
+		if err := codec.DecodeMessage(ctx, e); err != nil {
 			return nil, fmt.Errorf("history of %s: %w", workflowID, err)
 		}
 

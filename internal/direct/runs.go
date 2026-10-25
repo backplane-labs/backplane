@@ -25,6 +25,7 @@ import (
 	"github.com/backplane-labs/backplane/internal/store/db"
 	"github.com/backplane-labs/backplane/internal/wire"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/seal"
 )
 
 // Statuses of a run and of its steps in the store.
@@ -75,6 +76,9 @@ type Runs struct {
 	runs  chan write
 	steps chan write
 	drops func()
+	// sealer seals the replies kept (the installation's history
+	// encryption); nil: they are kept as they are.
+	sealer func() seal.Sealer
 
 	mu sync.Mutex
 	// stored are the program hashes this process has written.
@@ -89,7 +93,7 @@ func NewRuns(st deps.Dependency[*store.Store], log *xlog.Logger, drops func()) *
 	}
 
 	return &Runs{
-		st: st, log: log, drops: drops,
+		st: st, log: log, drops: drops, sealer: func() seal.Sealer { return nil },
 		runs: make(chan write, runQueueSize), steps: make(chan write, stepQueueSize),
 		stored: map[string]bool{},
 	}
@@ -388,11 +392,58 @@ func (r *Runs) Finish(id string, prog *redact.Program, result, reply []byte, err
 
 	masked := jsonb(prog.MaskResult(result))
 
-	r.enqueue(func(ctx context.Context, q *db.Queries) error {
-		return q.FinishDirectRun(ctx, db.FinishDirectRunParams{
-			ID: id, Status: status, Result: masked, Reply: reply, Error: msg, ErrorType: typ, Incomplete: incomplete,
+	r.enqueue(func(ctx context.Context, queries *db.Queries) error {
+		kept, err := r.sealReply(ctx, id, reply)
+		if err != nil {
+			return err
+		}
+
+		return queries.FinishDirectRun(ctx, db.FinishDirectRunParams{
+			ID: id, Status: status, Result: masked, Reply: kept, Error: msg, ErrorType: typ, Incomplete: incomplete,
 		})
 	})
+}
+
+// sealedReply starts a sealed reply: a JSON reply never starts with it.
+const sealedReply byte = 0
+
+// SealReplies seals the replies kept from now on with what sealer returns
+// (nil: as they are).
+func (r *Runs) SealReplies(sealer func() seal.Sealer) { r.sealer = sealer }
+
+// sealReply is reply as it is kept: sealed, bound to its run, when the
+// installation encrypts history.
+func (r *Runs) sealReply(ctx context.Context, id string, reply []byte) ([]byte, error) {
+	s := r.sealer()
+	if s == nil || reply == nil {
+		return reply, nil
+	}
+
+	sealed, err := s.Seal(ctx, reply, []byte(id))
+	if err != nil {
+		return nil, fmt.Errorf("direct runs: seal reply of %s: %w", id, err)
+	}
+
+	return append([]byte{sealedReply}, sealed...), nil
+}
+
+// openReply is a kept reply as it was given.
+func (r *Runs) openReply(ctx context.Context, id string, kept []byte) ([]byte, error) {
+	if len(kept) == 0 || kept[0] != sealedReply {
+		return kept, nil
+	}
+
+	s := r.sealer()
+	if s == nil {
+		return nil, fmt.Errorf("direct runs: reply of %s is sealed and encryption is not configured: %w", id, seal.ErrOpen)
+	}
+
+	reply, err := s.Open(ctx, kept[1:], []byte(id))
+	if err != nil {
+		return nil, fmt.Errorf("direct runs: reply of %s: %w", id, err)
+	}
+
+	return reply, nil
 }
 
 // RunRecorder is the Recorder of one run that also knows whether every
@@ -566,7 +617,9 @@ func (r *Runs) Outcome(ctx context.Context, id string) ([]byte, bool, error) {
 	case statusRunning:
 		return nil, false, nil
 	case statusCompleted:
-		return row.Reply, true, nil
+		reply, err := r.openReply(ctx, id, row.Reply)
+
+		return reply, true, err
 	case statusCanceled:
 		// A repeat runs it again.
 		return nil, true, &Failure{Msg: row.Error, Type: row.ErrorType, Retryable: true}

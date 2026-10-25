@@ -292,6 +292,15 @@ func (a ScheduleAPI) scheduleAction(ctx context.Context,
 		return nil, fmt.Errorf("%w: encode schedule input", ErrInput)
 	}
 
+	// The scheduled run's input is history like any other: sealed when
+	// the installation encrypts it.
+	sealed, err := a.o.codec().EncodeContext(ctx, payloads.GetPayloads())
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrUnavailable, err)
+	}
+
+	payloads = &commonpb.Payloads{Payloads: sealed}
+
 	return &schedulepb.ScheduleAction{Action: &schedulepb.ScheduleAction_StartWorkflow{
 		StartWorkflow: &workflowpb.NewWorkflowExecutionInfo{
 			WorkflowId:               id,
@@ -452,7 +461,7 @@ func (a ScheduleAPI) describeSchedule(
 			Namespace: a.o.namespace, ScheduleId: id,
 		})
 		if err == nil {
-			return result, nil
+			return result, a.o.decode(ctx, result)
 		}
 
 		mapped := a.o.status(ctx, err)

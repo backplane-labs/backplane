@@ -341,6 +341,10 @@ func (a WorkflowAPI) list(
 			return nil, fmt.Errorf("list runs: %w", err)
 		}
 
+		if err := a.o.decode(ctx, res); err != nil {
+			return nil, err
+		}
+
 		return res, nil
 	}
 
@@ -476,6 +480,10 @@ func (a WorkflowAPI) GetRun(ctx context.Context, req *consolev1.GetRunRequest) (
 	}
 
 	desc, err := c.DescribeWorkflowExecution(ctx, req.GetWorkflowId(), req.GetRunId())
+	if err == nil {
+		err = a.o.decode(ctx, desc)
+	}
+
 	if err != nil {
 		return nil, a.o.status(ctx, err)
 	}
@@ -489,7 +497,7 @@ func (a WorkflowAPI) GetRun(ctx context.Context, req *consolev1.GetRunRequest) (
 
 	red := redact.NewHistory(a.o.redactor())
 
-	closed, err := history(ctx, c, out, runID, red)
+	closed, err := history(ctx, c, a.o, out, runID, red)
 	if err != nil {
 		return nil, a.o.status(ctx, err)
 	}
@@ -500,6 +508,10 @@ func (a WorkflowAPI) GetRun(ctx context.Context, req *consolev1.GetRunRequest) (
 
 		for last.HasNext() {
 			e, err := last.Next()
+			if err == nil {
+				err = a.o.decode(ctx, e)
+			}
+
 			if err != nil {
 				return nil, a.o.status(ctx, err)
 			}
@@ -515,7 +527,7 @@ func (a WorkflowAPI) GetRun(ctx context.Context, req *consolev1.GetRunRequest) (
 // outcomes they carry, payloads masked by red; true when the closing event
 // was among them.
 func history(
-	ctx context.Context, c client.Client, out *consolev1.GetRunResponse, runID string, red *redact.History,
+	ctx context.Context, c client.Client, o *Ops, out *consolev1.GetRunResponse, runID string, red *redact.History,
 ) (bool, error) {
 	workflowID := out.GetRun().GetWorkflowId()
 	iter := c.GetWorkflowHistory(ctx, workflowID, runID, false, enumspb.HISTORY_EVENT_FILTER_TYPE_ALL_EVENT)
@@ -526,6 +538,10 @@ func history(
 		e, err := iter.Next()
 		if err != nil {
 			return false, fmt.Errorf("history of %s: %w", workflowID, err)
+		}
+
+		if err := o.decode(ctx, e); err != nil {
+			return false, err
 		}
 
 		if len(out.GetHistory()) >= maxHistory {

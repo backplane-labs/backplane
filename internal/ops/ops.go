@@ -37,6 +37,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/gopherex/xlog"
 
@@ -46,6 +47,7 @@ import (
 	"github.com/backplane-labs/backplane/internal/registry"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 	natsdriver "github.com/backplane-labs/backplane/pkg/backplane/drivers/nats"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/temporal"
 	"github.com/backplane-labs/backplane/pkg/backplane/workflows"
 )
 
@@ -130,9 +132,11 @@ const defaultNamespace = "default"
 type Ops struct {
 	deps.Component
 
-	src       registry.Source
-	jet       JetStreamFunc
-	temporal  TemporalFunc
+	src      registry.Source
+	jet      JetStreamFunc
+	temporal TemporalFunc
+	// codec decodes the payloads of what is read through the raw API.
+	codec     func() temporal.Codec
 	queue     string
 	namespace string
 	direct    Direct
@@ -151,6 +155,7 @@ func New(parent deps.Scope, src registry.Source, opts ...Option) *Ops {
 	o := &Ops{Component: deps.NewComponent(parent, "ops"), src: src, author: sessionAuthor, namespace: defaultNamespace}
 	o.jet = func() (jetstream.JetStream, error) { return natsdriver.JetStream(o) }
 	o.temporal = func() (client.Client, error) { return workflows.Client(o) }
+	o.codec = func() temporal.Codec { return workflows.Codec(o) }
 	o.queue = workflows.Queue(parent)
 
 	for _, opt := range opts {
@@ -167,6 +172,7 @@ func Detached(src registry.Source, opts ...Option) *Ops {
 	o := &Ops{src: src, author: sessionAuthor, namespace: defaultNamespace}
 	o.jet = func() (jetstream.JetStream, error) { return nil, errDetached }
 	o.temporal = func() (client.Client, error) { return nil, errDetached }
+	o.codec = func() temporal.Codec { return temporal.Plain }
 
 	for _, opt := range opts {
 		opt(o)
@@ -238,6 +244,16 @@ func (o *Ops) client() (client.Client, error) {
 	}
 
 	return c, nil
+}
+
+// decode decodes, in place, the payloads of what was read through the raw
+// Temporal API (history, describe and list responses).
+func (o *Ops) decode(ctx context.Context, m proto.Message) error {
+	if err := o.codec().DecodeMessage(ctx, m); err != nil {
+		return fmt.Errorf("%w: %w", ErrUnavailable, err)
+	}
+
+	return nil
 }
 
 // catalog is the current snapshot, or ErrNotSynced.

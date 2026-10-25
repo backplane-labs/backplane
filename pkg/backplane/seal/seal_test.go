@@ -95,8 +95,11 @@ func TestRotation(t *testing.T) {
 func TestConfig(t *testing.T) {
 	t.Parallel()
 
+	if _, err := seal.Open(seal.Config{}); !errors.Is(err, seal.ErrConfig) {
+		t.Errorf("no key: %v", err)
+	}
+
 	for name, cfg := range map[string]seal.Config{
-		"no key":       {},
 		"not base64":   {Key: "!!"},
 		"short key":    {Key: "c2hvcnQ="},
 		"bad previous": {Key: config.Secret(seal.GenerateKey()), Previous: "c2hvcnQ="},

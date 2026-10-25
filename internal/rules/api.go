@@ -443,7 +443,7 @@ func (a API) GetRuleRun(ctx context.Context, req *consolev1.GetRuleRunRequest) (
 		return nil, a.e.status(ctx, err)
 	}
 
-	steps, id, err := executor.Timeline(ctx, c, res)
+	steps, id, err := executor.Timeline(ctx, c, a.e.codec(), res)
 	if err != nil {
 		return nil, a.e.status(ctx, err)
 	}

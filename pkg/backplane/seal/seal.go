@@ -37,7 +37,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
@@ -45,9 +44,9 @@ import (
 
 // Errors.
 var (
-	// ErrConfig: the section has no key, or a key is not base64 of 32
-	// bytes.
-	ErrConfig = errors.New("seal: invalid configuration")
+	// ErrConfig: the section has no key, a key is not base64 of 32 bytes,
+	// or its vault is incomplete.
+	ErrConfig = config.ErrSeal
 	// ErrOpen: the value is not sealed by these keys, was changed, or the
 	// aad differs.
 	ErrOpen = errors.New("seal: cannot open")
@@ -66,23 +65,9 @@ type Sealer interface {
 	Rewrap(ctx context.Context, sealed, aad []byte) (out []byte, changed bool, err error)
 }
 
-// Config is the section of the keys.
-type Config struct {
-	// Key seals and opens: base64 of 32 random bytes (GenerateKey).
-	Key config.Secret `desc:"Active key: base64 of 32 random bytes; seals and opens." json:"key,omitempty"`
-	// Previous keys only open: comma-separated, while values are rewrapped.
-	Previous config.Secret `desc:"Previous keys, comma-separated: they only open, during rotation." json:"previous,omitempty"`
-	// Vault seals instead of key when its addr is set; key and previous
-	// then only open what they sealed before.
-	Vault Vault `desc:"Vault Transit: when set it seals, the keys only open." json:"vault"`
-}
-
-// Validate checks the section.
-func (c Config) Validate() error {
-	_, err := Open(c)
-
-	return err
-}
+// Config is the section of the keys (config.Seal): Key and Previous, or
+// Vault. Its Validate checks it.
+type Config = config.Seal
 
 // GenerateKey is a new random key, base64.
 func GenerateKey() string {
@@ -157,7 +142,7 @@ func Open(cfg Config) (Sealer, error) {
 }
 
 const (
-	keySize = 32
+	keySize = config.SealKeySize
 	kidSize = 8
 	// version of the keyring's format: version, kid, nonce, ciphertext.
 	keyringV1 byte = 1
@@ -178,32 +163,21 @@ func kidOf(key []byte) kid {
 }
 
 func newKeyring(c Config) (keyring, error) {
-	if c.Key.Reveal() == "" {
+	keys, err := c.Keys()
+	if err != nil {
+		return keyring{}, err //nolint:wrapcheck // ErrConfig
+	}
+
+	if len(keys) == 0 {
 		return keyring{}, fmt.Errorf("%w: key is required (seal.GenerateKey)", ErrConfig)
 	}
 
-	k := keyring{keys: map[kid]cipher.AEAD{}}
+	k := keyring{keys: map[kid]cipher.AEAD{}, active: kidOf(keys[0])}
 
-	encoded := append([]string{c.Key.Reveal()}, strings.Split(c.Previous.Reveal(), ",")...)
-	for i, e := range encoded {
-		if e = strings.TrimSpace(e); e == "" {
-			continue
-		}
-
-		key, err := base64.StdEncoding.DecodeString(e)
-		if err != nil || len(key) != keySize {
-			return keyring{}, fmt.Errorf("%w: key %d is not base64 of 32 bytes", ErrConfig, i)
-		}
-
+	for _, key := range keys {
 		block, _ := aes.NewCipher(key)  // 32 bytes: AES-256
 		aead, _ := cipher.NewGCM(block) // standard nonce and tag
-
-		id := kidOf(key)
-		if i == 0 {
-			k.active = id
-		}
-
-		k.keys[id] = aead
+		k.keys[kidOf(key)] = aead
 	}
 
 	return k, nil

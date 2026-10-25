@@ -216,6 +216,9 @@ func (f *ScheduleFiles) apply(ctx context.Context, c client.Client, e fileSchedu
 	desc, err := api.DescribeSchedule(ctx, &workflowservice.DescribeScheduleRequest{
 		Namespace: f.a.o.namespace, ScheduleId: e.id(),
 	})
+	if err == nil {
+		err = f.a.o.decode(ctx, desc)
+	}
 
 	switch {
 	case isNotFound(err):
@@ -278,6 +281,10 @@ func (f *ScheduleFiles) removeStale(ctx context.Context, c client.Client, want m
 		page, err := c.WorkflowService().ListSchedules(ctx, &workflowservice.ListSchedulesRequest{
 			Namespace: f.a.o.namespace, MaximumPageSize: scheduleListPage, NextPageToken: token,
 		})
+		if err == nil {
+			err = f.a.o.decode(ctx, page)
+		}
+
 		if err != nil {
 			return fmt.Errorf("list schedules: %w", err)
 		}

@@ -48,6 +48,7 @@ import (
 	"github.com/backplane-labs/backplane/internal/wire"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 	natsdriver "github.com/backplane-labs/backplane/pkg/backplane/drivers/nats"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/temporal"
 	"github.com/backplane-labs/backplane/pkg/backplane/workflows"
 )
 
@@ -171,8 +172,10 @@ type Engine struct {
 	reg      registry.Source
 	jet      JetStreamFunc
 	temporal TemporalFunc
-	starter  Starter
-	direct   *direct.Service
+	// codec decodes payloads of history read through the raw API.
+	codec   func() temporal.Codec
+	starter Starter
+	direct  *direct.Service
 	// temporalEnabled: the installation has Temporal; false marks rules on
 	// that runtime broken instead of starting runs that cannot start.
 	temporalEnabled bool
@@ -204,6 +207,7 @@ func New(parent deps.Scope, src Source, reg registry.Source, opts ...Option) *En
 	e.init(src, reg, opts)
 	e.jetDefault(func() (jetstream.JetStream, error) { return natsdriver.JetStream(e) })
 	e.temporalDefault(func() (client.Client, error) { return workflows.Client(e) }, workflows.Queue(parent))
+	e.codec = func() temporal.Codec { return workflows.Codec(e) }
 	e.finish()
 
 	e.Go(e.run)
@@ -218,6 +222,7 @@ func Detached(src Source, opts ...Option) *Engine {
 	e.init(src, nil, opts)
 	e.jetDefault(func() (jetstream.JetStream, error) { return nil, errNotConfigured })
 	e.temporalDefault(func() (client.Client, error) { return nil, errNotConfigured }, Subscriber)
+	e.codec = func() temporal.Codec { return temporal.Plain }
 	e.finish()
 
 	return e
