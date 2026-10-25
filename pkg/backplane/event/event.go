@@ -346,6 +346,64 @@ func React[T any](scope deps.Scope, event string, fn func(ctx context.Context, v
 	e.Reactor(env.Reactor{Event: event, Consumer: consumer, Handler: handler, Delivery: s.delivery})
 }
 
+// Raw is an event as it was published: its delivery and its payload, the
+// JSON the publisher encoded.
+type Raw struct {
+	Delivery
+
+	Data []byte
+}
+
+// rawPattern is ReactRaw's pattern: every service's events, or one's.
+var rawPattern = regexp.MustCompile(`^(\*|[a-z0-9-]+\.\*)$`)
+
+// ReactRaw subscribes fn to the events of a pattern, undecoded: "*" is
+// every service's events, "<service>.*" one service's. It is for services
+// that handle events they do not know when they are built, e.g. a journal
+// of whatever the installation's services publish; a handler that knows
+// its event uses React. fn filters itself: what it does not want it
+// returns nil for, acknowledged.
+//
+// consumer names the durable consumer, unique within the service. With
+// "*" it is one consumer per service stream, the same name in each; a
+// service whose stream appears later is taken within half a minute,
+// from where StartAt says. Delivery, dead letters and options are React's;
+// a handler error is retried, Terminal dead-letters at once. It panics on
+// another pattern or an empty consumer.
+func ReactRaw(
+	scope deps.Scope, consumer, pattern string, fn func(ctx context.Context, ev Raw) error, opts ...ReactOption,
+) {
+	if !rawPattern.MatchString(pattern) {
+		panic(fmt.Sprintf("event: react raw to %q: want * or <service>.* ([a-z0-9-]+ dot *)", pattern))
+	}
+
+	if consumer == "" {
+		panic("event: react raw to " + pattern + ": consumer must not be empty")
+	}
+
+	e, _ := decl.Env(scope, "reactor of "+pattern)
+
+	s := reactSettings{consumer: consumer}
+	for _, o := range opts {
+		o.applyReact(&s)
+	}
+
+	if s.delivery.Ordered && s.delivery.Concurrency > 1 {
+		panic(fmt.Sprintf("event: react raw to %q: Ordered runs one handler at a time, Concurrency(%d) contradicts it",
+			pattern, s.delivery.Concurrency))
+	}
+
+	e.Manifest.Subscription(&backplanev1.Subscription{Event: pattern, Consumer: s.consumer})
+
+	handler := func(ctx context.Context, in []byte) ([]byte, error) {
+		d, _ := DeliveryOf(ctx)
+
+		return nil, fn(ctx, Raw{Delivery: d, Data: in})
+	}
+
+	e.Reactor(env.Reactor{Event: pattern, Consumer: s.consumer, Handler: handler, Delivery: s.delivery})
+}
+
 type consumerName string
 
 func (c consumerName) applyReact(r *reactSettings) { r.consumer = string(c) }

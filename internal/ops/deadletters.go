@@ -78,6 +78,16 @@ func (r reactor) dead() string { return wire.DLQSubject(r.subscriber, r.consumer
 
 func (r reactor) redrive() string { return wire.RedriveSubject(r.source, r.subscriber, r.consumer) }
 
+// of is the reactor of dead letter m: a reactor of every service's events
+// redrives each dead letter to the stream of the service that published it.
+func (r reactor) of(m *jetstream.RawStreamMsg) reactor {
+	if r.source == "" {
+		r.source = m.Header.Get(wire.HeaderSource)
+	}
+
+	return r
+}
+
 // reactorOf is subscriber's reactor consumer as its latest manifest
 // declares it.
 func (o *Ops) reactorOf(subscriber, consumer string) (reactor, error) {
@@ -93,6 +103,11 @@ func (o *Ops) reactorOf(subscriber, consumer string) (reactor, error) {
 	for _, sub := range m.GetSubscriptions() {
 		if sub.GetConsumer() != consumer {
 			continue
+		}
+
+		if sub.GetEvent() == wire.AllEvents {
+			// Of every service: each dead letter goes back to its own.
+			return reactor{subscriber: subscriber, consumer: consumer, event: sub.GetEvent()}, nil
 		}
 
 		source, _, err := wire.SplitEvent(sub.GetEvent())
@@ -132,8 +147,10 @@ func (a EventAPI) RedriveDeadLetters(
 		return nil, a.o.status(ctx, err)
 	}
 
-	if err := redrivable(ctx, jet, re); err != nil {
-		return nil, a.o.status(ctx, err)
+	if re.source != "" {
+		if err := redrivable(ctx, jet, re); err != nil {
+			return nil, a.o.status(ctx, err)
+		}
 	}
 
 	msgs, failed, err := a.deadLetters(ctx, jet, re.subscriber, re.dead(), req.GetSeqs())
@@ -141,15 +158,48 @@ func (a EventAPI) RedriveDeadLetters(
 		return nil, a.o.status(ctx, err)
 	}
 
-	out := &consolev1.RedriveDeadLettersResponse{Subject: re.redrive(), Failed: failed}
+	out := &consolev1.RedriveDeadLettersResponse{Failed: failed}
+	if re.source != "" {
+		out.Subject = re.redrive()
+	}
 
 	s, err := jet.Stream(ctx, wire.DLQStreamName(re.subscriber))
 	if err != nil {
 		return nil, a.o.status(ctx, err)
 	}
 
+	redriveEach(ctx, jet, s, re, msgs, out)
+
+	a.o.audit(ctx, "deadletters.redrive", re.subscriber+"/"+re.consumer,
+		xlog.Uint64("redriven", out.GetRedriven()), xlog.Int("failed", len(out.GetFailed())), xlog.Bool("all", req.GetAll()))
+
+	return out, nil
+}
+
+// redriveEach publishes msgs back to re and removes them from stream s,
+// recording what fails in out. A reactor of every service's events
+// redrives each to its publisher's stream, once that consumer is checked.
+func redriveEach(
+	ctx context.Context, jet jetstream.JetStream, s jetstream.Stream, re reactor,
+	msgs []*jetstream.RawStreamMsg, out *consolev1.RedriveDeadLettersResponse,
+) {
+	checked := map[string]error{}
+
 	for _, m := range msgs {
-		if _, err := jet.PublishMsg(ctx, redriveMsg(re, m)); err != nil {
+		target := re.of(m)
+		if re.source == "" {
+			if _, ok := checked[target.source]; !ok {
+				checked[target.source] = redrivable(ctx, jet, target)
+			}
+
+			if err := checked[target.source]; err != nil {
+				out.Failed = append(out.Failed, &consolev1.SeqError{Seq: m.Sequence, Error: err.Error()})
+
+				continue
+			}
+		}
+
+		if _, err := jet.PublishMsg(ctx, redriveMsg(target, m)); err != nil {
 			out.Failed = append(out.Failed, &consolev1.SeqError{Seq: m.Sequence, Error: err.Error()})
 
 			continue
@@ -163,11 +213,6 @@ func (a EventAPI) RedriveDeadLetters(
 			})
 		}
 	}
-
-	a.o.audit(ctx, "deadletters.redrive", re.subscriber+"/"+re.consumer,
-		xlog.Uint64("redriven", out.GetRedriven()), xlog.Int("failed", len(out.GetFailed())), xlog.Bool("all", req.GetAll()))
-
-	return out, nil
 }
 
 // redrivable: the reactor's consumer is on the server and filters on its

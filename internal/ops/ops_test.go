@@ -2,6 +2,7 @@ package ops_test
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -127,6 +128,44 @@ func TestWithoutNATS(t *testing.T) {
 	notSynced := ops.Detached(registry.NewHub())
 	if _, err := newServers(notSynced).events.ListEvents(t.Context(), &consolev1.ListEventsRequest{}); code(t, err) != codes.Unavailable {
 		t.Fatalf("not synced: %v", err)
+	}
+}
+
+// A pattern reactor subscribes to every listed event it matches.
+func TestPatternSubscribers(t *testing.T) {
+	t.Parallel()
+
+	hub := registry.NewHub()
+	hub.Publish(map[string]registry.Service{
+		"hello": service(&backplanev1.Manifest{
+			Service: "hello", Version: "1.0.0", Events: []*backplanev1.Event{{Name: "Greeted"}},
+		}),
+		"watcher": service(&backplanev1.Manifest{
+			Service: "watcher", Version: "1.0.0",
+			Subscriptions: []*backplanev1.Subscription{{Event: "hello.Greeted", Consumer: "sink"}},
+		}),
+		"journal": service(&backplanev1.Manifest{
+			Service: "journal", Version: "1.0.0",
+			Subscriptions: []*backplanev1.Subscription{
+				{Event: "*", Consumer: "all"}, {Event: "hello.*", Consumer: "hello"}, {Event: "other.*", Consumer: "other"},
+			},
+		}),
+	})
+
+	res, err := newServers(ops.Detached(hub)).events.ListEvents(t.Context(), &consolev1.ListEventsRequest{})
+	if err != nil || len(res.GetEvents()) != 1 {
+		t.Fatalf("list: %v %v", res, err)
+	}
+
+	consumers := make([]string, 0, len(res.GetEvents()[0].GetSubscribers()))
+	for _, s := range res.GetEvents()[0].GetSubscribers() {
+		consumers = append(consumers, s.GetService()+"/"+s.GetConsumer())
+	}
+
+	slices.Sort(consumers)
+
+	if got := strings.Join(consumers, " "); got != "journal/all journal/hello watcher/sink" {
+		t.Fatalf("subscribers: %s", got)
 	}
 }
 

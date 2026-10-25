@@ -191,6 +191,48 @@ func TestReact(t *testing.T) {
 	}
 }
 
+// A raw reactor gets any event of its pattern undecoded, with its delivery.
+func TestReactRaw(t *testing.T) {
+	t.Parallel()
+
+	h := backplanetest.New(t)
+
+	got := make(chan event.Raw, 1)
+
+	event.ReactRaw(h.Root(), "journal", "*", func(_ context.Context, ev event.Raw) error {
+		got <- ev
+
+		return nil
+	})
+
+	subs := h.Manifest().GetSubscriptions()
+	if len(subs) != 1 || subs[0].GetEvent() != "*" || subs[0].GetConsumer() != "journal" {
+		t.Fatalf("subscriptions: %v", subs)
+	}
+
+	if err := backplanetest.ReactConsumer(t.Context(), h, "journal", Greeted{Name: "ann"},
+		backplanetest.WithEvent("chat.MessageSent")); err != nil {
+		t.Fatal(err)
+	}
+
+	ev := <-got
+	if ev.Type != "chat.MessageSent" || ev.Source != "chat" || string(ev.Data) != `{"name":"ann"}` || ev.ID == "" {
+		t.Fatalf("raw: %+v %s", ev.Delivery, ev.Data)
+	}
+
+	for _, bad := range [][2]string{{"journal", "chat.MessageSent"}, {"journal", "chat"}, {"", "*"}} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("ReactRaw(%q, %q) did not panic", bad[0], bad[1])
+				}
+			}()
+
+			event.ReactRaw(h.Root(), bad[0], bad[1], func(context.Context, event.Raw) error { return nil })
+		}()
+	}
+}
+
 func TestDuplicateReactorFailsManifest(t *testing.T) {
 	t.Parallel()
 

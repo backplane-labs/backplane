@@ -87,6 +87,17 @@ type DeliveryOption func(in *env.Incoming)
 // WithKey is the event's Key (Delivery.Subject).
 func WithKey(k string) DeliveryOption { return func(in *env.Incoming) { in.Subject = k } }
 
+// WithEvent is the event's full name ("<service>.<Event>"), its source
+// with it: what a raw reactor (event.ReactRaw, run with ReactConsumer)
+// sees for one event of its pattern.
+func WithEvent(full string) DeliveryOption {
+	return func(in *env.Incoming) {
+		in.Type = full
+		in.Source, _, _ = strings.Cut(full, ".")
+		in.Extensions["instance"] = in.Source + "-1"
+	}
+}
+
 // WithID is the event's id (Delivery.ID), by default a new UUID: deliver
 // the same id twice to test idempotency.
 func WithID(id string) DeliveryOption { return func(in *env.Incoming) { in.ID = id } }

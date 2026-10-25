@@ -20,6 +20,7 @@ func (b *Broker) Fast(maxDeliver int) {
 	b.t.maxDeliver = maxDeliver
 	b.t.handlerTimeout = 5 * time.Second
 	b.t.nak = backoff.Policy{Min: 20 * time.Millisecond, Max: 100 * time.Millisecond}
+	b.t.discover = 100 * time.Millisecond
 }
 
 // Event is the metadata of one published event, for BuildHeaders.

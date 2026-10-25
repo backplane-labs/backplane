@@ -120,13 +120,23 @@ func (b *Broker) reactorOf(r env.Reactor) (reactor, error) {
 		return reactor{}, fmt.Errorf("reactor %s: %w", r.Consumer, err)
 	}
 
+	subject := Subject(service, name)
+	if wire.IsPattern(r.Event) {
+		subject = wire.EventsSubject(service)
+	}
+
+	return b.reactorAt(r, service, subject), nil
+}
+
+// reactorAt is r consuming subject in source's stream.
+func (b *Broker) reactorAt(r env.Reactor, source, subject string) reactor {
 	return reactor{
-		event: r.Event, consumer: r.Consumer, source: service,
-		subject: Subject(service, name), redrive: RedriveSubject(service, b.p.Service, r.Consumer),
+		event: r.Event, consumer: r.Consumer, source: source,
+		subject: subject, redrive: RedriveSubject(source, b.p.Service, r.Consumer),
 		durable: Durable(b.p.Service, r.Consumer),
 		dead:    DLQSubject(b.p.Service, r.Consumer), handler: r.Handler, delivery: b.deliveryOf(r.Delivery),
 		pos: newPosition(),
-	}, nil
+	}
 }
 
 // fields of the reactor's log lines, then extra. Loggers are not derived
@@ -143,7 +153,15 @@ func (b *Broker) StartReactors(ctx context.Context, g node.Group) error {
 
 	list := make([]reactor, 0, len(b.p.Env.Reactors()))
 
+	var everywhere []env.Reactor
+
 	for _, r := range b.p.Env.Reactors() {
+		if r.Event == wire.AllEvents {
+			everywhere = append(everywhere, r)
+
+			continue
+		}
+
 		re, err := b.reactorOf(r)
 		if err != nil {
 			return err
@@ -162,7 +180,69 @@ func (b *Broker) StartReactors(ctx context.Context, g node.Group) error {
 		g.Go(func(ctx context.Context) error { return b.run(ctx, list[i]) })
 	}
 
+	for i := range everywhere {
+		g.Go(func(ctx context.Context) error { return b.everyStream(ctx, everywhere[i]) })
+	}
+
 	return nil
+}
+
+// everyStream runs r, a reactor of every service's events, on the stream
+// of each service: the streams there are now and the ones created later,
+// looked for every discoverEvery. One durable consumer per stream, all of
+// the same name.
+func (b *Broker) everyStream(ctx context.Context, r env.Reactor) error {
+	var running sync.WaitGroup
+	defer running.Wait()
+
+	started := map[string]bool{}
+
+	for {
+		for _, source := range b.services(ctx) {
+			if started[source] {
+				continue
+			}
+
+			started[source] = true
+			re := b.reactorAt(r, source, wire.EventsSubject(source))
+
+			running.Go(func() { _ = b.run(ctx, re) })
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(b.t.discover):
+		}
+	}
+}
+
+// services are those whose event streams are on the server now; none
+// while NATS is unreachable.
+func (b *Broker) services(ctx context.Context) []string {
+	jet, err := b.connected()
+	if err != nil {
+		return nil
+	}
+
+	lctx, cancel := context.WithTimeout(ctx, b.t.publishTimeout)
+	defer cancel()
+
+	names := jet.StreamNames(lctx)
+
+	var out []string
+
+	for name := range names.Name() {
+		if service, ok := wire.ServiceOfStream(name); ok {
+			out = append(out, service)
+		}
+	}
+
+	if err := names.Err(); err != nil {
+		b.log.Debug("event streams", xlog.Err(err))
+	}
+
+	return out
 }
 
 // run ensures the reactor's streams and consumer, retrying while NATS is

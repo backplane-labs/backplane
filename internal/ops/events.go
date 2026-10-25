@@ -55,6 +55,17 @@ func (e *events) event(full string) *consolev1.EventInfo {
 	return ev
 }
 
+// matching adds reactor, of pattern, to every event gathered it matches.
+func (e *events) matching(pattern string, reactor *consolev1.Subscriber) {
+	service, _, _ := strings.Cut(pattern, ".")
+
+	for _, ev := range e.byName {
+		if pattern == wire.AllEvents || ev.GetService() == service {
+			ev.Subscribers = append(ev.Subscribers, reactor)
+		}
+	}
+}
+
 // ListEvents implements EventService.
 func (a EventAPI) ListEvents(
 	ctx context.Context, req *consolev1.ListEventsRequest,
@@ -81,9 +92,23 @@ func (a EventAPI) ListEvents(
 		}
 	}
 
-	// Reactors of every service on the listed events.
+	// Reactors of every service on the listed events. A pattern reactor
+	// is a subscriber of each listed event it matches.
+	var patterns []func()
+
 	for _, m := range all {
 		for _, sub := range m.GetSubscriptions() {
+			reactor := &consolev1.Subscriber{
+				Kind: consolev1.SubscriberKind_SUBSCRIBER_KIND_REACTOR, Service: m.GetService(),
+				Consumer: sub.GetConsumer(), Durable: wire.Durable(m.GetService(), sub.GetConsumer()), Event: sub.GetEvent(),
+			}
+
+			if wire.IsPattern(sub.GetEvent()) {
+				patterns = append(patterns, func() { evs.matching(sub.GetEvent(), reactor) })
+
+				continue
+			}
+
 			service, _, err := wire.SplitEvent(sub.GetEvent())
 			if err != nil || (req.GetService() != "" && service != req.GetService()) {
 				continue
@@ -91,11 +116,12 @@ func (a EventAPI) ListEvents(
 
 			sources[service] = true
 			info := evs.event(sub.GetEvent())
-			info.Subscribers = append(info.Subscribers, &consolev1.Subscriber{
-				Kind: consolev1.SubscriberKind_SUBSCRIBER_KIND_REACTOR, Service: m.GetService(),
-				Consumer: sub.GetConsumer(), Durable: wire.Durable(m.GetService(), sub.GetConsumer()), Event: sub.GetEvent(),
-			})
+			info.Subscribers = append(info.Subscribers, reactor)
 		}
+	}
+
+	for _, add := range patterns {
+		add()
 	}
 
 	out := &consolev1.ListEventsResponse{}

@@ -28,7 +28,7 @@ The `pkg/backplane/backplanetest` package and repository conformance tests provi
 | `FailPublish(h, err)` | Exercise publication failure |
 | `Unavailable(h)` / `Available(h)` | Exercise transport loss and recovery |
 | `Activity[Req, Res](ctx, h, name, input)` | Invoke a declared activity once |
-| `ReactConsumer(ctx, h, consumer, value)` | Deliver once to a pinned reactor |
+| `ReactConsumer(ctx, h, consumer, value)` | Deliver once to a pinned reactor; with `WithEvent(name)`, as that event (raw reactors) |
 | `SetLive(&field, value)` | Update a live field and notify its watchers |
 | `SetSections(h, name, services)` | Publish section `name` to the tree's `sections.Follow` as Backplane would: `services` by service; empty is a known empty set; a repeat signals no change |
 | `Offered(h, name)` | Section `name` as the tree offers it: the value a `sections.OfferLive` set last, else the manifest's; nil when none |

@@ -139,6 +139,41 @@ func Durable(subscriber, consumer string) string {
 	return name[:maxName-hashLen-1] + "_" + hex.EncodeToString(sum[:])[:hashLen]
 }
 
+// AllEvents is the reactor pattern of every service's events;
+// "<service>.*" is the pattern of one service's.
+const AllEvents = "*"
+
+// anyName is the event name of a one-service pattern.
+const anyName = "*"
+
+// IsPattern reports whether a reactor's event is a pattern: AllEvents or
+// "<service>.*".
+func IsPattern(event string) bool {
+	_, name, ok := strings.Cut(event, ".")
+
+	return event == AllEvents || ok && name == anyName
+}
+
+// EventsSubject of every event of service: bp.<service>.*. Redrives
+// (bp.<service>._redrive.…) have more tokens and do not match.
+func EventsSubject(service string) string { return prefix + "." + Token(service) + "." + anyName }
+
+// ServiceOfStream is the service of an event stream bp_<service>; ok is
+// false for dead-letter and foreign streams.
+func ServiceOfStream(name string) (string, bool) {
+	rest, ok := strings.CutPrefix(name, prefix+"_")
+	if !ok || strings.HasPrefix(rest, dlqToken+"_") {
+		return "", false
+	}
+
+	service, ok := Untoken(rest)
+	if !ok || service == "" || Token(service) != rest {
+		return "", false
+	}
+
+	return service, true
+}
+
 // SplitEvent splits a full event name "<service>.<Event>" at its first dot.
 func SplitEvent(full string) (string, string, error) {
 	service, name, ok := strings.Cut(full, ".")

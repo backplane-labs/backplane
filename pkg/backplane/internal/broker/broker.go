@@ -106,6 +106,8 @@ type tuning struct {
 	handlerTimeout time.Duration
 	nak            backoff.Policy // delay after the n-th failed delivery
 	concurrency    int            // handlers in flight per reactor
+	// How often a reactor of every service looks for new event streams.
+	discover time.Duration
 }
 
 // Defaults of tuning.
@@ -120,6 +122,7 @@ const (
 	defNakFloor        = time.Second
 	defNakCeil         = time.Minute
 	defConcurrency     = 4
+	defDiscover        = 30 * time.Second
 )
 
 func defaults() tuning {
@@ -132,6 +135,7 @@ func defaults() tuning {
 		handlerTimeout:  defHandlerTimeout,
 		nak:             backoff.Policy{Min: defNakFloor, Max: defNakCeil},
 		concurrency:     defConcurrency,
+		discover:        defDiscover,
 	}
 }
 
