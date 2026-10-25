@@ -101,4 +101,36 @@ A server can save a schema-valid revision that an instance rejects with its cust
 
 Use secret annotations and deployment secret injection. Do not copy a masked value back as if it were the secret. Keep startup-only secrets outside the operator's live-edit surface. Custom validation errors and watch logs must not disclose values merely because the schema masks them elsewhere.
 
+A `secret` mark masks a value in the console only. Run history in Temporal,
+the direct runtime's tables, NATS and service logs keep the payload as it
+was.
+
+## Sealing what a service stores
+
+A service that stores a secret it must read back, such as a receiver's
+signing secret, seals it with `pkg/backplane/seal`. The section works like a
+connection section and the sealer is a dependency:
+
+```go
+type Config struct {
+    config.Backplane `json:"backplane"`
+    Seal seal.Config `json:"seal"` // <SERVICE>_SEAL_KEY, <SERVICE>_SEAL_PREVIOUS
+}
+
+sealer := deps.NewDependency(root, seal.New(cfg.Seal), deps.Name("seal"))
+sealed, err := sealer.Get().Seal(ctx, secret, []byte(rowID))
+secret, err := sealer.Get().Open(ctx, sealed, []byte(rowID))
+```
+
+- **Algorithm.** Values are sealed with AES-256-GCM.
+- **Associated data.** The last argument is associated data, such as the
+  row's id. It isn't stored, `Open` needs the same value, and a sealed value
+  copied to another row won't open there.
+- **Key.** `key` is base64 of 32 random bytes (`seal.GenerateKey()`).
+- **Rotation.**
+  1. Set the new key as `key` and the old one in `previous` (comma-separated
+     keys that only open).
+  2. `Rewrap` the stored values.
+  3. Drop `previous`.
+
 For the operator workflow, optimistic revisions and rollback, see [change configuration](../guides/configuration.md).
