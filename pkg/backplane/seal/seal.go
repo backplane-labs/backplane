@@ -20,6 +20,12 @@
 // previous only opens. A sealed value names its key (by a hash of it), so
 // rotation is: generate a key (GenerateKey), set it as key and the old one
 // as previous, Rewrap what is stored, then drop previous.
+//
+// With vault set, Vault's Transit engine seals instead (envelope
+// encryption: a fresh data key per value, wrapped by the Transit key, which
+// never leaves Vault), and the dependency probes Vault. The section's keys,
+// when still set, open what they sealed, and Rewrap moves it to Vault;
+// after a Transit key rotation Rewrap moves values to its latest version.
 package seal
 
 import (
@@ -66,11 +72,14 @@ type Config struct {
 	Key config.Secret `desc:"Active key: base64 of 32 random bytes; seals and opens." json:"key,omitempty"`
 	// Previous keys only open: comma-separated, while values are rewrapped.
 	Previous config.Secret `desc:"Previous keys, comma-separated: they only open, during rotation." json:"previous,omitempty"`
+	// Vault seals instead of key when its addr is set; key and previous
+	// then only open what they sealed before.
+	Vault Vault `desc:"Vault Transit: when set it seals, the keys only open." json:"vault"`
 }
 
-// Validate checks the keys.
+// Validate checks the section.
 func (c Config) Validate() error {
-	_, err := newKeyring(c)
+	_, err := Open(c)
 
 	return err
 }
@@ -91,9 +100,27 @@ type provider struct{ cfg Config }
 func (provider) Name() string { return "seal" }
 
 //nolint:ireturn // the backend is the section's choice
-func (p provider) Provide(context.Context, deps.Scope) (Sealer, error) { return Open(p.cfg) }
+func (p provider) Provide(ctx context.Context, _ deps.Scope) (Sealer, error) {
+	s, err := Open(p.cfg)
+	if err != nil {
+		return nil, err
+	}
 
-func (provider) Probe(context.Context, Sealer) error { return nil }
+	if err := p.Probe(ctx, s); err != nil {
+		return nil, err
+	}
+
+	return s, nil
+}
+
+// Probe asks Vault whether it serves; the section's keys need nothing.
+func (provider) Probe(ctx context.Context, s Sealer) error {
+	if t, ok := s.(transit); ok {
+		return t.probe(ctx)
+	}
+
+	return nil
+}
 
 func (provider) Close(context.Context, Sealer) error { return nil }
 
@@ -101,12 +128,32 @@ func (provider) Close(context.Context, Sealer) error { return nil }
 //
 //nolint:ireturn // the backend is the section's choice
 func Open(cfg Config) (Sealer, error) {
-	k, err := newKeyring(cfg)
+	if !cfg.Vault.Enabled() {
+		k, err := newKeyring(cfg)
+		if err != nil {
+			return nil, err
+		}
+
+		return k, nil
+	}
+
+	var previous *keyring
+
+	if cfg.Key.Reveal() != "" {
+		k, err := newKeyring(cfg)
+		if err != nil {
+			return nil, err
+		}
+
+		previous = &k
+	}
+
+	t, err := newTransit(cfg.Vault, previous)
 	if err != nil {
 		return nil, err
 	}
 
-	return k, nil
+	return t, nil
 }
 
 const (

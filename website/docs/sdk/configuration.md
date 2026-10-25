@@ -133,4 +133,26 @@ secret, err := sealer.Get().Open(ctx, sealed, []byte(rowID))
   2. `Rewrap` the stored values.
   3. Drop `previous`.
 
+### Vault Transit
+
+The `vault` subsection seals through HashiCorp Vault's (or OpenBao's)
+Transit engine instead of `key`:
+
+```yaml
+seal:
+  vault: {addr: https://vault:8200, token: ${VAULT_TOKEN}, key: komeet, mount: transit}
+```
+
+- **Envelope encryption.** Every value gets a fresh data key from
+  `transit/datakey`. The value is sealed locally with AES-256-GCM and its
+  associated data, and keeps the wrapped data key. `Open` has Transit unwrap
+  the key. The Transit key itself never leaves Vault.
+- **Token.** The token needs `datakey`, `decrypt` and `rewrap` on the key.
+- **Probe.** The dependency probes `sys/health`.
+- **Moving from `key` to Vault.** Keep `key` set while values are moved:
+  it still opens what it sealed, and `Rewrap` re-seals those values through
+  Vault.
+- **Rotating the Transit key.** After a rotation in Vault, `Rewrap` moves
+  values to the latest key version and leaves current ones as they are.
+
 For the operator workflow, optimistic revisions and rollback, see [change configuration](../guides/configuration.md).
