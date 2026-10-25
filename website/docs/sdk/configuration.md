@@ -130,6 +130,15 @@ backplane:
   leaves the sealed history unreadable.
 - **Rotation.** Same as for any seal section: a new `key`, the old one in
   `previous`.
+- **Strict mode.** `require_encryption: true` makes workers and clients
+  refuse payloads that are not sealed, so whoever reaches the Temporal API
+  without the key cannot hand a worker plain input. Turn it on once no run
+  from before encryption is left.
+- **What it protects.** Confidentiality at rest, against whoever reads
+  Temporal's database, backups or UI. A sealed payload is not bound to its
+  run (the Temporal SDK's codec sees no workflow context), so whoever can
+  write to Temporal could move one between runs; access to the Temporal API
+  stays the boundary for that.
 
 ## Sealing what a service stores
 

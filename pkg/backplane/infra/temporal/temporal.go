@@ -62,6 +62,8 @@ type Config struct {
 	DialTimeout time.Duration `desc:"Bound of one connection attempt." json:"dial_timeout" schemapb:"default=2s"`
 	// Encryption of the payloads in workflow history; empty: off.
 	Encryption config.Seal `desc:"Encrypts payloads in workflow history; empty: off." json:"encryption"`
+	// RequireEncryption refuses payloads that are not sealed.
+	RequireEncryption bool `desc:"Refuse workflow payloads that are not sealed." json:"require_encryption" schemapb:"default=false"`
 }
 
 // Enabled reports whether an address is set.
@@ -136,6 +138,8 @@ func Options(cfg Config, identity string, log *xlog.Logger) (client.Options, err
 		if err != nil {
 			return client.Options{}, err
 		}
+
+		codec = codec.Strict(cfg.RequireEncryption)
 
 		opts.DataConverter = converter.NewCodecDataConverter(converter.GetDefaultDataConverter(), codec)
 	}

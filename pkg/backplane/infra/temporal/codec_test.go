@@ -52,6 +52,15 @@ func TestCodec(t *testing.T) {
 		t.Fatalf("plain payload: %v %v", passed, err)
 	}
 
+	// Strict, it takes only what it sealed.
+	if _, err := codec.Strict(true).Decode([]*commonpb.Payload{plain}); !errors.Is(err, temporal.ErrUnsealed) {
+		t.Fatalf("strict, plain payload: %v", err)
+	}
+
+	if got, err := codec.Strict(true).Decode(sealed); err != nil || !proto.Equal(got[0], plain) {
+		t.Fatalf("strict, sealed payload: %v %v", got, err)
+	}
+
 	// Without the key a sealed payload does not open.
 	if _, err := temporal.Plain.Decode(sealed); !errors.Is(err, seal.ErrOpen) {
 		t.Fatalf("no key: %v", err)

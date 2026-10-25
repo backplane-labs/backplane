@@ -2,6 +2,7 @@ package temporal
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	commonpb "go.temporal.io/api/common/v1"
@@ -24,7 +25,11 @@ var payloadAAD = []byte("backplane/temporal-payload") //nolint:gochecknoglobals 
 // sealed; a payload it did not seal passes as it is, so history written
 // before encryption was on stays readable. Plain is the codec that changes
 // nothing.
-type Codec struct{ s seal.Sealer }
+type Codec struct {
+	s seal.Sealer
+	// strict refuses payloads it did not seal (Decode, the SDK's path).
+	strict bool
+}
 
 // NewCodec is the codec of an encryption section (config.Temporal).
 func NewCodec(cfg config.Seal) (Codec, error) {
@@ -36,6 +41,19 @@ func NewCodec(cfg config.Seal) (Codec, error) {
 	return Codec{s: s}, nil
 }
 
+// Strict is the codec refusing, in Decode, payloads it did not seal: once
+// no run from before encryption is left, nothing unsealed is taken. The
+// console's DecodeMessage stays lenient: Temporal keeps memos and search
+// attributes unsealed.
+func (c Codec) Strict(on bool) Codec {
+	c.strict = on && c.s != nil
+
+	return c
+}
+
+// ErrUnsealed: a strict codec got a payload it did not seal.
+var ErrUnsealed = errors.New("temporal: payload is not sealed and encryption is required")
+
 // Plain is the codec of an installation without encryption.
 var Plain = Codec{} //nolint:gochecknoglobals // a constant value
 
@@ -46,8 +64,16 @@ func (c Codec) Encode(payloads []*commonpb.Payload) ([]*commonpb.Payload, error)
 }
 
 // Decode implements converter.PayloadCodec (the Temporal SDK gives it no
-// context).
+// context). A strict codec refuses what it did not seal.
 func (c Codec) Decode(payloads []*commonpb.Payload) ([]*commonpb.Payload, error) {
+	if c.strict {
+		for _, p := range payloads {
+			if string(p.GetMetadata()[converter.MetadataEncoding]) != EncodingSealed {
+				return nil, ErrUnsealed
+			}
+		}
+	}
+
 	return c.DecodeContext(context.Background(), payloads)
 }
 

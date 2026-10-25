@@ -167,6 +167,9 @@ type Temporal struct {
 	// Encryption of the payloads in workflow history; empty: off. Every
 	// service of the installation and backplane need the same.
 	Encryption Seal `desc:"Encrypts payloads in workflow history (and backplane's hook replies); empty: off. The same in every service and backplane." json:"encryption"`
+	// RequireEncryption refuses payloads that are not sealed: on once no
+	// run from before encryption is left.
+	RequireEncryption bool `desc:"Refuse workflow payloads that are not sealed; turn on once no run from before encryption is left." json:"require_encryption" schemapb:"default=false"`
 }
 
 // Worker on the service's task queue: an operational setting, the same
