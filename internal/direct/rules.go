@@ -16,8 +16,10 @@ import (
 // RuleStarter runs a rule's event on the direct runtime, inline: the
 // rules engine's Starter for rules compiled for it. The run is complete
 // when StartRule returns, so the engine settles the event by its outcome;
-// a redelivery of an event whose run is running or completed is
-// ErrAlreadyStarted (the engine acks it), one whose run failed runs again.
+// a redelivery of an event whose run completed is ErrAlreadyStarted (the
+// engine acks it), one whose run is running is ErrRunning (the engine
+// naks it: it comes back once the run ended or outlived its lease), one
+// whose run failed or outlived its lease (its replica died) runs again.
 type RuleStarter struct {
 	s *Service
 }

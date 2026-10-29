@@ -178,8 +178,13 @@ func Status(err error) error {
 	return st.Err() //nolint:wrapcheck // a gRPC status travels as is
 }
 
-// ErrAlreadyStarted: a run with the id exists and is running or completed.
+// ErrAlreadyStarted: the run of the id completed (or was canceled).
 var ErrAlreadyStarted = errors.New("direct: run already started")
+
+// ErrRunning: the run of the id is running within its lease, maybe on
+// another replica; a later claim either finds it ended or, past its lease,
+// runs it again.
+var ErrRunning = errors.New("direct: run is running")
 
 // errNoInstance: no serving instance runs the activity.
 func errNoInstance(service, activity string) error {

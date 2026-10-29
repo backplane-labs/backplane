@@ -52,6 +52,16 @@ func secretInstallation(t *testing.T) bindings.Manifests {
 func live(tb testing.TB, acts map[string]handler, fakeB *fakeBindings) (*direct.Service, *fake) {
 	tb.Helper()
 
+	s, f, _ := liveDB(tb, acts, fakeB)
+
+	return s, f
+}
+
+// liveDB is live with the scratch database's DSN, for a test that plays
+// a replica that died.
+func liveDB(tb testing.TB, acts map[string]handler, fakeB *fakeBindings) (*direct.Service, *fake, string) {
+	tb.Helper()
+
 	dsn := os.Getenv("BACKPLANE_TEST_PG")
 	if dsn == "" {
 		tb.Skip("BACKPLANE_TEST_PG not set")
@@ -97,7 +107,32 @@ func live(tb testing.TB, acts map[string]handler, fakeB *fakeBindings) (*direct.
 		tb.Fatal(err)
 	}
 
-	return s, f
+	return s, f, scratch
+}
+
+// execSQL runs one statement on the database at dsn.
+func execSQL(t *testing.T, dsn, sql string, args ...any) {
+	t.Helper()
+
+	conn, err := pgx.Connect(t.Context(), dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer conn.Close(context.WithoutCancel(t.Context()))
+
+	if _, err := conn.Exec(t.Context(), sql, args...); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// strand plays the replica of run id dying mid-run: the run is recorded
+// running, its lease ending in lease (past when negative).
+func strand(t *testing.T, dsn, id string, lease time.Duration) {
+	t.Helper()
+
+	execSQL(t, dsn, `UPDATE backplane.direct_run SET status = 'running', closed_at = NULL,
+		deadline_at = clock_timestamp() + $2 * interval '1 millisecond' WHERE id = $1`, id, lease.Milliseconds())
 }
 
 // awaitRun polls the store for the run until it has the status.
@@ -252,8 +287,8 @@ func TestRunsRecorded(t *testing.T) {
 	}
 }
 
-// A rule's event runs once: a second claim of the id while it runs or
-// after it completed is ErrAlreadyStarted; a failed run is claimed again
+// A rule's event runs once: a second claim of the id after it completed
+// is ErrAlreadyStarted; a failed run is claimed again
 // and counts its attempt; a failed run is recorded with its error.
 func TestRuleDedup(t *testing.T) {
 	t.Parallel()
@@ -285,6 +320,8 @@ func TestRuleDedup(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	run := awaitRun(t, s, direct.RunID(wid), consolev1.RunStatus_RUN_STATUS_COMPLETED)
+
 	if err := call(); !errors.Is(err, direct.ErrAlreadyStarted) {
 		t.Fatalf("second claim: %v", err)
 	}
@@ -293,7 +330,6 @@ func TestRuleDedup(t *testing.T) {
 		t.Fatalf("calls %v", f.steps())
 	}
 
-	run := awaitRun(t, s, direct.RunID(wid), consolev1.RunStatus_RUN_STATUS_COMPLETED)
 	if run.GetRun().GetMemo()[wire.MemoBinding] != `"rule:r1@2"` || run.GetInput() != `{"email":"a@b"}` {
 		t.Fatalf("run %v", run)
 	}
@@ -336,5 +372,85 @@ func TestRuleDedup(t *testing.T) {
 		"test/rule/r1/x", 5*time.Second)
 	if err != nil || res.GetError() != "" || res.GetOutput() != "{}" || res.GetWorkflowId() != "direct/test/rule/r1/x" {
 		t.Fatalf("test %v %v", res, err)
+	}
+}
+
+// A rule's run whose replica died: its event redelivered within the
+// run's lease is ErrRunning (the engine naks it, nothing runs twice);
+// past the lease it runs again; the sweeper closes one nobody claims.
+func TestRuleRunLease(t *testing.T) {
+	t.Parallel()
+
+	s, f, dsn := liveDB(t, map[string]handler{
+		"billing.Charge": func(_ context.Context, in map[string]any) (any, error) { return in, nil },
+	}, &fakeBindings{cat: catalog()})
+
+	prog := rule(t, "event: iam.UserRegistered\nsteps: {charge: {activity: billing.Charge, input: {who: event.email}}}\n")
+	wid := "rule/" + uuid.NewString() + "/ce-1"
+	id := direct.RunID(wid)
+	start := func() error {
+		return s.Rules().StartRule(t.Context(), "r1", 1, prog, []byte(`{"email":"a@b"}`), bindings.Meta{ID: "ce-1"}, nil, wid)
+	}
+
+	if err := start(); err != nil {
+		t.Fatal(err)
+	}
+
+	awaitRun(t, s, id, consolev1.RunStatus_RUN_STATUS_COMPLETED)
+
+	// The lease is the run timeout and the time its end may take to record.
+	var leaseMS int64
+
+	conn, err := pgx.Connect(t.Context(), dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = conn.QueryRow(t.Context(),
+		`SELECT (extract(epoch FROM deadline_at - started_at) * 1000)::bigint FROM backplane.direct_run WHERE id = $1`,
+		id).Scan(&leaseMS)
+	conn.Close(context.WithoutCancel(t.Context()))
+
+	if lease := time.Duration(leaseMS) * time.Millisecond; err != nil || lease < 5*time.Minute+29*time.Second ||
+		lease > 5*time.Minute+30*time.Second {
+		t.Fatalf("lease %v %v", lease, err)
+	}
+
+	strand(t, dsn, id, time.Hour)
+
+	if err := start(); !errors.Is(err, direct.ErrRunning) {
+		t.Fatalf("within the lease: %v", err)
+	}
+
+	if n := len(f.steps()); n != 1 {
+		t.Fatalf("calls within the lease: %d", n)
+	}
+
+	strand(t, dsn, id, -time.Second)
+
+	if err := start(); err != nil {
+		t.Fatalf("past the lease: %v", err)
+	}
+
+	if n := len(f.steps()); n != 2 {
+		t.Fatalf("calls past the lease: %d", n)
+	}
+
+	awaitRun(t, s, id, consolev1.RunStatus_RUN_STATUS_COMPLETED)
+
+	strand(t, dsn, id, -time.Second)
+
+	if n, err := s.Runs().Sweep(t.Context()); err != nil || n != 1 {
+		t.Fatalf("sweep %d %v", n, err)
+	}
+
+	swept := awaitRun(t, s, id, consolev1.RunStatus_RUN_STATUS_FAILED)
+	if swept.GetFailure() != "the run's end was not recorded" {
+		t.Fatalf("swept %v", swept)
+	}
+
+	// Failed by the sweep: the next delivery runs it again.
+	if err := start(); err != nil {
+		t.Fatalf("after the sweep: %v", err)
 	}
 }

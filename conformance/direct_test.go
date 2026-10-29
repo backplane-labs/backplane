@@ -252,13 +252,9 @@ result: {text: echo.text}
 	var valid consolev1.ValidateBindingResponse
 	w.call(t, "/backplane.console.v1.BindingService/ValidateBinding", &consolev1.ValidateBindingRequest{Definition: def}, &valid)
 
-	codes := map[string]int{}
-	for _, v := range valid.GetViolations() {
-		codes[v.GetCode()]++
-	}
-
-	if codes["RUNTIME_UNSUPPORTED"] != 2 {
-		t.Fatalf("ValidateBinding: %v", valid.GetViolations())
+	// The retry policy runs on direct too; undo does not.
+	if v := valid.GetViolations(); len(v) != 1 || v[0].GetCode() != "RUNTIME_UNSUPPORTED" || v[0].GetPath() != "/steps/echo/undo" {
+		t.Fatalf("ValidateBinding: %v", v)
 	}
 
 	temporal := w.parseBinding(t, m2BindingText)

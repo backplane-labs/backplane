@@ -266,11 +266,16 @@ CREATE TABLE backplane.direct_run (
   -- closed it.
   incomplete boolean     NOT NULL DEFAULT false,
   started_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  -- The end of a running run is recorded by then: its deadline plus the
+  -- time the record may take. Still running past it, the run is running
+  -- nowhere (its replica died): it is claimed again or swept.
+  deadline_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   closed_at  timestamptz
 );
 
 CREATE INDEX direct_run_source_idx ON backplane.direct_run (kind, source, test, started_at DESC, id DESC);
 CREATE INDEX direct_run_started_at_idx ON backplane.direct_run (started_at);
+CREATE INDEX direct_run_deadline_idx ON backplane.direct_run (deadline_at) WHERE status = 'running';
 
 -- One call of a run: a step, an item of a for-each step or a body step
 -- of one, by its call label ("send", "each[2]", "users[1].send").

@@ -56,6 +56,36 @@ sooner than `d` (a rate limit, a `Retry-After` header), anything else is
 retried by the policy. When the attempts run out, the run fails; a rule's
 run is then retried as a whole by event redelivery.
 
+## Choose a runtime
+
+A definition runs on Temporal or on the direct runtime. The direct runtime
+runs the program inside backplane, within one call. It keeps no step
+state: a run that fails, or whose replica dies, starts again from the
+first step. Activity idempotency keys stay the same across those runs, so
+an activity that deduplicates by key does not repeat its effect.
+
+- A hook call is bounded by the caller's deadline, or by
+  `BACKPLANE_DIRECT_RUN_TIMEOUT` (5m) when the call has none. If the run
+  fails, the caller gets the error, and nothing calls again on its behalf.
+- A call with a key (`HookService.Raise` with a key, or the `bp-call-key`
+  header) runs once per key. A repeat answers with the first run's reply
+  for as long as runs are kept (`BACKPLANE_DIRECT_RETENTION`, 168h), even
+  after a restart. A repeat that arrives while the first run is running
+  waits for it.
+- A rule's run is bounded by `BACKPLANE_DIRECT_RUN_TIMEOUT`. Its event is
+  acknowledged only after the run completes, and redelivered without limit
+  while it fails, starting with a 1s delay that doubles up to 1m.
+- If a replica dies mid-run, the run is recorded as running until its
+  deadline plus 30s. The event of a rule comes back. A keyed call that
+  repeats waits. After that point either one runs the program again; the
+  sweeper marks a run nobody claimed as failed, with the error "the run's
+  end was not recorded".
+
+Use Temporal for delivery that must outlast a long outage of its target or
+a backplane restart without anyone calling again: its runs resume at the
+step where they stopped, and their retries are not bounded by a run
+timeout. Workflow schedules run only on Temporal.
+
 ## Validate, test, publish
 
 1. The editor checks syntax and shape immediately.

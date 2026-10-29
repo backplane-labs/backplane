@@ -274,6 +274,9 @@ type Start struct {
 	// Keyed: a hook call with a key. A canceled run is claimed again too,
 	// and the unmasked result is kept for the calls that repeat it.
 	Keyed bool
+	// Lease: the run's end is recorded within it; past it, a run still
+	// recorded running is running nowhere and is claimed again or swept.
+	Lease time.Duration
 }
 
 // program is the record of a run's program: one row per content. A hash
@@ -302,13 +305,15 @@ func (r *Runs) program(s Start) write {
 	}
 }
 
-// Claim records the start of a run, synchronously: false (and no error)
-// when a run with the id is running or completed already — the event was
-// handled — true when it is new or a failed one is run again. The store
-// being unavailable is an error: the caller decides whether to run blind.
-func (r *Runs) Claim(ctx context.Context, s Start, prog *redact.Program) (bool, error) {
+// Claim records the start of a run, synchronously: nil when it is new, or
+// a failed one (or one past its lease) is run again; ErrAlreadyStarted
+// when the run of the id completed (or was canceled, for an unkeyed one) —
+// the event was handled; ErrRunning when it is running within its lease
+// or changed meanwhile — the caller tries again later. The store being
+// unavailable is an error: the caller decides whether to run blind.
+func (r *Runs) Claim(ctx context.Context, s Start, prog *redact.Program) error {
 	if !r.ready() {
-		return false, fmt.Errorf("direct runs: %w", deps.ErrNotReady)
+		return fmt.Errorf("direct runs: %w", deps.ErrNotReady)
 	}
 
 	claimed, err := r.claim(ctx, s, prog)
@@ -324,7 +329,28 @@ func (r *Runs) Claim(ctx context.Context, s Start, prog *redact.Program) (bool, 
 		claimed, err = r.claim(ctx, s, prog)
 	}
 
-	return claimed, err
+	if err != nil || claimed {
+		return err
+	}
+
+	return r.refused(ctx, s)
+}
+
+// refused is why the run of s was not claimed, by its status now.
+func (r *Runs) refused(ctx context.Context, s Start) error {
+	row, err := r.st.Get().Q.GetDirectRunStatus(ctx, s.ID)
+
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		// Expired meanwhile: the next claim makes it anew.
+		return fmt.Errorf("%w: %s", ErrRunning, s.ID)
+	case err != nil:
+		return fmt.Errorf("direct runs: status of %s: %w", s.ID, err)
+	case row.Status == statusCompleted, row.Status == statusCanceled && !s.Keyed:
+		return fmt.Errorf("%w: %s", ErrAlreadyStarted, s.ID)
+	}
+
+	return fmt.Errorf("%w: %s", ErrRunning, s.ID)
 }
 
 // foreignKeyViolation is PostgreSQL's foreign_key_violation.
@@ -341,7 +367,8 @@ func (r *Runs) claim(ctx context.Context, s Start, prog *redact.Program) (bool, 
 
 	_, err := queries.ClaimDirectRun(ctx, db.ClaimDirectRunParams{
 		ID: s.ID, Kind: string(s.Kind), Source: s.Source, Version: s.Version, Test: s.Test, Caller: s.Caller,
-		Input: jsonb(prog.MaskInput(s.Input)), ProgramHash: s.ProgramHash, RerunCanceled: s.Keyed,
+		Input: jsonb(prog.MaskInput(s.Input)), ProgramHash: s.ProgramHash, LeaseMs: s.Lease.Milliseconds(),
+		RerunCanceled: s.Keyed,
 	})
 
 	switch {
@@ -366,7 +393,7 @@ func (r *Runs) Begin(s Start, prog *redact.Program) {
 	r.enqueue(func(ctx context.Context, q *db.Queries) error {
 		_, err := q.ClaimDirectRun(ctx, db.ClaimDirectRunParams{
 			ID: s.ID, Kind: string(s.Kind), Source: s.Source, Version: s.Version, Test: s.Test, Caller: s.Caller,
-			Input: input, ProgramHash: s.ProgramHash,
+			Input: input, ProgramHash: s.ProgramHash, LeaseMs: s.Lease.Milliseconds(),
 		})
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("begin %s: %w", s.ID, err)
@@ -581,15 +608,15 @@ func (r *Runs) Expire(ctx context.Context, cutoff time.Time) error {
 // unrecordedMsg is the error of a run the sweeper closed.
 const unrecordedMsg = "the run's end was not recorded"
 
-// Sweep closes the runs still running since before cutoff: their end was
+// Sweep closes the runs still running past their lease: their end was
 // never recorded (the record was lost, or the replica died with the run).
 // They end failed and incomplete; how many.
-func (r *Runs) Sweep(ctx context.Context, cutoff time.Time) (int64, error) {
+func (r *Runs) Sweep(ctx context.Context) (int64, error) {
 	if !r.ready() {
 		return 0, fmt.Errorf("direct runs: %w", deps.ErrNotReady)
 	}
 
-	n, err := r.st.Get().Q.SweepDirectRuns(ctx, db.SweepDirectRunsParams{Error: unrecordedMsg, Cutoff: cutoff})
+	n, err := r.st.Get().Q.SweepDirectRuns(ctx, unrecordedMsg)
 	if err != nil {
 		return 0, fmt.Errorf("direct runs: sweep: %w", err)
 	}
@@ -597,35 +624,24 @@ func (r *Runs) Sweep(ctx context.Context, cutoff time.Time) (int64, error) {
 	return n, nil
 }
 
-// Outcome is how run id ended: its reply when it completed, a *Failure
-// when it failed or was canceled; done is false while it is running.
-func (r *Runs) Outcome(ctx context.Context, id string) ([]byte, bool, error) {
+// Reply is the kept reply of keyed run id, which completed; ErrRunning
+// when it no longer has completed (expired meanwhile) — the caller claims
+// it again.
+func (r *Runs) Reply(ctx context.Context, id string) ([]byte, error) {
 	if !r.ready() {
-		return nil, false, fmt.Errorf("direct runs: %w", deps.ErrNotReady)
+		return nil, fmt.Errorf("direct runs: %w", deps.ErrNotReady)
 	}
 
-	row, err := r.st.Get().Q.GetDirectRunOutcome(ctx, id)
+	row, err := r.st.Get().Q.GetDirectRunReply(ctx, id)
 
 	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		return nil, false, fmt.Errorf("%w: %s", ErrNoRun, id)
+	case errors.Is(err, pgx.ErrNoRows), err == nil && row.Status != statusCompleted:
+		return nil, fmt.Errorf("%w: %s", ErrRunning, id)
 	case err != nil:
-		return nil, false, fmt.Errorf("direct runs: outcome of %s: %w", id, err)
+		return nil, fmt.Errorf("direct runs: reply of %s: %w", id, err)
 	}
 
-	switch row.Status {
-	case statusRunning:
-		return nil, false, nil
-	case statusCompleted:
-		reply, err := r.openReply(ctx, id, row.Reply)
-
-		return reply, true, err
-	case statusCanceled:
-		// A repeat runs it again.
-		return nil, true, &Failure{Msg: row.Error, Type: row.ErrorType, Retryable: true}
-	}
-
-	return nil, true, &Failure{Msg: row.Error, Type: row.ErrorType}
+	return r.openReply(ctx, id, row.Reply)
 }
 
 // Info is what a run is: for the console's binding and rule run RPCs.

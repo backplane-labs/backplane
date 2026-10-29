@@ -165,6 +165,7 @@ type BackplaneDirectRun struct {
 	ProgramHash string
 	Incomplete  bool
 	StartedAt   time.Time
+	DeadlineAt  time.Time
 	ClosedAt    *time.Time
 }
 

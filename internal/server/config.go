@@ -94,7 +94,7 @@ func (w Wiring) Resolve(temporal bool) consolev1.Runtime {
 
 // Direct runtime settings: BACKPLANE_DIRECT_*.
 type Direct struct {
-	// RunTimeout bounds a rule's run (a hook call is bounded by its deadline).
+	// RunTimeout bounds a rule's run and a hook call that brings no deadline.
 	RunTimeout time.Duration `json:"run_timeout" schemapb:"default=5m;gt=0"`
 	// Retention of recorded runs; 0 keeps them.
 	Retention time.Duration `json:"retention" schemapb:"default=168h;gte=0"`

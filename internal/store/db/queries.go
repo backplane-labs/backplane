@@ -1384,18 +1384,23 @@ func (q *Queries) PutDirectProgram(ctx context.Context, arg PutDirectProgramPara
 	return err
 }
 
-const claimDirectRunSQL = `-- A new run, or a failed run of the same id claimed again (a rule's event
--- redelivered; a keyed hook call repeated, which also runs a canceled one
--- again); no row when the id is running or completed already.
-INSERT INTO backplane.direct_run (id, kind, source, version, test, caller, status, input, program_hash)
-VALUES ($1, $2, $3, $4, $5, $6, 'running', $7, $8)
+const claimDirectRunSQL = `-- A new run, or a run of the same id claimed again: a failed one (a rule's
+-- event redelivered; a keyed hook call repeated, which also runs a
+-- canceled one again) or a running one past its deadline (its replica
+-- died). No row when the id is running or completed already. The run's
+-- deadline is lease_ms from now.
+INSERT INTO backplane.direct_run (id, kind, source, version, test, caller, status, input, program_hash, deadline_at)
+VALUES ($1, $2, $3, $4, $5, $6, 'running', $7, $8,
+  clock_timestamp() + $9::bigint * interval '1 millisecond')
 ON CONFLICT (id) DO UPDATE SET
   status = 'running', attempt = backplane.direct_run.attempt + 1, started_at = clock_timestamp(),
+  deadline_at = EXCLUDED.deadline_at,
   closed_at = NULL, result = NULL, reply = NULL, error = '', error_type = '', incomplete = false,
   input = EXCLUDED.input, program_hash = EXCLUDED.program_hash,
   version = EXCLUDED.version, caller = EXCLUDED.caller
 WHERE backplane.direct_run.status = 'failed'
-  OR ($9::boolean AND backplane.direct_run.status = 'canceled')
+  OR ($10::boolean AND backplane.direct_run.status = 'canceled')
+  OR (backplane.direct_run.status = 'running' AND backplane.direct_run.deadline_at < clock_timestamp())
 RETURNING id, attempt, started_at;`
 
 type ClaimDirectRunParams struct {
@@ -1407,6 +1412,7 @@ type ClaimDirectRunParams struct {
 	Caller        string
 	Input         json.RawMessage
 	ProgramHash   string
+	LeaseMs       int64
 	RerunCanceled bool
 }
 
@@ -1417,7 +1423,7 @@ type ClaimDirectRunRow struct {
 }
 
 func (q *Queries) ClaimDirectRun(ctx context.Context, arg ClaimDirectRunParams) (ClaimDirectRunRow, error) {
-	row := q.db.QueryRow(ctx, claimDirectRunSQL, arg.ID, arg.Kind, arg.Source, arg.Version, arg.Test, arg.Caller, arg.Input, arg.ProgramHash, arg.RerunCanceled)
+	row := q.db.QueryRow(ctx, claimDirectRunSQL, arg.ID, arg.Kind, arg.Source, arg.Version, arg.Test, arg.Caller, arg.Input, arg.ProgramHash, arg.LeaseMs, arg.RerunCanceled)
 	var i ClaimDirectRunRow
 	err := row.Scan(&i.ID, &i.Attempt, &i.StartedAt)
 	return i, err
@@ -1443,37 +1449,43 @@ func (q *Queries) FinishDirectRun(ctx context.Context, arg FinishDirectRunParams
 	return err
 }
 
-const getDirectRunOutcomeSQL = `-- How a run ended, for a repeated keyed hook call: its unmasked reply or
--- its error.
-SELECT status, reply, error, error_type FROM backplane.direct_run WHERE id = $1;`
+const getDirectRunReplySQL = `-- The unmasked reply of a keyed hook call's run, for a repeated call.
+SELECT status, reply FROM backplane.direct_run WHERE id = $1;`
 
-type GetDirectRunOutcomeRow struct {
-	Status    string
-	Reply     []byte
-	Error     string
-	ErrorType string
+type GetDirectRunReplyRow struct {
+	Status string
+	Reply  []byte
 }
 
-func (q *Queries) GetDirectRunOutcome(ctx context.Context, id string) (GetDirectRunOutcomeRow, error) {
-	row := q.db.QueryRow(ctx, getDirectRunOutcomeSQL, id)
-	var i GetDirectRunOutcomeRow
-	err := row.Scan(&i.Status, &i.Reply, &i.Error, &i.ErrorType)
+func (q *Queries) GetDirectRunReply(ctx context.Context, id string) (GetDirectRunReplyRow, error) {
+	row := q.db.QueryRow(ctx, getDirectRunReplySQL, id)
+	var i GetDirectRunReplyRow
+	err := row.Scan(&i.Status, &i.Reply)
 	return i, err
 }
 
-const sweepDirectRunsSQL = `-- Runs still running past cutoff: their end was never recorded (the
--- record was lost, or the replica died). Closed as failed, incomplete.
-UPDATE backplane.direct_run
-SET status = 'failed', error = $1, incomplete = true, closed_at = clock_timestamp()
-WHERE status = 'running' AND started_at < $2;`
+const getDirectRunStatusSQL = `SELECT status FROM backplane.direct_run WHERE id = $1;`
 
-type SweepDirectRunsParams struct {
-	Error  string
-	Cutoff time.Time
+type GetDirectRunStatusRow struct {
+	Status string
 }
 
-func (q *Queries) SweepDirectRuns(ctx context.Context, arg SweepDirectRunsParams) (int64, error) {
-	tag, err := q.db.Exec(ctx, sweepDirectRunsSQL, arg.Error, arg.Cutoff)
+func (q *Queries) GetDirectRunStatus(ctx context.Context, id string) (GetDirectRunStatusRow, error) {
+	row := q.db.QueryRow(ctx, getDirectRunStatusSQL, id)
+	var i GetDirectRunStatusRow
+	err := row.Scan(&i.Status)
+	return i, err
+}
+
+const sweepDirectRunsSQL = `-- Runs still running past their deadline: their end was never recorded
+-- (the record was lost, or the replica died). Closed as failed,
+-- incomplete.
+UPDATE backplane.direct_run
+SET status = 'failed', error = $1, incomplete = true, closed_at = clock_timestamp()
+WHERE status = 'running' AND deadline_at < clock_timestamp();`
+
+func (q *Queries) SweepDirectRuns(ctx context.Context, error string) (int64, error) {
+	tag, err := q.db.Exec(ctx, sweepDirectRunsSQL, error)
 	return tag.RowsAffected(), err
 }
 

@@ -3,12 +3,14 @@ package rules_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"go.temporal.io/api/serviceerror"
 
+	"github.com/backplane-labs/backplane/internal/direct"
 	"github.com/backplane-labs/backplane/internal/rules"
 )
 
@@ -96,6 +98,19 @@ func TestHandleStartFailureNaks(t *testing.T) {
 		`{"plan":"pro"}`, "ev-4", 3)
 
 	if out != rules.OutcomeFailed || msg.naks != 1 || msg.acks+msg.terms != 0 || msg.delay != 4*time.Second {
+		t.Fatalf("outcome %s, settled %+v", out, msg)
+	}
+}
+
+// A direct run of the event running elsewhere (its replica may have died)
+// is not a duplicate: the event comes back later, never acked.
+func TestHandleRunningNaks(t *testing.T) {
+	t.Parallel()
+
+	out, msg := deliver(t.Context(), t, engineWith(&fakeStarter{err: fmt.Errorf("%w: x", direct.ErrRunning)}),
+		`{"plan":"pro"}`, "ev-7", 2)
+
+	if out != rules.OutcomeFailed || msg.naks != 1 || msg.acks+msg.terms != 0 || msg.delay != 2*time.Second {
 		t.Fatalf("outcome %s, settled %+v", out, msg)
 	}
 }

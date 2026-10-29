@@ -29,8 +29,8 @@ import (
 
 // Defaults of the runtime.
 const (
-	// DefaultRunTimeout bounds a rule's run (a hook call is bounded by its
-	// deadline).
+	// DefaultRunTimeout bounds a rule's run and a hook call that brings
+	// no deadline.
 	DefaultRunTimeout = 5 * time.Minute
 	// DefaultRetention of recorded runs.
 	DefaultRetention = 7 * 24 * time.Hour
@@ -38,6 +38,9 @@ const (
 	retentionTick = time.Hour
 	// sweepTick is how often unrecorded runs are closed.
 	sweepTick = time.Minute
+	// recordGrace past a run's deadline is what its end may take to be
+	// recorded: the run's lease is its deadline plus this.
+	recordGrace = 30 * time.Second
 )
 
 // Errors.
@@ -66,7 +69,8 @@ type TemporalRunner interface {
 // Option configures New.
 type Option func(*Service)
 
-// RunTimeout bounds a rule's run; default DefaultRunTimeout.
+// RunTimeout bounds a rule's run and a hook call without a deadline;
+// default DefaultRunTimeout.
 func RunTimeout(d time.Duration) Option { return func(s *Service) { s.runTimeout = d } }
 
 // Retention of recorded runs; 0 keeps them.
@@ -161,7 +165,7 @@ func New(
 // Runs is the run store, for the console.
 func (s *Service) Runs() *Runs { return s.runs }
 
-// RunTimeout bounds a rule's run.
+// RunTimeout bounds a rule's run and a hook call without a deadline.
 func (s *Service) RunTimeout() time.Duration { return s.runTimeout }
 
 // expire deletes runs past the retention.
@@ -187,13 +191,9 @@ func (s *Service) expire(ctx context.Context) error {
 }
 
 // sweep closes the runs whose end was never recorded, every sweepTick: a
-// run older than twice its timeout is not running anywhere (the runner
-// ended it by then) and the record of that was lost.
+// run past its lease is not running anywhere (the runner ended it by its
+// deadline) and the record of that was lost.
 func (s *Service) sweep(ctx context.Context) error {
-	if s.runTimeout <= 0 {
-		return nil
-	}
-
 	tick := time.NewTicker(sweepTick)
 	defer tick.Stop()
 
@@ -204,7 +204,7 @@ func (s *Service) sweep(ctx context.Context) error {
 		case <-tick.C:
 		}
 
-		n, err := s.runs.Sweep(ctx, time.Now().Add(-2*s.runTimeout))
+		n, err := s.runs.Sweep(ctx)
 
 		switch {
 		case err != nil && ctx.Err() == nil:
@@ -310,27 +310,30 @@ func (s *Service) Required(hook, instance string) bool {
 
 // Execute runs one program and records it: the run begins (Begin, or
 // Claim when claim is set — then a run already handled is
-// ErrAlreadyStarted), runs within ctx, and ends. The run can be canceled
+// ErrAlreadyStarted, one running is ErrRunning), runs within ctx — within
+// RunTimeout when ctx has no deadline — and ends. The run can be canceled
 // by id while it runs.
 func (s *Service) Execute(ctx context.Context, start Start, run Run, claim bool) ([]byte, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	if _, ok := ctx.Deadline(); !ok {
+		ctx, cancel = context.WithTimeout(ctx, s.runTimeout)
+		defer cancel()
+	}
+
+	deadline, _ := ctx.Deadline()
+	start.Lease = time.Until(deadline) + recordGrace
 	start.Program, start.ProgramHash = run.Program.Spec(), run.Program.Hash()
 	masks := run.Program.Masks()
 
 	if claim {
-		claimed, err := s.runs.Claim(ctx, start, masks)
-		if err != nil {
+		if err := s.runs.Claim(ctx, start, masks); err != nil {
 			return nil, err
-		}
-
-		if !claimed {
-			return nil, fmt.Errorf("%w: %s", ErrAlreadyStarted, start.ID)
 		}
 	} else {
 		s.runs.Begin(start, masks)
 	}
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 
 	s.mu.Lock()
 	s.running[start.ID] = cancel
@@ -468,17 +471,16 @@ func (s *Service) RaiseHook(ctx context.Context, call *backplanev1.HookCall) (*b
 		id = wire.DirectRunID(hook, keyRunPrefix+key)
 	}
 
-	out, err := s.Execute(ctx, Start{
+	start := Start{
 		ID: id, Kind: KindBinding, Source: hook, Version: version, Caller: call.GetInstance(), Input: payload,
 		Keyed: key != "",
-	}, Run{
+	}
+	run := Run{
 		ID: id, Kind: KindBinding, Program: prog, Payload: payload, Identity: identity(hook, version),
 		Trace: call.GetTrace(), Metadata: call.GetMetadata(),
-	}, key != "")
-	if errors.Is(err, ErrAlreadyStarted) {
-		out, err = s.await(ctx, id)
 	}
 
+	out, err := s.executeCall(ctx, start, run)
 	if err != nil {
 		return nil, id, err
 	}
@@ -490,7 +492,7 @@ func (s *Service) RaiseHook(ctx context.Context, call *backplanev1.HookCall) (*b
 // direct/binding/<hook>/key/<key>.
 const keyRunPrefix = "key/"
 
-// Polling of a keyed call's run another call started.
+// Polling of a keyed call's run another call is running.
 const (
 	awaitFirst = 20 * time.Millisecond
 	awaitMax   = time.Second
@@ -498,15 +500,25 @@ const (
 	awaitGrowth = 2
 )
 
-// await is the outcome of run id, which another call with the same key
-// started: it waits while the run is running, within ctx.
-func (s *Service) await(ctx context.Context, id string) ([]byte, error) {
+// executeCall runs a hook call's program; a keyed call's once for its
+// key: a completed run answers with its reply, a running one is waited for
+// within ctx and claimed when it fails or outlives its lease (its replica
+// died).
+func (s *Service) executeCall(ctx context.Context, start Start, run Run) ([]byte, error) {
+	if !start.Keyed {
+		return s.Execute(ctx, start, run, false)
+	}
+
 	delay := awaitFirst
 
 	for {
-		reply, done, err := s.runs.Outcome(ctx, id)
-		if done || err != nil {
-			return reply, err
+		out, err := s.Execute(ctx, start, run, true)
+		if errors.Is(err, ErrAlreadyStarted) {
+			out, err = s.runs.Reply(ctx, start.ID)
+		}
+
+		if !errors.Is(err, ErrRunning) {
+			return out, err
 		}
 
 		select {

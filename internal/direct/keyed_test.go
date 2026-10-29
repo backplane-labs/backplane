@@ -123,6 +123,58 @@ func TestKeyedHookCall(t *testing.T) {
 	}
 }
 
+// A keyed call whose run's replica died waits while the run's lease lasts
+// and then runs it itself; within the lease nothing runs twice.
+func TestKeyedHookCallLease(t *testing.T) {
+	t.Parallel()
+
+	ms := secretInstallation(t)
+	fakeB := &fakeBindings{
+		cat: bindings.WithDefaults(ms, bindings.Defaults{Runtime: consolev1.Runtime_RUNTIME_DIRECT}),
+		active: map[string]bindings.Binding{
+			"iam.SendOTP": binding(t, "hook: iam.SendOTP\nsteps: {send: {activity: smtp.Send, input: {to: req.to}}}\n"+
+				"result: {id: send.id}\n"),
+		},
+	}
+
+	var sent atomic.Int32
+
+	s, _, dsn := liveDB(t, map[string]handler{
+		"smtp.Send": func(context.Context, map[string]any) (any, error) {
+			return map[string]any{"id": "m-" + strconv.Itoa(int(sent.Add(1)))}, nil
+		},
+	}, fakeB)
+
+	raise := func(ctx context.Context) (string, error) {
+		res, err := s.HookService().Raise(ctx, &consolev1.RaiseRequest{Call: &backplanev1.HookCall{
+			Hook: "iam.SendOTP", Instance: "iam-1", Key: "k1", Payload: []byte(`{"to":"a","code":"1"}`),
+		}})
+
+		return string(res.GetResult().GetPayload()), err
+	}
+
+	if got, err := raise(t.Context()); err != nil || got != `{"id":"m-1"}` {
+		t.Fatalf("first: %q %v", got, err)
+	}
+
+	id := wire.DirectRunID("iam.SendOTP", "key/k1")
+	awaitRun(t, s, id, consolev1.RunStatus_RUN_STATUS_COMPLETED)
+	strand(t, dsn, id, time.Hour)
+
+	short, cancel := context.WithTimeout(t.Context(), 300*time.Millisecond)
+	defer cancel()
+
+	if _, err := raise(short); err == nil || sent.Load() != 1 {
+		t.Fatalf("within the lease: %v (sent %d)", err, sent.Load())
+	}
+
+	strand(t, dsn, id, 500*time.Millisecond)
+
+	if got, err := raise(t.Context()); err != nil || got != `{"id":"m-2"}` {
+		t.Fatalf("past the lease: %q %v", got, err)
+	}
+}
+
 // A program expired with its last run is written again by the next run
 // that claims it.
 func TestClaimAfterProgramExpired(t *testing.T) {
