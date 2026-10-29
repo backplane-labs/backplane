@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"net"
 	"net/http"
 	"strconv"
@@ -43,6 +44,7 @@ var (
 	errReservedPackage = errors.New("is in a reserved proto package")
 	errSchemaConflict  = errors.New("api: inline and file API schemas declared together")
 	errMixedTLS        = errors.New("api.MTLS and plain routes on one port")
+	errListener        = errors.New("a listener has one name and one address")
 )
 
 // API describes an API the author serves on their own listener.
@@ -53,6 +55,10 @@ func (c *core) API(d api.Decl) {
 			c.env.Manifest.Fail(err)
 
 			return
+		}
+
+		if name := r.GetListener(); name != "" {
+			c.declareListener(name, link.APIs.Port(d))
 		}
 
 		c.env.Manifest.API(r)
@@ -86,7 +92,7 @@ func (c *core) GRPC(register func(r grpc.ServiceRegistrar), opts ...api.GRPCOpti
 		}
 
 		for _, name := range services {
-			r := &backplanev1.API{Kind: backplanev1.ApiKind_API_KIND_GRPC, Port: uint32(p.port), Services: []string{name}}
+			r := &backplanev1.API{Kind: backplanev1.ApiKind_API_KIND_GRPC, Listener: p.name, Services: []string{name}}
 			setMatch(r, spec.Host, "/"+name+"/")
 			c.env.Manifest.API(r)
 		}
@@ -138,7 +144,7 @@ func (c *core) mountHTTP(
 			return
 		}
 
-		r := &backplanev1.API{Kind: kind, Port: uint32(port.port)}
+		r := &backplanev1.API{Kind: kind, Listener: port.name}
 		setMatch(r, spec.Host, p)
 
 		if spec.OpenAPI != nil {
@@ -287,6 +293,7 @@ func (c *core) StartupProbe(p probe.Probe) {
 
 // publicPort is one managed public listener: gRPC and HTTP share it.
 type publicPort struct {
+	name       string // api.Listen's; "" for the default public port
 	addr       string
 	port       uint16
 	mtls       bool // served with api.MTLS
@@ -301,7 +308,7 @@ type publicPort struct {
 // routePort is the port of a route: its mode (mTLS or not) set by the
 // first route, the others must agree; an mTLS port needs the mesh.
 func (c *core) routePort(spec routes.Managed) *publicPort {
-	p := c.port(spec.Listen)
+	p := c.port(spec.Listener, spec.Listen)
 
 	switch {
 	case !p.tlsSet:
@@ -319,19 +326,34 @@ func (c *core) routePort(spec routes.Managed) *publicPort {
 	return p
 }
 
-// port returns the public port for listen ("" = the default public port).
-func (c *core) port(listen string) *publicPort {
-	if listen == "" {
+// port returns the public port of listener name at listen (both "": the
+// default public port). A name has one address and an address one name,
+// across managed and declared listeners.
+func (c *core) port(name, listen string) *publicPort {
+	switch {
+	case name == "" && listen == "":
 		listen = listenAddr(c.cfg.PublicPort)
+	case name == "" || listen == "":
+		c.env.Manifest.Fail(fmt.Errorf("api.Listen(%q, %q): %w", name, listen, errListener))
+	}
+
+	if _, taken := c.declared[name]; taken && name != "" {
+		c.env.Manifest.Fail(fmt.Errorf("listener %q is both api.Listen and api.Port: %w", name, errListener))
 	}
 
 	for _, p := range c.public {
-		if p.addr == listen {
-			return p
+		if p.addr != listen && p.name != name {
+			continue
 		}
+
+		if p.addr != listen || p.name != name {
+			c.env.Manifest.Fail(fmt.Errorf("listener %q at %s and %q at %s: %w", p.name, p.addr, name, listen, errListener))
+		}
+
+		return p
 	}
 
-	p := &publicPort{addr: listen, prefixes: map[string]*routes.Hosts{}}
+	p := &publicPort{name: name, addr: listen, prefixes: map[string]*routes.Hosts{}}
 
 	n, err := portOf(listen)
 	if err != nil {
@@ -342,6 +364,39 @@ func (c *core) port(listen string) *publicPort {
 	c.public = append(c.public, p)
 
 	return p
+}
+
+// declareListener records the port of the author's listener name
+// (api.Port); a name has one port and is not also a managed listener.
+func (c *core) declareListener(name string, port uint16) {
+	for _, p := range c.public {
+		if p.name == name {
+			c.env.Manifest.Fail(fmt.Errorf("listener %q is both api.Listen and api.Port: %w", name, errListener))
+		}
+	}
+
+	if have, ok := c.declared[name]; ok && have != port {
+		c.env.Manifest.Fail(fmt.Errorf("listener %q on ports %d and %d: %w", name, have, port, errListener))
+	}
+
+	if c.declared == nil {
+		c.declared = map[string]uint16{}
+	}
+
+	c.declared[name] = port
+}
+
+// listeners are the ports of the route listeners by name ("": the default
+// public port), for the instance state.
+func (c *core) listeners() map[string]uint16 {
+	out := make(map[string]uint16, len(c.public)+len(c.declared))
+	maps.Copy(out, c.declared)
+
+	for _, p := range c.public {
+		out[p.name] = p.port
+	}
+
+	return out
 }
 
 // primaryPort is registered in Consul: the default public port when used,

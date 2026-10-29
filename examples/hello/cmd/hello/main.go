@@ -137,7 +137,7 @@ func run(ctx context.Context) error {
 
 	// A listener hello serves itself, described for the API catalog.
 	svc.API(api.HTTP(legacy.Prefix,
-		api.Port(st.Legacy.Port()), api.OpenAPI(legacy.API)))
+		api.Port("legacy", st.Legacy.Port()), api.OpenAPI(legacy.API)))
 
 	// Internal API and UI bundle for the console plugin.
 	svc.Internal(func(r grpc.ServiceRegistrar) { helloconsolev1.RegisterAdminServiceServer(r, st.Admin) })

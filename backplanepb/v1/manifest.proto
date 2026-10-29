@@ -29,9 +29,9 @@ message Manifest {
   repeated Hook hooks = 9;
   repeated Activity activities = 10;
   UI ui = 11;
-  // The node tree the author composed, depth-first in creation (= start)
-  // order.
-  repeated Node nodes = 12;
+  // The node tree depends on configuration (drivers): InstanceState.nodes.
+  reserved 12;
+  reserved "nodes";
   // Serialized FileDescriptorSet covering every service named by a managed
   // API (API.services) and by internal_services, with transitive
   // imports: stored once instead of per API.
@@ -80,22 +80,6 @@ message ConfigSection {
   repeated string live = 3;
 }
 
-// A node of the service tree: component, dependency or singleton.
-message Node {
-  // Place in the tree: "users", "users/templates".
-  string path = 1;
-  NodeKind kind = 2;
-  // Optional dependencies do not hold readiness.
-  bool optional = 3;
-}
-
-enum NodeKind {
-  NODE_KIND_UNSPECIFIED = 0;
-  NODE_KIND_COMPONENT = 1;
-  NODE_KIND_DEPENDENCY = 2;
-  NODE_KIND_SINGLETON = 3;
-}
-
 // An API served by the service. Does not configure external routing.
 message API {
   // Path prefix ("/api/"); gRPC routes use "/<full service name>/".
@@ -103,9 +87,12 @@ message API {
   // Host header to match in addition to the prefix; empty matches any host.
   string host = 2;
   ApiKind kind = 3;
-  // Port of the external API this route leads to; 0 = the port registered
-  // in Consul.
-  uint32 port = 4;
+  // The listener the route is served on, by the name the code gives it
+  // (api.Listen, api.Port); empty: the default public port. Its port is the
+  // instance's: InstanceState.public_port and listeners.
+  string listener = 11;
+  reserved 4;
+  reserved "port";
   // gRPC and ws-proto: full names of the services behind the
   // route; their descriptors are in Manifest.descriptors unless the route
   // carries its own.

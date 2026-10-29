@@ -38,6 +38,7 @@ func Driver() backplane.Option {
 				Address:      p.Identity.Advertise,
 				PlatformPort: p.PlatformPort,
 				PublicPort:   p.PrimaryPort,
+				Listeners:    p.Listeners,
 				Commit:       p.Commit,
 			},
 			Manifest: p.Manifest,

@@ -97,9 +97,12 @@ type PresenceParams struct {
 	Configuration ConfigurationState
 	PlatformPort  uint16
 	PrimaryPort   uint16
-	Commit        string
-	Transports    func() []*backplanev1.TransportStatus
-	Nodes         func() []*backplanev1.NodeStatus
+	// Listeners are the ports of the route listeners by name ("": the
+	// default public port).
+	Listeners  map[string]uint16
+	Commit     string
+	Transports func() []*backplanev1.TransportStatus
+	Nodes      func() []*backplanev1.NodeStatus
 	// Sections are the live section values (sections.OfferLive), by name.
 	Sections func() map[string]*anypb.Any
 }

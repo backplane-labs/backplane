@@ -24,6 +24,7 @@ func init() {
 		return decl.r, errors.Join(decl.err, filesError(decl.files))
 	}
 	link.APIs.Files = func(d any) *routes.SchemaFiles { decl, _ := d.(Decl); return decl.files }
+	link.APIs.Port = func(d any) uint16 { decl, _ := d.(Decl); return decl.port }
 	link.APIs.GRPC = func(opts any) routes.Managed {
 		var m routes.Managed
 
@@ -74,11 +75,11 @@ type (
 	DeclOption interface{ applyDecl(r *backplanev1.API) }
 )
 
-type listen string
+type listen struct{ name, addr string }
 
-func (l listen) applyGRPC(m *routes.Managed) { m.Listen = string(l) }
-func (l listen) applyHTTP(m *routes.Managed) { m.Listen = string(l) }
-func (l listen) applyWS(m *routes.Managed)   { m.Listen = string(l) }
+func (l listen) applyGRPC(m *routes.Managed) { m.Listener, m.Listen = l.name, l.addr }
+func (l listen) applyHTTP(m *routes.Managed) { m.Listener, m.Listen = l.name, l.addr }
+func (l listen) applyWS(m *routes.Managed)   { m.Listener, m.Listen = l.name, l.addr }
 
 // ListenOption applies to managed routes.
 type ListenOption interface {
@@ -87,9 +88,12 @@ type ListenOption interface {
 	WSProtoOption
 }
 
-// Listen serves a managed route on its own listener instead of the shared
-// public port; routes with the same address share one server.
-func Listen(addr string) ListenOption { return listen(addr) }
+// Listen serves a managed route on its own listener, named in code, at addr
+// (usually from configuration) instead of the shared public port. Routes on
+// one listener share one server. The manifest names the listener; the
+// instance state carries its port, so the manifest does not depend on addr.
+// One name has one address.
+func Listen(name, addr string) ListenOption { return listen{name: name, addr: addr} }
 
 type host string
 
@@ -114,11 +118,15 @@ type HostOption interface {
 // routes with one prefix and different hosts share a port.
 func Host(h string) HostOption { return host(h) }
 
-type port uint32
+type port struct {
+	name string
+	port uint16
+}
 
-func (p port) applyGRPCDecl(r *backplanev1.API) { r.Port = uint32(p) }
-func (p port) applyHTTPDecl(r *backplanev1.API) { r.Port = uint32(p) }
-func (p port) applyDecl(r *backplanev1.API)     { r.Port = uint32(p) }
+func (p port) applyGRPCDecl(r *backplanev1.API) { p.applyDecl(r) }
+func (p port) applyHTTPDecl(r *backplanev1.API) { p.applyDecl(r) }
+func (p port) applyDecl(r *backplanev1.API)     { r.Listener = p.name }
+func (p port) listenerPort() uint16             { return p.port }
 
 // PortOption applies to declarative routes.
 type PortOption interface {
@@ -127,9 +135,24 @@ type PortOption interface {
 	DeclOption
 }
 
-// Port is where the author serves a declarative route; 0 means the port
-// registered in Consul.
-func Port(p uint16) PortOption { return port(p) }
+// Port is the author's listener a declarative route is served on: its name
+// in code and its port (usually from configuration). Without it, the route
+// is on the default public port. As with Listen, the manifest names the
+// listener and the instance state carries the port.
+func Port(name string, p uint16) PortOption { return port{name: name, port: p} }
+
+// declaredPort is the port of the last Port among opts; 0 without one.
+func declaredPort[T any](opts []T) uint16 {
+	var out uint16
+
+	for _, opt := range opts {
+		if p, ok := any(opt).(interface{ listenerPort() uint16 }); ok {
+			out = p.listenerPort()
+		}
+	}
+
+	return out
+}
 
 type openAPI []byte
 
@@ -167,6 +190,7 @@ type Decl struct {
 	r     *backplanev1.API
 	err   error
 	files *routes.SchemaFiles
+	port  uint16 // of the named listener (Port)
 }
 
 // GRPC declares a gRPC service (full name) the author serves.
@@ -180,7 +204,7 @@ func GRPC(service string, opts ...GRPCDeclOption) Decl {
 		o.applyGRPCDecl(r)
 	}
 
-	return Decl{r: r}
+	return Decl{r: r, port: declaredPort(opts)}
 }
 
 // HTTP declares an HTTP prefix the author serves.
@@ -190,7 +214,7 @@ func HTTP(prefix string, opts ...HTTPDeclOption) Decl {
 		o.applyHTTPDecl(r)
 	}
 
-	return Decl{r: r, err: err, files: declaredFiles(r, opts)}
+	return Decl{r: r, err: err, files: declaredFiles(r, opts), port: declaredPort(opts)}
 }
 
 // GraphQL declares a GraphQL endpoint the author serves, with its
@@ -205,7 +229,7 @@ func GraphQL(prefix string, introspection []byte, opts ...DeclOption) Decl {
 		o.applyDecl(r)
 	}
 
-	return Decl{r: r, err: err, files: declaredFiles(r, opts)}
+	return Decl{r: r, err: err, files: declaredFiles(r, opts), port: declaredPort(opts)}
 }
 
 // WSProto declares a ws-proto endpoint the author serves, with its
@@ -220,7 +244,7 @@ func WSProto(prefix string, descriptors []byte, opts ...DeclOption) Decl {
 		o.applyDecl(r)
 	}
 
-	return Decl{r: r, err: err, files: declaredFiles(r, opts)}
+	return Decl{r: r, err: err, files: declaredFiles(r, opts), port: declaredPort(opts)}
 }
 
 func prefixed(kind backplanev1.ApiKind, prefix string) (*backplanev1.API, error) {

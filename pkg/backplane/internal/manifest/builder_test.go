@@ -89,7 +89,6 @@ func TestSharedDescriptors(t *testing.T) {
 	b.API(&backplanev1.API{
 		Kind:     backplanev1.ApiKind_API_KIND_GRPC,
 		Prefix:   "/" + healthService + "/",
-		Port:     8080,
 		Services: []string{healthService},
 	})
 	b.Internal([]string{"z.Last", healthService})
@@ -103,7 +102,6 @@ func TestSharedDescriptors(t *testing.T) {
 	b.API(&backplanev1.API{
 		Kind:     backplanev1.ApiKind_API_KIND_GRPC,
 		Prefix:   "/" + healthService + "/",
-		Port:     8080,
 		Services: []string{healthService},
 	})
 	b.Internal([]string{healthService})
@@ -165,7 +163,7 @@ func TestDuplicatesListed(t *testing.T) {
 		b.Event(&backplanev1.Event{Name: "e"})
 		b.Activity(&backplanev1.Activity{Name: "a"})
 		b.Subscription(&backplanev1.Subscription{Event: "other.E", Consumer: "c:other.E"})
-		b.API(&backplanev1.API{Prefix: "/api/", Port: 80})
+		b.API(&backplanev1.API{Prefix: "/api/", Listener: "web"})
 	}
 
 	_, err := b.Build()
@@ -175,7 +173,7 @@ func TestDuplicatesListed(t *testing.T) {
 
 	for _, want := range []string{
 		`hook "h"`, `event "e"`, `activity "a"`, `reactor "c:other.E"`,
-		`route "prefix /api/ on port 80"`,
+		`route "prefix /api/ on listener \"web\""`,
 	} {
 		if !strings.Contains(err.Error(), want+" declared twice") {
 			t.Errorf("missing %s in:\n%v", want, err)
@@ -201,14 +199,14 @@ func TestWorkflowRecorded(t *testing.T) {
 	}
 }
 
-// The same match on another port, or a host match, is not a duplicate.
-func TestRouteMatchScopedByPort(t *testing.T) {
+// The same match on another listener, or a host match, is not a duplicate.
+func TestRouteMatchScopedByListener(t *testing.T) {
 	t.Parallel()
 
 	b := manifest.New("svc", "1.0.0")
-	b.API(&backplanev1.API{Prefix: "/api/", Port: 80})
-	b.API(&backplanev1.API{Prefix: "/api/", Port: 81})
-	b.API(&backplanev1.API{Host: "api.example.com", Port: 80})
+	b.API(&backplanev1.API{Prefix: "/api/"})
+	b.API(&backplanev1.API{Prefix: "/api/", Listener: "admin"})
+	b.API(&backplanev1.API{Host: "api.example.com"})
 
 	if m := build(t, b); len(m.GetApis()) != 3 {
 		t.Fatalf("routes: %v", m.GetApis())

@@ -239,7 +239,7 @@ result: {identity_id: req.identityId}
 func TestSchemaOfGeneratedMessage(t *testing.T) {
 	t.Parallel()
 
-	s := decl.Schema[*backplanev1.Node](nil, "svc", "node")
+	s := decl.Schema[*backplanev1.NodeStatus](nil, "svc", "node")
 	if s == nil {
 		t.Fatal("no schema")
 	}

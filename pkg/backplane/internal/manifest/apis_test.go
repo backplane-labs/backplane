@@ -15,15 +15,15 @@ func TestRouteMatchIsHostAndPrefix(t *testing.T) {
 	t.Parallel()
 
 	b := manifest.New("svc", "1.0.0")
-	b.API(&backplanev1.API{Prefix: "/api/", Host: "a.example.com", Port: 80})
-	b.API(&backplanev1.API{Prefix: "/api/", Host: "b.example.com", Port: 80})
-	b.API(&backplanev1.API{Prefix: "/api/", Port: 80})
+	b.API(&backplanev1.API{Prefix: "/api/", Host: "a.example.com"})
+	b.API(&backplanev1.API{Prefix: "/api/", Host: "b.example.com"})
+	b.API(&backplanev1.API{Prefix: "/api/"})
 
 	if got := len(build(t, b).GetApis()); got != 3 {
 		t.Fatalf("routes: %d", got)
 	}
 
-	b.API(&backplanev1.API{Prefix: "/api/", Host: "a.example.com", Port: 80})
+	b.API(&backplanev1.API{Prefix: "/api/", Host: "a.example.com"})
 
 	_, err := b.Build()
 	if !errors.Is(err, manifest.ErrDuplicate) || !strings.Contains(err.Error(), "host a.example.com prefix /api/") {

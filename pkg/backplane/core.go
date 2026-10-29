@@ -73,6 +73,8 @@ type core struct {
 	platform   *http.ServeMux   // platform port, HTTP behind the guard: UI bundle
 	apiBundles map[string]bool
 	public     []*publicPort
+	// declared are the ports of the author's named listeners (api.Port).
+	declared map[string]uint16
 	// consulPresence is built by Run (it needs the manifest); nil without
 	// Consul.
 	consulPresence Presence

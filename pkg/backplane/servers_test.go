@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -661,8 +662,80 @@ type statusState struct {
 	Cache deps.Optional[string]
 }
 
-// TestInstanceStatuses: the instance state lists every dependency of the
-// author's tree with its readiness, and the configured transports.
+// TestListeners: a route listener has one name and one address, managed
+// (api.Listen) or the author's (api.Port); the manifest names it, the
+// instance state carries its port.
+//
+//nolint:paralleltest // t.Setenv: the SDK block reads the process environment
+func TestListeners(t *testing.T) {
+	setup(t, "")
+
+	a, b := freePort(t), freePort(t)
+
+	for _, tc := range []struct {
+		name    string
+		declare func(svc *backplane.Service[testState])
+		ok      bool
+	}{
+		{"one name, one address", func(svc *backplane.Service[testState]) {
+			svc.HTTP("/a/", http.NotFoundHandler(), api.Listen("admin", ":"+a))
+			svc.HTTP("/b/", http.NotFoundHandler(), api.Listen("admin", ":"+a))
+			svc.API(api.HTTP("/legacy/", api.Port("legacy", 7000)))
+			svc.API(api.HTTP("/old/", api.Port("legacy", 7000)))
+		}, true},
+		{"one name, two addresses", func(svc *backplane.Service[testState]) {
+			svc.HTTP("/a/", http.NotFoundHandler(), api.Listen("admin", ":"+a))
+			svc.HTTP("/b/", http.NotFoundHandler(), api.Listen("admin", ":"+b))
+		}, false},
+		{"one address, two names", func(svc *backplane.Service[testState]) {
+			svc.HTTP("/a/", http.NotFoundHandler(), api.Listen("admin", ":"+a))
+			svc.HTTP("/b/", http.NotFoundHandler(), api.Listen("ops", ":"+a))
+		}, false},
+		{"no name", func(svc *backplane.Service[testState]) {
+			svc.HTTP("/a/", http.NotFoundHandler(), api.Listen("", ":"+a))
+		}, false},
+		{"no address", func(svc *backplane.Service[testState]) {
+			svc.HTTP("/a/", http.NotFoundHandler(), api.Listen("admin", ""))
+		}, false},
+		{"managed and declared", func(svc *backplane.Service[testState]) {
+			svc.HTTP("/a/", http.NotFoundHandler(), api.Listen("admin", ":"+a))
+			svc.API(api.HTTP("/d/", api.Port("admin", 7000)))
+		}, false},
+		{"declared on two ports", func(svc *backplane.Service[testState]) {
+			svc.API(api.HTTP("/a/", api.Port("legacy", 7000)))
+			svc.API(api.HTTP("/b/", api.Port("legacy", 7001)))
+		}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, err := backplane.Open(t.Context(), func(backplane.Root[testConfig]) (*testState, error) {
+				return &testState{}, nil
+			}, baseOptions("svc-listeners")...)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			tc.declare(svc)
+			svc.HTTP("/", http.NotFoundHandler())
+
+			err = svc.Validate()
+			if tc.ok != (err == nil) || (err != nil && !strings.Contains(err.Error(), "a listener has one name and one address")) {
+				t.Fatalf("validate: %v", err)
+			}
+
+			if !tc.ok {
+				return
+			}
+
+			got := backplane.Listeners(svc)
+			if len(got) != 3 || got["admin"] == 0 || strconv.Itoa(int(got["admin"])) != a || got["legacy"] != 7000 || got[""] == 0 {
+				t.Fatalf("listeners %v", got)
+			}
+		})
+	}
+}
+
+// TestInstanceStatuses: the instance state lists the author's tree, with
+// the readiness of every dependency, and the configured transports.
 func TestInstanceStatuses(t *testing.T) {
 	p := setup(t, "")
 	fastHealth(t)
@@ -698,8 +771,13 @@ func TestInstanceStatuses(t *testing.T) {
 		return out
 	}
 
-	if st := byPath()["store"]; st == nil || st.GetReady() || st.GetError() == "" {
+	if st := byPath()["store"]; st == nil || st.GetReady() || st.GetError() == "" ||
+		st.GetKind() != backplanev1.NodeKind_NODE_KIND_DEPENDENCY || st.GetOptional() {
 		t.Fatalf("store before start: %v", st)
+	}
+
+	if st := byPath()["cache"]; st == nil || !st.GetOptional() {
+		t.Fatalf("cache: %v", st)
 	}
 
 	ctx, cancel := context.WithCancel(t.Context())

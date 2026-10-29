@@ -101,8 +101,6 @@ func (c *core) Run(ctx context.Context) error {
 // stay open: call it after the last one, e.g. in a test of the function
 // that declares the service's routes.
 func (c *core) Validate() error {
-	c.env.Manifest.Nodes(nodes(c.app))
-
 	if _, err := c.env.Manifest.Build(); err != nil {
 		return fmt.Errorf("backplane: build: %w", err)
 	}
@@ -113,7 +111,6 @@ func (c *core) Validate() error {
 // seal ends declarations and builds the manifest; an unstamped version gets
 // the manifest's content hash so dev builds do not overwrite each other.
 func (c *core) seal() (*backplanev1.Manifest, error) {
-	c.env.Manifest.Nodes(nodes(c.app))
 	c.env.Manifest.Seal()
 
 	m, err := c.env.Manifest.Build()
@@ -244,7 +241,8 @@ func (c *core) presence(m *backplanev1.Manifest) Presence { //nolint:ireturn // 
 	presence, err := c.opts.presence(PresenceParams{
 		Config: c.cfg, Identity: c.id, Manifest: m, Log: c.log, Configuration: c.conf,
 		PlatformPort: port16(c.cfg.InternalPort),
-		PrimaryPort:  c.primaryPort(), Commit: build.Get().Commit, Transports: c.transports, Nodes: c.nodes,
+		PrimaryPort:  c.primaryPort(), Listeners: c.listeners(),
+		Commit: build.Get().Commit, Transports: c.transports, Nodes: c.nodes,
 		Sections: c.env.LiveSections,
 	})
 	if err != nil {
@@ -258,25 +256,6 @@ func (c *core) presence(m *backplanev1.Manifest) Presence { //nolint:ireturn // 
 	}
 
 	return presence
-}
-
-// nodes describes the author's tree for the manifest.
-func nodes(app *node.Node) []*backplanev1.Node {
-	kinds := map[node.Kind]backplanev1.NodeKind{
-		node.Component:  backplanev1.NodeKind_NODE_KIND_COMPONENT,
-		node.Dependency: backplanev1.NodeKind_NODE_KIND_DEPENDENCY,
-		node.Singleton:  backplanev1.NodeKind_NODE_KIND_SINGLETON,
-	}
-
-	var out []*backplanev1.Node
-
-	app.Walk(func(n *node.Node) {
-		if k, ok := kinds[n.Kind()]; ok {
-			out = append(out, &backplanev1.Node{Path: n.Path(), Kind: k, Optional: n.Optional()})
-		}
-	})
-
-	return out
 }
 
 // port16 narrows a schema-validated port (1..65535).

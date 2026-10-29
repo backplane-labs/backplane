@@ -299,17 +299,10 @@ func (e *env) manifest(t *testing.T) {
 		t.Errorf("config %v or ui missing", m.GetConfig().GetLive())
 	}
 
-	paths := make([]string, 0, len(m.GetNodes()))
-	for _, n := range m.GetNodes() {
-		paths = append(paths, n.GetPath())
-		if n.GetOptional() != (n.GetPath() == "cache") {
-			t.Errorf("node %s optional=%v", n.GetPath(), n.GetOptional())
+	for _, r := range m.GetApis() {
+		if r.GetListener() != "" && r.GetListener() != "legacy" {
+			t.Errorf("route %v on listener %q", r, r.GetListener())
 		}
-	}
-
-	want := []string{"store", "cache", "greeter", "greeter/templates", "audit", "flows", "admin", "legacy"}
-	if !slices.Equal(paths, want) {
-		t.Errorf("nodes %v, want %v", paths, want)
 	}
 }
 
@@ -351,6 +344,25 @@ func (e *env) state(t *testing.T) {
 
 	if st.GetSources()["greeter.suffix"] != backplanev1.ConfigSource_CONFIG_SOURCE_ENV {
 		t.Errorf("sources: %v", st.GetSources())
+	}
+
+	// The routes' ports and the node tree depend on configuration: the
+	// instance carries them, not the manifest.
+	if strconv.Itoa(int(st.GetPublicPort())) != strings.Split(e.public, ":")[1] || st.GetListeners()["legacy"] == 0 {
+		t.Errorf("ports: public %d listeners %v", st.GetPublicPort(), st.GetListeners())
+	}
+
+	paths := make([]string, 0, len(st.GetNodes()))
+	for _, n := range st.GetNodes() {
+		paths = append(paths, n.GetPath())
+		if n.GetOptional() != (n.GetPath() == "cache") || n.GetKind() == backplanev1.NodeKind_NODE_KIND_UNSPECIFIED {
+			t.Errorf("node %s kind=%v optional=%v", n.GetPath(), n.GetKind(), n.GetOptional())
+		}
+	}
+
+	want := []string{"store", "cache", "greeter", "greeter/templates", "audit", "flows", "admin", "legacy"}
+	if !slices.Equal(paths, want) {
+		t.Errorf("nodes %v, want %v", paths, want)
 	}
 
 	e.eventually(t, "consul check passing", func() bool {

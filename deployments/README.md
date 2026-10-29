@@ -17,11 +17,12 @@ The SDK registers the primary public port in Consul Catalog and checks readiness
 through the platform port. Manifest versions and ephemeral instance state are stored
 in Consul KV. This registration does not publish the application externally.
 Every start, a one-off run included, publishes its version's manifest; the first
-one is kept. The manifest carries the API routes with their ports and the node
-tree of the configured drivers, so a start with another configuration under the
-same version stops with `different manifest already published for this version`,
-naming the fields that differ (`apis`, `nodes`, ...). Start it with the service's
-configuration, or publish the build under a new version.
+one is kept. The manifest holds only what the code declares: routes name their
+listener (`api.Listen`, `api.Port`), while the ports and the node tree of the
+configured drivers go to the instance state. A build that declares something else
+under the same version stops with `different manifest already published for this
+version`, naming the fields that differ (`apis`, `hooks`, ...): publish it under a
+new version.
 If your deployment registers services itself, set `BACKPLANE_CONSUL_REGISTER=false`.
 
 ### SDK block: every variable

@@ -27,6 +27,9 @@ func SystemNodes[St any](s *Service[St]) []string {
 // NodeStatuses is what the instance state reports for the author's tree.
 func NodeStatuses[St any](s *Service[St]) []*backplanev1.NodeStatus { return s.nodes() }
 
+// Listeners is what the instance state reports for the route listeners.
+func Listeners[St any](s *Service[St]) map[string]uint16 { return s.listeners() }
+
 // TransportStatuses is what the instance state reports for the transports.
 func TransportStatuses[St any](s *Service[St]) []*backplanev1.TransportStatus { return s.transports() }
 

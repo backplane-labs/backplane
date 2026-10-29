@@ -37,9 +37,11 @@ var SetLive func(live, v any) error
 var APIs struct {
 	Decl  func(d any) (*backplanev1.API, error)
 	Files func(d any) *routes.SchemaFiles
-	GRPC  func(opts any) routes.Managed
-	HTTP  func(opts any) routes.Managed
-	WS    func(opts any) routes.Managed
+	// Port of the declaration's named listener (api.Port); 0 without one.
+	Port func(d any) uint16
+	GRPC func(opts any) routes.Managed
+	HTTP func(opts any) routes.Managed
+	WS   func(opts any) routes.Managed
 }
 
 // MountWS serves a ws-proto endpoint on a *backplane.Service.

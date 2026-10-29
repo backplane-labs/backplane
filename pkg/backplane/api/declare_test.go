@@ -19,40 +19,41 @@ func TestDeclarative(t *testing.T) {
 		kind      backplanev1.ApiKind
 		prefix    string
 		host      string
-		port      uint32
+		listener  string
+		port      uint16
 		hasSchema bool
 	}{
 		"grpc": {
-			api.GRPC("hello.v1.Hello", api.Port(9000)),
-			backplanev1.ApiKind_API_KIND_GRPC, "/hello.v1.Hello/", "", 9000, false,
+			api.GRPC("hello.v1.Hello", api.Port("grpc", 9000)),
+			backplanev1.ApiKind_API_KIND_GRPC, "/hello.v1.Hello/", "", "grpc", 9000, false,
 		},
 		"grpc descriptors": {
 			api.GRPC("hello.v1.Hello", api.Descriptors([]byte{1})),
-			backplanev1.ApiKind_API_KIND_GRPC, "/hello.v1.Hello/", "", 0, true,
+			backplanev1.ApiKind_API_KIND_GRPC, "/hello.v1.Hello/", "", "", 0, true,
 		},
 		"http host": {
 			api.HTTP("/x/", api.Host("api.example.com"), api.OpenAPI([]byte("{}"))),
-			backplanev1.ApiKind_API_KIND_HTTP, "/x/", "api.example.com", 0, true,
+			backplanev1.ApiKind_API_KIND_HTTP, "/x/", "api.example.com", "", 0, true,
 		},
 		"http normalized": {
-			api.HTTP("/api", api.Port(8081)),
-			backplanev1.ApiKind_API_KIND_HTTP, "/api/", "", 8081, false,
+			api.HTTP("/api", api.Port("legacy", 8081)),
+			backplanev1.ApiKind_API_KIND_HTTP, "/api/", "", "legacy", 8081, false,
 		},
 		"graphql": {
 			api.GraphQL("/graphql", []byte("{}")),
-			backplanev1.ApiKind_API_KIND_GRAPHQL, "/graphql/", "", 0, true,
+			backplanev1.ApiKind_API_KIND_GRAPHQL, "/graphql/", "", "", 0, true,
 		},
 		"graphql no introspection": {
 			api.GraphQL("/graphql/", nil, api.Host("gql.example.com")),
-			backplanev1.ApiKind_API_KIND_GRAPHQL, "/graphql/", "gql.example.com", 0, false,
+			backplanev1.ApiKind_API_KIND_GRAPHQL, "/graphql/", "gql.example.com", "", 0, false,
 		},
 		"wsproto": {
 			api.WSProto("/ws", nil),
-			backplanev1.ApiKind_API_KIND_WS_PROTO, "/ws/", "", 0, false,
+			backplanev1.ApiKind_API_KIND_WS_PROTO, "/ws/", "", "", 0, false,
 		},
 		"wsproto descriptors": {
-			api.WSProto("/ws/", []byte{1}, api.Port(7000)),
-			backplanev1.ApiKind_API_KIND_WS_PROTO, "/ws/", "", 7000, true,
+			api.WSProto("/ws/", []byte{1}, api.Port("ws", 7000)),
+			backplanev1.ApiKind_API_KIND_WS_PROTO, "/ws/", "", "ws", 7000, true,
 		},
 	}
 	for name, c := range cases {
@@ -64,7 +65,8 @@ func TestDeclarative(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if r.GetKind() != c.kind || r.GetPrefix() != c.prefix || r.GetHost() != c.host || r.GetPort() != c.port {
+			if r.GetKind() != c.kind || r.GetPrefix() != c.prefix || r.GetHost() != c.host || r.GetListener() != c.listener ||
+				link.APIs.Port(c.decl) != c.port {
 				t.Fatalf("got %v", r)
 			}
 
@@ -93,7 +95,7 @@ func TestBadPrefixIsDeclError(t *testing.T) {
 		"http wildcard":     api.HTTP("/x/{id}"),
 		"graphql relative":  api.GraphQL("graphql", nil),
 		"wsproto wildcard":  api.WSProto("/ws/{x}", nil),
-		"http with options": api.HTTP("api", api.Port(1), api.Host("h")),
+		"http with options": api.HTTP("api", api.Port("x", 1), api.Host("h")),
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -149,8 +151,8 @@ func TestPrefix(t *testing.T) {
 func TestManagedOptions(t *testing.T) {
 	t.Parallel()
 
-	g := link.APIs.GRPC([]api.GRPCOption{api.Listen(":9000")})
-	if g.Listen != ":9000" || g.Host != "" || g.OpenAPI != nil {
+	g := link.APIs.GRPC([]api.GRPCOption{api.Listen("grpc", ":9000")})
+	if g.Listener != "grpc" || g.Listen != ":9000" || g.Host != "" || g.OpenAPI != nil {
 		t.Fatalf("grpc: %+v", g)
 	}
 
@@ -158,8 +160,8 @@ func TestManagedOptions(t *testing.T) {
 		t.Fatalf("grpc defaults: %+v", d)
 	}
 
-	h := link.APIs.HTTP([]api.HTTPOption{api.OpenAPI([]byte("{}")), api.Listen(":8081"), api.Host("h")})
-	if h.Listen != ":8081" || h.Host != "h" || string(h.OpenAPI) != "{}" {
+	h := link.APIs.HTTP([]api.HTTPOption{api.OpenAPI([]byte("{}")), api.Listen("admin", ":8081"), api.Host("h")})
+	if h.Listener != "admin" || h.Listen != ":8081" || h.Host != "h" || string(h.OpenAPI) != "{}" {
 		t.Fatalf("http: %+v", h)
 	}
 }

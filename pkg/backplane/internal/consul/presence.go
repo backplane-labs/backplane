@@ -119,7 +119,10 @@ type Identity struct {
 	Address      string
 	PlatformPort uint16
 	PublicPort   uint16 // 0 when the service has no managed public routes
-	Commit       string
+	// Listeners are the ports of the route listeners by name ("": the
+	// default public port), for the instance state.
+	Listeners map[string]uint16
+	Commit    string
 }
 
 // ConfigState is the dynamic configuration seen by the presence.
@@ -799,6 +802,20 @@ func (p *Presence) state() ([]byte, error) {
 			state.ConfigError = eff.Err.Error()
 			state.ConfigRejectedRevision = eff.RejectedRevision
 		}
+	}
+
+	for name, port := range p.id.Listeners {
+		if name == "" {
+			state.PublicPort = uint32(port)
+
+			continue
+		}
+
+		if state.Listeners == nil {
+			state.Listeners = map[string]uint32{}
+		}
+
+		state.Listeners[name] = uint32(port)
 	}
 
 	if p.nodes != nil {

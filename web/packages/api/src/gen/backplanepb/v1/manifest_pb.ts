@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file backplanepb/v1/manifest.proto.
  */
 export const file_backplanepb_v1_manifest: GenFile = /*@__PURE__*/
-  fileDesc("Ch1iYWNrcGxhbmVwYi92MS9tYW5pZmVzdC5wcm90bxIMYmFja3BsYW5lLnYxIsYFCghNYW5pZmVzdBIPCgdzZXJ2aWNlGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSEwoLc2RrX3ZlcnNpb24YAyABKAkSKwoGY29uZmlnGAQgASgLMhsuYmFja3BsYW5lLnYxLkNvbmZpZ1NlY3Rpb24SHwoEYXBpcxgGIAMoCzIRLmJhY2twbGFuZS52MS5BUEkSGQoRaW50ZXJuYWxfc2VydmljZXMYByADKAkSIwoGZXZlbnRzGAggAygLMhMuYmFja3BsYW5lLnYxLkV2ZW50EiEKBWhvb2tzGAkgAygLMhIuYmFja3BsYW5lLnYxLkhvb2sSKgoKYWN0aXZpdGllcxgKIAMoCzIWLmJhY2twbGFuZS52MS5BY3Rpdml0eRIcCgJ1aRgLIAEoCzIQLmJhY2twbGFuZS52MS5VSRIhCgVub2RlcxgMIAMoCzISLmJhY2twbGFuZS52MS5Ob2RlEhMKC2Rlc2NyaXB0b3JzGA0gASgMEjEKDXN1YnNjcmlwdGlvbnMYDiADKAsyGi5iYWNrcGxhbmUudjEuU3Vic2NyaXB0aW9uEikKCXNjaGVkdWxlcxgPIAMoCzIWLmJhY2twbGFuZS52MS5TY2hlZHVsZRIpCgl3b3JrZmxvd3MYECADKAsyFi5iYWNrcGxhbmUudjEuV29ya2Zsb3cSMQoJdGVsZW1ldHJ5GBEgASgLMh4uYmFja3BsYW5lLnYxLlRlbGVtZXRyeVNvdXJjZXMSNgoIc2VjdGlvbnMYEiADKAsyJC5iYWNrcGxhbmUudjEuTWFuaWZlc3QuU2VjdGlvbnNFbnRyeRpFCg1TZWN0aW9uc0VudHJ5EgsKA2tleRgBIAEoCRIjCgV2YWx1ZRgCIAEoCzIULmdvb2dsZS5wcm90b2J1Zi5Bbnk6AjgBSgQIBRAGUgZzdGF0aWNSB2R5bmFtaWMijQEKClNlY3Rpb25TZXQSOAoIc2VydmljZXMYASADKAsyJi5iYWNrcGxhbmUudjEuU2VjdGlvblNldC5TZXJ2aWNlc0VudHJ5GkUKDVNlcnZpY2VzRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuZ29vZ2xlLnByb3RvYnVmLkFueToCOAEikQEKF1RlbGVtZXRyeVNvdXJjZVNlbGVjdG9yEkUKCHJlc291cmNlGAEgAygLMjMuYmFja3BsYW5lLnYxLlRlbGVtZXRyeVNvdXJjZVNlbGVjdG9yLlJlc291cmNlRW50cnkaLwoNUmVzb3VyY2VFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkwKEFRlbGVtZXRyeVNvdXJjZXMSOAoJc2VsZWN0b3JzGAEgAygLMiUuYmFja3BsYW5lLnYxLlRlbGVtZXRyeVNvdXJjZVNlbGVjdG9yIk0KDUNvbmZpZ1NlY3Rpb24SDAoEa2V5cxgBIAMoCRIgCgZzY2hlbWEYAiABKAsyEC5zY2hlbWFwYi5TY2hlbWESDAoEbGl2ZRgDIAMoCSJMCgROb2RlEgwKBHBhdGgYASABKAkSJAoEa2luZBgCIAEoDjIWLmJhY2twbGFuZS52MS5Ob2RlS2luZBIQCghvcHRpb25hbBgDIAEoCCLuAQoDQVBJEg4KBnByZWZpeBgBIAEoCRIMCgRob3N0GAIgASgJEiMKBGtpbmQYAyABKA4yFS5iYWNrcGxhbmUudjEuQXBpS2luZBIMCgRwb3J0GAQgASgNEhAKCHNlcnZpY2VzGAggAygJEhEKB29wZW5hcGkYBSABKAxIABIVCgtkZXNjcmlwdG9ycxgGIAEoDEgAEhEKB2dyYXBocWwYByABKAxIABIvCgZidW5kbGUYCiABKAsyHS5iYWNrcGxhbmUudjEuQVBJU2NoZW1hQnVuZGxlSABCCAoGc2NoZW1hSgQICRAKUgZwb2xpY3kiWgoPQVBJU2NoZW1hQnVuZGxlEgwKBGhhc2gYASABKAkSDQoFZW50cnkYAiABKAkSKgoGZm9ybWF0GAMgASgOMhouYmFja3BsYW5lLnYxLlNjaGVtYUZvcm1hdCJMCgVFdmVudBIMCgRuYW1lGAEgASgJEiAKBnNjaGVtYRgCIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRITCgtkZXNjcmlwdGlvbhgDIAEoCSIvCgxTdWJzY3JpcHRpb24SDQoFZXZlbnQYASABKAkSEAoIY29uc3VtZXIYAiABKAkiqgEKBEhvb2sSDAoEbmFtZRgBIAEoCRIfCgVpbnB1dBgCIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIgCgZvdXRwdXQYAyABKAsyEC5zY2hlbWFwYi5TY2hlbWESEAoIcmVxdWlyZWQYBCABKAgSKgoHdGltZW91dBgFIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhITCgtkZXNjcmlwdGlvbhgGIAEoCSKnAgoIQWN0aXZpdHkSDAoEbmFtZRgBIAEoCRIfCgVpbnB1dBgCIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIgCgZvdXRwdXQYAyABKAsyEC5zY2hlbWFwYi5TY2hlbWESKAoEa2luZBgEIAEoDjIaLmJhY2twbGFuZS52MS5BY3Rpdml0eUtpbmQSMQoOc3RhcnRfdG9fY2xvc2UYBSABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SLAoJaGVhcnRiZWF0GAYgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEioKBXJldHJ5GAcgASgLMhsuYmFja3BsYW5lLnYxLkFjdGl2aXR5UmV0cnkSEwoLZGVzY3JpcHRpb24YCCABKAkiZQoNQWN0aXZpdHlSZXRyeRIQCghhdHRlbXB0cxgBIAEoDRIyCg9wZXJfdHJ5X3RpbWVvdXQYAiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb25KBAgDEARSCHJldHJ5X29uInAKCFdvcmtmbG93EgwKBG5hbWUYASABKAkSHwoFaW5wdXQYAiABKAsyEC5zY2hlbWFwYi5TY2hlbWESIAoGb3V0cHV0GAMgASgLMhAuc2NoZW1hcGIuU2NoZW1hEhMKC2Rlc2NyaXB0aW9uGAQgASgJIiUKAlVJEgwKBGhhc2gYASABKAkSEQoJc2RrX21ham9yGAIgASgNIuwBCghTY2hlZHVsZRIMCgRuYW1lGAEgASgJEg4KBGNyb24YAiABKAlIABIqCgVldmVyeRgDIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbkgAEhAKCHdvcmtmbG93GAQgASgJEi4KB292ZXJsYXAYBSABKA4yHS5iYWNrcGxhbmUudjEuU2NoZWR1bGVPdmVybGFwEg4KBnBhdXNlZBgGIAEoCBIRCgl0aW1lX3pvbmUYByABKAkSKQoGaml0dGVyGAggASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uQgYKBHNwZWMqcQoITm9kZUtpbmQSGQoVTk9ERV9LSU5EX1VOU1BFQ0lGSUVEEAASFwoTTk9ERV9LSU5EX0NPTVBPTkVOVBABEhgKFE5PREVfS0lORF9ERVBFTkRFTkNZEAISFwoTTk9ERV9LSU5EX1NJTkdMRVRPThADKmMKDFNjaGVtYUZvcm1hdBIdChlTQ0hFTUFfRk9STUFUX1VOU1BFQ0lGSUVEEAASGQoVU0NIRU1BX0ZPUk1BVF9PUEVOQVBJEAESGQoVU0NIRU1BX0ZPUk1BVF9HUkFQSFFMEAIqkAEKB0FwaUtpbmQSGAoUQVBJX0tJTkRfVU5TUEVDSUZJRUQQABIRCg1BUElfS0lORF9IVFRQEAESEQoNQVBJX0tJTkRfR1JQQxACEhUKEUFQSV9LSU5EX1dTX1BST1RPEAQSFAoQQVBJX0tJTkRfR1JBUEhRTBAFIgQIAxADKhJST1VURV9LSU5EX0NPTk5FQ1QqZQoMQWN0aXZpdHlLaW5kEh0KGUFDVElWSVRZX0tJTkRfVU5TUEVDSUZJRUQQABIaChZBQ1RJVklUWV9LSU5EX0FDVElWSVRZEAESGgoWQUNUSVZJVFlfS0lORF9XT1JLRkxPVxACKvkBCg9TY2hlZHVsZU92ZXJsYXASIAocU0NIRURVTEVfT1ZFUkxBUF9VTlNQRUNJRklFRBAAEhkKFVNDSEVEVUxFX09WRVJMQVBfU0tJUBABEh8KG1NDSEVEVUxFX09WRVJMQVBfQlVGRkVSX09ORRACEh8KG1NDSEVEVUxFX09WRVJMQVBfQlVGRkVSX0FMTBADEiEKHVNDSEVEVUxFX09WRVJMQVBfQ0FOQ0VMX09USEVSEAQSJAogU0NIRURVTEVfT1ZFUkxBUF9URVJNSU5BVEVfT1RIRVIQBRIeChpTQ0hFRFVMRV9PVkVSTEFQX0FMTE9XX0FMTBAGQkBaPmdpdGh1Yi5jb20vYmFja3BsYW5lLWxhYnMvYmFja3BsYW5lL2JhY2twbGFuZXBiL3YxO2JhY2twbGFuZXYxYgZwcm90bzM", [file_google_protobuf_any, file_google_protobuf_duration, file_schemapb_schema]);
+  fileDesc("Ch1iYWNrcGxhbmVwYi92MS9tYW5pZmVzdC5wcm90bxIMYmFja3BsYW5lLnYxIrAFCghNYW5pZmVzdBIPCgdzZXJ2aWNlGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSEwoLc2RrX3ZlcnNpb24YAyABKAkSKwoGY29uZmlnGAQgASgLMhsuYmFja3BsYW5lLnYxLkNvbmZpZ1NlY3Rpb24SHwoEYXBpcxgGIAMoCzIRLmJhY2twbGFuZS52MS5BUEkSGQoRaW50ZXJuYWxfc2VydmljZXMYByADKAkSIwoGZXZlbnRzGAggAygLMhMuYmFja3BsYW5lLnYxLkV2ZW50EiEKBWhvb2tzGAkgAygLMhIuYmFja3BsYW5lLnYxLkhvb2sSKgoKYWN0aXZpdGllcxgKIAMoCzIWLmJhY2twbGFuZS52MS5BY3Rpdml0eRIcCgJ1aRgLIAEoCzIQLmJhY2twbGFuZS52MS5VSRITCgtkZXNjcmlwdG9ycxgNIAEoDBIxCg1zdWJzY3JpcHRpb25zGA4gAygLMhouYmFja3BsYW5lLnYxLlN1YnNjcmlwdGlvbhIpCglzY2hlZHVsZXMYDyADKAsyFi5iYWNrcGxhbmUudjEuU2NoZWR1bGUSKQoJd29ya2Zsb3dzGBAgAygLMhYuYmFja3BsYW5lLnYxLldvcmtmbG93EjEKCXRlbGVtZXRyeRgRIAEoCzIeLmJhY2twbGFuZS52MS5UZWxlbWV0cnlTb3VyY2VzEjYKCHNlY3Rpb25zGBIgAygLMiQuYmFja3BsYW5lLnYxLk1hbmlmZXN0LlNlY3Rpb25zRW50cnkaRQoNU2VjdGlvbnNFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5nb29nbGUucHJvdG9idWYuQW55OgI4AUoECAUQBkoECAwQDVIGc3RhdGljUgdkeW5hbWljUgVub2RlcyKNAQoKU2VjdGlvblNldBI4CghzZXJ2aWNlcxgBIAMoCzImLmJhY2twbGFuZS52MS5TZWN0aW9uU2V0LlNlcnZpY2VzRW50cnkaRQoNU2VydmljZXNFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5nb29nbGUucHJvdG9idWYuQW55OgI4ASKRAQoXVGVsZW1ldHJ5U291cmNlU2VsZWN0b3ISRQoIcmVzb3VyY2UYASADKAsyMy5iYWNrcGxhbmUudjEuVGVsZW1ldHJ5U291cmNlU2VsZWN0b3IuUmVzb3VyY2VFbnRyeRovCg1SZXNvdXJjZUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiTAoQVGVsZW1ldHJ5U291cmNlcxI4CglzZWxlY3RvcnMYASADKAsyJS5iYWNrcGxhbmUudjEuVGVsZW1ldHJ5U291cmNlU2VsZWN0b3IiTQoNQ29uZmlnU2VjdGlvbhIMCgRrZXlzGAEgAygJEiAKBnNjaGVtYRgCIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIMCgRsaXZlGAMgAygJIv4BCgNBUEkSDgoGcHJlZml4GAEgASgJEgwKBGhvc3QYAiABKAkSIwoEa2luZBgDIAEoDjIVLmJhY2twbGFuZS52MS5BcGlLaW5kEhAKCGxpc3RlbmVyGAsgASgJEhAKCHNlcnZpY2VzGAggAygJEhEKB29wZW5hcGkYBSABKAxIABIVCgtkZXNjcmlwdG9ycxgGIAEoDEgAEhEKB2dyYXBocWwYByABKAxIABIvCgZidW5kbGUYCiABKAsyHS5iYWNrcGxhbmUudjEuQVBJU2NoZW1hQnVuZGxlSABCCAoGc2NoZW1hSgQIBBAFSgQICRAKUgRwb3J0UgZwb2xpY3kiWgoPQVBJU2NoZW1hQnVuZGxlEgwKBGhhc2gYASABKAkSDQoFZW50cnkYAiABKAkSKgoGZm9ybWF0GAMgASgOMhouYmFja3BsYW5lLnYxLlNjaGVtYUZvcm1hdCJMCgVFdmVudBIMCgRuYW1lGAEgASgJEiAKBnNjaGVtYRgCIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRITCgtkZXNjcmlwdGlvbhgDIAEoCSIvCgxTdWJzY3JpcHRpb24SDQoFZXZlbnQYASABKAkSEAoIY29uc3VtZXIYAiABKAkiqgEKBEhvb2sSDAoEbmFtZRgBIAEoCRIfCgVpbnB1dBgCIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIgCgZvdXRwdXQYAyABKAsyEC5zY2hlbWFwYi5TY2hlbWESEAoIcmVxdWlyZWQYBCABKAgSKgoHdGltZW91dBgFIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhITCgtkZXNjcmlwdGlvbhgGIAEoCSKnAgoIQWN0aXZpdHkSDAoEbmFtZRgBIAEoCRIfCgVpbnB1dBgCIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIgCgZvdXRwdXQYAyABKAsyEC5zY2hlbWFwYi5TY2hlbWESKAoEa2luZBgEIAEoDjIaLmJhY2twbGFuZS52MS5BY3Rpdml0eUtpbmQSMQoOc3RhcnRfdG9fY2xvc2UYBSABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SLAoJaGVhcnRiZWF0GAYgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEioKBXJldHJ5GAcgASgLMhsuYmFja3BsYW5lLnYxLkFjdGl2aXR5UmV0cnkSEwoLZGVzY3JpcHRpb24YCCABKAkiZQoNQWN0aXZpdHlSZXRyeRIQCghhdHRlbXB0cxgBIAEoDRIyCg9wZXJfdHJ5X3RpbWVvdXQYAiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb25KBAgDEARSCHJldHJ5X29uInAKCFdvcmtmbG93EgwKBG5hbWUYASABKAkSHwoFaW5wdXQYAiABKAsyEC5zY2hlbWFwYi5TY2hlbWESIAoGb3V0cHV0GAMgASgLMhAuc2NoZW1hcGIuU2NoZW1hEhMKC2Rlc2NyaXB0aW9uGAQgASgJIiUKAlVJEgwKBGhhc2gYASABKAkSEQoJc2RrX21ham9yGAIgASgNIuwBCghTY2hlZHVsZRIMCgRuYW1lGAEgASgJEg4KBGNyb24YAiABKAlIABIqCgVldmVyeRgDIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbkgAEhAKCHdvcmtmbG93GAQgASgJEi4KB292ZXJsYXAYBSABKA4yHS5iYWNrcGxhbmUudjEuU2NoZWR1bGVPdmVybGFwEg4KBnBhdXNlZBgGIAEoCBIRCgl0aW1lX3pvbmUYByABKAkSKQoGaml0dGVyGAggASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uQgYKBHNwZWMqYwoMU2NoZW1hRm9ybWF0Eh0KGVNDSEVNQV9GT1JNQVRfVU5TUEVDSUZJRUQQABIZChVTQ0hFTUFfRk9STUFUX09QRU5BUEkQARIZChVTQ0hFTUFfRk9STUFUX0dSQVBIUUwQAiqQAQoHQXBpS2luZBIYChRBUElfS0lORF9VTlNQRUNJRklFRBAAEhEKDUFQSV9LSU5EX0hUVFAQARIRCg1BUElfS0lORF9HUlBDEAISFQoRQVBJX0tJTkRfV1NfUFJPVE8QBBIUChBBUElfS0lORF9HUkFQSFFMEAUiBAgDEAMqElJPVVRFX0tJTkRfQ09OTkVDVCplCgxBY3Rpdml0eUtpbmQSHQoZQUNUSVZJVFlfS0lORF9VTlNQRUNJRklFRBAAEhoKFkFDVElWSVRZX0tJTkRfQUNUSVZJVFkQARIaChZBQ1RJVklUWV9LSU5EX1dPUktGTE9XEAIq+QEKD1NjaGVkdWxlT3ZlcmxhcBIgChxTQ0hFRFVMRV9PVkVSTEFQX1VOU1BFQ0lGSUVEEAASGQoVU0NIRURVTEVfT1ZFUkxBUF9TS0lQEAESHwobU0NIRURVTEVfT1ZFUkxBUF9CVUZGRVJfT05FEAISHwobU0NIRURVTEVfT1ZFUkxBUF9CVUZGRVJfQUxMEAMSIQodU0NIRURVTEVfT1ZFUkxBUF9DQU5DRUxfT1RIRVIQBBIkCiBTQ0hFRFVMRV9PVkVSTEFQX1RFUk1JTkFURV9PVEhFUhAFEh4KGlNDSEVEVUxFX09WRVJMQVBfQUxMT1dfQUxMEAZCQFo+Z2l0aHViLmNvbS9iYWNrcGxhbmUtbGFicy9iYWNrcGxhbmUvYmFja3BsYW5lcGIvdjE7YmFja3BsYW5ldjFiBnByb3RvMw", [file_google_protobuf_any, file_google_protobuf_duration, file_schemapb_schema]);
 
 /**
  * Manifest is everything a service declares. The SDK assembles it at start
@@ -83,14 +83,6 @@ export type Manifest = Message<"backplane.v1.Manifest"> & {
    * @generated from field: backplane.v1.UI ui = 11;
    */
   ui?: UI | undefined;
-
-  /**
-   * The node tree the author composed, depth-first in creation (= start)
-   * order.
-   *
-   * @generated from field: repeated backplane.v1.Node nodes = 12;
-   */
-  nodes: Node[];
 
   /**
    * Serialized FileDescriptorSet covering every service named by a managed
@@ -241,39 +233,6 @@ export const ConfigSectionSchema: GenMessage<ConfigSection> = /*@__PURE__*/
   messageDesc(file_backplanepb_v1_manifest, 4);
 
 /**
- * A node of the service tree: component, dependency or singleton.
- *
- * @generated from message backplane.v1.Node
- */
-export type Node = Message<"backplane.v1.Node"> & {
-  /**
-   * Place in the tree: "users", "users/templates".
-   *
-   * @generated from field: string path = 1;
-   */
-  path: string;
-
-  /**
-   * @generated from field: backplane.v1.NodeKind kind = 2;
-   */
-  kind: NodeKind;
-
-  /**
-   * Optional dependencies do not hold readiness.
-   *
-   * @generated from field: bool optional = 3;
-   */
-  optional: boolean;
-};
-
-/**
- * Describes the message backplane.v1.Node.
- * Use `create(NodeSchema)` to create a new message.
- */
-export const NodeSchema: GenMessage<Node> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 5);
-
-/**
  * An API served by the service. Does not configure external routing.
  *
  * @generated from message backplane.v1.API
@@ -299,12 +258,13 @@ export type API = Message<"backplane.v1.API"> & {
   kind: ApiKind;
 
   /**
-   * Port of the external API this route leads to; 0 = the port registered
-   * in Consul.
+   * The listener the route is served on, by the name the code gives it
+   * (api.Listen, api.Port); empty: the default public port. Its port is the
+   * instance's: InstanceState.public_port and listeners.
    *
-   * @generated from field: uint32 port = 4;
+   * @generated from field: string listener = 11;
    */
-  port: number;
+  listener: string;
 
   /**
    * gRPC and ws-proto: full names of the services behind the
@@ -360,7 +320,7 @@ export type API = Message<"backplane.v1.API"> & {
  * Use `create(APISchema)` to create a new message.
  */
 export const APISchema: GenMessage<API> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 6);
+  messageDesc(file_backplanepb_v1_manifest, 5);
 
 /**
  * An immutable API file snapshot, delivered separately from the manifest.
@@ -391,7 +351,7 @@ export type APISchemaBundle = Message<"backplane.v1.APISchemaBundle"> & {
  * Use `create(APISchemaBundleSchema)` to create a new message.
  */
 export const APISchemaBundleSchema: GenMessage<APISchemaBundle> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 7);
+  messageDesc(file_backplanepb_v1_manifest, 6);
 
 /**
  * @generated from message backplane.v1.Event
@@ -418,7 +378,7 @@ export type Event = Message<"backplane.v1.Event"> & {
  * Use `create(EventSchema)` to create a new message.
  */
 export const EventSchema: GenMessage<Event> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 8);
+  messageDesc(file_backplanepb_v1_manifest, 7);
 
 /**
  * A reactor: a durable consumer of another service's event.
@@ -447,7 +407,7 @@ export type Subscription = Message<"backplane.v1.Subscription"> & {
  * Use `create(SubscriptionSchema)` to create a new message.
  */
 export const SubscriptionSchema: GenMessage<Subscription> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 9);
+  messageDesc(file_backplanepb_v1_manifest, 8);
 
 /**
  * An operation the service calls without implementing it.
@@ -495,7 +455,7 @@ export type Hook = Message<"backplane.v1.Hook"> & {
  * Use `create(HookSchema)` to create a new message.
  */
 export const HookSchema: GenMessage<Hook> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 10);
+  messageDesc(file_backplanepb_v1_manifest, 9);
 
 /**
  * An operation the service implements; a binding step target.
@@ -551,7 +511,7 @@ export type Activity = Message<"backplane.v1.Activity"> & {
  * Use `create(ActivitySchema)` to create a new message.
  */
 export const ActivitySchema: GenMessage<Activity> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 11);
+  messageDesc(file_backplanepb_v1_manifest, 10);
 
 /**
  * Default retries for a binding step executing this activity or workflow.
@@ -575,7 +535,7 @@ export type ActivityRetry = Message<"backplane.v1.ActivityRetry"> & {
  * Use `create(ActivityRetrySchema)` to create a new message.
  */
 export const ActivityRetrySchema: GenMessage<ActivityRetry> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 12);
+  messageDesc(file_backplanepb_v1_manifest, 11);
 
 /**
  * A workflow of the service the console may start with a form.
@@ -611,7 +571,7 @@ export type Workflow = Message<"backplane.v1.Workflow"> & {
  * Use `create(WorkflowSchema)` to create a new message.
  */
 export const WorkflowSchema: GenMessage<Workflow> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 13);
+  messageDesc(file_backplanepb_v1_manifest, 12);
 
 /**
  * @generated from message backplane.v1.UI
@@ -635,7 +595,7 @@ export type UI = Message<"backplane.v1.UI"> & {
  * Use `create(UISchema)` to create a new message.
  */
 export const UISchema: GenMessage<UI> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 14);
+  messageDesc(file_backplanepb_v1_manifest, 13);
 
 /**
  * A Temporal Schedule the service declares; the SDK reconciles it at start.
@@ -714,38 +674,7 @@ export type Schedule = Message<"backplane.v1.Schedule"> & {
  * Use `create(ScheduleSchema)` to create a new message.
  */
 export const ScheduleSchema: GenMessage<Schedule> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 15);
-
-/**
- * @generated from enum backplane.v1.NodeKind
- */
-export enum NodeKind {
-  /**
-   * @generated from enum value: NODE_KIND_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: NODE_KIND_COMPONENT = 1;
-   */
-  COMPONENT = 1,
-
-  /**
-   * @generated from enum value: NODE_KIND_DEPENDENCY = 2;
-   */
-  DEPENDENCY = 2,
-
-  /**
-   * @generated from enum value: NODE_KIND_SINGLETON = 3;
-   */
-  SINGLETON = 3,
-}
-
-/**
- * Describes the enum backplane.v1.NodeKind.
- */
-export const NodeKindSchema: GenEnum<NodeKind> = /*@__PURE__*/
-  enumDesc(file_backplanepb_v1_manifest, 0);
+  messageDesc(file_backplanepb_v1_manifest, 14);
 
 /**
  * @generated from enum backplane.v1.SchemaFormat
@@ -771,7 +700,7 @@ export enum SchemaFormat {
  * Describes the enum backplane.v1.SchemaFormat.
  */
 export const SchemaFormatSchema: GenEnum<SchemaFormat> = /*@__PURE__*/
-  enumDesc(file_backplanepb_v1_manifest, 1);
+  enumDesc(file_backplanepb_v1_manifest, 0);
 
 /**
  * @generated from enum backplane.v1.ApiKind
@@ -807,7 +736,7 @@ export enum ApiKind {
  * Describes the enum backplane.v1.ApiKind.
  */
 export const ApiKindSchema: GenEnum<ApiKind> = /*@__PURE__*/
-  enumDesc(file_backplanepb_v1_manifest, 2);
+  enumDesc(file_backplanepb_v1_manifest, 1);
 
 /**
  * @generated from enum backplane.v1.ActivityKind
@@ -837,7 +766,7 @@ export enum ActivityKind {
  * Describes the enum backplane.v1.ActivityKind.
  */
 export const ActivityKindSchema: GenEnum<ActivityKind> = /*@__PURE__*/
-  enumDesc(file_backplanepb_v1_manifest, 3);
+  enumDesc(file_backplanepb_v1_manifest, 2);
 
 /**
  * What a start does while the previous run is still going.
@@ -897,5 +826,5 @@ export enum ScheduleOverlap {
  * Describes the enum backplane.v1.ScheduleOverlap.
  */
 export const ScheduleOverlapSchema: GenEnum<ScheduleOverlap> = /*@__PURE__*/
-  enumDesc(file_backplanepb_v1_manifest, 4);
+  enumDesc(file_backplanepb_v1_manifest, 3);
 

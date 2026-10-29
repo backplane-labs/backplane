@@ -23,6 +23,9 @@ var (
 
 // Managed is a route the SDK serves.
 type Managed struct {
+	// Listener names the route's own listener (api.Listen), Listen is its
+	// address; both empty: the default public port.
+	Listener    string
 	Listen      string
 	Host        string
 	OpenAPI     []byte // HTTP

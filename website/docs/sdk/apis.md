@@ -23,7 +23,12 @@ These methods serve native gRPC, ws-proto, HTTP and the author's GraphQL handler
 They do not create Connect, gRPC-Web or REST/JSON conversion around gRPC.
 If those protocols are needed, the author implements them or configures them in deployment.
 
-`api.Listen(":8082")` selects a separate managed listener. `api.Host("api.example.com")`
+`api.Listen("admin", cfg.AdminListen)` selects a separate managed listener: its name is
+fixed in code, its address usually comes from configuration. The manifest records the
+route's listener by name; the instance state records the port of every listener
+(`public_port` for the default one, `listeners` by name), so the manifest of a version
+does not depend on configuration. A name has one address and an address one name, or
+`Run` fails. `api.Host("api.example.com")`
 restricts managed HTTP/GraphQL/ws-proto handler selection by Host. Empty Host accepts
 any host; exact names and wildcard suffixes are supported. HTTP prefixes are normalized
 to end in `/`; `/api` redirects to `/api/`. Duplicate host/prefix pairs on one listener
@@ -72,7 +77,7 @@ port to services of the mesh only, and `CallerOf` says which one called:
 ```go
 // The server: only services may call, and the call knows who.
 svc.GRPC(func(r grpc.ServiceRegistrar) { syncv1.RegisterSyncAdminServiceServer(r, admin) },
-	api.Listen(":9090"), api.MTLS())
+	api.Listen("admin", cfg.AdminListen), api.MTLS())
 
 func (a admin) Purge(ctx context.Context, in *syncv1.PurgeRequest) (*syncv1.PurgeResponse, error) {
 	caller, _ := backplane.CallerOf(ctx) // caller.Service == "feed"
@@ -177,15 +182,16 @@ Describe an API that your own server already serves:
 
 ```go
 svc.API(api.HTTP("/legacy/",
-    api.Port(8083),
+    api.Port("legacy", legacy.Port()),
     api.OpenAPI(document)))
 ```
 
 This only adds catalog metadata and optional schema files. It does not start a
-listener, check reachability, create routes, or choose a public URL. `api.Port(0)`
-means the primary public port recorded in Consul; specify the port when the author
-owns a separate listener. `api.GRPC`, `api.GraphQL` and `api.WSProto` provide the
-corresponding declarations.
+listener, check reachability, create routes, or choose a public URL. `api.Port`
+names the author's listener and gives its port, which goes to the instance state
+like a managed listener's; without it the route is on the default public port. The
+name is not also an `api.Listen` name, and has one port. `api.GRPC`, `api.GraphQL`
+and `api.WSProto` provide the corresponding declarations.
 
 ## Internal module API
 

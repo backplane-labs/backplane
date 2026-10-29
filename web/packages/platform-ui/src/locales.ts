@@ -35,7 +35,7 @@ export const platformEnglish = {
   select: 'Select', consumer: 'Consumer', sequence: 'Sequence', failure: 'Failure', history: 'History', selectAction: 'Select an action',
   draftHelp: 'JSON request fields follow the generated API contract. Integer fields use decimal strings.',
   noSelection: 'Select at least one message.', schema: 'Configuration schema',
-  phase: 'Phase', address: 'Address', uptime: 'Uptime', config: 'Config', noInstances: 'No instances registered.',
+  phase: 'Phase', address: 'Address', ports: 'Ports', uptime: 'Uptime', config: 'Config', noInstances: 'No instances registered.',
   about: 'About', sdk: 'SDK', knownVersions: 'Known versions', internalApi: 'Internal API', yes: 'Yes', no: 'No', uiModule: 'UI module',
   configKeys: 'Config keys', liveCount_one: '{{count}} live', liveCount_other: '{{count}} live', components: 'Components', noComponents: 'No components declared.',
   instanceDetail: 'Instance state as published by its SDK.', catalogOnly: 'Known to the catalog only', revApplied: 'rev {{revision}} applied', revRejected: 'rev {{revision}} rejected',

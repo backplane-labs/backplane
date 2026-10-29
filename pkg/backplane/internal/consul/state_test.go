@@ -227,6 +227,7 @@ func TestStateCarriesNodesTransportsRevisions(t *testing.T) {
 	f, c := newFake(t)
 	id := testID
 	id.Commit = "abc123"
+	id.Listeners = map[string]uint16{"": 8080, "admin": 9001}
 	key := stateKey(id)
 	statuses := &nodesAndTransports{}
 	cfg := &fakeConfig{values: []byte("{}")}
@@ -247,6 +248,10 @@ func TestStateCarriesNodesTransportsRevisions(t *testing.T) {
 	if st.GetCommit() != "abc123" || st.GetConfigRevision() != 7 || st.GetConfigRejectedRevision() != 8 ||
 		st.GetConfigError() != errTest.Error() {
 		t.Fatalf("state: %v", st)
+	}
+
+	if st.GetPublicPort() != 8080 || len(st.GetListeners()) != 1 || st.GetListeners()["admin"] != 9001 {
+		t.Fatalf("ports: public %d listeners %v", st.GetPublicPort(), st.GetListeners())
 	}
 
 	names := make([]string, 0, len(st.GetTransports()))
@@ -367,8 +372,8 @@ func TestManifestDiff(t *testing.T) {
 	base := func() *backplanev1.Manifest {
 		return &backplanev1.Manifest{
 			Service: "svc", Version: "1.0.0",
-			Apis:  []*backplanev1.API{{Prefix: "/", Port: 8080}},
-			Nodes: []*backplanev1.Node{{Path: "db", Kind: backplanev1.NodeKind_NODE_KIND_DEPENDENCY}},
+			Apis:   []*backplanev1.API{{Prefix: "/"}},
+			Events: []*backplanev1.Event{{Name: "Seen"}},
 		}
 	}
 
@@ -377,11 +382,11 @@ func TestManifestDiff(t *testing.T) {
 		edit func(m *backplanev1.Manifest)
 		want string
 	}{
-		{"port", func(m *backplanev1.Manifest) { m.Apis[0].Port = 9090 }, "apis"},
-		{"port and nodes", func(m *backplanev1.Manifest) {
-			m.Apis[0].Port = 9090
-			m.Nodes = nil
-		}, "apis,nodes"},
+		{"listener", func(m *backplanev1.Manifest) { m.Apis[0].Listener = "admin" }, "apis"},
+		{"listener and events", func(m *backplanev1.Manifest) {
+			m.Apis[0].Listener = "admin"
+			m.Events = nil
+		}, "apis,events"},
 		{"sdk", func(m *backplanev1.Manifest) { m.SdkVersion = "v2" }, "sdk_version"},
 		// Field 1023, varint 1: unknown to this SDK.
 		{"unknown only", func(m *backplanev1.Manifest) { m.ProtoReflect().SetUnknown([]byte{0xf8, 0x3f, 0x01}) }, "unknown fields"},
@@ -400,8 +405,8 @@ func TestManifestDiff(t *testing.T) {
 }
 
 func BenchmarkManifestDiff(b *testing.B) {
-	a := &backplanev1.Manifest{Service: "svc", Version: "1.0.0", Apis: []*backplanev1.API{{Prefix: "/", Port: 8080}}}
-	c := &backplanev1.Manifest{Service: "svc", Version: "1.0.0", Apis: []*backplanev1.API{{Prefix: "/", Port: 9090}}}
+	a := &backplanev1.Manifest{Service: "svc", Version: "1.0.0", Apis: []*backplanev1.API{{Prefix: "/"}}}
+	c := &backplanev1.Manifest{Service: "svc", Version: "1.0.0", Apis: []*backplanev1.API{{Prefix: "/", Listener: "admin"}}}
 
 	for b.Loop() {
 		consul.ManifestDiff(a, c)

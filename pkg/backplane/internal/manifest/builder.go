@@ -109,15 +109,6 @@ func (b *Builder) Config(schema *sp.Schema, live []string) {
 	})
 }
 
-// Nodes records the node tree.
-func (b *Builder) Nodes(nodes []*backplanev1.Node) {
-	b.with("nodes", func(m *backplanev1.Manifest) error {
-		m.Nodes = nodes
-
-		return nil
-	})
-}
-
 // API records an API; duplicate host, prefix and port declarations are errors.
 func (b *Builder) API(r *backplanev1.API) {
 	b.with("route", func(m *backplanev1.Manifest) error {
@@ -137,7 +128,7 @@ func matchOf(r *backplanev1.API) string {
 		match = "host " + r.GetHost() + " " + match
 	}
 
-	return fmt.Sprintf("%s on port %d", match, r.GetPort())
+	return fmt.Sprintf("%s on listener %q", match, r.GetListener())
 }
 
 // Internal records internal API service names.

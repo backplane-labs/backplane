@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file backplanepb/v1/instance.proto.
  */
 export const file_backplanepb_v1_instance: GenFile = /*@__PURE__*/
-  fileDesc("Ch1iYWNrcGxhbmVwYi92MS9pbnN0YW5jZS5wcm90bxIMYmFja3BsYW5lLnYxIq4FCg1JbnN0YW5jZVN0YXRlEgoKAmlkGAEgASgJEg8KB3NlcnZpY2UYAiABKAkSDwoHdmVyc2lvbhgDIAEoCRIPCgdhZGRyZXNzGAQgASgJEhUKDXBsYXRmb3JtX3BvcnQYBSABKA0SLgoKc3RhcnRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGY29uZmlnGAcgASgMEjkKB3NvdXJjZXMYCCADKAsyKC5iYWNrcGxhbmUudjEuSW5zdGFuY2VTdGF0ZS5Tb3VyY2VzRW50cnkSFwoPY29uZmlnX3JldmlzaW9uGAkgASgEEhQKDGNvbmZpZ19lcnJvchgKIAEoCRIgChhjb25maWdfcmVqZWN0ZWRfcmV2aXNpb24YCyABKAQSKgoFcGhhc2UYDCABKA4yGy5iYWNrcGxhbmUudjEuSW5zdGFuY2VQaGFzZRInCgVub2RlcxgNIAMoCzIYLmJhY2twbGFuZS52MS5Ob2RlU3RhdHVzEjEKCnRyYW5zcG9ydHMYDiADKAsyHS5iYWNrcGxhbmUudjEuVHJhbnNwb3J0U3RhdHVzEhMKC3Nka192ZXJzaW9uGA8gASgJEg4KBmNvbW1pdBgQIAEoCRI7CghzZWN0aW9ucxgRIAMoCzIpLmJhY2twbGFuZS52MS5JbnN0YW5jZVN0YXRlLlNlY3Rpb25zRW50cnkaSgoMU291cmNlc0VudHJ5EgsKA2tleRgBIAEoCRIpCgV2YWx1ZRgCIAEoDjIaLmJhY2twbGFuZS52MS5Db25maWdTb3VyY2U6AjgBGkUKDVNlY3Rpb25zRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuZ29vZ2xlLnByb3RvYnVmLkFueToCOAEiOAoKTm9kZVN0YXR1cxIMCgRwYXRoGAEgASgJEg0KBXJlYWR5GAIgASgIEg0KBWVycm9yGAMgASgJIkEKD1RyYW5zcG9ydFN0YXR1cxIMCgRuYW1lGAEgASgJEhEKCWNvbm5lY3RlZBgCIAEoCBINCgVlcnJvchgDIAEoCSqFAQoNSW5zdGFuY2VQaGFzZRIeChpJTlNUQU5DRV9QSEFTRV9VTlNQRUNJRklFRBAAEhsKF0lOU1RBTkNFX1BIQVNFX1NUQVJUSU5HEAESGgoWSU5TVEFOQ0VfUEhBU0VfU0VSVklORxACEhsKF0lOU1RBTkNFX1BIQVNFX1NUT1BQSU5HEAMqjQEKDENvbmZpZ1NvdXJjZRIdChlDT05GSUdfU09VUkNFX1VOU1BFQ0lGSUVEEAASGQoVQ09ORklHX1NPVVJDRV9ERUZBVUxUEAESFgoSQ09ORklHX1NPVVJDRV9GSUxFEAISFQoRQ09ORklHX1NPVVJDRV9FTlYQAxIUChBDT05GSUdfU09VUkNFX0tWEARCQFo+Z2l0aHViLmNvbS9iYWNrcGxhbmUtbGFicy9iYWNrcGxhbmUvYmFja3BsYW5lcGIvdjE7YmFja3BsYW5ldjFiBnByb3RvMw", [file_google_protobuf_any, file_google_protobuf_timestamp]);
+  fileDesc("Ch1iYWNrcGxhbmVwYi92MS9pbnN0YW5jZS5wcm90bxIMYmFja3BsYW5lLnYxIrQGCg1JbnN0YW5jZVN0YXRlEgoKAmlkGAEgASgJEg8KB3NlcnZpY2UYAiABKAkSDwoHdmVyc2lvbhgDIAEoCRIPCgdhZGRyZXNzGAQgASgJEhUKDXBsYXRmb3JtX3BvcnQYBSABKA0SLgoKc3RhcnRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGY29uZmlnGAcgASgMEjkKB3NvdXJjZXMYCCADKAsyKC5iYWNrcGxhbmUudjEuSW5zdGFuY2VTdGF0ZS5Tb3VyY2VzRW50cnkSFwoPY29uZmlnX3JldmlzaW9uGAkgASgEEhQKDGNvbmZpZ19lcnJvchgKIAEoCRIgChhjb25maWdfcmVqZWN0ZWRfcmV2aXNpb24YCyABKAQSKgoFcGhhc2UYDCABKA4yGy5iYWNrcGxhbmUudjEuSW5zdGFuY2VQaGFzZRInCgVub2RlcxgNIAMoCzIYLmJhY2twbGFuZS52MS5Ob2RlU3RhdHVzEjEKCnRyYW5zcG9ydHMYDiADKAsyHS5iYWNrcGxhbmUudjEuVHJhbnNwb3J0U3RhdHVzEhMKC3Nka192ZXJzaW9uGA8gASgJEg4KBmNvbW1pdBgQIAEoCRI7CghzZWN0aW9ucxgRIAMoCzIpLmJhY2twbGFuZS52MS5JbnN0YW5jZVN0YXRlLlNlY3Rpb25zRW50cnkSEwoLcHVibGljX3BvcnQYEiABKA0SPQoJbGlzdGVuZXJzGBMgAygLMiouYmFja3BsYW5lLnYxLkluc3RhbmNlU3RhdGUuTGlzdGVuZXJzRW50cnkaSgoMU291cmNlc0VudHJ5EgsKA2tleRgBIAEoCRIpCgV2YWx1ZRgCIAEoDjIaLmJhY2twbGFuZS52MS5Db25maWdTb3VyY2U6AjgBGkUKDVNlY3Rpb25zRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuZ29vZ2xlLnByb3RvYnVmLkFueToCOAEaMAoOTGlzdGVuZXJzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgNOgI4ASJwCgpOb2RlU3RhdHVzEgwKBHBhdGgYASABKAkSDQoFcmVhZHkYAiABKAgSDQoFZXJyb3IYAyABKAkSJAoEa2luZBgEIAEoDjIWLmJhY2twbGFuZS52MS5Ob2RlS2luZBIQCghvcHRpb25hbBgFIAEoCCJBCg9UcmFuc3BvcnRTdGF0dXMSDAoEbmFtZRgBIAEoCRIRCgljb25uZWN0ZWQYAiABKAgSDQoFZXJyb3IYAyABKAkqhQEKDUluc3RhbmNlUGhhc2USHgoaSU5TVEFOQ0VfUEhBU0VfVU5TUEVDSUZJRUQQABIbChdJTlNUQU5DRV9QSEFTRV9TVEFSVElORxABEhoKFklOU1RBTkNFX1BIQVNFX1NFUlZJTkcQAhIbChdJTlNUQU5DRV9QSEFTRV9TVE9QUElORxADKnEKCE5vZGVLaW5kEhkKFU5PREVfS0lORF9VTlNQRUNJRklFRBAAEhcKE05PREVfS0lORF9DT01QT05FTlQQARIYChROT0RFX0tJTkRfREVQRU5ERU5DWRACEhcKE05PREVfS0lORF9TSU5HTEVUT04QAyqNAQoMQ29uZmlnU291cmNlEh0KGUNPTkZJR19TT1VSQ0VfVU5TUEVDSUZJRUQQABIZChVDT05GSUdfU09VUkNFX0RFRkFVTFQQARIWChJDT05GSUdfU09VUkNFX0ZJTEUQAhIVChFDT05GSUdfU09VUkNFX0VOVhADEhQKEENPTkZJR19TT1VSQ0VfS1YQBEJAWj5naXRodWIuY29tL2JhY2twbGFuZS1sYWJzL2JhY2twbGFuZS9iYWNrcGxhbmVwYi92MTtiYWNrcGxhbmV2MWIGcHJvdG8z", [file_google_protobuf_any, file_google_protobuf_timestamp]);
 
 /**
  * InstanceState is written by the SDK to Consul KV
@@ -96,7 +96,8 @@ export type InstanceState = Message<"backplane.v1.InstanceState"> & {
   phase: InstancePhase;
 
   /**
-   * Author's nodes that hold readiness or can fail: dependencies.
+   * The node tree the author composed, depth-first in creation (= start)
+   * order: components, dependencies and singletons.
    *
    * @generated from field: repeated backplane.v1.NodeStatus nodes = 13;
    */
@@ -126,6 +127,21 @@ export type InstanceState = Message<"backplane.v1.InstanceState"> & {
    * @generated from field: map<string, google.protobuf.Any> sections = 17;
    */
   sections: { [key: string]: Any };
+
+  /**
+   * Port of the default public port's routes (API.listener empty); 0 when
+   * none is served there.
+   *
+   * @generated from field: uint32 public_port = 18;
+   */
+  publicPort: number;
+
+  /**
+   * Ports of the named listeners of routes (API.listener), by name.
+   *
+   * @generated from field: map<string, uint32> listeners = 19;
+   */
+  listeners: { [key: string]: number };
 };
 
 /**
@@ -136,25 +152,43 @@ export const InstanceStateSchema: GenMessage<InstanceState> = /*@__PURE__*/
   messageDesc(file_backplanepb_v1_instance, 0);
 
 /**
+ * A node of the service tree: component, dependency or singleton.
+ *
  * @generated from message backplane.v1.NodeStatus
  */
 export type NodeStatus = Message<"backplane.v1.NodeStatus"> & {
   /**
+   * Place in the tree: "users", "users/templates".
+   *
    * @generated from field: string path = 1;
    */
   path: string;
 
   /**
+   * Dependencies only: whether it is ready.
+   *
    * @generated from field: bool ready = 2;
    */
   ready: boolean;
 
   /**
-   * Why it is not ready.
+   * Dependencies only: why it is not ready.
    *
    * @generated from field: string error = 3;
    */
   error: string;
+
+  /**
+   * @generated from field: backplane.v1.NodeKind kind = 4;
+   */
+  kind: NodeKind;
+
+  /**
+   * Optional dependencies do not hold readiness.
+   *
+   * @generated from field: bool optional = 5;
+   */
+  optional: boolean;
 };
 
 /**
@@ -227,6 +261,37 @@ export const InstancePhaseSchema: GenEnum<InstancePhase> = /*@__PURE__*/
   enumDesc(file_backplanepb_v1_instance, 0);
 
 /**
+ * @generated from enum backplane.v1.NodeKind
+ */
+export enum NodeKind {
+  /**
+   * @generated from enum value: NODE_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: NODE_KIND_COMPONENT = 1;
+   */
+  COMPONENT = 1,
+
+  /**
+   * @generated from enum value: NODE_KIND_DEPENDENCY = 2;
+   */
+  DEPENDENCY = 2,
+
+  /**
+   * @generated from enum value: NODE_KIND_SINGLETON = 3;
+   */
+  SINGLETON = 3,
+}
+
+/**
+ * Describes the enum backplane.v1.NodeKind.
+ */
+export const NodeKindSchema: GenEnum<NodeKind> = /*@__PURE__*/
+  enumDesc(file_backplanepb_v1_instance, 1);
+
+/**
  * @generated from enum backplane.v1.ConfigSource
  */
 export enum ConfigSource {
@@ -260,5 +325,5 @@ export enum ConfigSource {
  * Describes the enum backplane.v1.ConfigSource.
  */
 export const ConfigSourceSchema: GenEnum<ConfigSource> = /*@__PURE__*/
-  enumDesc(file_backplanepb_v1_instance, 1);
+  enumDesc(file_backplanepb_v1_instance, 2);
 

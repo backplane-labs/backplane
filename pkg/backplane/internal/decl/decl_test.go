@@ -13,7 +13,7 @@ const newer = `{"path":"db","kind":"NODE_KIND_SINGLETON","optional":true,"addedL
 func TestDecodeIgnoresUnknownFields(t *testing.T) {
 	t.Parallel()
 
-	var m backplanev1.Node
+	var m backplanev1.NodeStatus
 	if err := decl.Decode([]byte(newer), &m); err != nil {
 		t.Fatal(err)
 	}
@@ -23,7 +23,7 @@ func TestDecodeIgnoresUnknownFields(t *testing.T) {
 	}
 
 	// A Ref[*pb.Node] decodes into a nil pointer: allocated, protojson.
-	var p *backplanev1.Node
+	var p *backplanev1.NodeStatus
 	if err := decl.Decode([]byte(newer), &p); err != nil {
 		t.Fatal(err)
 	}
@@ -43,14 +43,14 @@ func TestDecodeIgnoresUnknownFields(t *testing.T) {
 func TestEncodeDecodeProtoRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	in := &backplanev1.Node{Path: "a/b", Kind: backplanev1.NodeKind_NODE_KIND_DEPENDENCY}
+	in := &backplanev1.NodeStatus{Path: "a/b", Kind: backplanev1.NodeKind_NODE_KIND_DEPENDENCY}
 
 	raw, err := decl.Encode(in)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var out *backplanev1.Node
+	var out *backplanev1.NodeStatus
 	if err := decl.Decode(raw, &out); err != nil {
 		t.Fatalf("%s: %v", raw, err)
 	}

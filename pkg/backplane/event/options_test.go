@@ -220,14 +220,14 @@ func TestProtoPayload(t *testing.T) {
 	rec := &keys{}
 	e.SetBroker(rec)
 
-	ref := event.Declare[*backplanev1.Node](root, "NodeSeen")
-	if err := ref.Publish(t.Context(), &backplanev1.Node{Path: "db", Kind: backplanev1.NodeKind_NODE_KIND_COMPONENT}); err != nil {
+	ref := event.Declare[*backplanev1.NodeStatus](root, "NodeSeen")
+	if err := ref.Publish(t.Context(), &backplanev1.NodeStatus{Path: "db", Kind: backplanev1.NodeKind_NODE_KIND_COMPONENT}); err != nil {
 		t.Fatal(err)
 	}
 
-	got := make(chan *backplanev1.Node, 1)
+	got := make(chan *backplanev1.NodeStatus, 1)
 
-	event.React(root, "svc.NodeSeen", func(_ context.Context, n *backplanev1.Node) error {
+	event.React(root, "svc.NodeSeen", func(_ context.Context, n *backplanev1.NodeStatus) error {
 		got <- n
 
 		return nil

@@ -120,7 +120,7 @@ var apiFiles embed.FS
 
 svc.HTTP("/api/", handler, api.OpenAPIFS(apiFiles, "api/openapi.yaml"))
 // Or announce a handler served on an independent listener:
-svc.API(api.HTTP("/api/", api.Port(8082),
+svc.API(api.HTTP("/api/", api.Port("legacy", legacyPort),
     api.OpenAPIFS(apiFiles, "api/openapi.yaml")))
 ```
 

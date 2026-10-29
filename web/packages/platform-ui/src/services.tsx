@@ -1,8 +1,8 @@
 import { useCallback, useState, type ReactNode } from 'react';
 import { create } from '@bufbuild/protobuf';
 import { BindingServiceClient, BindingState, CatalogServiceClient, GetServiceRequestSchema, ListBindingsRequestSchema, WatchCatalogRequestSchema, type Instance, type ServiceSummary } from '@backplane-labs/backplane-api';
-import { ActivityKind, NodeKind, ApiKind, type Manifest } from '@backplane-labs/backplane-api/backplanepb/v1/manifest_pb';
-import { ConfigSource, InstancePhase } from '@backplane-labs/backplane-api/backplanepb/v1/instance_pb';
+import { ActivityKind, ApiKind, type Manifest } from '@backplane-labs/backplane-api/backplanepb/v1/manifest_pb';
+import { ConfigSource, InstancePhase, NodeKind, type InstanceState, type NodeStatus } from '@backplane-labs/backplane-api/backplanepb/v1/instance_pb';
 import { useClient, useSnapshotWatch } from '@backplane-labs/backplane-react';
 import { Badge, DataTable, DetailDrawer, Duration, EmptyState, KeyValueList, Panel, StatusBadge, StatusDot, Timestamp, type StatusTone } from '@backplane-labs/backplane-ui';
 import { JSONViewer } from '@backplane-labs/backplane-editors';
@@ -46,6 +46,8 @@ export function ServiceInspector({ service, mode }: { service: string; mode: 'da
   const [selected, setSelected] = useState<string>();
   const manifest = state.value?.latest, instances = state.value?.instances ?? [];
   const instance = instances.find((entry) => entry.id === selected);
+  // The tree depends on the instance's configuration: the latest version's first instance shows it.
+  const tree = (instances.find((entry) => entry.state?.version === manifest?.version) ?? instances.find((entry) => entry.state))?.state?.nodes ?? [];
   return <QueryState state={state}>{state.value && <div className="grid h-full min-h-0 gap-4 xl:grid-rows-[minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_320px]">
     <div className="flex min-h-0 min-w-0 flex-col gap-4 overflow-auto">
       <Panel title={text('instances')} count={instances.length} flush maxBodyHeight={320}>
@@ -71,8 +73,8 @@ export function ServiceInspector({ service, mode }: { service: string; mode: 'da
           { label: text('configKeys'), value: `${manifest?.config?.keys.length ?? 0} · ${text('liveCount', { count: manifest?.config?.live.length ?? 0 })}` },
         ]} />
       </Panel>
-      <Panel title={text('components')} count={manifest?.nodes.length ?? 0} flush>
-        {manifest?.nodes.length ? <ComponentTree nodes={manifest.nodes} /> : <Empty label={text('noComponents')} />}
+      <Panel title={text('components')} count={tree.length} flush>
+        {tree.length ? <ComponentTree nodes={tree} /> : <Empty label={text('noComponents')} />}
       </Panel>
     </aside>
     <DetailDrawer open={!!instance} onOpenChange={(open) => { if (!open) setSelected(undefined); }} size="lg" title={instance?.id} description={text('instanceDetail')}>
@@ -83,7 +85,7 @@ export function ServiceInspector({ service, mode }: { service: string; mode: 'da
 
 function InstanceRow({ instance, onOpen }: { instance: Instance; onOpen: () => void }) {
   const text = usePlatformText(), state = instance.state;
-  const ready = state?.nodes.filter((node) => node.ready).length ?? 0, total = state?.nodes.length ?? 0;
+  const deps = dependencies(state), ready = deps.filter((node) => node.ready).length, total = deps.length;
   return <tr tabIndex={0} className="cursor-pointer border-b border-border last:border-b-0 hover:bg-raised focus-visible:bg-raised focus-visible:outline-none" onClick={onOpen} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); onOpen(); } }}>
     <td className="h-10 px-3"><span className="inline-flex items-center gap-2 font-mono text-xs"><StatusDot tone={instance.healthy ? 'success' : 'danger'} />{instance.id}</span></td>
     <td className="px-3">{state ? <StatusBadge tone={phaseTone[state.phase]}>{enumLabel(InstancePhase, state.phase)}</StatusBadge> : <Muted>{text('catalogOnly')}</Muted>}</td>
@@ -101,7 +103,8 @@ function InstanceRow({ instance, onOpen }: { instance: Instance; onOpen: () => v
 function InstanceDetail({ instance, mode }: { instance: Instance; mode: 'dark' | 'light' }) {
   const text = usePlatformText(), state = instance.state;
   if (!state) return <Empty label={text('catalogOnly')} />;
-  const sources = Object.entries(state.sources).sort(([a], [b]) => a.localeCompare(b));
+  const sources = Object.entries(state.sources).sort(([a], [b]) => a.localeCompare(b)), deps = dependencies(state);
+  const ports = [...(state.publicPort ? [`:${state.publicPort}`] : []), ...Object.entries(state.listeners).sort(([a], [b]) => a.localeCompare(b)).map(([name, port]) => `${name} :${port}`)];
   return <div className="grid gap-4">
     <KeyValueList items={[
       { label: text('phase'), value: <StatusBadge tone={phaseTone[state.phase]}>{enumLabel(InstancePhase, state.phase)}</StatusBadge> },
@@ -109,6 +112,7 @@ function InstanceDetail({ instance, mode }: { instance: Instance; mode: 'dark' |
       { label: text('version'), value: state.version, mono: true }, { label: text('commit'), value: state.commit || '—', mono: true },
       { label: text('sdk'), value: state.sdkVersion || '—', mono: true },
       { label: text('address'), value: `${state.address}${state.platformPort ? ` · platform :${state.platformPort}` : ''}`, mono: true },
+      { label: text('ports'), value: ports.length ? ports.join(' · ') : '—', mono: true },
       { label: text('started'), value: <><Timestamp value={date(state.startedAt)} absolute /> · <Duration since={date(state.startedAt)} /></> },
       { label: text('config'), value: state.configRejectedRevision > 0n
         ? <span className="text-warning">{text('revRejected', { revision: state.configRejectedRevision.toString() })}: {state.configError}</span>
@@ -118,8 +122,8 @@ function InstanceDetail({ instance, mode }: { instance: Instance; mode: 'dark' |
     <Panel title={text('transports')} flush>
       {state.transports.map((transport) => <Row key={transport.name}><StatusDot tone={transport.connected ? 'success' : 'danger'} /><span className="font-medium">{transport.name}</span>{transport.error && <Muted>{transport.error}</Muted>}</Row>)}
     </Panel>
-    <Panel title={text('readiness')} count={state.nodes.length} flush>
-      {state.nodes.length ? state.nodes.map((node) => <Row key={node.path}><StatusDot tone={node.ready ? 'success' : 'danger'} /><span className="font-mono text-xs">{node.path}</span>{node.error && <Muted>{node.error}</Muted>}</Row>) : <Empty label={text('noComponents')} />}
+    <Panel title={text('readiness')} count={deps.length} flush>
+      {deps.length ? deps.map((node) => <Row key={node.path}><StatusDot tone={node.ready ? 'success' : 'danger'} /><span className="font-mono text-xs">{node.path}</span>{node.error && <Muted>{node.error}</Muted>}</Row>) : <Empty label={text('noComponents')} />}
     </Panel>
     <Panel title={text('configSources')} count={sources.length} flush>
       {sources.map(([path, source]) => <Row key={path}><span className="min-w-0 flex-1 truncate font-mono text-xs">{path}</span><Badge variant={source === ConfigSource.KV ? 'default' : 'outline'}>{enumLabel(ConfigSource, source)}</Badge></Row>)}
@@ -136,7 +140,7 @@ function Contract({ manifest, hooks }: { manifest: Manifest; hooks?: { hook: str
       {manifest.apis.length ? manifest.apis.map((route, index) => <Row key={index}>
         <Badge variant="outline" className="w-20 justify-center font-mono uppercase">{enumLabel(ApiKind, route.kind)}</Badge>
         <span className="min-w-0 truncate font-mono text-xs">{route.host && <span className="text-muted-foreground">{route.host}</span>}{route.prefix}</span>
-        <span className="ml-auto shrink-0"><Muted mono>{route.port ? `:${route.port}` : ''}{route.services.length ? ` ${route.services.length} svc` : ''}</Muted></span>
+        <span className="ml-auto shrink-0"><Muted mono>{route.listener}{route.services.length ? ` ${route.services.length} svc` : ''}</Muted></span>
       </Row>) : <Empty label={text('noAPIs')} />}
     </Panel>
     <Panel title={<><Link2 className="size-4 text-muted-foreground" />{text('hooks')}</>} count={manifest.hooks.length} flush maxBodyHeight={260}>
@@ -177,9 +181,13 @@ const nodeIcon: Record<NodeKind, ReactNode> = {
   [NodeKind.UNSPECIFIED]: <Box className="size-3.5" />, [NodeKind.COMPONENT]: <Component className="size-3.5" />,
   [NodeKind.DEPENDENCY]: <Cable className="size-3.5" />, [NodeKind.SINGLETON]: <Boxes className="size-3.5" />,
 };
-function ComponentTree({ nodes }: { nodes: Manifest['nodes'] }) {
+/** The dependencies of the instance's tree: the nodes with a readiness. */
+function dependencies(state: InstanceState | undefined): NodeStatus[] {
+  return state?.nodes.filter((node) => node.kind === NodeKind.DEPENDENCY) ?? [];
+}
+function ComponentTree({ nodes }: { nodes: NodeStatus[] }) {
   const text = usePlatformText();
-  // Manifest paths are depth-first; depth follows the path segments.
+  // The instance reports the tree depth-first; depth follows the path segments.
   return <ul className="m-0 list-none py-1.5 pl-0">{nodes.map((node) => {
     const depth = node.path.split('/').length - 1, name = node.path.slice(node.path.lastIndexOf('/') + 1);
     return <li key={node.path} className="flex items-center gap-2 py-1 pr-3 text-xs" style={{ paddingLeft: 12 + depth * 14 }} title={node.path}>

@@ -39,7 +39,7 @@ export function ServiceAPIDocument({ manifest, mode, state: controlled, onStateC
   if (!route) return <EmptyState title={text('noAPIs')} />;
   return <div className="grid min-w-0 gap-4">
     <label className="grid gap-1 text-sm">{text('externalEndpoint')}<SelectControl aria-label={text('externalEndpoint')} value={String(index)} onValueChange={(value) => update({ api: Number(value) })}
-      options={manifest.apis.map((entry, i) => ({ value: String(i), label: `${ApiKind[entry.kind]} · ${entry.host}${entry.prefix}${entry.port ? ` :${entry.port}` : ''}` }))} /></label>
+      options={manifest.apis.map((entry, i) => ({ value: String(i), label: `${ApiKind[entry.kind]} · ${entry.host}${entry.prefix}${entry.listener ? ` · ${entry.listener}` : ''}` }))} /></label>
     {route.schema.case === 'bundle' ? <APIBundleView key={`${route.schema.value.hash}:${route.schema.value.entry}`} bundle={route.schema.value} readFile={readFile} mode={mode} operation={state.operation} onOperation={(operation) => update({ api: index, operation })} /> : <>
       {result && 'problem' in result && <EmptyState title={text(result.problem === 'missing' ? 'apiSchemaMissing' : 'apiSchemaInvalid')} description={result.problem === 'missing' ? text('apiSchemaMissingHelp') : result.detail} />}
       {result && 'document' in result && <APIBrowser key={`${index}:${manifest.version}`} document={result.document} mode={mode} operation={state.operation} onOperation={(operation) => update({ api: index, operation })} />}
