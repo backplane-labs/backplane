@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
 	"github.com/gopherex/pgtx/pkg/tx"
 
@@ -78,5 +81,59 @@ func TestProvider(t *testing.T) {
 	var n int
 	if err := db.Get().Pool.QueryRow(ctx, "SELECT count(*) FROM greeting").Scan(&n); err != nil || n != 1 {
 		t.Fatalf("count %d: %v", n, err)
+	}
+}
+
+// Queries are spans only under an operation (otelpgx traces only under a
+// recording span): a query from a context without a span starts no trace,
+// one under an operation is its child.
+//
+//nolint:paralleltest // sets the global tracer provider the pool reads
+func TestQuerySpansOnlyUnderAnOperation(t *testing.T) {
+	dsn := os.Getenv("BACKPLANE_TEST_PG")
+	if dsn == "" {
+		t.Skip("BACKPLANE_TEST_PG not set")
+	}
+
+	rec := tracetest.NewSpanRecorder()
+	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(rec))
+	prev := otel.GetTracerProvider()
+
+	otel.SetTracerProvider(provider)
+	t.Cleanup(func() { otel.SetTracerProvider(prev) })
+
+	h := backplanetest.New(t)
+	db := deps.NewDependency(h.Root(), postgres.New(postgres.Config{DSN: config.Secret(dsn)}))
+	h.Start()
+
+	if err := backplanetest.Ready(h); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := db.Get().Pool.Exec(t.Context(), "SELECT 1"); err != nil {
+		t.Fatal(err)
+	}
+
+	if n := len(rec.Ended()); n != 0 {
+		t.Fatalf("queries without an operation made %d spans", n)
+	}
+
+	ctx, operation := provider.Tracer("test").Start(t.Context(), "operation")
+	if _, err := db.Get().Pool.Exec(ctx, "SELECT 1"); err != nil {
+		t.Fatal(err)
+	}
+
+	operation.End()
+
+	children := 0
+
+	for _, s := range rec.Ended() {
+		if s.Parent().SpanID() == operation.SpanContext().SpanID() {
+			children++
+		}
+	}
+
+	if children == 0 {
+		t.Fatal("the query under the operation made no span")
 	}
 }

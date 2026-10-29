@@ -1,6 +1,7 @@
 // Package valkey is a Valkey (Redis protocol) connection as a dependency:
 // a configuration section, a client instrumented with the service's
-// OpenTelemetry providers, a PING probe and a close.
+// OpenTelemetry providers (command spans only under an operation), a PING
+// probe and a close.
 //
 //	type Config struct {
 //	    config.Backplane `json:"backplane"`
@@ -25,8 +26,10 @@ import (
 
 	valkeygo "github.com/valkey-io/valkey-go"
 	"github.com/valkey-io/valkey-go/valkeyotel"
+	"go.opentelemetry.io/otel"
 
 	"github.com/gopherex/xlog"
+	"github.com/gopherex/xtrace/pkg/scope"
 
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
@@ -93,13 +96,24 @@ type provider struct{ cfg Config }
 
 func (provider) Name() string { return "valkey" }
 
+// newClient is an instrumented client whose commands are spans of the
+// operations issuing them: commands from a context without a span (the
+// service's background loops, pings) start no traces of their own. Command
+// metrics are kept.
+//
+//nolint:ireturn // valkey-go's client is an interface
+func newClient(o valkeygo.ClientOption) (valkeygo.Client, error) {
+	//nolint:wrapcheck // the caller translates connection errors
+	return valkeyotel.NewClient(o, valkeyotel.WithTracerProvider(scope.ChildOnly(otel.GetTracerProvider())))
+}
+
 //nolint:ireturn // valkey-go's client is an interface
 func (p provider) Provide(ctx context.Context, s deps.Scope) (Client, error) {
 	if err := p.cfg.Validate(); err != nil {
 		return nil, err
 	}
 
-	client, err := valkeyotel.NewClient(p.cfg.clientOption())
+	client, err := newClient(p.cfg.clientOption())
 	if err != nil {
 		return nil, p.cfg.connectError(err)
 	}

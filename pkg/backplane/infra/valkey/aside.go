@@ -4,9 +4,7 @@ import (
 	"context"
 	"time"
 
-	valkeygo "github.com/valkey-io/valkey-go"
 	"github.com/valkey-io/valkey-go/valkeyaside"
-	"github.com/valkey-io/valkey-go/valkeyotel"
 
 	"github.com/gopherex/xlog"
 
@@ -57,10 +55,8 @@ func (p asideProvider) Provide(ctx context.Context, s deps.Scope) (AsideClient, 
 	}
 
 	option := valkeyaside.ClientOption{
-		ClientOption: p.cfg.clientOption(),
-		ClientBuilder: func(o valkeygo.ClientOption) (valkeygo.Client, error) {
-			return valkeyotel.NewClient(o)
-		},
+		ClientOption:  p.cfg.clientOption(),
+		ClientBuilder: newClient,
 	}
 	for _, opt := range p.opts {
 		opt(&option)

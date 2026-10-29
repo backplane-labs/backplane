@@ -10,6 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/infra/valkey"
@@ -224,4 +229,63 @@ func TestAside(t *testing.T) {
 	if err := provider.Probe(t.Context(), first); err != nil {
 		t.Fatalf("probe: %v", err)
 	}
+}
+
+// Commands are spans only under an operation: a command from a context
+// without a span starts no trace, one under an operation is its child.
+//
+//nolint:paralleltest // sets the global tracer provider the client reads
+func TestCommandSpansOnlyUnderAnOperation(t *testing.T) {
+	addr := os.Getenv("BACKPLANE_TEST_VALKEY")
+	if addr == "" {
+		t.Skip("BACKPLANE_TEST_VALKEY not set")
+	}
+
+	rec := tracetest.NewSpanRecorder()
+	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(rec))
+	prev := otel.GetTracerProvider()
+
+	otel.SetTracerProvider(provider)
+	t.Cleanup(func() { otel.SetTracerProvider(prev) })
+
+	h := backplanetest.New(t)
+	h.Start()
+
+	client, err := valkey.New(valkey.Config{Addr: addr}).Provide(t.Context(), h.Root())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
+	if err := client.Do(t.Context(), client.B().Ping().Build()).Error(); err != nil {
+		t.Fatal(err)
+	}
+
+	if n := len(rec.Ended()); n != 0 {
+		t.Fatalf("commands without an operation made %d spans", n)
+	}
+
+	ctx, operation := provider.Tracer("test").Start(t.Context(), "operation")
+	if err := client.Do(ctx, client.B().Ping().Build()).Error(); err != nil {
+		t.Fatal(err)
+	}
+
+	operation.End()
+
+	if n := children(rec, operation.SpanContext().SpanID()); n != 1 {
+		t.Fatalf("children of the operation = %d, want 1", n)
+	}
+}
+
+// children counts the ended spans whose parent is id.
+func children(rec *tracetest.SpanRecorder, id trace.SpanID) int {
+	n := 0
+
+	for _, s := range rec.Ended() {
+		if s.Parent().SpanID() == id {
+			n++
+		}
+	}
+
+	return n
 }

@@ -29,6 +29,14 @@ sampling sees whole traces). The other samplers are OpenTelemetry's:
 `BACKPLANE_TELEMETRY_TRACES_RATIO` (0..1). `OTEL_TRACES_SAMPLER` does not
 apply to SDK services.
 
+The SDK's PostgreSQL and Valkey clients trace a query or command only under
+an operation: it is a span of the request, event or hook that issued it. Work
+from a context without a span (pool pings, polling and sweep loops) starts no
+trace of its own; its command metrics are still recorded. To trace such a
+loop, start a span for each iteration that matters. For a client of your own,
+`scope.ChildOnly(provider)` from `github.com/gopherex/xtrace/pkg/scope` gives
+any OpenTelemetry instrumentation the same rule.
+
 ## Metric export and histograms
 
 Every service on the SDK exports Go runtime and process metrics and its own

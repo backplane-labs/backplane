@@ -22,9 +22,9 @@ require (
 	github.com/gopherex/xprobe v1.2.0
 	github.com/gopherex/xprobe/pkg/transport/grpc v1.2.0
 	github.com/gopherex/xshutdown v1.1.0
-	github.com/gopherex/xtrace v1.1.3
-	github.com/gopherex/xtrace/contrib/libs/xlog v1.1.3
-	github.com/gopherex/xtrace/contrib/sdk v1.1.3
+	github.com/gopherex/xtrace v1.1.4
+	github.com/gopherex/xtrace/contrib/libs/xlog v1.1.4
+	github.com/gopherex/xtrace/contrib/sdk v1.1.4
 	github.com/hashicorp/consul/api v1.33.4
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/nats-io/nats.go v1.54.0
