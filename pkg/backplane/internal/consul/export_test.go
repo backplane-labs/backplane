@@ -20,6 +20,9 @@ func (p *Presence) UseFastTiming() {
 	}
 }
 
+// ManifestDiff is manifestDiff.
+var ManifestDiff = manifestDiff
+
 // Session is the current session id.
 func (p *Presence) Session() string { return p.currentSession() }
 

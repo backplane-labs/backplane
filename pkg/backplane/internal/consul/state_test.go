@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -333,7 +334,7 @@ func TestManifestConflictStopsPresence(t *testing.T) {
 
 			select {
 			case err := <-result:
-				if !errors.Is(err, consul.ErrManifestConflict) {
+				if !errors.Is(err, consul.ErrManifestConflict) || !strings.Contains(err.Error(), key+" differs in sdk_version;") {
 					t.Fatalf("conflict: %v", err)
 				}
 			case <-time.After(5 * time.Second):
@@ -356,6 +357,54 @@ func TestManifestConflictStopsPresence(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+// The diff names the top-level fields that differ, in field order.
+func TestManifestDiff(t *testing.T) {
+	t.Parallel()
+
+	base := func() *backplanev1.Manifest {
+		return &backplanev1.Manifest{
+			Service: "svc", Version: "1.0.0",
+			Apis:  []*backplanev1.API{{Prefix: "/", Port: 8080}},
+			Nodes: []*backplanev1.Node{{Path: "db", Kind: backplanev1.NodeKind_NODE_KIND_DEPENDENCY}},
+		}
+	}
+
+	for _, tc := range []struct {
+		name string
+		edit func(m *backplanev1.Manifest)
+		want string
+	}{
+		{"port", func(m *backplanev1.Manifest) { m.Apis[0].Port = 9090 }, "apis"},
+		{"port and nodes", func(m *backplanev1.Manifest) {
+			m.Apis[0].Port = 9090
+			m.Nodes = nil
+		}, "apis,nodes"},
+		{"sdk", func(m *backplanev1.Manifest) { m.SdkVersion = "v2" }, "sdk_version"},
+		// Field 1023, varint 1: unknown to this SDK.
+		{"unknown only", func(m *backplanev1.Manifest) { m.ProtoReflect().SetUnknown([]byte{0xf8, 0x3f, 0x01}) }, "unknown fields"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			other := base()
+			tc.edit(other)
+
+			if got := strings.Join(consul.ManifestDiff(base(), other), ","); got != tc.want {
+				t.Fatalf("diff %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func BenchmarkManifestDiff(b *testing.B) {
+	a := &backplanev1.Manifest{Service: "svc", Version: "1.0.0", Apis: []*backplanev1.API{{Prefix: "/", Port: 8080}}}
+	c := &backplanev1.Manifest{Service: "svc", Version: "1.0.0", Apis: []*backplanev1.API{{Prefix: "/", Port: 9090}}}
+
+	for b.Loop() {
+		consul.ManifestDiff(a, c)
 	}
 }
 

@@ -11,12 +11,12 @@ require (
 	github.com/gopherex/schemapb/go v1.9.9
 	github.com/gopherex/sqld v1.1.3
 	github.com/gopherex/ws-proto v1.8.1
-	github.com/gopherex/xconf v1.4.0
-	github.com/gopherex/xconf/contrib/decoders/json v1.4.0
-	github.com/gopherex/xconf/contrib/decoders/yaml v1.4.0
-	github.com/gopherex/xconf/contrib/sources/consul v1.4.0
-	github.com/gopherex/xconf/contrib/sources/env v1.4.0
-	github.com/gopherex/xconf/contrib/sources/file v1.4.0
+	github.com/gopherex/xconf v1.4.2
+	github.com/gopherex/xconf/contrib/decoders/json v1.4.2
+	github.com/gopherex/xconf/contrib/decoders/yaml v1.4.2
+	github.com/gopherex/xconf/contrib/sources/consul v1.4.2
+	github.com/gopherex/xconf/contrib/sources/env v1.4.2
+	github.com/gopherex/xconf/contrib/sources/file v1.4.2
 	github.com/gopherex/xlog v1.2.1
 	github.com/gopherex/xlog/contrib/libs/pgx v1.2.1
 	github.com/gopherex/xprobe v1.2.0

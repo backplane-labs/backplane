@@ -102,6 +102,26 @@ func TestTemporalWorkerFromEnv(t *testing.T) {
 	}
 }
 
+// A list variable that is not JSON fails naming the variable, never its
+// value; an empty one is unset.
+func TestEnvListErrorsAndEmpty(t *testing.T) {
+	t.Setenv("HELLO_POSTGRES_DSN", "x")
+	t.Setenv("BACKPLANE_CONSUL_TAGS", `["secret-tag`)
+
+	_, err := config.Load[Config](context.Background(), consuldriver.Config(), config.Service("hello"), config.WithoutFile())
+	if err == nil || !strings.HasSuffix(err.Error(), "read failed: invalid JSON in BACKPLANE_CONSUL_TAGS") ||
+		strings.Contains(err.Error(), "secret-tag") {
+		t.Fatalf("invalid list: %v", err)
+	}
+
+	t.Setenv("BACKPLANE_CONSUL_TAGS", "")
+
+	cfg, err := config.Load[Config](context.Background(), consuldriver.Config(), config.Service("hello"), config.WithoutFile())
+	if err != nil || len(cfg.BackplaneConfig().Consul.Tags) != 0 {
+		t.Fatalf("empty list: %v %v", cfg.BackplaneConfig().Consul.Tags, err)
+	}
+}
+
 func TestLivePathsFromSchema(t *testing.T) {
 	t.Setenv("HELLO_POSTGRES_DSN", "x")
 

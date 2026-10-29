@@ -569,22 +569,46 @@ func (p *Presence) recheckManifest(ctx context.Context, key string) error {
 	return p.checkManifest(key, existing.Value)
 }
 
+// checkManifest accepts the manifest published under key when it equals
+// this one; otherwise the conflict names the fields that differ.
 func (p *Presence) checkManifest(key string, raw []byte) error {
-	if p.sameManifest(raw) {
+	if bytes.Equal(raw, p.raw) {
 		return nil
 	}
 
-	return fmt.Errorf("%w: %s; publish this build under a new version", ErrManifestConflict, key)
-}
-
-func (p *Presence) sameManifest(raw []byte) bool {
-	if bytes.Equal(raw, p.raw) {
-		return true
+	var published backplanev1.Manifest
+	if err := proto.Unmarshal(raw, &published); err != nil {
+		return fmt.Errorf("%w: %s is unreadable (%w); publish this build under a new version", ErrManifestConflict, key, err)
 	}
 
-	var m backplanev1.Manifest
+	if proto.Equal(&published, p.manifest) {
+		return nil
+	}
 
-	return proto.Unmarshal(raw, &m) == nil && proto.Equal(&m, p.manifest)
+	return fmt.Errorf("%w: %s differs in %s; publish this build under a new version",
+		ErrManifestConflict, key, strings.Join(manifestDiff(&published, p.manifest), ", "))
+}
+
+// manifestDiff names the top-level fields in which two manifests differ
+// ("unknown fields" when only fields this SDK does not know differ).
+func manifestDiff(a, b *backplanev1.Manifest) []string {
+	left, right := a.ProtoReflect(), b.ProtoReflect()
+	fields := left.Descriptor().Fields()
+
+	var out []string
+
+	for i := range fields.Len() {
+		fd := fields.Get(i)
+		if !left.Get(fd).Equal(right.Get(fd)) {
+			out = append(out, string(fd.Name()))
+		}
+	}
+
+	if len(out) == 0 {
+		out = append(out, "unknown fields")
+	}
+
+	return out
 }
 
 // abandon destroys the session of a failed establish so it does not linger

@@ -16,12 +16,19 @@ UI bundles and schema files. Keep it private. Managed APIs use the public port
 The SDK registers the primary public port in Consul Catalog and checks readiness
 through the platform port. Manifest versions and ephemeral instance state are stored
 in Consul KV. This registration does not publish the application externally.
+Every start, a one-off run included, publishes its version's manifest; the first
+one is kept. The manifest carries the API routes with their ports and the node
+tree of the configured drivers, so a start with another configuration under the
+same version stops with `different manifest already published for this version`,
+naming the fields that differ (`apis`, `nodes`, ...). Start it with the service's
+configuration, or publish the build under a new version.
 If your deployment registers services itself, set `BACKPLANE_CONSUL_REGISTER=false`.
 
 ### SDK block: every variable
 
-Durations are Go durations (`30s`, `2m`); lists are JSON (`["a","b"]`);
-TLS material is PEM content, not paths. Secrets are masked in logs and in
+Durations are Go durations (`30s`, `2m`); lists are JSON (`["a","b"]`), and an
+empty list or map variable counts as unset; TLS material is PEM content, not paths.
+A variable that does not parse fails the start naming the variable, not its value. Secrets are masked in logs and in
 the instance state.
 
 | variable | default | meaning |
