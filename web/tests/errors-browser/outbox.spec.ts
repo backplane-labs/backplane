@@ -93,3 +93,21 @@ test('processor fixtures: retry, corrupt record, recursion, oversized bypass and
   expect(result.fallbackCount).toBe(1)
   expect(result.reentrantEmits).toBe(0)
 })
+
+test('a dedicated worker runs the outbox and captures its own unhandled rejections', async ({ page }) => {
+  await page.goto('http://127.0.0.1:4181')
+  const result = await page.evaluate(
+    (workerPath) =>
+      new Promise((resolve) => {
+        const worker = new Worker(workerPath, { type: 'module' })
+        worker.onmessage = (event) => {
+          resolve(event.data)
+          worker.terminate()
+        }
+        worker.onerror = (event) => resolve({ failed: event.message })
+      }),
+    `/@fs/${root}/tests/errors-browser/outbox-worker.ts`
+  )
+  // The fixture server has no /v1/logs: the export is rejected, the records stay in IndexedDB.
+  expect(result).toEqual({ captured: 'emitted', emitted: 2, diagnostics: ['outbox_export_rejected'] })
+})

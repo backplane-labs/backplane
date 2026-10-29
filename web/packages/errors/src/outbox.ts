@@ -6,6 +6,7 @@ import type {
 } from '@opentelemetry/sdk-logs'
 import { decodeRecord, encodeRecord } from './outbox-record.js'
 import { OutboxStore, outboxLimits, type OutboxOptions, type StoredExport } from './outbox-store.js'
+import { globalScope } from './scope.js'
 
 export type { OutboxOptions } from './outbox-store.js'
 
@@ -59,8 +60,9 @@ export class PersistentLogProcessor implements LogRecordProcessor {
           )
       )
     void this.store.catch(() => this.report('outbox_unavailable'))
-    window.addEventListener('online', this.online)
-    document.addEventListener('visibilitychange', this.visibility)
+    // A worker has no document: its global scope still sends 'online', and the timer replays the rest.
+    globalScope()?.addEventListener('online', this.online)
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.visibility)
     this.timer = setInterval(() => this.kick(), 1000)
     this.kick()
   }
@@ -250,8 +252,8 @@ export class PersistentLogProcessor implements LogRecordProcessor {
   stop() {
     this.stopped = true
     clearInterval(this.timer)
-    window.removeEventListener('online', this.online)
-    document.removeEventListener('visibilitychange', this.visibility)
+    globalScope()?.removeEventListener('online', this.online)
+    if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', this.visibility)
   }
 
   shutdown(): Promise<void> {

@@ -1,7 +1,8 @@
 import { createTraceState } from '@opentelemetry/api'
 import { resourceFromAttributes } from '@opentelemetry/resources'
-import type { ReadableLogRecord } from '@opentelemetry/sdk-logs'
-import { expect, it } from 'vitest'
+import type { LogRecordExporter, ReadableLogRecord } from '@opentelemetry/sdk-logs'
+import { expect, it, vi } from 'vitest'
+import { PersistentLogProcessor } from '../packages/errors/src/outbox'
 import { decodeRecord, encodeRecord } from '../packages/errors/src/outbox-record'
 import { outboxLimits } from '../packages/errors/src/outbox-store'
 
@@ -60,6 +61,34 @@ it('durable DTO preserves exact Body, native times, attributes, scope, Resource 
     expect(() => decodeRecord(JSON.stringify({ ...JSON.parse(payload), ...change }))).toThrow()
   }
   expect(() => encodeRecord({ ...original, body: { structured: true } })).toThrow()
+})
+
+const exporter: LogRecordExporter = {
+  export: (_records, done) => done({ code: 0 }),
+  shutdown: () => Promise.resolve(),
+  forceFlush: () => Promise.resolve(),
+}
+
+it.each([
+  { scope: 'a worker: online on its global scope', events: true, want: ['online'] },
+  { scope: 'no global events at all', events: false, want: [] },
+])('outbox starts and stops without window or document: $scope', ({ events, want }) => {
+  const added: string[] = [], removed: string[] = []
+  vi.stubGlobal('location', { href: 'https://app.example/' })
+  if (events) {
+    vi.stubGlobal('addEventListener', (type: string) => added.push(type))
+    vi.stubGlobal('removeEventListener', (type: string) => removed.push(type))
+  }
+  try {
+    expect(typeof window).toBe('undefined')
+    expect(typeof document).toBe('undefined')
+    const outbox = new PersistentLogProcessor(exporter, '/v1/logs', { name: 'worker' }, () => {})
+    outbox.stop()
+    expect(added).toEqual(want)
+    expect(removed).toEqual(want)
+  } finally {
+    vi.unstubAllGlobals()
+  }
 })
 
 it('outbox limits require an explicit namespace and finite positive budgets', () => {

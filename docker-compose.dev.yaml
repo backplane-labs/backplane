@@ -43,6 +43,7 @@ services:
       BACKPLANE_OBS_LOGS_URL: http://victorialogs:9428
       BACKPLANE_OBS_METRICS_URL: http://victoriametrics:8428
       BACKPLANE_OBS_TRACES_URL: http://victoriatraces:10428
+      BACKPLANE_OBS_TRACEQL: "true"
       BACKPLANE_WIRING_DIR: /app/wiring
   # The application audit pipeline (deployments/otel-collector.audit.yaml)
   # needs the contrib distribution; its queue waits out backplane restarts.

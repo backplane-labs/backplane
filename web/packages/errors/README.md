@@ -27,7 +27,7 @@ try { await pay(); } catch (error) { errors.captureException(error, { handled: t
 - `.` — `createClient` over a LoggerProvider you own.
 - `/otlp` — `createOtlpClient`, owning a provider and the OTLP/HTTP protobuf
   exporter, with an optional IndexedDB outbox that survives reloads and
-  offline periods.
+  offline periods. It runs in a page or in a dedicated or shared worker.
 - `/browser` — opt-in fetch, XHR and navigation breadcrumbs and a React error
   handler (no React dependency).
 - `/protocol` — the wire types (`DebugEnvelopeV1`, `DebugSnapshotV1`).

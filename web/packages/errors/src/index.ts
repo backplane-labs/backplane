@@ -3,6 +3,7 @@ import { SeverityNumber, type LoggerProvider, type LogAttributes } from '@opente
 import { materialize } from './json.js'
 import { budgetSnapshot } from './snapshot.js'
 import { SDK_VERSION } from './version.js'
+import { globalScope } from './scope.js'
 export { SDK_VERSION } from './version.js'
 import { exceptionReader, type ExceptionLimits } from './exception.js'
 import {
@@ -573,14 +574,16 @@ export function createClient(options: ClientOptions) {
     }
   }
   let removeHandlers = () => {}
-  if (options.captureUnhandled && typeof window !== 'undefined') {
-    const host = window as unknown as Record<symbol, unknown>
+  // A page's window or a worker's self: both report uncaught errors and unhandled rejections.
+  const scope = globalScope()
+  if (options.captureUnhandled && scope) {
+    const host = scope as unknown as Record<symbol, unknown>
     if (host[ownerKey]) diagnostic('auto_handlers_already_owned')
     else {
       const owner = {}
       host[ownerKey] = owner
       const onError = (event: ErrorEvent) => {
-        if (!(event instanceof ErrorEvent) || event.target !== window) return
+        if (!(event instanceof ErrorEvent) || event.target !== scope) return
         capture(event.error ?? event.message, {}, 'window.error', {
           ...(event.filename ? { url: event.filename } : {}),
           line: event.lineno,
@@ -590,11 +593,11 @@ export function createClient(options: ClientOptions) {
       const onRejection = (event: PromiseRejectionEvent) => {
         capture(event.reason, {}, 'unhandledrejection')
       }
-      window.addEventListener('error', onError)
-      window.addEventListener('unhandledrejection', onRejection)
+      scope.addEventListener('error', onError)
+      scope.addEventListener('unhandledrejection', onRejection)
       removeHandlers = () => {
-        window.removeEventListener('error', onError)
-        window.removeEventListener('unhandledrejection', onRejection)
+        scope.removeEventListener('error', onError)
+        scope.removeEventListener('unhandledrejection', onRejection)
         if (host[ownerKey] === owner) delete host[ownerKey]
       }
     }

@@ -20,7 +20,9 @@ export function safeUrl(input: string): string {
 const ownerKey = Symbol.for('backplane.errors.browser-breadcrumbs.v1')
 /** Explicit opt-in; importing this module does not patch browser APIs. */
 export function instrumentBrowser(client: Client, options: BrowserBreadcrumbOptions) {
-  const host = window as unknown as Record<symbol, unknown>
+  // fetch and XHR breadcrumbs work in a worker too; navigation needs a page.
+  if (options.navigation && typeof history === 'undefined') throw new Error('navigation_breadcrumbs_need_a_page')
+  const host = globalThis as unknown as Record<symbol, unknown>
   if (host[ownerKey]) throw new Error('browser_instrumentation_already_owned')
   const owner = {}
   let closed = false
@@ -58,8 +60,8 @@ export function instrumentBrowser(client: Client, options: BrowserBreadcrumbOpti
   }
   try {
     if (options.fetch) {
-      const original = window.fetch
-      const wrapped: typeof fetch = function (this: Window, input, init) {
+      const original = globalThis.fetch
+      const wrapped: typeof fetch = function (this: typeof globalThis, input, init) {
         let meta: ReturnType<typeof metadata>
         try {
           meta = metadata(
@@ -96,9 +98,9 @@ export function instrumentBrowser(client: Client, options: BrowserBreadcrumbOpti
         value: (original as typeof fetch & { __original?: typeof fetch }).__original ?? original,
       })
       cleanups.push(() => {
-        if (window.fetch === wrapped) window.fetch = original
+        if (globalThis.fetch === wrapped) globalThis.fetch = original
       })
-      window.fetch = wrapped
+      globalThis.fetch = wrapped
     }
     if (options.xhr) {
       const proto = XMLHttpRequest.prototype,

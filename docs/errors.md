@@ -33,7 +33,7 @@ const errors = createOtlpClient({
   url: 'https://example.com/backplane/telemetry/v1/logs',
   headers: { authorization: 'Bearer <ingest key>' },
   resource: { 'service.name': 'shop-web', 'deployment.environment.name': 'production', 'service.version': '1.4.2' },
-  captureUnhandled: true, // window error and unhandledrejection
+  captureUnhandled: true, // error and unhandledrejection of the window, or of a worker's self
   outbox: { name: 'shop' }, // optional: IndexedDB queue across reloads and offline periods
 });
 instrumentBrowser(errors, { fetch: true, xhr: true, navigation: true });
@@ -48,6 +48,10 @@ createRoot(root, { onCaughtError: createReactErrorHandler(errors) });
   (`exceptionLimits`).
 - `snapshot()` returns local state and history for the app's own bug reports
   without sending anything.
+- In a dedicated or shared worker the same client runs: the outbox replays on
+  the worker's `online` event and its timer, `captureUnhandled` listens on the
+  worker's `self`, and `instrumentBrowser` records fetch and XHR (navigation
+  needs a page and throws `navigation_breadcrumbs_need_a_page`).
 - Stacks are kept as text (no sourcemaps); the console parses V8, Firefox,
   Safari and Go frames from them.
 

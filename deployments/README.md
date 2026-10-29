@@ -127,6 +127,7 @@ control-plane listener. Production exposure and upstream discovery belong to the
 | `BACKPLANE_CONSOLE_INSECURE_COOKIE` | `false` | `true`: the session cookie without `Secure` and no HSTS — plain-HTTP development only (`make run-backplane` sets it) |
 | `BACKPLANE_ADMIN_TOKEN` | — | **required**: the console's admin token (secret), at least 16 characters |
 | `BACKPLANE_OBS_METRICS_URL`, `_LOGS_URL`, `_TRACES_URL` | — | observability backends for the console |
+| `BACKPLANE_OBS_TRACEQL` | `false` | `true`: Explore runs TraceQL trace searches against `_TRACES_URL` (VictoriaTraces' Tempo API, [profile](../docs/obs-api.md)); off, traces are queried as raw spans with LogsQL only |
 | `BACKPLANE_WIRING_RUNTIME` | `auto` | runtime of bindings and rules that name none: `temporal`, `direct`, or `auto` (temporal when Temporal is configured) |
 | `BACKPLANE_WIRING_DIR` | — | directory of bindings and rules kept in force; the console only reads what it defines ([wiring files](../website/docs/guides/wiring.md#keep-wiring-in-files)) |
 | `BACKPLANE_WIRING_POLL` | `5s` | how often `BACKPLANE_WIRING_DIR` is read again; it is also read on every new manifest |
