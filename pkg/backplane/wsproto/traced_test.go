@@ -18,6 +18,9 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/wsproto"
 )
 
+// errPanic makes the test handler panic.
+var errPanic = errors.New("panic")
+
 // A call's span continues the trace the client sent on OPEN, and is an error
 // only for a server fault, as the gRPC server's: a refusal to the client
 // (NotFound, InvalidArgument, ...) leaves it unset.
@@ -50,12 +53,19 @@ func TestTraced(t *testing.T) {
 		{"bad input", "traceparent", wsrpc.Errorf(grpccodes.InvalidArgument, "bad"), codes.Unset, false},
 		{"internal", "traceparent", wsrpc.Errorf(grpccodes.Internal, "db down"), codes.Error, true},
 		{"plain error is unknown", "traceparent", errors.New("boom"), codes.Error, true},
+		{"panic is internal", "traceparent", errPanic, codes.Error, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rec.Reset()
 
-			srv := wsrpc.NewServer(wsrpc.WithMiddleware(wsproto.Traced))
-			srv.Register("/t.v1.S/M", func(context.Context, *wsrpc.Stream) error { return tc.err })
+			srv := wsrpc.NewServer(wsrpc.WithMiddleware(wsproto.Middleware()...))
+			srv.Register("/t.v1.S/M", func(context.Context, *wsrpc.Stream) error {
+				if errors.Is(tc.err, errPanic) {
+					panic("handler bug")
+				}
+
+				return tc.err
+			})
 
 			srvEnd, cliEnd := wsrpc.NewPipe()
 			ctx, cancel := context.WithCancel(t.Context())

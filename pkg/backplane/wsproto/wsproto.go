@@ -18,6 +18,7 @@ import (
 	grpccodes "google.golang.org/grpc/codes"
 
 	"github.com/gopherex/ws-proto/wsrpc"
+	"github.com/gopherex/xlog"
 
 	"github.com/backplane-labs/backplane/pkg/backplane"
 	"github.com/backplane-labs/backplane/pkg/backplane/api"
@@ -50,7 +51,7 @@ func Serve[St any, R Register](
 	spec := link.APIs.WS(opts)
 	srv := wsrpc.NewServer(append([]wsrpc.ServerOption{
 		originOption(origins),
-		wsrpc.WithMiddleware(recovery.Calls(svc.Log(), recovery.WSProto), traced),
+		wsrpc.WithMiddleware(middleware(svc.Log())...),
 	}, spec.WS...)...)
 
 	switch register := any(register).(type) {
@@ -91,6 +92,13 @@ func originOption(o api.Origins) wsrpc.ServerOption {
 	default:
 		return wsrpc.WithOriginPatterns(o.Patterns()...)
 	}
+}
+
+// middleware of every call: the span outermost, so a panic the recovery
+// turns into codes.Internal marks the span an error, and the recovery's
+// report carries the trace.
+func middleware(log *xlog.Logger) []wsrpc.Middleware {
+	return []wsrpc.Middleware{traced, recovery.Calls(log, recovery.WSProto)}
 }
 
 // traced runs every call in a server span named after its method,
