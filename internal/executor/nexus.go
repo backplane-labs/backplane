@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"maps"
 	"slices"
 	"strconv"
@@ -14,6 +15,8 @@ import (
 	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
+	enumspb "go.temporal.io/api/enums/v1"
+	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/temporalnexus"
 	"go.temporal.io/sdk/worker"
@@ -131,6 +134,26 @@ func (x *Executor) serve(ctx context.Context, c client.Client, set hookSet) ([]s
 	return set.added(prev), nil
 }
 
+// completed answers a keyed call whose key's run completed already: its
+// result, without running again.
+func (x *Executor) completed(ctx context.Context, hook, id string) (hookOp, error) {
+	c, err := x.client()
+	if err != nil {
+		return hookOp{}, err
+	}
+
+	var res backplanev1.HookResult
+	if err := c.GetWorkflow(ctx, id, "").Get(ctx, &res); err != nil {
+		x.metrics.call(ctx, hook, outcomeError)
+
+		return hookOp{}, fmt.Errorf("binding run %s: %w", id, err)
+	}
+
+	x.metrics.call(ctx, hook, outcomeRun)
+
+	return temporalnexus.NewSyncResult(&res), nil
+}
+
 // nexusServices are <service>.Hooks with an operation per hook.
 func (x *Executor) nexusServices(set hookSet) []*nexus.Service {
 	out := make([]*nexus.Service, 0, len(set))
@@ -214,8 +237,23 @@ func (x *Executor) startHook(
 		Memo:                     map[string]any{wire.MemoSource: call.GetInstance(), wire.MemoBinding: in.Identity.String()},
 	}
 
+	// A keyed call joins the run of the first call with the key, as
+	// RunBinding does: a running one is attached to, a completed one
+	// answers with its result, a failed one runs anew.
+	if key := call.GetKey(); key != "" {
+		opts.ID = wire.BindingRunID(hook, "key/"+key)
+		opts.WorkflowIDConflictPolicy = enumspb.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING
+		opts.WorkflowIDReusePolicy = enumspb.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
+	}
+
 	res, err := temporalnexus.StartUntypedWorkflow[*backplanev1.HookResult](
 		ctx, nexusClient, opts, wire.BindingWorkflow, in)
+
+	var done *serviceerror.WorkflowExecutionAlreadyStarted
+	if errors.As(err, &done) && call.GetKey() != "" {
+		return x.completed(ctx, hook, opts.ID)
+	}
+
 	if err != nil {
 		x.metrics.call(ctx, hook, outcomeError)
 		x.Log().Ctx().Warn(ctx, "binding run did not start", xlog.String("hook", hook), xlog.Err(err))

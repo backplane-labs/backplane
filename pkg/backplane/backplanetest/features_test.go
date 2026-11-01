@@ -21,6 +21,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 	"github.com/backplane-labs/backplane/pkg/backplane/event"
 	"github.com/backplane-labs/backplane/pkg/backplane/hook"
+	"github.com/backplane-labs/backplane/pkg/backplane/meta"
 	"github.com/backplane-labs/backplane/pkg/backplane/workflows"
 	"github.com/backplane-labs/backplane/pkg/backplane/workflows/workflowtest"
 )
@@ -488,5 +489,34 @@ func TestWorkflows(t *testing.T) {
 	_, err = workflowtest.WorkflowActivity[LookupIn, LookupOut](workflowtest.New(t, h), "Twice", LookupIn{Name: "bad"})
 	if err == nil || !strings.Contains(err.Error(), "unknown person") {
 		t.Fatalf("failing answer: %v", err)
+	}
+}
+
+// A hook called from workflow code carries its key and metadata to the
+// answer, as a call from outside a workflow does.
+func TestWorkflowCallKey(t *testing.T) {
+	t.Parallel()
+
+	h := backplanetest.New(t, backplanetest.Name("hello"))
+	lookup := hook.Declare[LookupIn, LookupOut](h.Root(), "Lookup")
+
+	workflows.Activity(h.Root(), "Keyed", func(ctx workflow.Context, in LookupIn) (LookupOut, error) {
+		var opts []hook.CallOption
+		if in.Name != "" {
+			opts = append(opts, hook.Key(in.Name), hook.Metadata("tenant", "t1"))
+		}
+
+		return workflows.CallHook(ctx, lookup, in, opts...)
+	})
+	backplanetest.Answer(h, lookup, func(ctx context.Context, _ LookupIn) (LookupOut, error) {
+		return LookupOut{Title: backplanetest.CallKey(ctx) + "|" + meta.From(ctx)["tenant"]}, nil
+	})
+	h.Start()
+
+	for _, tc := range []struct{ key, want string }{{"invite/wf-1/ann", "invite/wf-1/ann|t1"}, {"", "|"}} {
+		out, err := workflowtest.WorkflowActivity[LookupIn, LookupOut](workflowtest.New(t, h), "Keyed", LookupIn{Name: tc.key})
+		if err != nil || out.Title != tc.want {
+			t.Fatalf("key %q: %+v %v", tc.key, out, err)
+		}
 	}
 }

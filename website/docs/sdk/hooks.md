@@ -52,7 +52,10 @@ Call the declared reference from request code using its `Call` method. Handle `h
 the binding once. A call while the first runs waits for it, a later one
 gets its result whatever its own input, a call after a failure runs again.
 Both transports keep the key: Temporal for the namespace's retention, the
-direct transport for backplane's run retention.
+direct transport for backplane's run retention. `workflows.CallHook` carries
+it too: calls from different workflows with one key (two child workflows for
+one attendee) share the binding's run, and the run's activities see the same
+idempotency keys.
 
 In a Temporal workflow use `workflows.CallHook(ctx, ref, input, options...)`. Workflow code must remain deterministic; ordinary network calls belong in activities.
 

@@ -123,7 +123,10 @@ func (f callFunc) applyCall(o *callOptions) { f(o) }
 // id is hook/<service>/<Name>/<k>, remembered for the namespace's
 // retention; on the direct transport backplane keeps the run
 // direct/binding/<service>.<Name>/key/<k> for its run retention.
-// workflows.CallHook ignores the key: a workflow is durable already.
+// workflows.CallHook carries the key too: a workflow replays its own call,
+// but calls from different workflows (two child workflows for one
+// attendee) share a run only through the key — the binding's run is
+// binding/<service>.<Name>/key/<k>, and its activities' keys follow it.
 func Key(k string) CallOption { return callFunc(func(o *callOptions) { o.key = k }) }
 
 // Metadata adds pairs (key, value, ...) to the call's metadata, over the
@@ -270,6 +273,12 @@ func outcome(err error) string {
 // workflow adapters use it without importing a backend into hook.
 func (r Ref[Req, Res]) CallMetadata(opts ...CallOption) map[string]string {
 	return r.callOptions(opts).meta
+}
+
+// CallKey is the idempotency key opts set (Key); "" when none. Native
+// workflow adapters use it without importing a backend into hook.
+func (r Ref[Req, Res]) CallKey(opts ...CallOption) string {
+	return r.callOptions(opts).key
 }
 
 // CallTimeout resolves the declared, per-call and transport default timeout.

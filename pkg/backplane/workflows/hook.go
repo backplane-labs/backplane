@@ -37,6 +37,7 @@ func CallHook[Req, Res any](ctx workflow.Context, r hook.Ref[Req, Res], in Req, 
 		Trace:    temporal.WorkflowTrace(ctx),
 		Deadline: temporal.HookDeadline(ctx, timeout),
 		Metadata: r.CallMetadata(opts...),
+		Key:      r.CallKey(opts...),
 	})
 	if err != nil {
 		return out, fmt.Errorf("hook %s: %w", r.Name(), temporal.Local(err))

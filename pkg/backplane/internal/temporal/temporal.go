@@ -294,7 +294,7 @@ func (c *Client) Call(ctx context.Context, hook string, in []byte) ([]byte, erro
 
 	call := &backplanev1.HookCall{
 		Hook: hook, Instance: c.p.Instance, Payload: in, Trace: Inject(ctx), Deadline: durationpb.New(timeout),
-		Metadata: meta.From(ctx),
+		Metadata: meta.From(ctx), Key: env.CallKeyOf(ctx),
 	}
 
 	run, err := conn.ExecuteWorkflow(ctx, c.startOptions(ctx, conn, name, timeout), CallHookWorkflow, call)

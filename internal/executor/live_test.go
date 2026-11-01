@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -50,6 +51,8 @@ type stack struct {
 	// caller raises hooks Greet (required), Ping (optional), Unbound
 	// (required); worker implements Echo.
 	caller, worker string
+	// echoes counts Echo's calls.
+	echoes atomic.Int32
 
 	mu       sync.Mutex
 	services map[string]registry.Service
@@ -126,6 +129,8 @@ func newStack(t *testing.T) *stack {
 			if strings.HasSuffix(in.Text, "fail") {
 				return nil, temporal.NewNonRetryableApplicationError(s.worker+".Echo: refused", wire.NonRetryableType, nil)
 			}
+
+			s.echoes.Add(1)
 
 			out, _ := json.Marshal(map[string]string{"text": in.Text, "step": call.GetStep(), "binding": call.GetBinding()})
 
@@ -226,13 +231,20 @@ func (s *stack) endpoint(t *testing.T, name string) {
 func (s *stack) call(t *testing.T, hook, input string) (string, error) {
 	t.Helper()
 
+	return s.callKeyed(t, hook, input, "")
+}
+
+// callKeyed raises hook from a workflow of its own, with idempotency key.
+func (s *stack) callKeyed(t *testing.T, hook, input, key string) (string, error) {
+	t.Helper()
+
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 
 	run, err := s.tc.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
 		ID: "hook/" + hook + "/" + uuid.NewString(), TaskQueue: s.queue, WorkflowExecutionTimeout: 25 * time.Second,
 	}, ops.CallHookWorkflow, &backplanev1.HookCall{
-		Hook: hook, Instance: "test", Payload: []byte(input), Deadline: durationpb.New(20 * time.Second),
+		Hook: hook, Instance: "test", Payload: []byte(input), Deadline: durationpb.New(20 * time.Second), Key: key,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -286,6 +298,25 @@ func TestLiveHookThroughBinding(t *testing.T) {
 	want := `{"binding":"` + greet + `@1","step":"echo","text":"Hello, live"}`
 	if out != want {
 		t.Errorf("result:\n got %s\nwant %s", out, want)
+	}
+
+	// A keyed call runs the binding once: a repeat from another workflow,
+	// after the first completed, answers with its result; another key runs.
+	key := uuid.NewString()
+	before := s.echoes.Load()
+
+	first, err := s.callKeyed(t, greet, `{"name":"keyed"}`, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	again, err := s.callKeyed(t, greet, `{"name":"keyed"}`, key)
+	if err != nil || again != first || s.echoes.Load()-before != 1 {
+		t.Errorf("keyed repeat: %q %v (echoes %d)", again, err, s.echoes.Load()-before)
+	}
+
+	if _, err := s.callKeyed(t, greet, `{"name":"other"}`, uuid.NewString()); err != nil || s.echoes.Load()-before != 2 {
+		t.Errorf("another key: %v (echoes %d)", err, s.echoes.Load()-before)
 	}
 
 	// No binding: required -> backplane.NoBinding; optional -> {}.

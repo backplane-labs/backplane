@@ -18,6 +18,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 	internal "github.com/backplane-labs/backplane/pkg/backplane/internal/temporal"
+	"github.com/backplane-labs/backplane/pkg/backplane/meta"
 )
 
 // New creates a Temporal test environment (go.temporal.io/sdk/
@@ -85,6 +86,8 @@ func hooks(tb testing.TB, e *env.Env, declared []*backplanev1.Hook) *nexus.Servi
 		operation := nexus.NewSyncOperation(d.GetName(), func(
 			ctx context.Context, call *backplanev1.HookCall, _ nexus.StartOperationOptions,
 		) (*backplanev1.HookResult, error) {
+			// The answer sees the call's key and metadata, as a binding does.
+			ctx = env.WithCallKey(meta.Merge(ctx, call.GetMetadata()), call.GetKey())
 			out, err := e.Caller().Call(ctx, full, call.GetPayload())
 
 			switch {
