@@ -176,6 +176,35 @@ Backplane dials with the same credentials a service can use itself:
 `root.PlatformCredentials("sync")` and `root.PlatformTLS("sync")` are mutual
 TLS in `mtls` and plain otherwise.
 
+## Requests to URLs a user supplied
+
+A service that fetches or posts to a URL it was handed — a webhook receiver,
+a push endpoint, a link to preview — uses `pkg/backplane/netguard`, so the URL
+cannot reach the installation's own network (SSRF):
+
+```go
+client := netguard.Client(netguard.Redirects(5)) // a preview may follow redirects
+client.Timeout = 10 * time.Second
+res, err := client.Do(req) // errors.Is(err, netguard.ErrForbiddenAddress), ErrForbiddenURL, ErrRedirects
+```
+
+- Every request and every redirect hop is https, and to a host of
+  `netguard.Hosts(...)` when given (exact names or `*.suffix`).
+- The connection goes only to a public address, checked on the address
+  dialed after DNS, so a name that resolves inside, or rebinds to it, is
+  refused. Refused: loopback, private, link-local (`169.254.169.254`
+  included), shared, multicast, every IANA special-purpose range, IPv6
+  outside global unicast or embedding IPv4 (NAT64, 6to4, Teredo, compatible,
+  SIIT), and zoned addresses (`netguard.Forbidden`).
+- Requests go direct: through a proxy the address dialed would be the
+  proxy's.
+- No redirect is followed unless `netguard.Redirects(n)` allows it, as a
+  delivery (a webhook, a push) wants: the 3xx response comes back.
+
+The client's `*url.Error` names the whole URL: scrub it before logging when
+the URL may carry a token. `netguard.Transport()` is the guarded transport
+alone, for a client that checks URLs itself.
+
 ## Independently served APIs
 
 Describe an API that your own server already serves:
