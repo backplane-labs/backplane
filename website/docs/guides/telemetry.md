@@ -29,6 +29,16 @@ sampling sees whole traces). The other samplers are OpenTelemetry's:
 `BACKPLANE_TELEMETRY_TRACES_RATIO` (0..1). `OTEL_TRACES_SAMPLER` does not
 apply to SDK services.
 
+Every call a service serves is a server span that continues the caller's
+trace: HTTP and gRPC through OpenTelemetry's instrumentation, ws-proto from
+the `traceparent`/`tracestate` headers on the call's OPEN frame. A gRPC or
+ws-proto call's span is an error only for a server fault (`Unknown`,
+`DeadlineExceeded`, `Unimplemented`, `Internal`, `Unavailable`, `DataLoss`):
+a refusal to the client (`NotFound`, `InvalidArgument`, `PermissionDenied`,
+`FailedPrecondition`, ...) leaves it unset, with its code in an attribute.
+Return an expected refusal as such a status, not as a plain error, which
+counts as `Unknown`.
+
 The SDK's PostgreSQL and Valkey clients trace a query or command only under
 an operation: it is a span of the request, event or hook that issued it. Work
 from a context without a span (pool pings, polling and sweep loops) starts no

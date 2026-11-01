@@ -15,6 +15,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
+	grpccodes "google.golang.org/grpc/codes"
 
 	"github.com/gopherex/ws-proto/wsrpc"
 
@@ -92,20 +93,74 @@ func originOption(o api.Origins) wsrpc.ServerOption {
 	}
 }
 
-// traced runs every call in a server span named after its method.
+// traced runs every call in a server span named after its method,
+// continuing the trace the client sent on OPEN (traceparent, tracestate).
+// As on the gRPC server, the span is an error only for a server fault; a
+// refusal to the client (NotFound, InvalidArgument, PermissionDenied, ...)
+// leaves it unset.
 func traced(next wsrpc.Handler) wsrpc.Handler {
 	return func(ctx context.Context, s *wsrpc.Stream) error {
+		ctx = otel.GetTextMapPropagator().Extract(ctx, headerCarrier(s.Header()))
+
 		ctx, span := otel.Tracer(instrumentation).Start(ctx, s.Method(),
 			trace.WithSpanKind(trace.SpanKindServer),
 			trace.WithAttributes(attribute.String("rpc.system", "ws-proto"), attribute.String("rpc.method", s.Method())))
 		defer span.End()
 
 		err := next(ctx, s)
-		if err != nil {
+		if err == nil {
+			return nil
+		}
+
+		st := wsrpc.FromError(err)
+		span.SetAttributes(attribute.String("rpc.ws_proto.status_code", st.Code.String()))
+
+		if serverFault(st.Code) {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
 		}
 
 		return err
 	}
+}
+
+// serverFault: the codes OpenTelemetry's RPC conventions count as a server
+// span's error; the rest are the client's.
+func serverFault(c grpccodes.Code) bool {
+	switch c {
+	case grpccodes.Unknown, grpccodes.DeadlineExceeded, grpccodes.Unimplemented, grpccodes.Internal,
+		grpccodes.Unavailable, grpccodes.DataLoss:
+		return true
+	default:
+		return false
+	}
+}
+
+// headerCarrier reads the OPEN headers for the propagator, whatever case
+// the client gave the keys.
+type headerCarrier map[string]string
+
+func (h headerCarrier) Get(key string) string {
+	if v, ok := h[key]; ok {
+		return v
+	}
+
+	for k, v := range h {
+		if strings.EqualFold(k, key) {
+			return v
+		}
+	}
+
+	return ""
+}
+
+func (h headerCarrier) Set(key, value string) { h[key] = value }
+
+func (h headerCarrier) Keys() []string {
+	keys := make([]string, 0, len(h))
+	for k := range h {
+		keys = append(keys, k)
+	}
+
+	return keys
 }
