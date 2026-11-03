@@ -106,14 +106,13 @@ func authorizeGRPC(ctx context.Context, src Source) (context.Context, error) {
 	return WithPeer(ctx, info.Peer), nil
 }
 
-// ConnContext puts the peer of an HTTP connection into its requests'
-// context (http.Server.ConnContext).
+// ConnContext puts an HTTP connection into its requests' context
+// (http.Server.ConnContext), for PeerFrom to read its peer per request.
+// It runs in the server's accept loop, before the TLS handshake when no
+// gRPC matcher read the connection first (a port serving HTTP only): the
+// peer is not known yet, and a handshake here would hold the accept loop.
 func ConnContext(ctx context.Context, conn net.Conn) context.Context {
-	if p, ok := PeerOf(conn); ok {
-		return WithPeer(ctx, p)
-	}
-
-	return ctx
+	return context.WithValue(ctx, connKey{}, conn)
 }
 
 // Middleware authorizes every request of an mTLS port: 403 for a caller

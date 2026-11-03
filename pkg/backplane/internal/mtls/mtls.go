@@ -255,16 +255,27 @@ func PeerOf(conn net.Conn) (Peer, bool) {
 	return ServiceOf(state.PeerCertificates[0])
 }
 
-type peerKey struct{}
+type (
+	peerKey struct{}
+	connKey struct{}
+)
 
 // WithPeer is ctx carrying p.
 func WithPeer(ctx context.Context, p Peer) context.Context {
 	return context.WithValue(ctx, peerKey{}, p)
 }
 
-// PeerFrom is the peer ctx carries.
+// PeerFrom is the peer ctx carries: the one WithPeer set, else the peer of
+// the HTTP connection ConnContext put there, read now — the TLS handshake
+// may complete only after the connection's context is made.
 func PeerFrom(ctx context.Context) (Peer, bool) {
-	p, ok := ctx.Value(peerKey{}).(Peer)
+	if p, ok := ctx.Value(peerKey{}).(Peer); ok {
+		return p, true
+	}
 
-	return p, ok
+	if conn, ok := ctx.Value(connKey{}).(net.Conn); ok {
+		return PeerOf(conn)
+	}
+
+	return Peer{}, false
 }

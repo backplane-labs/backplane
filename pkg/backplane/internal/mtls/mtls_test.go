@@ -136,6 +136,14 @@ func server(t *testing.T, src *source) string {
 	g := grpc.NewServer(mtls.GRPCServerOptions(src)...)
 	hv1.RegisterHealthServer(g, health.NewServer())
 
+	return serve(t, src, g)
+}
+
+// serve runs the HTTP route echoing the caller, and g when not nil, on an
+// mTLS listener.
+func serve(t *testing.T, src *source, g *grpc.Server) string {
+	t.Helper()
+
 	h := mtls.Middleware(src)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		p, _ := mtls.PeerFrom(r.Context())
 		_, _ = io.WriteString(w, p.Service)
@@ -187,6 +195,32 @@ func callHTTP(t *testing.T, addr string, cfg *tls.Config) (int, string, error) {
 	body, _ := io.ReadAll(res.Body)
 
 	return res.StatusCode, strings.TrimSpace(string(body)), nil
+}
+
+// A port serving HTTP only knows its caller too: no gRPC matcher drives the
+// TLS handshake before the request, so the peer is read at request time.
+func TestMutualTLSHTTPOnly(t *testing.T) {
+	t.Parallel()
+
+	authority := newCA(t)
+	a := &source{cert: authority.issue("a"), roots: authority.pool(), denied: map[string]bool{}}
+	b := &source{cert: authority.issue("b"), roots: authority.pool()}
+	addr := serve(t, a, nil)
+
+	for range 2 { // a fresh connection each time (no keep-alive)
+		if code, body, err := callHTTP(t, addr, mtls.ClientConfig(b, "a", "http/1.1")); err != nil || code != http.StatusOK ||
+			body != "b" {
+			t.Fatalf("http b -> a: %d %q %v", code, body, err)
+		}
+	}
+
+	a.mu.Lock()
+	a.denied["b"] = true
+	a.mu.Unlock()
+
+	if code, _, err := callHTTP(t, addr, mtls.ClientConfig(b, "a", "http/1.1")); err != nil || code != http.StatusForbidden {
+		t.Fatalf("refused b: %d %v", code, err)
+	}
 }
 
 func TestMutualTLS(t *testing.T) {
