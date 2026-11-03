@@ -59,6 +59,9 @@ type Recorder interface {
 // NopRecorder records nothing.
 type NopRecorder struct{}
 
+// Incomplete implements RunRecorder: nothing was meant to be recorded.
+func (NopRecorder) Incomplete() bool { return false }
+
 // Scheduled implements Recorder.
 func (NopRecorder) Scheduled(string, string, string, int, string, []byte, time.Time) {}
 

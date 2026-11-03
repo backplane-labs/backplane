@@ -44,9 +44,24 @@ type Binding struct {
 	Result Value
 	// Runtime runs the binding; unspecified: the installation's default.
 	Runtime consolev1.Runtime
+	// History is what the direct runtime keeps of the runs.
+	History History
 	// Editor is the graph editor's layout, kept as saved; compile and
 	// execution ignore it.
 	Editor *consolev1.EditorLayout
+}
+
+// History is what the direct runtime keeps of a definition's runs.
+type History struct {
+	// Record is how much of a run is recorded; unspecified: everything.
+	Record consolev1.HistoryRecord
+	// Retention of the recorded runs; zero: the installation's.
+	Retention time.Duration
+}
+
+// IsZero: everything, for the installation's retention.
+func (h History) IsZero() bool {
+	return h.Record == consolev1.HistoryRecord_HISTORY_RECORD_UNSPECIFIED && h.Retention == 0
 }
 
 // Rule is the definition of a rule.
@@ -60,6 +75,8 @@ type Rule struct {
 	Steps []Step
 	// Runtime runs the rule; unspecified: the installation's default.
 	Runtime consolev1.Runtime
+	// History is what the direct runtime keeps of the runs.
+	History History
 	Editor  *consolev1.EditorLayout
 }
 

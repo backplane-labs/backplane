@@ -166,6 +166,7 @@ type BackplaneDirectRun struct {
 	Incomplete  bool
 	StartedAt   time.Time
 	DeadlineAt  time.Time
+	ExpireAt    *time.Time
 	ClosedAt    *time.Time
 }
 

@@ -10,13 +10,16 @@ ON CONFLICT (hash) DO NOTHING;
 -- event redelivered; a keyed hook call repeated, which also runs a
 -- canceled one again) or a running one past its deadline (its replica
 -- died). No row when the id is running or completed already. The run's
--- deadline is lease_ms from now.
-INSERT INTO backplane.direct_run (id, kind, source, version, test, caller, status, input, program_hash, deadline_at)
+-- deadline is lease_ms from now; it expires keep_ms from now (0: by the
+-- installation's retention).
+INSERT INTO backplane.direct_run (id, kind, source, version, test, caller, status, input, program_hash, deadline_at,
+  expire_at)
 VALUES (@id, @kind, @source, @version, @test, @caller, 'running', @input, @program_hash,
-  clock_timestamp() + @lease_ms::bigint * interval '1 millisecond')
+  clock_timestamp() + @lease_ms::bigint * interval '1 millisecond',
+  CASE WHEN @keep_ms::bigint > 0 THEN clock_timestamp() + @keep_ms::bigint * interval '1 millisecond' END)
 ON CONFLICT (id) DO UPDATE SET
   status = 'running', attempt = backplane.direct_run.attempt + 1, started_at = clock_timestamp(),
-  deadline_at = EXCLUDED.deadline_at,
+  deadline_at = EXCLUDED.deadline_at, expire_at = EXCLUDED.expire_at,
   closed_at = NULL, result = NULL, reply = NULL, error = '', error_type = '', incomplete = false,
   input = EXCLUDED.input, program_hash = EXCLUDED.program_hash,
   version = EXCLUDED.version, caller = EXCLUDED.caller
@@ -75,11 +78,17 @@ SELECT run_id, label, seq, step, parent, item, activity, status, input, output, 
 FROM backplane.direct_run_step WHERE run_id = @run_id ORDER BY seq;
 
 -- name: ExpireDirectRuns :exec
+-- Ended runs past their own expiry, and, when use_cutoff is set, those
+-- without one started before cutoff (the installation's retention).
 DELETE FROM backplane.direct_run
 WHERE id IN (
-  SELECT id FROM backplane.direct_run
-  WHERE started_at < @cutoff AND status <> 'running'
-  ORDER BY started_at LIMIT @batch_size
+  (SELECT id FROM backplane.direct_run
+   WHERE expire_at < clock_timestamp() AND status <> 'running'
+   ORDER BY expire_at LIMIT @batch_size)
+  UNION ALL
+  (SELECT id FROM backplane.direct_run
+   WHERE @use_cutoff::boolean AND expire_at IS NULL AND started_at < @cutoff AND status <> 'running'
+   ORDER BY started_at LIMIT @batch_size)
 );
 
 -- name: ExpireDirectPrograms :exec

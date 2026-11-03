@@ -97,6 +97,9 @@ type spec struct {
 	// Runtime the program compiled for; unspecified in programs compiled
 	// before runtimes existed: Temporal.
 	Runtime consolev1.Runtime `json:"runtime,omitempty"`
+	// Record and Retention: what the direct runtime keeps of the runs.
+	Record    consolev1.HistoryRecord `json:"record,omitempty"`
+	Retention time.Duration           `json:"retention,omitempty"`
 }
 
 type specStep struct {
@@ -412,6 +415,11 @@ func (p *Program) Runtime() consolev1.Runtime {
 	}
 
 	return p.spec.Runtime
+}
+
+// History is what the direct runtime keeps of the program's runs.
+func (p *Program) History() History {
+	return History{Record: p.spec.Record, Retention: p.spec.Retention}
 }
 
 // Steps are the steps by name.

@@ -270,11 +270,15 @@ CREATE TABLE backplane.direct_run (
   -- time the record may take. Still running past it, the run is running
   -- nowhere (its replica died): it is claimed again or swept.
   deadline_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  -- When the run is deleted, by its definition's own retention (history);
+  -- NULL: the installation's retention.
+  expire_at  timestamptz,
   closed_at  timestamptz
 );
 
 CREATE INDEX direct_run_source_idx ON backplane.direct_run (kind, source, test, started_at DESC, id DESC);
-CREATE INDEX direct_run_started_at_idx ON backplane.direct_run (started_at);
+CREATE INDEX direct_run_started_at_idx ON backplane.direct_run (started_at) WHERE expire_at IS NULL;
+CREATE INDEX direct_run_expire_idx ON backplane.direct_run (expire_at) WHERE expire_at IS NOT NULL;
 CREATE INDEX direct_run_deadline_idx ON backplane.direct_run (deadline_at) WHERE status = 'running';
 
 -- One call of a run: a step, an item of a for-each step or a body step

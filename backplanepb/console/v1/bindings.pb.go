@@ -102,6 +102,9 @@ type BindingDefinition struct {
 	Description string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	// What runs the binding; unspecified: the installation's default.
 	Runtime Runtime `protobuf:"varint,5,opt,name=runtime,proto3,enum=backplane.console.v1.Runtime" json:"runtime,omitempty"`
+	// What the direct runtime keeps of the runs; absent: everything, for the
+	// installation's retention.
+	History *RunHistory `protobuf:"bytes,6,opt,name=history,proto3" json:"history,omitempty"`
 	// The graph editor's layout; ignored by compile and execution.
 	Editor        *EditorLayout `protobuf:"bytes,15,opt,name=editor,proto3" json:"editor,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -171,6 +174,13 @@ func (x *BindingDefinition) GetRuntime() Runtime {
 		return x.Runtime
 	}
 	return Runtime_RUNTIME_UNSPECIFIED
+}
+
+func (x *BindingDefinition) GetHistory() *RunHistory {
+	if x != nil {
+		return x.History
+	}
+	return nil
 }
 
 func (x *BindingDefinition) GetEditor() *EditorLayout {
@@ -1762,13 +1772,14 @@ var File_backplanepb_console_v1_bindings_proto protoreflect.FileDescriptor
 
 const file_backplanepb_console_v1_bindings_proto_rawDesc = "" +
 	"\n" +
-	"%backplanepb/console/v1/bindings.proto\x12\x14backplane.console.v1\x1a\"backplanepb/console/v1/calls.proto\x1a&backplanepb/console/v1/workflows.proto\x1a!backplanepb/console/v1/step.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8e\x03\n" +
+	"%backplanepb/console/v1/bindings.proto\x12\x14backplane.console.v1\x1a\"backplanepb/console/v1/calls.proto\x1a&backplanepb/console/v1/workflows.proto\x1a!backplanepb/console/v1/step.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xca\x03\n" +
 	"\x11BindingDefinition\x12\x12\n" +
 	"\x04hook\x18\x01 \x01(\tR\x04hook\x12H\n" +
 	"\x05steps\x18\x02 \x03(\v22.backplane.console.v1.BindingDefinition.StepsEntryR\x05steps\x12.\n" +
 	"\x06result\x18\x03 \x01(\v2\x16.google.protobuf.ValueR\x06result\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x127\n" +
 	"\aruntime\x18\x05 \x01(\x0e2\x1d.backplane.console.v1.RuntimeR\aruntime\x12:\n" +
+	"\ahistory\x18\x06 \x01(\v2 .backplane.console.v1.RunHistoryR\ahistory\x12:\n" +
 	"\x06editor\x18\x0f \x01(\v2\".backplane.console.v1.EditorLayoutR\x06editor\x1aT\n" +
 	"\n" +
 	"StepsEntry\x12\x10\n" +
@@ -1970,78 +1981,80 @@ var file_backplanepb_console_v1_bindings_proto_goTypes = []any{
 	nil,                                 // 28: backplane.console.v1.BindingDefinition.StepsEntry
 	(*structpb.Value)(nil),              // 29: google.protobuf.Value
 	(Runtime)(0),                        // 30: backplane.console.v1.Runtime
-	(*EditorLayout)(nil),                // 31: backplane.console.v1.EditorLayout
-	(*timestamppb.Timestamp)(nil),       // 32: google.protobuf.Timestamp
-	(*Violation)(nil),                   // 33: backplane.console.v1.Violation
-	(*durationpb.Duration)(nil),         // 34: google.protobuf.Duration
-	(*CallResult)(nil),                  // 35: backplane.console.v1.CallResult
-	(RunStatus)(0),                      // 36: backplane.console.v1.RunStatus
-	(*Run)(nil),                         // 37: backplane.console.v1.Run
-	(*GetRunResponse)(nil),              // 38: backplane.console.v1.GetRunResponse
-	(*StepRun)(nil),                     // 39: backplane.console.v1.StepRun
-	(*Step)(nil),                        // 40: backplane.console.v1.Step
+	(*RunHistory)(nil),                  // 31: backplane.console.v1.RunHistory
+	(*EditorLayout)(nil),                // 32: backplane.console.v1.EditorLayout
+	(*timestamppb.Timestamp)(nil),       // 33: google.protobuf.Timestamp
+	(*Violation)(nil),                   // 34: backplane.console.v1.Violation
+	(*durationpb.Duration)(nil),         // 35: google.protobuf.Duration
+	(*CallResult)(nil),                  // 36: backplane.console.v1.CallResult
+	(RunStatus)(0),                      // 37: backplane.console.v1.RunStatus
+	(*Run)(nil),                         // 38: backplane.console.v1.Run
+	(*GetRunResponse)(nil),              // 39: backplane.console.v1.GetRunResponse
+	(*StepRun)(nil),                     // 40: backplane.console.v1.StepRun
+	(*Step)(nil),                        // 41: backplane.console.v1.Step
 }
 var file_backplanepb_console_v1_bindings_proto_depIdxs = []int32{
 	28, // 0: backplane.console.v1.BindingDefinition.steps:type_name -> backplane.console.v1.BindingDefinition.StepsEntry
 	29, // 1: backplane.console.v1.BindingDefinition.result:type_name -> google.protobuf.Value
 	30, // 2: backplane.console.v1.BindingDefinition.runtime:type_name -> backplane.console.v1.Runtime
-	31, // 3: backplane.console.v1.BindingDefinition.editor:type_name -> backplane.console.v1.EditorLayout
-	1,  // 4: backplane.console.v1.BindingVersion.definition:type_name -> backplane.console.v1.BindingDefinition
-	32, // 5: backplane.console.v1.BindingVersion.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 6: backplane.console.v1.HookBinding.state:type_name -> backplane.console.v1.BindingState
-	2,  // 7: backplane.console.v1.HookBinding.current:type_name -> backplane.console.v1.BindingVersion
-	33, // 8: backplane.console.v1.HookBinding.violations:type_name -> backplane.console.v1.Violation
-	3,  // 9: backplane.console.v1.ListBindingsResponse.bindings:type_name -> backplane.console.v1.HookBinding
-	2,  // 10: backplane.console.v1.GetBindingResponse.version:type_name -> backplane.console.v1.BindingVersion
-	33, // 11: backplane.console.v1.GetBindingResponse.violations:type_name -> backplane.console.v1.Violation
-	2,  // 12: backplane.console.v1.ListBindingVersionsResponse.versions:type_name -> backplane.console.v1.BindingVersion
-	1,  // 13: backplane.console.v1.ValidateBindingRequest.definition:type_name -> backplane.console.v1.BindingDefinition
-	33, // 14: backplane.console.v1.ValidateBindingResponse.violations:type_name -> backplane.console.v1.Violation
-	1,  // 15: backplane.console.v1.SaveBindingRequest.definition:type_name -> backplane.console.v1.BindingDefinition
-	2,  // 16: backplane.console.v1.SaveBindingResponse.version:type_name -> backplane.console.v1.BindingVersion
-	33, // 17: backplane.console.v1.SaveBindingResponse.violations:type_name -> backplane.console.v1.Violation
-	2,  // 18: backplane.console.v1.RollbackBindingResponse.version:type_name -> backplane.console.v1.BindingVersion
-	33, // 19: backplane.console.v1.RollbackBindingResponse.violations:type_name -> backplane.console.v1.Violation
-	2,  // 20: backplane.console.v1.DeleteBindingResponse.version:type_name -> backplane.console.v1.BindingVersion
-	3,  // 21: backplane.console.v1.WatchBindingsResponse.bindings:type_name -> backplane.console.v1.HookBinding
-	1,  // 22: backplane.console.v1.TestBindingRequest.definition:type_name -> backplane.console.v1.BindingDefinition
-	34, // 23: backplane.console.v1.TestBindingRequest.timeout:type_name -> google.protobuf.Duration
-	33, // 24: backplane.console.v1.TestBindingResponse.violations:type_name -> backplane.console.v1.Violation
-	35, // 25: backplane.console.v1.TestBindingResponse.result:type_name -> backplane.console.v1.CallResult
-	36, // 26: backplane.console.v1.ListBindingRunsRequest.status:type_name -> backplane.console.v1.RunStatus
-	37, // 27: backplane.console.v1.ListBindingRunsResponse.runs:type_name -> backplane.console.v1.Run
-	38, // 28: backplane.console.v1.GetBindingRunResponse.run:type_name -> backplane.console.v1.GetRunResponse
-	39, // 29: backplane.console.v1.GetBindingRunResponse.steps:type_name -> backplane.console.v1.StepRun
-	40, // 30: backplane.console.v1.BindingDefinition.StepsEntry.value:type_name -> backplane.console.v1.Step
-	4,  // 31: backplane.console.v1.BindingService.ListBindings:input_type -> backplane.console.v1.ListBindingsRequest
-	6,  // 32: backplane.console.v1.BindingService.GetBinding:input_type -> backplane.console.v1.GetBindingRequest
-	8,  // 33: backplane.console.v1.BindingService.ListBindingVersions:input_type -> backplane.console.v1.ListBindingVersionsRequest
-	10, // 34: backplane.console.v1.BindingService.ValidateBinding:input_type -> backplane.console.v1.ValidateBindingRequest
-	12, // 35: backplane.console.v1.BindingService.SaveBinding:input_type -> backplane.console.v1.SaveBindingRequest
-	14, // 36: backplane.console.v1.BindingService.RollbackBinding:input_type -> backplane.console.v1.RollbackBindingRequest
-	16, // 37: backplane.console.v1.BindingService.DeleteBinding:input_type -> backplane.console.v1.DeleteBindingRequest
-	18, // 38: backplane.console.v1.BindingService.WatchBindings:input_type -> backplane.console.v1.WatchBindingsRequest
-	20, // 39: backplane.console.v1.BindingService.TestBinding:input_type -> backplane.console.v1.TestBindingRequest
-	22, // 40: backplane.console.v1.BindingService.ListBindingRuns:input_type -> backplane.console.v1.ListBindingRunsRequest
-	24, // 41: backplane.console.v1.BindingService.GetBindingRun:input_type -> backplane.console.v1.GetBindingRunRequest
-	26, // 42: backplane.console.v1.BindingService.CancelBindingRun:input_type -> backplane.console.v1.CancelBindingRunRequest
-	5,  // 43: backplane.console.v1.BindingService.ListBindings:output_type -> backplane.console.v1.ListBindingsResponse
-	7,  // 44: backplane.console.v1.BindingService.GetBinding:output_type -> backplane.console.v1.GetBindingResponse
-	9,  // 45: backplane.console.v1.BindingService.ListBindingVersions:output_type -> backplane.console.v1.ListBindingVersionsResponse
-	11, // 46: backplane.console.v1.BindingService.ValidateBinding:output_type -> backplane.console.v1.ValidateBindingResponse
-	13, // 47: backplane.console.v1.BindingService.SaveBinding:output_type -> backplane.console.v1.SaveBindingResponse
-	15, // 48: backplane.console.v1.BindingService.RollbackBinding:output_type -> backplane.console.v1.RollbackBindingResponse
-	17, // 49: backplane.console.v1.BindingService.DeleteBinding:output_type -> backplane.console.v1.DeleteBindingResponse
-	19, // 50: backplane.console.v1.BindingService.WatchBindings:output_type -> backplane.console.v1.WatchBindingsResponse
-	21, // 51: backplane.console.v1.BindingService.TestBinding:output_type -> backplane.console.v1.TestBindingResponse
-	23, // 52: backplane.console.v1.BindingService.ListBindingRuns:output_type -> backplane.console.v1.ListBindingRunsResponse
-	25, // 53: backplane.console.v1.BindingService.GetBindingRun:output_type -> backplane.console.v1.GetBindingRunResponse
-	27, // 54: backplane.console.v1.BindingService.CancelBindingRun:output_type -> backplane.console.v1.CancelBindingRunResponse
-	43, // [43:55] is the sub-list for method output_type
-	31, // [31:43] is the sub-list for method input_type
-	31, // [31:31] is the sub-list for extension type_name
-	31, // [31:31] is the sub-list for extension extendee
-	0,  // [0:31] is the sub-list for field type_name
+	31, // 3: backplane.console.v1.BindingDefinition.history:type_name -> backplane.console.v1.RunHistory
+	32, // 4: backplane.console.v1.BindingDefinition.editor:type_name -> backplane.console.v1.EditorLayout
+	1,  // 5: backplane.console.v1.BindingVersion.definition:type_name -> backplane.console.v1.BindingDefinition
+	33, // 6: backplane.console.v1.BindingVersion.created_at:type_name -> google.protobuf.Timestamp
+	0,  // 7: backplane.console.v1.HookBinding.state:type_name -> backplane.console.v1.BindingState
+	2,  // 8: backplane.console.v1.HookBinding.current:type_name -> backplane.console.v1.BindingVersion
+	34, // 9: backplane.console.v1.HookBinding.violations:type_name -> backplane.console.v1.Violation
+	3,  // 10: backplane.console.v1.ListBindingsResponse.bindings:type_name -> backplane.console.v1.HookBinding
+	2,  // 11: backplane.console.v1.GetBindingResponse.version:type_name -> backplane.console.v1.BindingVersion
+	34, // 12: backplane.console.v1.GetBindingResponse.violations:type_name -> backplane.console.v1.Violation
+	2,  // 13: backplane.console.v1.ListBindingVersionsResponse.versions:type_name -> backplane.console.v1.BindingVersion
+	1,  // 14: backplane.console.v1.ValidateBindingRequest.definition:type_name -> backplane.console.v1.BindingDefinition
+	34, // 15: backplane.console.v1.ValidateBindingResponse.violations:type_name -> backplane.console.v1.Violation
+	1,  // 16: backplane.console.v1.SaveBindingRequest.definition:type_name -> backplane.console.v1.BindingDefinition
+	2,  // 17: backplane.console.v1.SaveBindingResponse.version:type_name -> backplane.console.v1.BindingVersion
+	34, // 18: backplane.console.v1.SaveBindingResponse.violations:type_name -> backplane.console.v1.Violation
+	2,  // 19: backplane.console.v1.RollbackBindingResponse.version:type_name -> backplane.console.v1.BindingVersion
+	34, // 20: backplane.console.v1.RollbackBindingResponse.violations:type_name -> backplane.console.v1.Violation
+	2,  // 21: backplane.console.v1.DeleteBindingResponse.version:type_name -> backplane.console.v1.BindingVersion
+	3,  // 22: backplane.console.v1.WatchBindingsResponse.bindings:type_name -> backplane.console.v1.HookBinding
+	1,  // 23: backplane.console.v1.TestBindingRequest.definition:type_name -> backplane.console.v1.BindingDefinition
+	35, // 24: backplane.console.v1.TestBindingRequest.timeout:type_name -> google.protobuf.Duration
+	34, // 25: backplane.console.v1.TestBindingResponse.violations:type_name -> backplane.console.v1.Violation
+	36, // 26: backplane.console.v1.TestBindingResponse.result:type_name -> backplane.console.v1.CallResult
+	37, // 27: backplane.console.v1.ListBindingRunsRequest.status:type_name -> backplane.console.v1.RunStatus
+	38, // 28: backplane.console.v1.ListBindingRunsResponse.runs:type_name -> backplane.console.v1.Run
+	39, // 29: backplane.console.v1.GetBindingRunResponse.run:type_name -> backplane.console.v1.GetRunResponse
+	40, // 30: backplane.console.v1.GetBindingRunResponse.steps:type_name -> backplane.console.v1.StepRun
+	41, // 31: backplane.console.v1.BindingDefinition.StepsEntry.value:type_name -> backplane.console.v1.Step
+	4,  // 32: backplane.console.v1.BindingService.ListBindings:input_type -> backplane.console.v1.ListBindingsRequest
+	6,  // 33: backplane.console.v1.BindingService.GetBinding:input_type -> backplane.console.v1.GetBindingRequest
+	8,  // 34: backplane.console.v1.BindingService.ListBindingVersions:input_type -> backplane.console.v1.ListBindingVersionsRequest
+	10, // 35: backplane.console.v1.BindingService.ValidateBinding:input_type -> backplane.console.v1.ValidateBindingRequest
+	12, // 36: backplane.console.v1.BindingService.SaveBinding:input_type -> backplane.console.v1.SaveBindingRequest
+	14, // 37: backplane.console.v1.BindingService.RollbackBinding:input_type -> backplane.console.v1.RollbackBindingRequest
+	16, // 38: backplane.console.v1.BindingService.DeleteBinding:input_type -> backplane.console.v1.DeleteBindingRequest
+	18, // 39: backplane.console.v1.BindingService.WatchBindings:input_type -> backplane.console.v1.WatchBindingsRequest
+	20, // 40: backplane.console.v1.BindingService.TestBinding:input_type -> backplane.console.v1.TestBindingRequest
+	22, // 41: backplane.console.v1.BindingService.ListBindingRuns:input_type -> backplane.console.v1.ListBindingRunsRequest
+	24, // 42: backplane.console.v1.BindingService.GetBindingRun:input_type -> backplane.console.v1.GetBindingRunRequest
+	26, // 43: backplane.console.v1.BindingService.CancelBindingRun:input_type -> backplane.console.v1.CancelBindingRunRequest
+	5,  // 44: backplane.console.v1.BindingService.ListBindings:output_type -> backplane.console.v1.ListBindingsResponse
+	7,  // 45: backplane.console.v1.BindingService.GetBinding:output_type -> backplane.console.v1.GetBindingResponse
+	9,  // 46: backplane.console.v1.BindingService.ListBindingVersions:output_type -> backplane.console.v1.ListBindingVersionsResponse
+	11, // 47: backplane.console.v1.BindingService.ValidateBinding:output_type -> backplane.console.v1.ValidateBindingResponse
+	13, // 48: backplane.console.v1.BindingService.SaveBinding:output_type -> backplane.console.v1.SaveBindingResponse
+	15, // 49: backplane.console.v1.BindingService.RollbackBinding:output_type -> backplane.console.v1.RollbackBindingResponse
+	17, // 50: backplane.console.v1.BindingService.DeleteBinding:output_type -> backplane.console.v1.DeleteBindingResponse
+	19, // 51: backplane.console.v1.BindingService.WatchBindings:output_type -> backplane.console.v1.WatchBindingsResponse
+	21, // 52: backplane.console.v1.BindingService.TestBinding:output_type -> backplane.console.v1.TestBindingResponse
+	23, // 53: backplane.console.v1.BindingService.ListBindingRuns:output_type -> backplane.console.v1.ListBindingRunsResponse
+	25, // 54: backplane.console.v1.BindingService.GetBindingRun:output_type -> backplane.console.v1.GetBindingRunResponse
+	27, // 55: backplane.console.v1.BindingService.CancelBindingRun:output_type -> backplane.console.v1.CancelBindingRunResponse
+	44, // [44:56] is the sub-list for method output_type
+	32, // [32:44] is the sub-list for method input_type
+	32, // [32:32] is the sub-list for extension type_name
+	32, // [32:32] is the sub-list for extension extendee
+	0,  // [0:32] is the sub-list for field type_name
 }
 
 func init() { file_backplanepb_console_v1_bindings_proto_init() }

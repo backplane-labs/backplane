@@ -167,6 +167,7 @@ const (
 func compileBinding(b Binding, cat Catalog) (*Program, Analysis, error) {
 	c := newCompiler(KindBinding, cat)
 	c.runtime(b.Runtime)
+	c.history(b.History)
 
 	var in, out *sp.Schema
 
@@ -189,6 +190,7 @@ func compileBinding(b Binding, cat Catalog) (*Program, Analysis, error) {
 func compileRule(r Rule, cat Catalog) (*Program, Analysis, error) {
 	c := newCompiler(KindRule, cat)
 	c.runtime(r.Runtime)
+	c.history(r.History)
 
 	var in *sp.Schema
 
@@ -236,6 +238,27 @@ type compiler struct {
 	taints map[*shape]bool
 	// rt is the runtime the definition compiles for.
 	rt consolev1.Runtime
+	// hist is what the direct runtime keeps of the runs.
+	hist History
+}
+
+const pathHistory = "/history"
+
+// history checks what the definition keeps of its runs: the direct
+// runtime's record and retention; Temporal keeps its own.
+func (c *compiler) history(h History) {
+	c.hist = h
+
+	switch {
+	case h.IsZero():
+	case c.rt != consolev1.Runtime_RUNTIME_DIRECT:
+		c.violate(pathHistory, CodeRuntimeUnsupported,
+			"history applies to the direct runtime: a Temporal run's history is Temporal's")
+	case h.Retention < 0:
+		c.violate(pathHistory+"/retention", CodeInvalidValue, "retention is a positive duration")
+	case consolev1.HistoryRecord_name[int32(h.Record)] == "":
+		c.violate(pathHistory+"/record", CodeInvalidValue, fmt.Sprintf("unknown record %d", h.Record))
+	}
 }
 
 // runtime resolves the definition's runtime: its own, the catalog's
@@ -357,7 +380,7 @@ func (c *compiler) compile(src source, steps []Step, in *sp.Schema, result *shap
 
 	s := spec{
 		Kind: src.kind, Source: src.name, When: src.when, Result: src.result.JSON(), Input: schemaBytes(in),
-		Runtime: c.rt,
+		Runtime: c.rt, Record: c.hist.Record, Retention: c.hist.Retention,
 	}
 	s.ResultSchema, s.ResultSecret = c.secrets(drafts, groups, src, resultReads, result)
 	s.Steps = c.specSteps(drafts, groups)

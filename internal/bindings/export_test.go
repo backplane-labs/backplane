@@ -21,8 +21,8 @@ func ReadWiring(dir string) (Wiring, error) {
 		out.Bindings[hook] = b.file
 	}
 
-	for id, r := range d.rules {
-		out.Rules[id] = r.file
+	for id := range d.rules {
+		out.Rules[id] = d.rules[id].file
 	}
 
 	return out, nil

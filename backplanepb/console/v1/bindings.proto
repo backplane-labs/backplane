@@ -81,6 +81,9 @@ message BindingDefinition {
   string description = 4;
   // What runs the binding; unspecified: the installation's default.
   Runtime runtime = 5;
+  // What the direct runtime keeps of the runs; absent: everything, for the
+  // installation's retention.
+  RunHistory history = 6;
   // The graph editor's layout; ignored by compile and execution.
   EditorLayout editor = 15;
 }

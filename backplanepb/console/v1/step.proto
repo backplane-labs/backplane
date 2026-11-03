@@ -35,6 +35,28 @@ enum Runtime {
   RUNTIME_DIRECT = 2;
 }
 
+// RunHistory is what the direct runtime keeps of a definition's runs in
+// backplane's PostgreSQL; a Temporal run's history is Temporal's (setting it
+// there is a RUNTIME_UNSUPPORTED violation).
+message RunHistory {
+  // How much of a run is recorded; unspecified: everything.
+  HistoryRecord record = 1;
+  // How long recorded runs are kept; unset or zero: the installation's
+  // retention (BACKPLANE_DIRECT_RETENTION).
+  google.protobuf.Duration retention = 2;
+}
+
+// HistoryRecord is how much of a run the direct runtime records.
+enum HistoryRecord {
+  // Everything: the run and every step and for-each item.
+  HISTORY_RECORD_UNSPECIFIED = 0;
+  // The run (input, result, error), not its steps.
+  HISTORY_RECORD_RUN = 1;
+  // Nothing, except the run deduplication reads: a rule's (its event's
+  // id) and a keyed hook call's (its key and reply) keep their run.
+  HISTORY_RECORD_NONE = 2;
+}
+
 // Step is one call of an activity. Its name is its key in the definition's
 // steps: an identifier, the CEL variable of its output.
 //

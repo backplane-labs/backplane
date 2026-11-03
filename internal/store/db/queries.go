@@ -1388,18 +1388,21 @@ const claimDirectRunSQL = `-- A new run, or a run of the same id claimed again: 
 -- event redelivered; a keyed hook call repeated, which also runs a
 -- canceled one again) or a running one past its deadline (its replica
 -- died). No row when the id is running or completed already. The run's
--- deadline is lease_ms from now.
-INSERT INTO backplane.direct_run (id, kind, source, version, test, caller, status, input, program_hash, deadline_at)
+-- deadline is lease_ms from now; it expires keep_ms from now (0: by the
+-- installation's retention).
+INSERT INTO backplane.direct_run (id, kind, source, version, test, caller, status, input, program_hash, deadline_at,
+  expire_at)
 VALUES ($1, $2, $3, $4, $5, $6, 'running', $7, $8,
-  clock_timestamp() + $9::bigint * interval '1 millisecond')
+  clock_timestamp() + $9::bigint * interval '1 millisecond',
+  CASE WHEN $10::bigint > 0 THEN clock_timestamp() + $10::bigint * interval '1 millisecond' END)
 ON CONFLICT (id) DO UPDATE SET
   status = 'running', attempt = backplane.direct_run.attempt + 1, started_at = clock_timestamp(),
-  deadline_at = EXCLUDED.deadline_at,
+  deadline_at = EXCLUDED.deadline_at, expire_at = EXCLUDED.expire_at,
   closed_at = NULL, result = NULL, reply = NULL, error = '', error_type = '', incomplete = false,
   input = EXCLUDED.input, program_hash = EXCLUDED.program_hash,
   version = EXCLUDED.version, caller = EXCLUDED.caller
 WHERE backplane.direct_run.status = 'failed'
-  OR ($10::boolean AND backplane.direct_run.status = 'canceled')
+  OR ($11::boolean AND backplane.direct_run.status = 'canceled')
   OR (backplane.direct_run.status = 'running' AND backplane.direct_run.deadline_at < clock_timestamp())
 RETURNING id, attempt, started_at;`
 
@@ -1413,6 +1416,7 @@ type ClaimDirectRunParams struct {
 	Input         json.RawMessage
 	ProgramHash   string
 	LeaseMs       int64
+	KeepMs        *int64
 	RerunCanceled bool
 }
 
@@ -1423,7 +1427,7 @@ type ClaimDirectRunRow struct {
 }
 
 func (q *Queries) ClaimDirectRun(ctx context.Context, arg ClaimDirectRunParams) (ClaimDirectRunRow, error) {
-	row := q.db.QueryRow(ctx, claimDirectRunSQL, arg.ID, arg.Kind, arg.Source, arg.Version, arg.Test, arg.Caller, arg.Input, arg.ProgramHash, arg.LeaseMs, arg.RerunCanceled)
+	row := q.db.QueryRow(ctx, claimDirectRunSQL, arg.ID, arg.Kind, arg.Source, arg.Version, arg.Test, arg.Caller, arg.Input, arg.ProgramHash, arg.LeaseMs, arg.KeepMs, arg.RerunCanceled)
 	var i ClaimDirectRunRow
 	err := row.Scan(&i.ID, &i.Attempt, &i.StartedAt)
 	return i, err
@@ -1643,20 +1647,27 @@ func (q *Queries) ListDirectRunSteps(ctx context.Context, runID string) ([]ListD
 	return items, nil
 }
 
-const expireDirectRunsSQL = `DELETE FROM backplane.direct_run
+const expireDirectRunsSQL = `-- Ended runs past their own expiry, and, when use_cutoff is set, those
+-- without one started before cutoff (the installation's retention).
+DELETE FROM backplane.direct_run
 WHERE id IN (
-  SELECT id FROM backplane.direct_run
-  WHERE started_at < $1 AND status <> 'running'
-  ORDER BY started_at LIMIT $2
+  (SELECT id FROM backplane.direct_run
+   WHERE expire_at < clock_timestamp() AND status <> 'running'
+   ORDER BY expire_at LIMIT $1)
+  UNION ALL
+  (SELECT id FROM backplane.direct_run
+   WHERE $2::boolean AND expire_at IS NULL AND started_at < $3 AND status <> 'running'
+   ORDER BY started_at LIMIT $1)
 );`
 
 type ExpireDirectRunsParams struct {
-	Cutoff    time.Time
 	BatchSize int64
+	UseCutoff bool
+	Cutoff    time.Time
 }
 
 func (q *Queries) ExpireDirectRuns(ctx context.Context, arg ExpireDirectRunsParams) error {
-	_, err := q.db.Exec(ctx, expireDirectRunsSQL, arg.Cutoff, arg.BatchSize)
+	_, err := q.db.Exec(ctx, expireDirectRunsSQL, arg.BatchSize, arg.UseCutoff, arg.Cutoff)
 	return err
 }
 

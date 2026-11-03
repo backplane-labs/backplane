@@ -3,7 +3,9 @@ package bindings
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"go.yaml.in/yaml/v3"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -40,7 +42,9 @@ func RuleYAML(text string) (Rule, error) {
 	return RuleFromPB(&m), nil
 }
 
-// shortRuntime lets YAML say `runtime: direct` for RUNTIME_DIRECT.
+// shortRuntime lets YAML say `runtime: direct` for RUNTIME_DIRECT, and
+// `history: {record: run, retention: 24h}` for HISTORY_RECORD_RUN and a
+// Go duration.
 func shortRuntime(tree any) {
 	m, ok := tree.(map[string]any)
 	if !ok {
@@ -49,6 +53,22 @@ func shortRuntime(tree any) {
 
 	if rt, isText := m["runtime"].(string); isText && rt != "" && !strings.HasPrefix(rt, "RUNTIME_") {
 		m["runtime"] = "RUNTIME_" + strings.ToUpper(rt)
+	}
+
+	h, ok := m["history"].(map[string]any)
+	if !ok {
+		return
+	}
+
+	if rec, isText := h["record"].(string); isText && rec != "" && !strings.HasPrefix(rec, "HISTORY_RECORD_") {
+		h["record"] = "HISTORY_RECORD_" + strings.ToUpper(rec)
+	}
+
+	// protojson takes "86400s"; a Go duration ("24h", "90m") is converted.
+	if ret, isText := h["retention"].(string); isText {
+		if d, err := time.ParseDuration(ret); err == nil {
+			h["retention"] = strconv.FormatFloat(d.Seconds(), 'f', -1, 64) + "s"
+		}
 	}
 }
 

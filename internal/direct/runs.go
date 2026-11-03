@@ -277,6 +277,12 @@ type Start struct {
 	// Lease: the run's end is recorded within it; past it, a run still
 	// recorded running is running nowhere and is claimed again or swept.
 	Lease time.Duration
+	// Keep: the run is deleted this long after it starts (its
+	// definition's retention); zero: by the installation's retention.
+	Keep time.Duration
+	// Bare: the run keeps no input or result (history record none), only
+	// what deduplication reads.
+	Bare bool
 }
 
 // program is the record of a run's program: one row per content. A hash
@@ -367,8 +373,8 @@ func (r *Runs) claim(ctx context.Context, s Start, prog *redact.Program) (bool, 
 
 	_, err := queries.ClaimDirectRun(ctx, db.ClaimDirectRunParams{
 		ID: s.ID, Kind: string(s.Kind), Source: s.Source, Version: s.Version, Test: s.Test, Caller: s.Caller,
-		Input: jsonb(prog.MaskInput(s.Input)), ProgramHash: s.ProgramHash, LeaseMs: s.Lease.Milliseconds(),
-		RerunCanceled: s.Keyed,
+		Input: s.input(prog), ProgramHash: s.ProgramHash, LeaseMs: s.Lease.Milliseconds(),
+		KeepMs: s.keepMs(), RerunCanceled: s.Keyed,
 	})
 
 	switch {
@@ -381,10 +387,26 @@ func (r *Runs) claim(ctx context.Context, s Start, prog *redact.Program) (bool, 
 	return true, nil
 }
 
+// keepMs is Keep for the claim query.
+func (s Start) keepMs() *int64 {
+	ms := s.Keep.Milliseconds()
+
+	return &ms
+}
+
+// input is the run's input as kept: masked by prog, none when bare.
+func (s Start) input(prog *redact.Program) json.RawMessage {
+	if s.Bare {
+		return nil
+	}
+
+	return jsonb(prog.MaskInput(s.Input))
+}
+
 // Begin records the start of a run that needs no dedup (a hook call, a
 // test), asynchronously.
 func (r *Runs) Begin(s Start, prog *redact.Program) {
-	input := jsonb(prog.MaskInput(s.Input))
+	input := s.input(prog)
 
 	if put := r.program(s); put != nil {
 		r.enqueue(put)
@@ -393,7 +415,7 @@ func (r *Runs) Begin(s Start, prog *redact.Program) {
 	r.enqueue(func(ctx context.Context, q *db.Queries) error {
 		_, err := q.ClaimDirectRun(ctx, db.ClaimDirectRunParams{
 			ID: s.ID, Kind: string(s.Kind), Source: s.Source, Version: s.Version, Test: s.Test, Caller: s.Caller,
-			Input: input, ProgramHash: s.ProgramHash, LeaseMs: s.Lease.Milliseconds(),
+			Input: input, ProgramHash: s.ProgramHash, LeaseMs: s.Lease.Milliseconds(), KeepMs: s.keepMs(),
 		})
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("begin %s: %w", s.ID, err)
@@ -482,8 +504,15 @@ type RunRecorder interface {
 	Incomplete() bool
 }
 
-// Recorder is the RunRecorder of one run: steps masked by its program.
-func (r *Runs) Recorder(id string, prog *redact.Program) RunRecorder { //nolint:ireturn // the runner's interface
+// Recorder is the RunRecorder of one run: steps masked by its program; a
+// no-op when the run's history keeps no steps.
+//
+//nolint:ireturn // the runner's interface
+func (r *Runs) Recorder(id string, prog *redact.Program, steps bool) RunRecorder {
+	if !steps {
+		return NopRecorder{}
+	}
+
 	return &recorder{runs: r, id: id, prog: prog}
 }
 
@@ -582,13 +611,15 @@ func jsonb(data []byte) json.RawMessage {
 	return quoted
 }
 
-// Expire deletes the runs started before cutoff, a batch at a time.
+// Expire deletes, a batch at a time, the ended runs past their own expiry
+// (their definition's retention) and those without one started before
+// cutoff; a zero cutoff keeps the latter (the installation keeps runs).
 func (r *Runs) Expire(ctx context.Context, cutoff time.Time) error {
 	if !r.ready() {
 		return fmt.Errorf("direct runs: %w", deps.ErrNotReady)
 	}
 
-	params := db.ExpireDirectRunsParams{Cutoff: cutoff, BatchSize: expireBatch}
+	params := db.ExpireDirectRunsParams{Cutoff: cutoff, UseCutoff: !cutoff.IsZero(), BatchSize: expireBatch}
 	if err := r.st.Get().Q.ExpireDirectRuns(ctx, params); err != nil {
 		return fmt.Errorf("direct runs: expire: %w", err)
 	}

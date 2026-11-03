@@ -83,6 +83,60 @@ func (Runtime) EnumDescriptor() ([]byte, []int) {
 	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{0}
 }
 
+// HistoryRecord is how much of a run the direct runtime records.
+type HistoryRecord int32
+
+const (
+	// Everything: the run and every step and for-each item.
+	HistoryRecord_HISTORY_RECORD_UNSPECIFIED HistoryRecord = 0
+	// The run (input, result, error), not its steps.
+	HistoryRecord_HISTORY_RECORD_RUN HistoryRecord = 1
+	// Nothing, except the run deduplication reads: a rule's (its event's
+	// id) and a keyed hook call's (its key and reply) keep their run.
+	HistoryRecord_HISTORY_RECORD_NONE HistoryRecord = 2
+)
+
+// Enum value maps for HistoryRecord.
+var (
+	HistoryRecord_name = map[int32]string{
+		0: "HISTORY_RECORD_UNSPECIFIED",
+		1: "HISTORY_RECORD_RUN",
+		2: "HISTORY_RECORD_NONE",
+	}
+	HistoryRecord_value = map[string]int32{
+		"HISTORY_RECORD_UNSPECIFIED": 0,
+		"HISTORY_RECORD_RUN":         1,
+		"HISTORY_RECORD_NONE":        2,
+	}
+)
+
+func (x HistoryRecord) Enum() *HistoryRecord {
+	p := new(HistoryRecord)
+	*p = x
+	return p
+}
+
+func (x HistoryRecord) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (HistoryRecord) Descriptor() protoreflect.EnumDescriptor {
+	return file_backplanepb_console_v1_step_proto_enumTypes[1].Descriptor()
+}
+
+func (HistoryRecord) Type() protoreflect.EnumType {
+	return &file_backplanepb_console_v1_step_proto_enumTypes[1]
+}
+
+func (x HistoryRecord) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use HistoryRecord.Descriptor instead.
+func (HistoryRecord) EnumDescriptor() ([]byte, []int) {
+	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{1}
+}
+
 // StepRunStatus is where a step's call is.
 type StepRunStatus int32
 
@@ -136,11 +190,11 @@ func (x StepRunStatus) String() string {
 }
 
 func (StepRunStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_backplanepb_console_v1_step_proto_enumTypes[1].Descriptor()
+	return file_backplanepb_console_v1_step_proto_enumTypes[2].Descriptor()
 }
 
 func (StepRunStatus) Type() protoreflect.EnumType {
-	return &file_backplanepb_console_v1_step_proto_enumTypes[1]
+	return &file_backplanepb_console_v1_step_proto_enumTypes[2]
 }
 
 func (x StepRunStatus) Number() protoreflect.EnumNumber {
@@ -149,7 +203,65 @@ func (x StepRunStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use StepRunStatus.Descriptor instead.
 func (StepRunStatus) EnumDescriptor() ([]byte, []int) {
-	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{1}
+	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{2}
+}
+
+// RunHistory is what the direct runtime keeps of a definition's runs in
+// backplane's PostgreSQL; a Temporal run's history is Temporal's (setting it
+// there is a RUNTIME_UNSUPPORTED violation).
+type RunHistory struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// How much of a run is recorded; unspecified: everything.
+	Record HistoryRecord `protobuf:"varint,1,opt,name=record,proto3,enum=backplane.console.v1.HistoryRecord" json:"record,omitempty"`
+	// How long recorded runs are kept; unset or zero: the installation's
+	// retention (BACKPLANE_DIRECT_RETENTION).
+	Retention     *durationpb.Duration `protobuf:"bytes,2,opt,name=retention,proto3" json:"retention,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunHistory) Reset() {
+	*x = RunHistory{}
+	mi := &file_backplanepb_console_v1_step_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunHistory) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunHistory) ProtoMessage() {}
+
+func (x *RunHistory) ProtoReflect() protoreflect.Message {
+	mi := &file_backplanepb_console_v1_step_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunHistory.ProtoReflect.Descriptor instead.
+func (*RunHistory) Descriptor() ([]byte, []int) {
+	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *RunHistory) GetRecord() HistoryRecord {
+	if x != nil {
+		return x.Record
+	}
+	return HistoryRecord_HISTORY_RECORD_UNSPECIFIED
+}
+
+func (x *RunHistory) GetRetention() *durationpb.Duration {
+	if x != nil {
+		return x.Retention
+	}
+	return nil
 }
 
 // Step is one call of an activity. Its name is its key in the definition's
@@ -217,7 +329,7 @@ type Step struct {
 
 func (x *Step) Reset() {
 	*x = Step{}
-	mi := &file_backplanepb_console_v1_step_proto_msgTypes[0]
+	mi := &file_backplanepb_console_v1_step_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -229,7 +341,7 @@ func (x *Step) String() string {
 func (*Step) ProtoMessage() {}
 
 func (x *Step) ProtoReflect() protoreflect.Message {
-	mi := &file_backplanepb_console_v1_step_proto_msgTypes[0]
+	mi := &file_backplanepb_console_v1_step_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -242,7 +354,7 @@ func (x *Step) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Step.ProtoReflect.Descriptor instead.
 func (*Step) Descriptor() ([]byte, []int) {
-	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{0}
+	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Step) GetActivity() string {
@@ -379,7 +491,7 @@ type StepRetry struct {
 
 func (x *StepRetry) Reset() {
 	*x = StepRetry{}
-	mi := &file_backplanepb_console_v1_step_proto_msgTypes[1]
+	mi := &file_backplanepb_console_v1_step_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -391,7 +503,7 @@ func (x *StepRetry) String() string {
 func (*StepRetry) ProtoMessage() {}
 
 func (x *StepRetry) ProtoReflect() protoreflect.Message {
-	mi := &file_backplanepb_console_v1_step_proto_msgTypes[1]
+	mi := &file_backplanepb_console_v1_step_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -404,7 +516,7 @@ func (x *StepRetry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepRetry.ProtoReflect.Descriptor instead.
 func (*StepRetry) Descriptor() ([]byte, []int) {
-	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{1}
+	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *StepRetry) GetAttempts() uint32 {
@@ -458,7 +570,7 @@ type Violation struct {
 
 func (x *Violation) Reset() {
 	*x = Violation{}
-	mi := &file_backplanepb_console_v1_step_proto_msgTypes[2]
+	mi := &file_backplanepb_console_v1_step_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -470,7 +582,7 @@ func (x *Violation) String() string {
 func (*Violation) ProtoMessage() {}
 
 func (x *Violation) ProtoReflect() protoreflect.Message {
-	mi := &file_backplanepb_console_v1_step_proto_msgTypes[2]
+	mi := &file_backplanepb_console_v1_step_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -483,7 +595,7 @@ func (x *Violation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Violation.ProtoReflect.Descriptor instead.
 func (*Violation) Descriptor() ([]byte, []int) {
-	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{2}
+	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Violation) GetPath() string {
@@ -526,7 +638,7 @@ type Range struct {
 
 func (x *Range) Reset() {
 	*x = Range{}
-	mi := &file_backplanepb_console_v1_step_proto_msgTypes[3]
+	mi := &file_backplanepb_console_v1_step_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -538,7 +650,7 @@ func (x *Range) String() string {
 func (*Range) ProtoMessage() {}
 
 func (x *Range) ProtoReflect() protoreflect.Message {
-	mi := &file_backplanepb_console_v1_step_proto_msgTypes[3]
+	mi := &file_backplanepb_console_v1_step_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -551,7 +663,7 @@ func (x *Range) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Range.ProtoReflect.Descriptor instead.
 func (*Range) Descriptor() ([]byte, []int) {
-	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{3}
+	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Range) GetStart() uint32 {
@@ -583,7 +695,7 @@ type EditorLayout struct {
 
 func (x *EditorLayout) Reset() {
 	*x = EditorLayout{}
-	mi := &file_backplanepb_console_v1_step_proto_msgTypes[4]
+	mi := &file_backplanepb_console_v1_step_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -595,7 +707,7 @@ func (x *EditorLayout) String() string {
 func (*EditorLayout) ProtoMessage() {}
 
 func (x *EditorLayout) ProtoReflect() protoreflect.Message {
-	mi := &file_backplanepb_console_v1_step_proto_msgTypes[4]
+	mi := &file_backplanepb_console_v1_step_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -608,7 +720,7 @@ func (x *EditorLayout) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditorLayout.ProtoReflect.Descriptor instead.
 func (*EditorLayout) Descriptor() ([]byte, []int) {
-	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{4}
+	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *EditorLayout) GetNodes() map[string]*EditorPoint {
@@ -636,7 +748,7 @@ type EditorPoint struct {
 
 func (x *EditorPoint) Reset() {
 	*x = EditorPoint{}
-	mi := &file_backplanepb_console_v1_step_proto_msgTypes[5]
+	mi := &file_backplanepb_console_v1_step_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -648,7 +760,7 @@ func (x *EditorPoint) String() string {
 func (*EditorPoint) ProtoMessage() {}
 
 func (x *EditorPoint) ProtoReflect() protoreflect.Message {
-	mi := &file_backplanepb_console_v1_step_proto_msgTypes[5]
+	mi := &file_backplanepb_console_v1_step_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -661,7 +773,7 @@ func (x *EditorPoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditorPoint.ProtoReflect.Descriptor instead.
 func (*EditorPoint) Descriptor() ([]byte, []int) {
-	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{5}
+	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *EditorPoint) GetX() float64 {
@@ -691,7 +803,7 @@ type EditorNote struct {
 
 func (x *EditorNote) Reset() {
 	*x = EditorNote{}
-	mi := &file_backplanepb_console_v1_step_proto_msgTypes[6]
+	mi := &file_backplanepb_console_v1_step_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -703,7 +815,7 @@ func (x *EditorNote) String() string {
 func (*EditorNote) ProtoMessage() {}
 
 func (x *EditorNote) ProtoReflect() protoreflect.Message {
-	mi := &file_backplanepb_console_v1_step_proto_msgTypes[6]
+	mi := &file_backplanepb_console_v1_step_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -716,7 +828,7 @@ func (x *EditorNote) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditorNote.ProtoReflect.Descriptor instead.
 func (*EditorNote) Descriptor() ([]byte, []int) {
-	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{6}
+	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *EditorNote) GetText() string {
@@ -776,7 +888,7 @@ type StepRun struct {
 
 func (x *StepRun) Reset() {
 	*x = StepRun{}
-	mi := &file_backplanepb_console_v1_step_proto_msgTypes[7]
+	mi := &file_backplanepb_console_v1_step_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -788,7 +900,7 @@ func (x *StepRun) String() string {
 func (*StepRun) ProtoMessage() {}
 
 func (x *StepRun) ProtoReflect() protoreflect.Message {
-	mi := &file_backplanepb_console_v1_step_proto_msgTypes[7]
+	mi := &file_backplanepb_console_v1_step_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -801,7 +913,7 @@ func (x *StepRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepRun.ProtoReflect.Descriptor instead.
 func (*StepRun) Descriptor() ([]byte, []int) {
-	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{7}
+	return file_backplanepb_console_v1_step_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *StepRun) GetStep() string {
@@ -913,7 +1025,11 @@ var File_backplanepb_console_v1_step_proto protoreflect.FileDescriptor
 
 const file_backplanepb_console_v1_step_proto_rawDesc = "" +
 	"\n" +
-	"!backplanepb/console/v1/step.proto\x12\x14backplane.console.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe0\x05\n" +
+	"!backplanepb/console/v1/step.proto\x12\x14backplane.console.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\x01\n" +
+	"\n" +
+	"RunHistory\x12;\n" +
+	"\x06record\x18\x01 \x01(\x0e2#.backplane.console.v1.HistoryRecordR\x06record\x127\n" +
+	"\tretention\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\tretention\"\xe0\x05\n" +
 	"\x04Step\x12\x1a\n" +
 	"\bactivity\x18\x01 \x01(\tR\bactivity\x12,\n" +
 	"\x05input\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05input\x12\x12\n" +
@@ -989,7 +1105,11 @@ const file_backplanepb_console_v1_step_proto_rawDesc = "" +
 	"\aRuntime\x12\x17\n" +
 	"\x13RUNTIME_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10RUNTIME_TEMPORAL\x10\x01\x12\x12\n" +
-	"\x0eRUNTIME_DIRECT\x10\x02*\x81\x02\n" +
+	"\x0eRUNTIME_DIRECT\x10\x02*`\n" +
+	"\rHistoryRecord\x12\x1e\n" +
+	"\x1aHISTORY_RECORD_UNSPECIFIED\x10\x00\x12\x16\n" +
+	"\x12HISTORY_RECORD_RUN\x10\x01\x12\x17\n" +
+	"\x13HISTORY_RECORD_NONE\x10\x02*\x81\x02\n" +
 	"\rStepRunStatus\x12\x1f\n" +
 	"\x1bSTEP_RUN_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17STEP_RUN_STATUS_NOT_RUN\x10\x01\x12\x1d\n" +
@@ -1012,50 +1132,54 @@ func file_backplanepb_console_v1_step_proto_rawDescGZIP() []byte {
 	return file_backplanepb_console_v1_step_proto_rawDescData
 }
 
-var file_backplanepb_console_v1_step_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_backplanepb_console_v1_step_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_backplanepb_console_v1_step_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_backplanepb_console_v1_step_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_backplanepb_console_v1_step_proto_goTypes = []any{
 	(Runtime)(0),                  // 0: backplane.console.v1.Runtime
-	(StepRunStatus)(0),            // 1: backplane.console.v1.StepRunStatus
-	(*Step)(nil),                  // 2: backplane.console.v1.Step
-	(*StepRetry)(nil),             // 3: backplane.console.v1.StepRetry
-	(*Violation)(nil),             // 4: backplane.console.v1.Violation
-	(*Range)(nil),                 // 5: backplane.console.v1.Range
-	(*EditorLayout)(nil),          // 6: backplane.console.v1.EditorLayout
-	(*EditorPoint)(nil),           // 7: backplane.console.v1.EditorPoint
-	(*EditorNote)(nil),            // 8: backplane.console.v1.EditorNote
-	(*StepRun)(nil),               // 9: backplane.console.v1.StepRun
-	nil,                           // 10: backplane.console.v1.Step.StepsEntry
-	nil,                           // 11: backplane.console.v1.EditorLayout.NodesEntry
-	(*structpb.Value)(nil),        // 12: google.protobuf.Value
-	(*durationpb.Duration)(nil),   // 13: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
+	(HistoryRecord)(0),            // 1: backplane.console.v1.HistoryRecord
+	(StepRunStatus)(0),            // 2: backplane.console.v1.StepRunStatus
+	(*RunHistory)(nil),            // 3: backplane.console.v1.RunHistory
+	(*Step)(nil),                  // 4: backplane.console.v1.Step
+	(*StepRetry)(nil),             // 5: backplane.console.v1.StepRetry
+	(*Violation)(nil),             // 6: backplane.console.v1.Violation
+	(*Range)(nil),                 // 7: backplane.console.v1.Range
+	(*EditorLayout)(nil),          // 8: backplane.console.v1.EditorLayout
+	(*EditorPoint)(nil),           // 9: backplane.console.v1.EditorPoint
+	(*EditorNote)(nil),            // 10: backplane.console.v1.EditorNote
+	(*StepRun)(nil),               // 11: backplane.console.v1.StepRun
+	nil,                           // 12: backplane.console.v1.Step.StepsEntry
+	nil,                           // 13: backplane.console.v1.EditorLayout.NodesEntry
+	(*durationpb.Duration)(nil),   // 14: google.protobuf.Duration
+	(*structpb.Value)(nil),        // 15: google.protobuf.Value
+	(*timestamppb.Timestamp)(nil), // 16: google.protobuf.Timestamp
 }
 var file_backplanepb_console_v1_step_proto_depIdxs = []int32{
-	12, // 0: backplane.console.v1.Step.input:type_name -> google.protobuf.Value
-	12, // 1: backplane.console.v1.Step.undo_input:type_name -> google.protobuf.Value
-	3,  // 2: backplane.console.v1.Step.retry:type_name -> backplane.console.v1.StepRetry
-	13, // 3: backplane.console.v1.Step.start_to_close:type_name -> google.protobuf.Duration
-	13, // 4: backplane.console.v1.Step.heartbeat:type_name -> google.protobuf.Duration
-	10, // 5: backplane.console.v1.Step.steps:type_name -> backplane.console.v1.Step.StepsEntry
-	12, // 6: backplane.console.v1.Step.result:type_name -> google.protobuf.Value
-	13, // 7: backplane.console.v1.StepRetry.initial_interval:type_name -> google.protobuf.Duration
-	13, // 8: backplane.console.v1.StepRetry.max_interval:type_name -> google.protobuf.Duration
-	5,  // 9: backplane.console.v1.Violation.expr:type_name -> backplane.console.v1.Range
-	11, // 10: backplane.console.v1.EditorLayout.nodes:type_name -> backplane.console.v1.EditorLayout.NodesEntry
-	8,  // 11: backplane.console.v1.EditorLayout.notes:type_name -> backplane.console.v1.EditorNote
-	7,  // 12: backplane.console.v1.EditorNote.at:type_name -> backplane.console.v1.EditorPoint
-	1,  // 13: backplane.console.v1.StepRun.status:type_name -> backplane.console.v1.StepRunStatus
-	14, // 14: backplane.console.v1.StepRun.scheduled_time:type_name -> google.protobuf.Timestamp
-	14, // 15: backplane.console.v1.StepRun.started_time:type_name -> google.protobuf.Timestamp
-	14, // 16: backplane.console.v1.StepRun.close_time:type_name -> google.protobuf.Timestamp
-	2,  // 17: backplane.console.v1.Step.StepsEntry.value:type_name -> backplane.console.v1.Step
-	7,  // 18: backplane.console.v1.EditorLayout.NodesEntry.value:type_name -> backplane.console.v1.EditorPoint
-	19, // [19:19] is the sub-list for method output_type
-	19, // [19:19] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	1,  // 0: backplane.console.v1.RunHistory.record:type_name -> backplane.console.v1.HistoryRecord
+	14, // 1: backplane.console.v1.RunHistory.retention:type_name -> google.protobuf.Duration
+	15, // 2: backplane.console.v1.Step.input:type_name -> google.protobuf.Value
+	15, // 3: backplane.console.v1.Step.undo_input:type_name -> google.protobuf.Value
+	5,  // 4: backplane.console.v1.Step.retry:type_name -> backplane.console.v1.StepRetry
+	14, // 5: backplane.console.v1.Step.start_to_close:type_name -> google.protobuf.Duration
+	14, // 6: backplane.console.v1.Step.heartbeat:type_name -> google.protobuf.Duration
+	12, // 7: backplane.console.v1.Step.steps:type_name -> backplane.console.v1.Step.StepsEntry
+	15, // 8: backplane.console.v1.Step.result:type_name -> google.protobuf.Value
+	14, // 9: backplane.console.v1.StepRetry.initial_interval:type_name -> google.protobuf.Duration
+	14, // 10: backplane.console.v1.StepRetry.max_interval:type_name -> google.protobuf.Duration
+	7,  // 11: backplane.console.v1.Violation.expr:type_name -> backplane.console.v1.Range
+	13, // 12: backplane.console.v1.EditorLayout.nodes:type_name -> backplane.console.v1.EditorLayout.NodesEntry
+	10, // 13: backplane.console.v1.EditorLayout.notes:type_name -> backplane.console.v1.EditorNote
+	9,  // 14: backplane.console.v1.EditorNote.at:type_name -> backplane.console.v1.EditorPoint
+	2,  // 15: backplane.console.v1.StepRun.status:type_name -> backplane.console.v1.StepRunStatus
+	16, // 16: backplane.console.v1.StepRun.scheduled_time:type_name -> google.protobuf.Timestamp
+	16, // 17: backplane.console.v1.StepRun.started_time:type_name -> google.protobuf.Timestamp
+	16, // 18: backplane.console.v1.StepRun.close_time:type_name -> google.protobuf.Timestamp
+	4,  // 19: backplane.console.v1.Step.StepsEntry.value:type_name -> backplane.console.v1.Step
+	9,  // 20: backplane.console.v1.EditorLayout.NodesEntry.value:type_name -> backplane.console.v1.EditorPoint
+	21, // [21:21] is the sub-list for method output_type
+	21, // [21:21] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_backplanepb_console_v1_step_proto_init() }
@@ -1063,14 +1187,14 @@ func file_backplanepb_console_v1_step_proto_init() {
 	if File_backplanepb_console_v1_step_proto != nil {
 		return
 	}
-	file_backplanepb_console_v1_step_proto_msgTypes[7].OneofWrappers = []any{}
+	file_backplanepb_console_v1_step_proto_msgTypes[8].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_backplanepb_console_v1_step_proto_rawDesc), len(file_backplanepb_console_v1_step_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   10,
+			NumEnums:      3,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

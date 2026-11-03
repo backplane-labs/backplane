@@ -16,7 +16,38 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file backplanepb/console/v1/step.proto.
  */
 export const file_backplanepb_console_v1_step: GenFile = /*@__PURE__*/
-  fileDesc("CiFiYWNrcGxhbmVwYi9jb25zb2xlL3YxL3N0ZXAucHJvdG8SFGJhY2twbGFuZS5jb25zb2xlLnYxIrwECgRTdGVwEhAKCGFjdGl2aXR5GAEgASgJEiUKBWlucHV0GAIgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlEgwKBHdoZW4YAyABKAkSDQoFYWZ0ZXIYBCADKAkSDAoEdW5kbxgFIAEoCRIqCgp1bmRvX2lucHV0GAYgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlEi4KBXJldHJ5GAcgASgLMh8uYmFja3BsYW5lLmNvbnNvbGUudjEuU3RlcFJldHJ5EjEKDnN0YXJ0X3RvX2Nsb3NlGAggASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEiwKCWhlYXJ0YmVhdBgJIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhITCgtkZXNjcmlwdGlvbhgKIAEoCRIQCghmb3JfZWFjaBgLIAEoCRIKCgJhcxgMIAEoCRITCgtjb25jdXJyZW5jeRgNIAEoDRIQCghvbl9lcnJvchgOIAEoCRIRCgltYXhfaXRlbXMYDyABKA0SNAoFc3RlcHMYECADKAsyJS5iYWNrcGxhbmUuY29uc29sZS52MS5TdGVwLlN0ZXBzRW50cnkSJgoGcmVzdWx0GBEgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlGkgKClN0ZXBzRW50cnkSCwoDa2V5GAEgASgJEikKBXZhbHVlGAIgASgLMhouYmFja3BsYW5lLmNvbnNvbGUudjEuU3RlcDoCOAEilAEKCVN0ZXBSZXRyeRIQCghhdHRlbXB0cxgBIAEoDRIzChBpbml0aWFsX2ludGVydmFsGAIgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEi8KDG1heF9pbnRlcnZhbBgDIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIPCgdiYWNrb2ZmGAQgASgBImMKCVZpb2xhdGlvbhIMCgRwYXRoGAEgASgJEgwKBGNvZGUYAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIpCgRleHByGAQgASgLMhsuYmFja3BsYW5lLmNvbnNvbGUudjEuUmFuZ2UiIwoFUmFuZ2USDQoFc3RhcnQYASABKA0SCwoDZW5kGAIgASgNIs4BCgxFZGl0b3JMYXlvdXQSPAoFbm9kZXMYASADKAsyLS5iYWNrcGxhbmUuY29uc29sZS52MS5FZGl0b3JMYXlvdXQuTm9kZXNFbnRyeRIvCgVub3RlcxgCIAMoCzIgLmJhY2twbGFuZS5jb25zb2xlLnYxLkVkaXRvck5vdGUaTwoKTm9kZXNFbnRyeRILCgNrZXkYASABKAkSMAoFdmFsdWUYAiABKAsyIS5iYWNrcGxhbmUuY29uc29sZS52MS5FZGl0b3JQb2ludDoCOAEiIwoLRWRpdG9yUG9pbnQSCQoBeBgBIAEoARIJCgF5GAIgASgBIlgKCkVkaXRvck5vdGUSDAoEdGV4dBgBIAEoCRItCgJhdBgCIAEoCzIhLmJhY2twbGFuZS5jb25zb2xlLnYxLkVkaXRvclBvaW50Eg0KBXdpZHRoGAMgASgBIpMDCgdTdGVwUnVuEgwKBHN0ZXAYASABKAkSEAoIYWN0aXZpdHkYAiABKAkSDAoEdW5kbxgDIAEoCBIQCgh3b3JrZmxvdxgEIAEoCBIzCgZzdGF0dXMYBSABKA4yIy5iYWNrcGxhbmUuY29uc29sZS52MS5TdGVwUnVuU3RhdHVzEg8KB2F0dGVtcHQYBiABKAUSMgoOc2NoZWR1bGVkX3RpbWUYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDHN0YXJ0ZWRfdGltZRgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKY2xvc2VfdGltZRgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDQoFaW5wdXQYCiABKAkSDgoGb3V0cHV0GAsgASgJEg0KBWVycm9yGAwgASgJEhIKCmVycm9yX3R5cGUYDSABKAkSEQoEaXRlbRgOIAEoDUgAiAEBEg4KBnBhcmVudBgPIAEoCUIHCgVfaXRlbSpMCgdSdW50aW1lEhcKE1JVTlRJTUVfVU5TUEVDSUZJRUQQABIUChBSVU5USU1FX1RFTVBPUkFMEAESEgoOUlVOVElNRV9ESVJFQ1QQAiqBAgoNU3RlcFJ1blN0YXR1cxIfChtTVEVQX1JVTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIbChdTVEVQX1JVTl9TVEFUVVNfTk9UX1JVThABEh0KGVNURVBfUlVOX1NUQVRVU19TQ0hFRFVMRUQQAhIbChdTVEVQX1JVTl9TVEFUVVNfU1RBUlRFRBADEh0KGVNURVBfUlVOX1NUQVRVU19DT01QTEVURUQQBBIaChZTVEVQX1JVTl9TVEFUVVNfRkFJTEVEEAUSHQoZU1RFUF9SVU5fU1RBVFVTX1RJTUVEX09VVBAGEhwKGFNURVBfUlVOX1NUQVRVU19DQU5DRUxFRBAHQkZaRGdpdGh1Yi5jb20vYmFja3BsYW5lLWxhYnMvYmFja3BsYW5lL2JhY2twbGFuZXBiL2NvbnNvbGUvdjE7Y29uc29sZXYxYgZwcm90bzM", [file_google_protobuf_duration, file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("CiFiYWNrcGxhbmVwYi9jb25zb2xlL3YxL3N0ZXAucHJvdG8SFGJhY2twbGFuZS5jb25zb2xlLnYxIm8KClJ1bkhpc3RvcnkSMwoGcmVjb3JkGAEgASgOMiMuYmFja3BsYW5lLmNvbnNvbGUudjEuSGlzdG9yeVJlY29yZBIsCglyZXRlbnRpb24YAiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24ivAQKBFN0ZXASEAoIYWN0aXZpdHkYASABKAkSJQoFaW5wdXQYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSDAoEd2hlbhgDIAEoCRINCgVhZnRlchgEIAMoCRIMCgR1bmRvGAUgASgJEioKCnVuZG9faW5wdXQYBiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSLgoFcmV0cnkYByABKAsyHy5iYWNrcGxhbmUuY29uc29sZS52MS5TdGVwUmV0cnkSMQoOc3RhcnRfdG9fY2xvc2UYCCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SLAoJaGVhcnRiZWF0GAkgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhMKC2Rlc2NyaXB0aW9uGAogASgJEhAKCGZvcl9lYWNoGAsgASgJEgoKAmFzGAwgASgJEhMKC2NvbmN1cnJlbmN5GA0gASgNEhAKCG9uX2Vycm9yGA4gASgJEhEKCW1heF9pdGVtcxgPIAEoDRI0CgVzdGVwcxgQIAMoCzIlLmJhY2twbGFuZS5jb25zb2xlLnYxLlN0ZXAuU3RlcHNFbnRyeRImCgZyZXN1bHQYESABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUaSAoKU3RlcHNFbnRyeRILCgNrZXkYASABKAkSKQoFdmFsdWUYAiABKAsyGi5iYWNrcGxhbmUuY29uc29sZS52MS5TdGVwOgI4ASKUAQoJU3RlcFJldHJ5EhAKCGF0dGVtcHRzGAEgASgNEjMKEGluaXRpYWxfaW50ZXJ2YWwYAiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SLwoMbWF4X2ludGVydmFsGAMgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEg8KB2JhY2tvZmYYBCABKAEiYwoJVmlvbGF0aW9uEgwKBHBhdGgYASABKAkSDAoEY29kZRgCIAEoCRIPCgdtZXNzYWdlGAMgASgJEikKBGV4cHIYBCABKAsyGy5iYWNrcGxhbmUuY29uc29sZS52MS5SYW5nZSIjCgVSYW5nZRINCgVzdGFydBgBIAEoDRILCgNlbmQYAiABKA0izgEKDEVkaXRvckxheW91dBI8CgVub2RlcxgBIAMoCzItLmJhY2twbGFuZS5jb25zb2xlLnYxLkVkaXRvckxheW91dC5Ob2Rlc0VudHJ5Ei8KBW5vdGVzGAIgAygLMiAuYmFja3BsYW5lLmNvbnNvbGUudjEuRWRpdG9yTm90ZRpPCgpOb2Rlc0VudHJ5EgsKA2tleRgBIAEoCRIwCgV2YWx1ZRgCIAEoCzIhLmJhY2twbGFuZS5jb25zb2xlLnYxLkVkaXRvclBvaW50OgI4ASIjCgtFZGl0b3JQb2ludBIJCgF4GAEgASgBEgkKAXkYAiABKAEiWAoKRWRpdG9yTm90ZRIMCgR0ZXh0GAEgASgJEi0KAmF0GAIgASgLMiEuYmFja3BsYW5lLmNvbnNvbGUudjEuRWRpdG9yUG9pbnQSDQoFd2lkdGgYAyABKAEikwMKB1N0ZXBSdW4SDAoEc3RlcBgBIAEoCRIQCghhY3Rpdml0eRgCIAEoCRIMCgR1bmRvGAMgASgIEhAKCHdvcmtmbG93GAQgASgIEjMKBnN0YXR1cxgFIAEoDjIjLmJhY2twbGFuZS5jb25zb2xlLnYxLlN0ZXBSdW5TdGF0dXMSDwoHYXR0ZW1wdBgGIAEoBRIyCg5zY2hlZHVsZWRfdGltZRgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMc3RhcnRlZF90aW1lGAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpjbG9zZV90aW1lGAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVpbnB1dBgKIAEoCRIOCgZvdXRwdXQYCyABKAkSDQoFZXJyb3IYDCABKAkSEgoKZXJyb3JfdHlwZRgNIAEoCRIRCgRpdGVtGA4gASgNSACIAQESDgoGcGFyZW50GA8gASgJQgcKBV9pdGVtKkwKB1J1bnRpbWUSFwoTUlVOVElNRV9VTlNQRUNJRklFRBAAEhQKEFJVTlRJTUVfVEVNUE9SQUwQARISCg5SVU5USU1FX0RJUkVDVBACKmAKDUhpc3RvcnlSZWNvcmQSHgoaSElTVE9SWV9SRUNPUkRfVU5TUEVDSUZJRUQQABIWChJISVNUT1JZX1JFQ09SRF9SVU4QARIXChNISVNUT1JZX1JFQ09SRF9OT05FEAIqgQIKDVN0ZXBSdW5TdGF0dXMSHwobU1RFUF9SVU5fU1RBVFVTX1VOU1BFQ0lGSUVEEAASGwoXU1RFUF9SVU5fU1RBVFVTX05PVF9SVU4QARIdChlTVEVQX1JVTl9TVEFUVVNfU0NIRURVTEVEEAISGwoXU1RFUF9SVU5fU1RBVFVTX1NUQVJURUQQAxIdChlTVEVQX1JVTl9TVEFUVVNfQ09NUExFVEVEEAQSGgoWU1RFUF9SVU5fU1RBVFVTX0ZBSUxFRBAFEh0KGVNURVBfUlVOX1NUQVRVU19USU1FRF9PVVQQBhIcChhTVEVQX1JVTl9TVEFUVVNfQ0FOQ0VMRUQQB0JGWkRnaXRodWIuY29tL2JhY2twbGFuZS1sYWJzL2JhY2twbGFuZS9iYWNrcGxhbmVwYi9jb25zb2xlL3YxO2NvbnNvbGV2MWIGcHJvdG8z", [file_google_protobuf_duration, file_google_protobuf_struct, file_google_protobuf_timestamp]);
+
+/**
+ * RunHistory is what the direct runtime keeps of a definition's runs in
+ * backplane's PostgreSQL; a Temporal run's history is Temporal's (setting it
+ * there is a RUNTIME_UNSUPPORTED violation).
+ *
+ * @generated from message backplane.console.v1.RunHistory
+ */
+export type RunHistory = Message<"backplane.console.v1.RunHistory"> & {
+  /**
+   * How much of a run is recorded; unspecified: everything.
+   *
+   * @generated from field: backplane.console.v1.HistoryRecord record = 1;
+   */
+  record: HistoryRecord;
+
+  /**
+   * How long recorded runs are kept; unset or zero: the installation's
+   * retention (BACKPLANE_DIRECT_RETENTION).
+   *
+   * @generated from field: google.protobuf.Duration retention = 2;
+   */
+  retention?: Duration | undefined;
+};
+
+/**
+ * Describes the message backplane.console.v1.RunHistory.
+ * Use `create(RunHistorySchema)` to create a new message.
+ */
+export const RunHistorySchema: GenMessage<RunHistory> = /*@__PURE__*/
+  messageDesc(file_backplanepb_console_v1_step, 0);
 
 /**
  * Step is one call of an activity. Its name is its key in the definition's
@@ -171,7 +202,7 @@ export type Step = Message<"backplane.console.v1.Step"> & {
  * Use `create(StepSchema)` to create a new message.
  */
 export const StepSchema: GenMessage<Step> = /*@__PURE__*/
-  messageDesc(file_backplanepb_console_v1_step, 0);
+  messageDesc(file_backplanepb_console_v1_step, 1);
 
 /**
  * StepRetry is the retry policy of a step; zero fields are unset.
@@ -209,7 +240,7 @@ export type StepRetry = Message<"backplane.console.v1.StepRetry"> & {
  * Use `create(StepRetrySchema)` to create a new message.
  */
 export const StepRetrySchema: GenMessage<StepRetry> = /*@__PURE__*/
-  messageDesc(file_backplanepb_console_v1_step, 1);
+  messageDesc(file_backplanepb_console_v1_step, 2);
 
 /**
  * Violation is one reason a definition is rejected, or why a saved one no
@@ -256,7 +287,7 @@ export type Violation = Message<"backplane.console.v1.Violation"> & {
  * Use `create(ViolationSchema)` to create a new message.
  */
 export const ViolationSchema: GenMessage<Violation> = /*@__PURE__*/
-  messageDesc(file_backplanepb_console_v1_step, 2);
+  messageDesc(file_backplanepb_console_v1_step, 3);
 
 /**
  * Range is a span of an expression's text, in Unicode code points from 0;
@@ -281,7 +312,7 @@ export type Range = Message<"backplane.console.v1.Range"> & {
  * Use `create(RangeSchema)` to create a new message.
  */
 export const RangeSchema: GenMessage<Range> = /*@__PURE__*/
-  messageDesc(file_backplanepb_console_v1_step, 3);
+  messageDesc(file_backplanepb_console_v1_step, 4);
 
 /**
  * EditorLayout is how the graph editor draws a definition. Compile and
@@ -310,7 +341,7 @@ export type EditorLayout = Message<"backplane.console.v1.EditorLayout"> & {
  * Use `create(EditorLayoutSchema)` to create a new message.
  */
 export const EditorLayoutSchema: GenMessage<EditorLayout> = /*@__PURE__*/
-  messageDesc(file_backplanepb_console_v1_step, 4);
+  messageDesc(file_backplanepb_console_v1_step, 5);
 
 /**
  * EditorPoint is a position on the editor's canvas.
@@ -334,7 +365,7 @@ export type EditorPoint = Message<"backplane.console.v1.EditorPoint"> & {
  * Use `create(EditorPointSchema)` to create a new message.
  */
 export const EditorPointSchema: GenMessage<EditorPoint> = /*@__PURE__*/
-  messageDesc(file_backplanepb_console_v1_step, 5);
+  messageDesc(file_backplanepb_console_v1_step, 6);
 
 /**
  * EditorNote is a sticky note on the canvas.
@@ -365,7 +396,7 @@ export type EditorNote = Message<"backplane.console.v1.EditorNote"> & {
  * Use `create(EditorNoteSchema)` to create a new message.
  */
 export const EditorNoteSchema: GenMessage<EditorNote> = /*@__PURE__*/
-  messageDesc(file_backplanepb_console_v1_step, 6);
+  messageDesc(file_backplanepb_console_v1_step, 7);
 
 /**
  * StepRun is one call of a binding's or rule's run: a step, or the
@@ -475,7 +506,7 @@ export type StepRun = Message<"backplane.console.v1.StepRun"> & {
  * Use `create(StepRunSchema)` to create a new message.
  */
 export const StepRunSchema: GenMessage<StepRun> = /*@__PURE__*/
-  messageDesc(file_backplanepb_console_v1_step, 7);
+  messageDesc(file_backplanepb_console_v1_step, 8);
 
 /**
  * Runtime executes a binding or a rule.
@@ -516,6 +547,41 @@ export enum Runtime {
  */
 export const RuntimeSchema: GenEnum<Runtime> = /*@__PURE__*/
   enumDesc(file_backplanepb_console_v1_step, 0);
+
+/**
+ * HistoryRecord is how much of a run the direct runtime records.
+ *
+ * @generated from enum backplane.console.v1.HistoryRecord
+ */
+export enum HistoryRecord {
+  /**
+   * Everything: the run and every step and for-each item.
+   *
+   * @generated from enum value: HISTORY_RECORD_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The run (input, result, error), not its steps.
+   *
+   * @generated from enum value: HISTORY_RECORD_RUN = 1;
+   */
+  RUN = 1,
+
+  /**
+   * Nothing, except the run deduplication reads: a rule's (its event's
+   * id) and a keyed hook call's (its key and reply) keep their run.
+   *
+   * @generated from enum value: HISTORY_RECORD_NONE = 2;
+   */
+  NONE = 2,
+}
+
+/**
+ * Describes the enum backplane.console.v1.HistoryRecord.
+ */
+export const HistoryRecordSchema: GenEnum<HistoryRecord> = /*@__PURE__*/
+  enumDesc(file_backplanepb_console_v1_step, 1);
 
 /**
  * StepRunStatus is where a step's call is.
@@ -575,5 +641,5 @@ export enum StepRunStatus {
  * Describes the enum backplane.console.v1.StepRunStatus.
  */
 export const StepRunStatusSchema: GenEnum<StepRunStatus> = /*@__PURE__*/
-  enumDesc(file_backplanepb_console_v1_step, 1);
+  enumDesc(file_backplanepb_console_v1_step, 2);
 

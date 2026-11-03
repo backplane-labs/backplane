@@ -69,7 +69,7 @@ an activity that deduplicates by key does not repeat its effect.
   fails, the caller gets the error, and nothing calls again on its behalf.
 - A call with a key (`HookService.Raise` with a key, or the `bp-call-key`
   header) runs once per key. A repeat answers with the first run's reply
-  for as long as runs are kept (`BACKPLANE_DIRECT_RETENTION`, 168h), even
+  for as long as runs are kept ([Run history](#run-history)), even
   after a restart. A repeat that arrives while the first run is running
   waits for it.
 - A rule's run is bounded by `BACKPLANE_DIRECT_RUN_TIMEOUT`. Its event is
@@ -85,6 +85,35 @@ Use Temporal for delivery that must outlast a long outage of its target or
 a backplane restart without anyone calling again: its runs resume at the
 step where they stopped, and their retries are not bounded by a run
 timeout. Workflow schedules run only on Temporal.
+
+### Run history
+
+The direct runtime records every run with its steps in backplane's
+PostgreSQL and deletes runs older than `BACKPLANE_DIRECT_RETENTION` (168h;
+`0` keeps them). A binding or rule on the direct runtime can record less,
+or keep its runs for another time:
+
+```yaml
+hook: kratos.Deliver
+runtime: direct
+history:
+  record: none      # omitted: the run and every step; run: the run only
+  retention: 24h    # omitted or 0: BACKPLANE_DIRECT_RETENTION
+steps: ...
+```
+
+- `record: run` keeps the run with its input, result and error, without
+  steps.
+- `record: none` writes nothing for a hook call without a key. A keyed call
+  and a rule's event still need a record to run once: they keep a bare run
+  (status, error, no input or result). A keyed call also keeps its reply,
+  so that a repeat gets it.
+- `retention` deletes the definition's runs that long after they start,
+  even when `BACKPLANE_DIRECT_RETENTION` is `0`. A keyed call runs once per
+  key only while its run is kept.
+- Test runs from the console are always recorded whole.
+- `history` on the Temporal runtime is a `RUNTIME_UNSUPPORTED` violation:
+  Temporal keeps its own history for the namespace's retention.
 
 ## Validate, test, publish
 

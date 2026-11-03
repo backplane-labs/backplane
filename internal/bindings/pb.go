@@ -17,7 +17,8 @@ import (
 func BindingFromPB(m *consolev1.BindingDefinition) Binding {
 	return Binding{
 		Hook: m.GetHook(), Description: m.GetDescription(), Steps: stepsFromPB(m.GetSteps()),
-		Result: ValueOf(m.GetResult()), Runtime: m.GetRuntime(), Editor: editorOf(m.GetEditor()),
+		Result: ValueOf(m.GetResult()), Runtime: m.GetRuntime(), History: historyFromPB(m.GetHistory()),
+		Editor: editorOf(m.GetEditor()),
 	}
 }
 
@@ -25,7 +26,7 @@ func BindingFromPB(m *consolev1.BindingDefinition) Binding {
 func (b Binding) PB() *consolev1.BindingDefinition {
 	return &consolev1.BindingDefinition{
 		Hook: b.Hook, Description: b.Description, Steps: stepsPB(b.Steps), Result: b.Result.PB(),
-		Runtime: b.Runtime, Editor: editorOf(b.Editor),
+		Runtime: b.Runtime, History: b.History.PB(), Editor: editorOf(b.Editor),
 	}
 }
 
@@ -33,7 +34,7 @@ func (b Binding) PB() *consolev1.BindingDefinition {
 func RuleFromPB(m *consolev1.RuleDefinition) Rule {
 	return Rule{
 		Event: m.GetEvent(), When: m.GetWhen(), Description: m.GetDescription(), Steps: stepsFromPB(m.GetSteps()),
-		Runtime: m.GetRuntime(), Editor: editorOf(m.GetEditor()),
+		Runtime: m.GetRuntime(), History: historyFromPB(m.GetHistory()), Editor: editorOf(m.GetEditor()),
 	}
 }
 
@@ -41,8 +42,26 @@ func RuleFromPB(m *consolev1.RuleDefinition) Rule {
 func (r Rule) PB() *consolev1.RuleDefinition {
 	return &consolev1.RuleDefinition{
 		Event: r.Event, When: r.When, Description: r.Description, Steps: stepsPB(r.Steps), Runtime: r.Runtime,
-		Editor: editorOf(r.Editor),
+		History: r.History.PB(), Editor: editorOf(r.Editor),
 	}
+}
+
+func historyFromPB(m *consolev1.RunHistory) History {
+	return History{Record: m.GetRecord(), Retention: m.GetRetention().AsDuration()}
+}
+
+// PB is the history as a message; nil when zero.
+func (h History) PB() *consolev1.RunHistory {
+	if h.IsZero() {
+		return nil
+	}
+
+	m := &consolev1.RunHistory{Record: h.Record}
+	if h.Retention != 0 {
+		m.Retention = durationpb.New(h.Retention)
+	}
+
+	return m
 }
 
 func editorOf(m *consolev1.EditorLayout) *consolev1.EditorLayout {

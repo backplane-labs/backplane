@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -452,5 +454,142 @@ func TestRuleRunLease(t *testing.T) {
 	// Failed by the sweep: the next delivery runs it again.
 	if err := start(); err != nil {
 		t.Fatalf("after the sweep: %v", err)
+	}
+}
+
+// A definition's history: record none writes nothing for an unkeyed hook
+// call, and only a bare run (no input or result) for a keyed call and a
+// rule's event, which deduplication reads; record run keeps the run
+// without its steps; retention expires the run on its own, whatever the
+// installation's retention.
+func TestRunHistory(t *testing.T) {
+	t.Parallel()
+
+	ms := secretInstallation(t)
+	fakeB := &fakeBindings{
+		cat: bindings.WithDefaults(ms, bindings.Defaults{Runtime: consolev1.Runtime_RUNTIME_DIRECT}),
+		active: map[string]bindings.Binding{
+			"iam.SendOTP": binding(t, "hook: iam.SendOTP\nhistory: {record: none}\n"+
+				"steps: {send: {activity: smtp.Send, input: {to: req.to}}}\nresult: {id: send.id}\n"),
+			"iam.Audit": binding(t, "hook: iam.Audit\nhistory: {record: run, retention: 24h}\n"+
+				"steps: {send: {activity: smtp.Send, input: {to: req.to}}}\nresult: {id: send.id}\n"),
+		},
+	}
+
+	var sent atomic.Int32
+
+	s, _, dsn := liveDB(t, map[string]handler{
+		"smtp.Send": func(_ context.Context, in map[string]any) (any, error) {
+			return map[string]any{"id": in["to"].(string) + "-" + strconv.Itoa(int(sent.Add(1)))}, nil
+		},
+		"billing.Charge": func(_ context.Context, in map[string]any) (any, error) { return in, nil },
+	}, fakeB)
+
+	call := func(hook, key, to string) string {
+		res, err := s.HookService().Raise(t.Context(), &consolev1.RaiseRequest{Call: &backplanev1.HookCall{
+			Hook: hook, Instance: "iam-1", Key: key, Payload: []byte(`{"to":"` + to + `","code":"1"}`),
+		}})
+		if err != nil {
+			t.Fatalf("%s %s: %v", hook, to, err)
+		}
+
+		return string(res.GetResult().GetPayload())
+	}
+
+	// record none, unkeyed: answered, nothing written.
+	if got := call("iam.SendOTP", "", "a"); got != `{"id":"a-1"}` {
+		t.Fatalf("unkeyed: %s", got)
+	}
+
+	// record none, keyed: a bare run; the repeat answers the first reply.
+	if got := call("iam.SendOTP", "k1", "b"); got != `{"id":"b-2"}` {
+		t.Fatalf("keyed: %s", got)
+	}
+
+	if got := call("iam.SendOTP", "k1", "c"); got != `{"id":"b-2"}` || sent.Load() != 2 {
+		t.Fatalf("keyed repeat: %s, %d sent", got, sent.Load())
+	}
+
+	keyed := wire.DirectRunID("iam.SendOTP", "key/k1")
+
+	bare := awaitRun(t, s, keyed, consolev1.RunStatus_RUN_STATUS_COMPLETED)
+	if bare.GetInput() != "" || bare.GetResult() != "" {
+		t.Fatalf("bare run: input %q result %q", bare.GetInput(), bare.GetResult())
+	}
+
+	if _, steps, _, err := s.Runs().Get(t.Context(), keyed); err != nil || len(steps) != 0 {
+		t.Fatalf("bare steps %v %v", steps, err)
+	}
+
+	// Records are written behind the run: give a stray one of the unkeyed
+	// call time to land, then only the keyed run is listed.
+	time.Sleep(200 * time.Millisecond)
+
+	if page := awaitList(t, s, "iam.SendOTP", false, 1); page.Runs[0].GetWorkflowId() != keyed {
+		t.Fatalf("runs of record none %v", page)
+	}
+
+	// record none, a rule's event: deduplicated by its bare run.
+	prog := rule(t, "event: iam.UserRegistered\nhistory: {record: none}\n"+
+		"steps: {charge: {activity: billing.Charge, input: {who: event.email}}}\n")
+	wid := "rule/" + uuid.NewString() + "/ce-1"
+	start := func() error {
+		return s.Rules().StartRule(t.Context(), "r1", 1, prog, []byte(`{"email":"a@b"}`), bindings.Meta{ID: "ce-1"}, nil, wid)
+	}
+
+	if err := start(); err != nil {
+		t.Fatal(err)
+	}
+
+	if ruleRun := awaitRun(t, s, direct.RunID(wid), consolev1.RunStatus_RUN_STATUS_COMPLETED); ruleRun.GetInput() != "" {
+		t.Fatalf("bare rule run %v", ruleRun)
+	}
+
+	if err := start(); !errors.Is(err, direct.ErrAlreadyStarted) {
+		t.Fatalf("rule redelivered: %v", err)
+	}
+
+	// record run: input and result, no steps; expires in its retention.
+	if got := call("iam.Audit", "", "d"); got != `{"id":"d-3"}` {
+		t.Fatalf("record run: %s", got)
+	}
+
+	audit := awaitList(t, s, "iam.Audit", false, 1).Runs[0].GetWorkflowId()
+
+	run, steps, _, err := s.Runs().Get(t.Context(), audit)
+	if err != nil || run.GetInput() != `{"to":"d","code":"1"}` || run.GetResult() != `{"id":"d-3"}` || len(steps) != 0 {
+		t.Fatalf("record run %v %v %v", run, steps, err)
+	}
+
+	var keepH float64
+
+	conn, err := pgx.Connect(t.Context(), dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = conn.QueryRow(t.Context(),
+		`SELECT extract(epoch FROM expire_at - started_at) / 3600 FROM backplane.direct_run WHERE id = $1`,
+		audit).Scan(&keepH)
+	conn.Close(context.WithoutCancel(t.Context()))
+
+	if err != nil || keepH < 23.99 || keepH > 24.01 {
+		t.Fatalf("expire_at %vh %v", keepH, err)
+	}
+
+	// Past its expiry it goes with no installation cutoff; the others stay.
+	execSQL(t, dsn, `UPDATE backplane.direct_run SET expire_at = clock_timestamp() - interval '1 second' WHERE id = $1`,
+		audit)
+
+	if err := s.Runs().Expire(t.Context(), time.Time{}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, _, err := s.Runs().Get(t.Context(), audit); !errors.Is(err, direct.ErrNoRun) {
+		t.Fatalf("expired: %v", err)
+	}
+
+	if _, _, _, err := s.Runs().Get(t.Context(), keyed); err != nil {
+		t.Fatalf("kept: %v", err)
 	}
 }

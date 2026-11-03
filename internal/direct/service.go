@@ -19,6 +19,7 @@ import (
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/redact"
 	"github.com/backplane-labs/backplane/internal/registry"
 	"github.com/backplane-labs/backplane/internal/store"
 	"github.com/backplane-labs/backplane/internal/wire"
@@ -170,15 +171,18 @@ func (s *Service) RunTimeout() time.Duration { return s.runTimeout }
 
 // expire deletes runs past the retention.
 func (s *Service) expire(ctx context.Context) error {
-	if s.retention <= 0 {
-		return nil
-	}
-
 	tick := time.NewTicker(retentionTick)
 	defer tick.Stop()
 
 	for {
-		if err := s.runs.Expire(ctx, time.Now().Add(-s.retention)); err != nil && ctx.Err() == nil {
+		// A definition's own retention applies even when the installation
+		// keeps runs (retention 0).
+		var cutoff time.Time
+		if s.retention > 0 {
+			cutoff = time.Now().Add(-s.retention)
+		}
+
+		if err := s.runs.Expire(ctx, cutoff); err != nil && ctx.Err() == nil {
 			s.Log().Warn("direct runs cleanup retry", xlog.Err(err))
 		}
 
@@ -327,12 +331,19 @@ func (s *Service) Execute(ctx context.Context, start Start, run Run, claim bool)
 	start.Program, start.ProgramHash = run.Program.Spec(), run.Program.Hash()
 	masks := run.Program.Masks()
 
-	if claim {
-		if err := s.runs.Claim(ctx, start, masks); err != nil {
-			return nil, err
-		}
-	} else {
-		s.runs.Begin(start, masks)
+	// What the definition keeps (history); a test run is kept whole, for
+	// the console to show. A run deduplication reads (claim) is kept even
+	// when nothing else is.
+	hist := run.Program.History()
+	if start.Test {
+		hist = bindings.History{}
+	}
+
+	start.Keep, start.Bare = hist.Retention, hist.Record == consolev1.HistoryRecord_HISTORY_RECORD_NONE
+	silent := start.Bare && !claim
+
+	if err := s.begin(ctx, start, masks, claim, silent); err != nil {
+		return nil, err
 	}
 
 	s.mu.Lock()
@@ -346,7 +357,8 @@ func (s *Service) Execute(ctx context.Context, start Start, run Run, claim bool)
 	}()
 
 	began := time.Now()
-	rec := s.runs.Recorder(start.ID, masks)
+	rec := s.runs.Recorder(start.ID, masks, hist.Record == consolev1.HistoryRecord_HISTORY_RECORD_UNSPECIFIED)
+
 	out, err := s.runner.Execute(ctx, run, rec)
 
 	var reply []byte
@@ -354,10 +366,31 @@ func (s *Service) Execute(ctx context.Context, start Start, run Run, claim bool)
 		reply = out
 	}
 
-	s.runs.Finish(start.ID, masks, out, reply, err, rec.Incomplete())
+	if !silent {
+		result := out
+		if start.Bare {
+			result = nil
+		}
+
+		s.runs.Finish(start.ID, masks, result, reply, err, rec.Incomplete())
+	}
+
 	s.metrics.run(ctx, start.Kind, err, time.Since(began))
 
 	return out, err
+}
+
+// begin records the run's start: claimed when claim is set, else begun
+// unless silent (its history writes nothing).
+func (s *Service) begin(ctx context.Context, start Start, masks *redact.Program, claim, silent bool) error {
+	switch {
+	case claim:
+		return s.runs.Claim(ctx, start, masks)
+	case !silent:
+		s.runs.Begin(start, masks)
+	}
+
+	return nil
 }
 
 // Cancel stops a run in flight on this replica; false when it is not

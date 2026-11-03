@@ -99,6 +99,9 @@ type RuleDefinition struct {
 	Description string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	// What runs the rule; unspecified: the installation's default.
 	Runtime Runtime `protobuf:"varint,5,opt,name=runtime,proto3,enum=backplane.console.v1.Runtime" json:"runtime,omitempty"`
+	// What the direct runtime keeps of the runs; absent: everything, for the
+	// installation's retention.
+	History *RunHistory `protobuf:"bytes,6,opt,name=history,proto3" json:"history,omitempty"`
 	// The graph editor's layout; ignored by compile and execution.
 	Editor        *EditorLayout `protobuf:"bytes,15,opt,name=editor,proto3" json:"editor,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -168,6 +171,13 @@ func (x *RuleDefinition) GetRuntime() Runtime {
 		return x.Runtime
 	}
 	return Runtime_RUNTIME_UNSPECIFIED
+}
+
+func (x *RuleDefinition) GetHistory() *RunHistory {
+	if x != nil {
+		return x.History
+	}
+	return nil
 }
 
 func (x *RuleDefinition) GetEditor() *EditorLayout {
@@ -2089,13 +2099,14 @@ var File_backplanepb_console_v1_rules_proto protoreflect.FileDescriptor
 
 const file_backplanepb_console_v1_rules_proto_rawDesc = "" +
 	"\n" +
-	"\"backplanepb/console/v1/rules.proto\x12\x14backplane.console.v1\x1a\"backplanepb/console/v1/calls.proto\x1a!backplanepb/console/v1/step.proto\x1a&backplanepb/console/v1/workflows.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xee\x02\n" +
+	"\"backplanepb/console/v1/rules.proto\x12\x14backplane.console.v1\x1a\"backplanepb/console/v1/calls.proto\x1a!backplanepb/console/v1/step.proto\x1a&backplanepb/console/v1/workflows.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xaa\x03\n" +
 	"\x0eRuleDefinition\x12\x14\n" +
 	"\x05event\x18\x01 \x01(\tR\x05event\x12\x12\n" +
 	"\x04when\x18\x02 \x01(\tR\x04when\x12E\n" +
 	"\x05steps\x18\x03 \x03(\v2/.backplane.console.v1.RuleDefinition.StepsEntryR\x05steps\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x127\n" +
 	"\aruntime\x18\x05 \x01(\x0e2\x1d.backplane.console.v1.RuntimeR\aruntime\x12:\n" +
+	"\ahistory\x18\x06 \x01(\v2 .backplane.console.v1.RunHistoryR\ahistory\x12:\n" +
 	"\x06editor\x18\x0f \x01(\v2\".backplane.console.v1.EditorLayoutR\x06editor\x1aT\n" +
 	"\n" +
 	"StepsEntry\x12\x10\n" +
@@ -2333,88 +2344,90 @@ var file_backplanepb_console_v1_rules_proto_goTypes = []any{
 	(*CancelRuleRunResponse)(nil),    // 32: backplane.console.v1.CancelRuleRunResponse
 	nil,                              // 33: backplane.console.v1.RuleDefinition.StepsEntry
 	(Runtime)(0),                     // 34: backplane.console.v1.Runtime
-	(*EditorLayout)(nil),             // 35: backplane.console.v1.EditorLayout
-	(*timestamppb.Timestamp)(nil),    // 36: google.protobuf.Timestamp
-	(*Violation)(nil),                // 37: backplane.console.v1.Violation
-	(*durationpb.Duration)(nil),      // 38: google.protobuf.Duration
-	(*CallResult)(nil),               // 39: backplane.console.v1.CallResult
-	(RunStatus)(0),                   // 40: backplane.console.v1.RunStatus
-	(*Run)(nil),                      // 41: backplane.console.v1.Run
-	(*GetRunResponse)(nil),           // 42: backplane.console.v1.GetRunResponse
-	(*StepRun)(nil),                  // 43: backplane.console.v1.StepRun
-	(*Step)(nil),                     // 44: backplane.console.v1.Step
+	(*RunHistory)(nil),               // 35: backplane.console.v1.RunHistory
+	(*EditorLayout)(nil),             // 36: backplane.console.v1.EditorLayout
+	(*timestamppb.Timestamp)(nil),    // 37: google.protobuf.Timestamp
+	(*Violation)(nil),                // 38: backplane.console.v1.Violation
+	(*durationpb.Duration)(nil),      // 39: google.protobuf.Duration
+	(*CallResult)(nil),               // 40: backplane.console.v1.CallResult
+	(RunStatus)(0),                   // 41: backplane.console.v1.RunStatus
+	(*Run)(nil),                      // 42: backplane.console.v1.Run
+	(*GetRunResponse)(nil),           // 43: backplane.console.v1.GetRunResponse
+	(*StepRun)(nil),                  // 44: backplane.console.v1.StepRun
+	(*Step)(nil),                     // 45: backplane.console.v1.Step
 }
 var file_backplanepb_console_v1_rules_proto_depIdxs = []int32{
 	33, // 0: backplane.console.v1.RuleDefinition.steps:type_name -> backplane.console.v1.RuleDefinition.StepsEntry
 	34, // 1: backplane.console.v1.RuleDefinition.runtime:type_name -> backplane.console.v1.Runtime
-	35, // 2: backplane.console.v1.RuleDefinition.editor:type_name -> backplane.console.v1.EditorLayout
-	1,  // 3: backplane.console.v1.RuleVersion.definition:type_name -> backplane.console.v1.RuleDefinition
-	36, // 4: backplane.console.v1.RuleVersion.created_at:type_name -> google.protobuf.Timestamp
-	2,  // 5: backplane.console.v1.Rule.current:type_name -> backplane.console.v1.RuleVersion
-	36, // 6: backplane.console.v1.Rule.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 7: backplane.console.v1.Rule.state:type_name -> backplane.console.v1.RuleState
-	37, // 8: backplane.console.v1.Rule.violations:type_name -> backplane.console.v1.Violation
-	3,  // 9: backplane.console.v1.ListRulesResponse.rules:type_name -> backplane.console.v1.Rule
-	3,  // 10: backplane.console.v1.GetRuleResponse.rule:type_name -> backplane.console.v1.Rule
-	2,  // 11: backplane.console.v1.GetRuleResponse.version:type_name -> backplane.console.v1.RuleVersion
-	37, // 12: backplane.console.v1.GetRuleResponse.violations:type_name -> backplane.console.v1.Violation
-	2,  // 13: backplane.console.v1.ListRuleVersionsResponse.versions:type_name -> backplane.console.v1.RuleVersion
-	1,  // 14: backplane.console.v1.ValidateRuleRequest.definition:type_name -> backplane.console.v1.RuleDefinition
-	37, // 15: backplane.console.v1.ValidateRuleResponse.violations:type_name -> backplane.console.v1.Violation
-	1,  // 16: backplane.console.v1.SaveRuleRequest.definition:type_name -> backplane.console.v1.RuleDefinition
-	2,  // 17: backplane.console.v1.SaveRuleResponse.version:type_name -> backplane.console.v1.RuleVersion
-	37, // 18: backplane.console.v1.SaveRuleResponse.violations:type_name -> backplane.console.v1.Violation
-	2,  // 19: backplane.console.v1.RollbackRuleResponse.version:type_name -> backplane.console.v1.RuleVersion
-	37, // 20: backplane.console.v1.RollbackRuleResponse.violations:type_name -> backplane.console.v1.Violation
-	2,  // 21: backplane.console.v1.DeleteRuleResponse.version:type_name -> backplane.console.v1.RuleVersion
-	3,  // 22: backplane.console.v1.PauseRuleResponse.rule:type_name -> backplane.console.v1.Rule
-	3,  // 23: backplane.console.v1.ResumeRuleResponse.rule:type_name -> backplane.console.v1.Rule
-	3,  // 24: backplane.console.v1.WatchRulesResponse.rules:type_name -> backplane.console.v1.Rule
-	36, // 25: backplane.console.v1.RuleEventMeta.time:type_name -> google.protobuf.Timestamp
-	1,  // 26: backplane.console.v1.TestRuleRequest.definition:type_name -> backplane.console.v1.RuleDefinition
-	24, // 27: backplane.console.v1.TestRuleRequest.meta:type_name -> backplane.console.v1.RuleEventMeta
-	38, // 28: backplane.console.v1.TestRuleRequest.timeout:type_name -> google.protobuf.Duration
-	37, // 29: backplane.console.v1.TestRuleResponse.violations:type_name -> backplane.console.v1.Violation
-	24, // 30: backplane.console.v1.TestRuleResponse.meta:type_name -> backplane.console.v1.RuleEventMeta
-	39, // 31: backplane.console.v1.TestRuleResponse.result:type_name -> backplane.console.v1.CallResult
-	40, // 32: backplane.console.v1.ListRuleRunsRequest.status:type_name -> backplane.console.v1.RunStatus
-	41, // 33: backplane.console.v1.ListRuleRunsResponse.runs:type_name -> backplane.console.v1.Run
-	42, // 34: backplane.console.v1.GetRuleRunResponse.run:type_name -> backplane.console.v1.GetRunResponse
-	43, // 35: backplane.console.v1.GetRuleRunResponse.steps:type_name -> backplane.console.v1.StepRun
-	44, // 36: backplane.console.v1.RuleDefinition.StepsEntry.value:type_name -> backplane.console.v1.Step
-	4,  // 37: backplane.console.v1.RuleService.ListRules:input_type -> backplane.console.v1.ListRulesRequest
-	6,  // 38: backplane.console.v1.RuleService.GetRule:input_type -> backplane.console.v1.GetRuleRequest
-	8,  // 39: backplane.console.v1.RuleService.ListRuleVersions:input_type -> backplane.console.v1.ListRuleVersionsRequest
-	10, // 40: backplane.console.v1.RuleService.ValidateRule:input_type -> backplane.console.v1.ValidateRuleRequest
-	12, // 41: backplane.console.v1.RuleService.SaveRule:input_type -> backplane.console.v1.SaveRuleRequest
-	14, // 42: backplane.console.v1.RuleService.RollbackRule:input_type -> backplane.console.v1.RollbackRuleRequest
-	16, // 43: backplane.console.v1.RuleService.DeleteRule:input_type -> backplane.console.v1.DeleteRuleRequest
-	18, // 44: backplane.console.v1.RuleService.PauseRule:input_type -> backplane.console.v1.PauseRuleRequest
-	20, // 45: backplane.console.v1.RuleService.ResumeRule:input_type -> backplane.console.v1.ResumeRuleRequest
-	22, // 46: backplane.console.v1.RuleService.WatchRules:input_type -> backplane.console.v1.WatchRulesRequest
-	25, // 47: backplane.console.v1.RuleService.TestRule:input_type -> backplane.console.v1.TestRuleRequest
-	27, // 48: backplane.console.v1.RuleService.ListRuleRuns:input_type -> backplane.console.v1.ListRuleRunsRequest
-	29, // 49: backplane.console.v1.RuleService.GetRuleRun:input_type -> backplane.console.v1.GetRuleRunRequest
-	31, // 50: backplane.console.v1.RuleService.CancelRuleRun:input_type -> backplane.console.v1.CancelRuleRunRequest
-	5,  // 51: backplane.console.v1.RuleService.ListRules:output_type -> backplane.console.v1.ListRulesResponse
-	7,  // 52: backplane.console.v1.RuleService.GetRule:output_type -> backplane.console.v1.GetRuleResponse
-	9,  // 53: backplane.console.v1.RuleService.ListRuleVersions:output_type -> backplane.console.v1.ListRuleVersionsResponse
-	11, // 54: backplane.console.v1.RuleService.ValidateRule:output_type -> backplane.console.v1.ValidateRuleResponse
-	13, // 55: backplane.console.v1.RuleService.SaveRule:output_type -> backplane.console.v1.SaveRuleResponse
-	15, // 56: backplane.console.v1.RuleService.RollbackRule:output_type -> backplane.console.v1.RollbackRuleResponse
-	17, // 57: backplane.console.v1.RuleService.DeleteRule:output_type -> backplane.console.v1.DeleteRuleResponse
-	19, // 58: backplane.console.v1.RuleService.PauseRule:output_type -> backplane.console.v1.PauseRuleResponse
-	21, // 59: backplane.console.v1.RuleService.ResumeRule:output_type -> backplane.console.v1.ResumeRuleResponse
-	23, // 60: backplane.console.v1.RuleService.WatchRules:output_type -> backplane.console.v1.WatchRulesResponse
-	26, // 61: backplane.console.v1.RuleService.TestRule:output_type -> backplane.console.v1.TestRuleResponse
-	28, // 62: backplane.console.v1.RuleService.ListRuleRuns:output_type -> backplane.console.v1.ListRuleRunsResponse
-	30, // 63: backplane.console.v1.RuleService.GetRuleRun:output_type -> backplane.console.v1.GetRuleRunResponse
-	32, // 64: backplane.console.v1.RuleService.CancelRuleRun:output_type -> backplane.console.v1.CancelRuleRunResponse
-	51, // [51:65] is the sub-list for method output_type
-	37, // [37:51] is the sub-list for method input_type
-	37, // [37:37] is the sub-list for extension type_name
-	37, // [37:37] is the sub-list for extension extendee
-	0,  // [0:37] is the sub-list for field type_name
+	35, // 2: backplane.console.v1.RuleDefinition.history:type_name -> backplane.console.v1.RunHistory
+	36, // 3: backplane.console.v1.RuleDefinition.editor:type_name -> backplane.console.v1.EditorLayout
+	1,  // 4: backplane.console.v1.RuleVersion.definition:type_name -> backplane.console.v1.RuleDefinition
+	37, // 5: backplane.console.v1.RuleVersion.created_at:type_name -> google.protobuf.Timestamp
+	2,  // 6: backplane.console.v1.Rule.current:type_name -> backplane.console.v1.RuleVersion
+	37, // 7: backplane.console.v1.Rule.created_at:type_name -> google.protobuf.Timestamp
+	0,  // 8: backplane.console.v1.Rule.state:type_name -> backplane.console.v1.RuleState
+	38, // 9: backplane.console.v1.Rule.violations:type_name -> backplane.console.v1.Violation
+	3,  // 10: backplane.console.v1.ListRulesResponse.rules:type_name -> backplane.console.v1.Rule
+	3,  // 11: backplane.console.v1.GetRuleResponse.rule:type_name -> backplane.console.v1.Rule
+	2,  // 12: backplane.console.v1.GetRuleResponse.version:type_name -> backplane.console.v1.RuleVersion
+	38, // 13: backplane.console.v1.GetRuleResponse.violations:type_name -> backplane.console.v1.Violation
+	2,  // 14: backplane.console.v1.ListRuleVersionsResponse.versions:type_name -> backplane.console.v1.RuleVersion
+	1,  // 15: backplane.console.v1.ValidateRuleRequest.definition:type_name -> backplane.console.v1.RuleDefinition
+	38, // 16: backplane.console.v1.ValidateRuleResponse.violations:type_name -> backplane.console.v1.Violation
+	1,  // 17: backplane.console.v1.SaveRuleRequest.definition:type_name -> backplane.console.v1.RuleDefinition
+	2,  // 18: backplane.console.v1.SaveRuleResponse.version:type_name -> backplane.console.v1.RuleVersion
+	38, // 19: backplane.console.v1.SaveRuleResponse.violations:type_name -> backplane.console.v1.Violation
+	2,  // 20: backplane.console.v1.RollbackRuleResponse.version:type_name -> backplane.console.v1.RuleVersion
+	38, // 21: backplane.console.v1.RollbackRuleResponse.violations:type_name -> backplane.console.v1.Violation
+	2,  // 22: backplane.console.v1.DeleteRuleResponse.version:type_name -> backplane.console.v1.RuleVersion
+	3,  // 23: backplane.console.v1.PauseRuleResponse.rule:type_name -> backplane.console.v1.Rule
+	3,  // 24: backplane.console.v1.ResumeRuleResponse.rule:type_name -> backplane.console.v1.Rule
+	3,  // 25: backplane.console.v1.WatchRulesResponse.rules:type_name -> backplane.console.v1.Rule
+	37, // 26: backplane.console.v1.RuleEventMeta.time:type_name -> google.protobuf.Timestamp
+	1,  // 27: backplane.console.v1.TestRuleRequest.definition:type_name -> backplane.console.v1.RuleDefinition
+	24, // 28: backplane.console.v1.TestRuleRequest.meta:type_name -> backplane.console.v1.RuleEventMeta
+	39, // 29: backplane.console.v1.TestRuleRequest.timeout:type_name -> google.protobuf.Duration
+	38, // 30: backplane.console.v1.TestRuleResponse.violations:type_name -> backplane.console.v1.Violation
+	24, // 31: backplane.console.v1.TestRuleResponse.meta:type_name -> backplane.console.v1.RuleEventMeta
+	40, // 32: backplane.console.v1.TestRuleResponse.result:type_name -> backplane.console.v1.CallResult
+	41, // 33: backplane.console.v1.ListRuleRunsRequest.status:type_name -> backplane.console.v1.RunStatus
+	42, // 34: backplane.console.v1.ListRuleRunsResponse.runs:type_name -> backplane.console.v1.Run
+	43, // 35: backplane.console.v1.GetRuleRunResponse.run:type_name -> backplane.console.v1.GetRunResponse
+	44, // 36: backplane.console.v1.GetRuleRunResponse.steps:type_name -> backplane.console.v1.StepRun
+	45, // 37: backplane.console.v1.RuleDefinition.StepsEntry.value:type_name -> backplane.console.v1.Step
+	4,  // 38: backplane.console.v1.RuleService.ListRules:input_type -> backplane.console.v1.ListRulesRequest
+	6,  // 39: backplane.console.v1.RuleService.GetRule:input_type -> backplane.console.v1.GetRuleRequest
+	8,  // 40: backplane.console.v1.RuleService.ListRuleVersions:input_type -> backplane.console.v1.ListRuleVersionsRequest
+	10, // 41: backplane.console.v1.RuleService.ValidateRule:input_type -> backplane.console.v1.ValidateRuleRequest
+	12, // 42: backplane.console.v1.RuleService.SaveRule:input_type -> backplane.console.v1.SaveRuleRequest
+	14, // 43: backplane.console.v1.RuleService.RollbackRule:input_type -> backplane.console.v1.RollbackRuleRequest
+	16, // 44: backplane.console.v1.RuleService.DeleteRule:input_type -> backplane.console.v1.DeleteRuleRequest
+	18, // 45: backplane.console.v1.RuleService.PauseRule:input_type -> backplane.console.v1.PauseRuleRequest
+	20, // 46: backplane.console.v1.RuleService.ResumeRule:input_type -> backplane.console.v1.ResumeRuleRequest
+	22, // 47: backplane.console.v1.RuleService.WatchRules:input_type -> backplane.console.v1.WatchRulesRequest
+	25, // 48: backplane.console.v1.RuleService.TestRule:input_type -> backplane.console.v1.TestRuleRequest
+	27, // 49: backplane.console.v1.RuleService.ListRuleRuns:input_type -> backplane.console.v1.ListRuleRunsRequest
+	29, // 50: backplane.console.v1.RuleService.GetRuleRun:input_type -> backplane.console.v1.GetRuleRunRequest
+	31, // 51: backplane.console.v1.RuleService.CancelRuleRun:input_type -> backplane.console.v1.CancelRuleRunRequest
+	5,  // 52: backplane.console.v1.RuleService.ListRules:output_type -> backplane.console.v1.ListRulesResponse
+	7,  // 53: backplane.console.v1.RuleService.GetRule:output_type -> backplane.console.v1.GetRuleResponse
+	9,  // 54: backplane.console.v1.RuleService.ListRuleVersions:output_type -> backplane.console.v1.ListRuleVersionsResponse
+	11, // 55: backplane.console.v1.RuleService.ValidateRule:output_type -> backplane.console.v1.ValidateRuleResponse
+	13, // 56: backplane.console.v1.RuleService.SaveRule:output_type -> backplane.console.v1.SaveRuleResponse
+	15, // 57: backplane.console.v1.RuleService.RollbackRule:output_type -> backplane.console.v1.RollbackRuleResponse
+	17, // 58: backplane.console.v1.RuleService.DeleteRule:output_type -> backplane.console.v1.DeleteRuleResponse
+	19, // 59: backplane.console.v1.RuleService.PauseRule:output_type -> backplane.console.v1.PauseRuleResponse
+	21, // 60: backplane.console.v1.RuleService.ResumeRule:output_type -> backplane.console.v1.ResumeRuleResponse
+	23, // 61: backplane.console.v1.RuleService.WatchRules:output_type -> backplane.console.v1.WatchRulesResponse
+	26, // 62: backplane.console.v1.RuleService.TestRule:output_type -> backplane.console.v1.TestRuleResponse
+	28, // 63: backplane.console.v1.RuleService.ListRuleRuns:output_type -> backplane.console.v1.ListRuleRunsResponse
+	30, // 64: backplane.console.v1.RuleService.GetRuleRun:output_type -> backplane.console.v1.GetRuleRunResponse
+	32, // 65: backplane.console.v1.RuleService.CancelRuleRun:output_type -> backplane.console.v1.CancelRuleRunResponse
+	52, // [52:66] is the sub-list for method output_type
+	38, // [38:52] is the sub-list for method input_type
+	38, // [38:38] is the sub-list for extension type_name
+	38, // [38:38] is the sub-list for extension extendee
+	0,  // [0:38] is the sub-list for field type_name
 }
 
 func init() { file_backplanepb_console_v1_rules_proto_init() }

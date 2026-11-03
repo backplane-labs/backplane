@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/internal/bindings"
 )
@@ -421,6 +422,49 @@ result: {message_id: send.id}
 	}
 	if !slices.Equal(reads, want) {
 		t.Fatalf("reads\n%s\nwant\n%s", strings.Join(reads, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+// history (record, retention) reads from YAML's short form, round-trips
+// through the message, reaches the program, and is only for the direct
+// runtime.
+func TestHistory(t *testing.T) {
+	t.Parallel()
+
+	cat := manifests(t)
+
+	const rule = "event: iam.UserRegistered\nsteps: {x: {activity: billing.Charge}}\n"
+
+	r := mustRule(t, rule+"runtime: direct\nhistory: {record: run, retention: 24h}\n")
+	if want := (bindings.History{Record: consolev1.HistoryRecord_HISTORY_RECORD_RUN, Retention: 24 * time.Hour}); r.History != want {
+		t.Fatalf("yaml: %+v", r.History)
+	}
+
+	if got := bindings.RuleFromPB(r.PB()).History; got != r.History {
+		t.Fatalf("round trip: %+v", got)
+	}
+
+	p, err := bindings.CompileRule(r, cat)
+	if err != nil || p.History() != r.History {
+		t.Fatalf("program: %+v %v", p, err)
+	}
+
+	if plain := mustRule(t, rule); !plain.History.IsZero() || plain.PB().GetHistory() != nil {
+		t.Fatalf("no history: %+v", plain.History)
+	}
+
+	for _, tc := range []struct{ text, path, code string }{
+		{rule + "runtime: temporal\nhistory: {record: none}\n", "/history", bindings.CodeRuntimeUnsupported},
+		{rule + "runtime: direct\nhistory: {retention: -1s}\n", "/history/retention", bindings.CodeInvalidValue},
+	} {
+		vs, err := bindings.ValidateRule(mustRule(t, tc.text), cat)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !has(vs, tc.path, tc.code) {
+			t.Errorf("%q: want %s %s, got %v", tc.text, tc.path, tc.code, vs)
+		}
 	}
 }
 
