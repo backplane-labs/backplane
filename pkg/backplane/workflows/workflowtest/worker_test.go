@@ -72,55 +72,72 @@ func greeter(tb testing.TB, service string) *backplanetest.Harness {
 	return h
 }
 
+// welcome runs the Welcome workflow on the service's queue.
+func welcome(t *testing.T, c client.Client, service, name string) {
+	t.Helper()
+
+	run, err := c.ExecuteWorkflow(t.Context(), client.StartWorkflowOptions{
+		TaskQueue: service, WorkflowExecutionTimeout: 30 * time.Second,
+	}, "Welcome", text{Text: name})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var out greeting
+	if err := run.Get(t.Context(), &out); err != nil || out.Text != "hello, "+name+"!" {
+		t.Fatalf("welcome %s: %+v %v", name, out, err)
+	}
+}
+
 // The service's workflow runs on a real Temporal: its own activity and
-// its hook answered by the harness; a second harness of the same service
-// at once is refused; the stop deletes the endpoint, so the next one
-// starts.
+// its hook answered by the harness. A replica (a second harness of the
+// service) joins the queue and the endpoint; when the first one stops, the
+// replica serves the workflow and its hook.
 func TestWorker(t *testing.T) {
 	t.Parallel()
 
 	c := temporaltest.Dial(t)
 	service := temporaltest.Name("wt")
 
-	h := greeter(t, service)
-	workflowtest.Worker(t, h, c)
-	h.Start()
+	first := greeter(t, service)
+	workflowtest.Worker(t, first, c)
+	first.Start()
 
-	run, err := c.ExecuteWorkflow(t.Context(), client.StartWorkflowOptions{
-		TaskQueue: h.Service(), WorkflowExecutionTimeout: 30 * time.Second,
-	}, "Welcome", text{Text: "ann"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	welcome(t, c, service, "ann")
 
-	var out greeting
-	if err := run.Get(t.Context(), &out); err != nil || out.Text != "hello, ann!" {
-		t.Fatalf("welcome: %+v %v", out, err)
-	}
+	replica := greeter(t, service)
+	workflowtest.Worker(t, replica, c)
+	replica.Start()
 
-	// The same service at once: its endpoint is taken, the start fails.
+	first.Stop()
+
+	welcome(t, c, service, "bob")
+}
+
+// An endpoint of the service's name that routes elsewhere fails the
+// start.
+func TestWorkerEndpointTaken(t *testing.T) {
+	t.Parallel()
+
+	c := temporaltest.Dial(t)
+	service := temporaltest.Name("wt")
+	temporaltest.Endpoint(t, c, service, "elsewhere")
+
 	fatal := &fatalTB{TB: t}
-	twin := greeter(fatal, service)
-	workflowtest.Worker(fatal, twin, c)
+	h := greeter(fatal, service)
+	workflowtest.Worker(fatal, h, c)
 
 	done := make(chan struct{})
 
 	go func() {
 		defer close(done)
 
-		twin.Start()
+		h.Start()
 	}()
 
 	<-done
 
 	if !strings.Contains(fatal.msg, workflowtest.ErrEndpointTaken.Error()) {
-		t.Fatalf("twin: %q", fatal.msg)
+		t.Fatalf("start: %q", fatal.msg)
 	}
-
-	// Stopped, the endpoint is free again.
-	h.Stop()
-
-	next := greeter(t, service)
-	workflowtest.Worker(t, next, c)
-	next.Start()
 }

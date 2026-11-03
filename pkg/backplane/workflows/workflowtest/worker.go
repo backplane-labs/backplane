@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	nexuspb "go.temporal.io/api/nexus/v1"
 	"go.temporal.io/api/operatorservice/v1"
@@ -17,10 +19,12 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
 )
 
-// ErrEndpointTaken: the Nexus endpoint named after the service exists
-// already — another harness of the same service runs on the cluster, or a
-// killed test left it behind.
+// ErrEndpointTaken: the Nexus endpoint named after the service exists and
+// routes somewhere else than the service's task queue in the namespace.
 var ErrEndpointTaken = errors.New("nexus endpoint taken")
+
+// endpointCleanup bounds the endpoint's deletion at the end of the test.
+const endpointCleanup = 10 * time.Second
 
 // WorkerOption tunes Worker.
 type WorkerOption func(o *workerOptions)
@@ -37,16 +41,24 @@ func Namespace(ns string) WorkerOption {
 // the service's task queue (its name) serves what New registers — every
 // activity, the workflows of workflows.Declare, workflows.Activity and
 // workflows.Register — so workflows the service starts run as in
-// production. When the service declares hooks, a Nexus endpoint named
-// after the service routes workflows.CallHook to the same worker, answered
-// by backplanetest.Answer as in New. The worker is a component of the
-// harness tree: it starts with Start and stops with the tree, deleting the
-// endpoint. Call it after declaring and before Start.
+// production. The worker is a component of the harness tree: it starts
+// with Start and stops with the tree. Call it after declaring and before
+// Start.
 //
-// The queue and the endpoint are named after the service, and endpoints
-// are cluster-wide: harnesses running at once on one cluster need
-// distinct service names (backplanetest.Name); a taken endpoint fails the
-// start with ErrEndpointTaken.
+// When the service declares hooks, a Nexus endpoint named after the
+// service routes workflows.CallHook to its task queue, answered by
+// backplanetest.Answer of the harness whose worker takes the call. The
+// endpoint belongs to the test, not to one harness: a Worker joins one
+// that already routes to the same queue, and the endpoint is deleted when
+// the test ends. Replicas of one service (harnesses of the same name in
+// one test) therefore share the queue and the endpoint as in production:
+// one stops, the others take its workflows and hook calls. Answer the
+// hooks on every replica.
+//
+// Endpoints are cluster-wide: separate tests that run at once on one
+// cluster need distinct service names (backplanetest.Name), or they share
+// one queue. An endpoint of the name that routes elsewhere fails the start
+// with ErrEndpointTaken.
 //
 //	workflowtest.Worker(t, h, c)
 //	h.Start()
@@ -64,8 +76,18 @@ func Worker(tb testing.TB, h *backplanetest.Harness, c client.Client, opts ...Wo
 
 	var (
 		w        worker.Worker
-		endpoint *nexuspb.Endpoint
+		endpoint atomic.Pointer[nexuspb.Endpoint]
 	)
+
+	// Registered before the harness's Start, so it runs after the tree
+	// stopped.
+	tb.Cleanup(func() {
+		if ep := endpoint.Load(); ep != nil {
+			if err := deleteEndpoint(context.WithoutCancel(tb.Context()), c, ep); err != nil {
+				tb.Errorf("workflowtest: %v", err)
+			}
+		}
+	})
 
 	n.OnStart(func(ctx context.Context) error {
 		next := worker.New(c, e.Service, worker.Options{})
@@ -76,9 +98,12 @@ func Worker(tb testing.TB, h *backplanetest.Harness, c client.Client, opts ...Wo
 		}
 
 		if hooked {
-			if endpoint, err = createEndpoint(ctx, c, e.Service, o.namespace); err != nil {
+			ep, err := ensureEndpoint(ctx, c, e.Service, o.namespace)
+			if err != nil {
 				return err
 			}
+
+			endpoint.Store(ep)
 		}
 
 		if err := next.Start(); err != nil {
@@ -90,45 +115,66 @@ func Worker(tb testing.TB, h *backplanetest.Harness, c client.Client, opts ...Wo
 		return nil
 	})
 
-	n.OnStop(func(ctx context.Context) error {
+	n.OnStop(func(context.Context) error {
 		if w != nil {
 			w.Stop()
-		}
-
-		if endpoint == nil {
-			return nil
-		}
-
-		if _, err := c.OperatorService().DeleteNexusEndpoint(ctx, &operatorservice.DeleteNexusEndpointRequest{
-			Id: endpoint.GetId(), Version: endpoint.GetVersion(),
-		}); err != nil {
-			return fmt.Errorf("nexus endpoint %s: delete: %w", e.Service, err)
 		}
 
 		return nil
 	})
 }
 
-// createEndpoint creates the Nexus endpoint name targeting the queue of
-// the same name in namespace.
-func createEndpoint(ctx context.Context, c client.Client, name, namespace string) (*nexuspb.Endpoint, error) {
+// ensureEndpoint is the Nexus endpoint name routing to the queue of the
+// same name in namespace: created, or the existing one when it routes
+// there.
+func ensureEndpoint(ctx context.Context, c client.Client, name, namespace string) (*nexuspb.Endpoint, error) {
+	target := &nexuspb.EndpointTarget_Worker{Namespace: namespace, TaskQueue: name}
+
 	res, err := c.OperatorService().CreateNexusEndpoint(ctx, &operatorservice.CreateNexusEndpointRequest{
 		Spec: &nexuspb.EndpointSpec{
-			Name: name,
-			Target: &nexuspb.EndpointTarget{Variant: &nexuspb.EndpointTarget_Worker_{
-				Worker: &nexuspb.EndpointTarget_Worker{Namespace: namespace, TaskQueue: name},
-			}},
+			Name:   name,
+			Target: &nexuspb.EndpointTarget{Variant: &nexuspb.EndpointTarget_Worker_{Worker: target}},
 		},
 	})
 
 	var exists *serviceerror.AlreadyExists
 
 	switch {
-	case errors.As(err, &exists):
-		return nil, fmt.Errorf("nexus endpoint %s: %w", name, ErrEndpointTaken)
-	case err != nil:
+	case err == nil:
+		return res.GetEndpoint(), nil
+	case !errors.As(err, &exists):
 		return nil, fmt.Errorf("nexus endpoint %s: %w", name, err)
 	}
 
-	return res.GetEndpoint(), nil
+	list, err := c.OperatorService().ListNexusEndpoints(ctx, &operatorservice.ListNexusEndpointsRequest{Name: name})
+	if err != nil {
+		return nil, fmt.Errorf("nexus endpoint %s: %w", name, err)
+	}
+
+	for _, ep := range list.GetEndpoints() {
+		got := ep.GetSpec().GetTarget().GetWorker()
+		if got.GetNamespace() == target.GetNamespace() && got.GetTaskQueue() == target.GetTaskQueue() {
+			return ep, nil
+		}
+	}
+
+	return nil, fmt.Errorf("nexus endpoint %s: %w", name, ErrEndpointTaken)
+}
+
+// deleteEndpoint deletes the endpoint; one deleted already is gone, as
+// wanted.
+func deleteEndpoint(ctx context.Context, c client.Client, endpoint *nexuspb.Endpoint) error {
+	ctx, cancel := context.WithTimeout(ctx, endpointCleanup)
+	defer cancel()
+
+	_, err := c.OperatorService().DeleteNexusEndpoint(ctx, &operatorservice.DeleteNexusEndpointRequest{
+		Id: endpoint.GetId(), Version: endpoint.GetVersion(),
+	})
+
+	var gone *serviceerror.NotFound
+	if err != nil && !errors.As(err, &gone) {
+		return fmt.Errorf("nexus endpoint %s: delete: %w", endpoint.GetSpec().GetName(), err)
+	}
+
+	return nil
 }

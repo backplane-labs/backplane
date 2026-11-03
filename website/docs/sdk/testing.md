@@ -83,7 +83,13 @@ workflowtest.Worker(t, h, c)                         // workflowtest.Namespace(n
 h.Start()
 ```
 
-The worker serves the service's task queue (its name) with everything `New` registers. It is a component of the harness tree, so it starts with `Start` and stops with the tree. A service that declares hooks also gets a Nexus endpoint named after it. That endpoint routes `workflows.CallHook` to the worker, answered by `backplanetest.Answer`, and is deleted when the tree stops. Queues and endpoints are named after the service, and endpoints are cluster-wide. Harnesses that run at once on one cluster therefore need distinct names (`backplanetest.Name`). A taken endpoint fails the start with `workflowtest.ErrEndpointTaken`.
+The worker serves the service's task queue (its name) with everything `New` registers. It is a component of the harness tree, so it starts with `Start` and stops with the tree.
+
+A service that declares hooks also gets a Nexus endpoint named after it. The endpoint routes `workflows.CallHook` to the service's queue, where the call is answered by `backplanetest.Answer` of the harness whose worker takes it. The endpoint belongs to the test, not to one harness: a `Worker` joins an endpoint that already routes to the same queue, and the endpoint is deleted when the test ends.
+
+Replicas of one service, meaning harnesses with the same name in one test, therefore share the queue and the endpoint as in production. When one replica stops, the others take its workflows and hook calls. Answer the hooks on every replica.
+
+Endpoints are cluster-wide. Separate tests that run at once on one cluster need distinct service names (`backplanetest.Name`), or they share one queue. An endpoint of the service's name that routes elsewhere fails the start with `workflowtest.ErrEndpointTaken`.
 
 ## Check declarations without starting
 
