@@ -278,6 +278,56 @@ func TestLookupRetry(t *testing.T) {
 	}
 }
 
+// A mesh address is the installation's own: the environment's proxy is not
+// used, or a dial to a non-loopback address would go to it (a proxy never
+// covers loopback, so the server listens on another of the host's
+// addresses). Not parallel: it sets the proxy environment.
+func TestDialIgnoresProxy(t *testing.T) {
+	host := hostAddress(t)
+	t.Setenv("HTTPS_PROXY", "http://127.0.0.1:1")
+	t.Setenv("HTTP_PROXY", "http://127.0.0.1:1")
+	t.Setenv("NO_PROXY", "")
+
+	issue := mesh(t)
+	platform, gateway := issue("platform"), issue("gateway")
+	addr := net.JoinHostPort(host, freePort(t))
+
+	var calls atomic.Int64
+
+	serve(t, platform, addr, &calls)
+
+	conn, err := meshdial.Dial(addr, credentials.NewTLS(mtls.ClientConfig(gateway, "platform", "h2")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	if err := check(t.Context(), conn, 5*time.Second); err != nil {
+		t.Fatalf("through the environment's proxy: %v", err)
+	}
+}
+
+// hostAddress is a non-loopback IPv4 address of the host; the test is
+// skipped without one.
+func hostAddress(t *testing.T) string {
+	t.Helper()
+
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, a := range addrs {
+		if n, ok := a.(*net.IPNet); ok && !n.IP.IsLoopback() && n.IP.To4() != nil {
+			return n.IP.String()
+		}
+	}
+
+	t.Skip("no non-loopback IPv4 address")
+
+	return ""
+}
+
 func TestDialRejectsBadAddress(t *testing.T) {
 	t.Parallel()
 

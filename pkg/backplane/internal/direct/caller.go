@@ -21,6 +21,7 @@ import (
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/guard"
+	"github.com/backplane-labs/backplane/pkg/backplane/meshdial"
 	"github.com/backplane-labs/backplane/pkg/backplane/meta"
 )
 
@@ -75,7 +76,7 @@ func NewCaller(p CallerParams) *Caller {
 	}
 	if c.dial == nil {
 		c.dial = func(addr string) (*grpc.ClientConn, error) {
-			return grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			return meshdial.Dial(addr, insecure.NewCredentials())
 		}
 	}
 

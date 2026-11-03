@@ -71,8 +71,9 @@ type Lookup func(ctx context.Context, host string) ([]string, error)
 
 // Dial is a channel to addr — host:port, the host a name or an IP — with
 // creds and opts (applied last). An addr with a scheme (dns:///, unix:)
-// goes to gRPC's own resolver unchanged, with the same reconnection.
-// Nothing connects until the first call or Connect.
+// goes to gRPC's own resolver unchanged, with the same reconnection. The
+// environment's proxy (HTTPS_PROXY) is not used: a mesh address is the
+// installation's own. Nothing connects until the first call or Connect.
 func Dial(addr string, creds credentials.TransportCredentials, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	return Dialer{}.Dial(addr, creds, opts...)
 }
@@ -90,7 +91,11 @@ func (d Dialer) Dial(addr string, creds credentials.TransportCredentials, opts .
 		lookup = net.DefaultResolver.LookupHost
 	}
 
-	base := []grpc.DialOption{grpc.WithTransportCredentials(creds), grpc.WithConnectParams(connectParams())}
+	// A mesh address is the installation's own: never through the
+	// environment's proxy, which would not reach it.
+	base := []grpc.DialOption{
+		grpc.WithTransportCredentials(creds), grpc.WithConnectParams(connectParams()), grpc.WithNoProxy(),
+	}
 
 	target := addr
 	if !strings.Contains(addr, ":///") && !strings.HasPrefix(addr, "unix:") {
