@@ -33,6 +33,35 @@ The name shares the service queue's activity names with `activity.Handle`;
 one taken twice panics at declaration. `workflowtest.New` registers these
 activities too.
 
+## Calls between services of one product
+
+Services of one product are released together, so they may call each other
+through Temporal directly: an activity or a workflow runs on the owner's task
+queue (the owner's service name), where only the owner's worker has it.
+
+```go
+// billing declares activity.Handle(root, "ChargeCard", ...) and
+// workflows.Declare(root, "Settle", ...)
+charge := workflows.ActivityOf[billing.ChargeIn, billing.ChargeOut]("billing", "ChargeCard")
+settle := workflows.WorkflowOf[billing.SettleIn, billing.SettleOut]("billing", "Settle")
+
+// in orders' workflow code
+receipt, err := charge.Execute(ctx, in) // ctx with workflow.WithActivityOptions
+out, err := settle.ExecuteChild(ctx, in) // ctx with workflow.WithChildOptions
+// outside workflow code
+run, err := settle.Start(ctx, c, in, client.StartWorkflowOptions{ID: "settle-" + id})
+```
+
+A code generator can emit these refs with the owner's types. A product
+reaches an integration (courier, templates, kratos, ...) only through hooks:
+the installation decides what serves them.
+
+Each service is its own backplane service, opened with its own
+`backplane.Name`: its queue, manifest, activities and registration are its
+own. Several services may share one binary, with one service per process
+(`<binary> serve <service>`), since a process holds one service's
+telemetry, ports and lifecycle.
+
 ## Determinism
 
 Workflow code must use Temporal workflow APIs for time, concurrency and activity execution. Do not read changing process configuration, access a database or publish an event directly during workflow replay. Perform those operations in activities and return their results into the workflow history.

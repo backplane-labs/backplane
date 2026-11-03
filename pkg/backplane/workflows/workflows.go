@@ -1,7 +1,10 @@
 // Package workflows gives a service its own Temporal workflows (design §9):
 // the SDK owns the connection and the worker on the service's task queue
-// (= its name); the author registers on it and uses the client. Between
-// services go through hooks, never through another service's queue.
+// (= its name); the author registers on it and uses the client. Services
+// of one product, released together, call each other's activities and
+// workflows on the owner's queue with ActivityOf and WorkflowOf; a product
+// reaches an integration (courier, templates, kratos, ...) only through
+// hooks, which the installation binds.
 //
 //	workflows.Register(root, func(r worker.Registry) {
 //	    r.RegisterWorkflow(orders.Ship)

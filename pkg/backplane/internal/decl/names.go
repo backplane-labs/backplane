@@ -1,6 +1,20 @@
 package decl
 
-import "fmt"
+import (
+	"fmt"
+	"regexp"
+)
+
+// ServiceName is the form of a service name (§17): it becomes a DNS label,
+// a NATS subject token and a Temporal task queue.
+var ServiceName = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+
+// CheckService panics unless service matches ServiceName.
+func CheckService(kind, service string) {
+	if !ServiceName.MatchString(service) {
+		panic(fmt.Sprintf("backplane: %s: service name %q must match %s", kind, service, ServiceName))
+	}
+}
 
 // CheckName panics unless name is CamelCase — [A-Z][A-Za-z0-9]* — the form
 // of hook, activity and workflow names: they are Temporal type and Nexus

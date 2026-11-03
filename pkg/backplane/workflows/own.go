@@ -13,9 +13,13 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/temporal"
 )
 
-// ActivityRef is an activity of HandleActivity, for the service's own
-// workflows to run.
-type ActivityRef[Req, Res any] struct{ name string }
+// ActivityRef is an activity for workflow code to run: one of the
+// service's own (HandleActivity), or of another service of the same product
+// (ActivityOf), on that service's queue.
+type ActivityRef[Req, Res any] struct {
+	name  string
+	queue string // the owner's task queue; "" for the service's own
+}
 
 // HandleActivity registers fn as an activity only the service's own
 // workflows run (a saga's steps): on the service's worker, absent from the
@@ -69,6 +73,10 @@ func (r ActivityRef[Req, Res]) Execute(ctx workflow.Context, in Req) (Res, error
 	payload, err := decl.Encode(in)
 	if err != nil {
 		return out, fmt.Errorf("activity %s: encode: %w", r.name, err)
+	}
+
+	if r.queue != "" {
+		ctx = workflow.WithTaskQueue(ctx, r.queue)
 	}
 
 	var res backplanev1.ActivityResult

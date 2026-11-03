@@ -44,7 +44,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"regexp"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -52,6 +51,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/build"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/telemetry"
 	"github.com/backplane-labs/backplane/pkg/backplane/meshdial"
@@ -171,8 +171,8 @@ func Open[C config.Backplaner, St any](
 		return nil, fmt.Errorf("backplane: %w (or pass backplane.Name())", build.ErrUnnamed)
 	}
 
-	if !serviceName.MatchString(o.id.Service) {
-		return nil, fmt.Errorf("%w: service name %q must match %s", ErrConfig, o.id.Service, serviceName)
+	if !decl.ServiceName.MatchString(o.id.Service) {
+		return nil, fmt.Errorf("%w: service name %q must match %s", ErrConfig, o.id.Service, decl.ServiceName)
 	}
 
 	// "<binary> probe [kind]": probe the service running next to it and exit.
@@ -214,10 +214,6 @@ func Open[C config.Backplaner, St any](
 
 // ErrConfig: the SDK block or the service name is unusable.
 var ErrConfig = errors.New("backplane: invalid configuration")
-
-// serviceName is the form of a service name (§17): it becomes a DNS label,
-// a NATS subject token and a Temporal task queue.
-var serviceName = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 
 // validate checks what the schema cannot express.
 func validate(b config.Backplane) error {
