@@ -12,6 +12,7 @@ import (
 	tlog "go.temporal.io/sdk/log"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
+	"go.temporal.io/sdk/worker"
 
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
@@ -47,38 +48,55 @@ func New(tb testing.TB, h *backplanetest.Harness) *testsuite.TestWorkflowEnviron
 
 	w := suite.NewTestWorkflowEnvironment()
 
-	for name, handler := range e.Activities() {
-		w.RegisterActivityWithOptions(internal.ActivityFunc(e.Service, name, handler),
-			tactivity.RegisterOptions{Name: name})
-	}
-
-	for name, handler := range e.OwnActivities() {
-		w.RegisterActivityWithOptions(internal.ActivityFunc(e.Service, name, handler),
-			tactivity.RegisterOptions{Name: name})
-	}
-
-	for _, register := range e.WorkerRegistrations() {
-		register(w)
-	}
-
-	m, err := e.Manifest.Build()
-	if err != nil {
-		tb.Fatalf("backplanetest: manifest: %v", err)
-	}
-
-	if len(m.GetHooks()) > 0 {
-		w.RegisterNexusService(hooks(tb, e, m.GetHooks()))
+	if _, err := register(w, e); err != nil {
+		tb.Fatalf("backplanetest: %v", err)
 	}
 
 	return w
 }
 
-// hooks is the Nexus service <service>.Hooks of the environment: one sync
-// operation per declared hook, answered by the recorder. Failures are what
-// backplane fails a hook call with.
-func hooks(tb testing.TB, e *env.Env, declared []*backplanev1.Hook) *nexus.Service {
-	tb.Helper()
+// register registers on r what the service's worker serves: every
+// activity, the workflows, and the hooks as the Nexus service
+// <service>.Hooks answered by the recorder. hooked: the service declares
+// hooks.
+func register(r worker.Registry, e *env.Env) (bool, error) {
+	for name, handler := range e.Activities() {
+		r.RegisterActivityWithOptions(internal.ActivityFunc(e.Service, name, handler),
+			tactivity.RegisterOptions{Name: name})
+	}
 
+	for name, handler := range e.OwnActivities() {
+		r.RegisterActivityWithOptions(internal.ActivityFunc(e.Service, name, handler),
+			tactivity.RegisterOptions{Name: name})
+	}
+
+	for _, add := range e.WorkerRegistrations() {
+		add(r)
+	}
+
+	m, err := e.Manifest.Build()
+	if err != nil {
+		return false, fmt.Errorf("manifest: %w", err)
+	}
+
+	if len(m.GetHooks()) == 0 {
+		return false, nil
+	}
+
+	s, err := hooks(e, m.GetHooks())
+	if err != nil {
+		return false, err
+	}
+
+	r.RegisterNexusService(s)
+
+	return true, nil
+}
+
+// hooks is the Nexus service <service>.Hooks: one sync operation per
+// declared hook, answered by the recorder. Failures are what backplane
+// fails a hook call with.
+func hooks(e *env.Env, declared []*backplanev1.Hook) (*nexus.Service, error) {
 	s := nexus.NewService(e.Service + internal.HooksSuffix)
 
 	for _, d := range declared {
@@ -101,11 +119,11 @@ func hooks(tb testing.TB, e *env.Env, declared []*backplanev1.Hook) *nexus.Servi
 		})
 
 		if err := s.Register(operation); err != nil {
-			tb.Fatalf("backplanetest: hook %s: %v", full, err)
+			return nil, fmt.Errorf("hook %s: %w", full, err)
 		}
 	}
 
-	return s
+	return s, nil
 }
 
 // WorkflowActivity runs the workflow-backed activity name (workflows.Activity)

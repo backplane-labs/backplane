@@ -75,6 +75,16 @@ srv := grpc.NewServer(grpc.UnaryInterceptor(
 
 The harness does not simulate JetStream redelivery or DLQ semantics. Its activity call executes once; retries belong in runtime integration tests. For Temporal code, use `pkg/backplane/workflows/workflowtest.New(t, h)`, which supplies a Temporal test environment with the service's registrations. This testing extension intentionally imports Temporal separately from core component tests.
 
+`workflowtest.New` runs one workflow on a simulated backend. To run the service's workflows as production does (timers, sagas, workflows started by the code under test) against a real Temporal server, give the harness a worker:
+
+```go
+c, _ := client.Dial(client.Options{HostPort: addr}) // a Temporal from testcontainers
+workflowtest.Worker(t, h, c)                         // workflowtest.Namespace(ns) when not "default"
+h.Start()
+```
+
+The worker serves the service's task queue (its name) with everything `New` registers. It is a component of the harness tree, so it starts with `Start` and stops with the tree. A service that declares hooks also gets a Nexus endpoint named after it. That endpoint routes `workflows.CallHook` to the worker, answered by `backplanetest.Answer`, and is deleted when the tree stops. Queues and endpoints are named after the service, and endpoints are cluster-wide. Harnesses that run at once on one cluster therefore need distinct names (`backplanetest.Name`). A taken endpoint fails the start with `workflowtest.ErrEndpointTaken`.
+
 ## Check declarations without starting
 
 Declaration mistakes — a prefix served twice, `api.MTLS` and plain routes on
