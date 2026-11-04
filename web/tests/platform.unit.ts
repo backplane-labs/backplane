@@ -47,6 +47,24 @@ describe('audit filters', () => {
     expect(parseValue('3')).toBe(3); expect(parseValue('true')).toBe(true); expect(parseValue('acme')).toBe('acme');
   });
 
+  it('keeps the documented deep-link format of /audit?f=', () => {
+    // docs/frontend-contract.md "Audit deep links": console modules build these by hand.
+    const link = '[{"key":"field:subject","op":"is","values":["conversation/c-1"]},{"key":"attr:tenant","op":"is_not","values":["acme"]}]';
+    expect(decodeChips(link)).toEqual([
+      { key: 'field:subject', op: 'is', values: ['conversation/c-1'] }, { key: 'attr:tenant', op: 'is_not', values: ['acme'] },
+    ]);
+    expect(encodeChips(decodeChips(link))).toBe(link);
+    const filter = filterOf(decodeChips(link), '');
+    expect(filter.conditions[0]!.target).toEqual({ case: 'field', value: AuditField.SUBJECT });
+    expect(filter.conditions[0]!.op).toBe(AuditOperator.IS);
+    for (const op of ['is', 'is_not', 'contains', 'not_contains', 'prefix', 'exists', 'not_exists', 'gt', 'gte', 'lt', 'lte']) {
+      expect(decodeChips(`[{"key":"field:action","op":"${op}","values":[]}]`)).toHaveLength(1);
+    }
+    for (const field of ['source', 'service', 'action', 'actor', 'subject', 'outcome', 'operation', 'severity', 'trace_id']) {
+      expect(decodeChips(`[{"key":"field:${field}","op":"is","values":["x"]}]`)).toHaveLength(1);
+    }
+  });
+
   it('reads actors and details as people do', () => {
     expect(humanActor('console:1b7e2c9a-0000-4000')).toBe('operator · 1b7e2c9a');
     expect(humanActor('user:7')).toBe('user:7');

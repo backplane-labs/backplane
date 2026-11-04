@@ -157,6 +157,33 @@ that a late commit is not skipped. Cursor expiry is explicit, requiring refetch.
 Audit retention, partitioning and cleanup are deployment settings. There is no
 retention configuration or retention display in the UI.
 
+### Audit deep links
+
+The console's audit page is addressable, and its URL is a stable contract that
+console modules and services may link to:
+`/audit` for the whole installation, `/services/<service>/audit` for one
+service (the service condition is implied). Parameters, all optional:
+
+| parameter | meaning | default |
+|---|---|---|
+| `f` | conditions: a JSON array of `{"key", "op", "values"}`, all of which must hold | none |
+| `q` | full-text search | none |
+| `from`, `to` | range: Grafana date math (`now-24h`, `now`, `now-1d/d`) or an ISO 8601 instant | `now-24h`, `now` |
+| `tz` | time zone of the range: `browser` or `utc` | `browser` |
+| `live` | refresh interval in ms; `0` stops it | `10000` |
+
+A condition's `key` is `field:<name>` for a fixed field of a record (`source`,
+`service`, `action`, `actor`, `subject`, `outcome`, `operation`, `severity`,
+`trace_id`) or `attr:<name>` for an attribute. `op` is one of `is` (equal to one
+of `values`), `is_not`, `contains`, `not_contains`, `prefix`, `exists`,
+`not_exists`, `gt`, `gte`, `lt`, `lte`; `exists` and `not_exists` take no values.
+A malformed `f`, or a condition with an unknown key or op, is dropped. Encode `f`
+as a URL parameter (`URLSearchParams`). Records of one subject:
+
+```ts
+`/audit?${new URLSearchParams({ f: JSON.stringify([{ key: 'field:subject', op: 'is', values: [subject] }]) })}`
+```
+
 ## Platform telemetry
 
 The entire OTel stack is independent of Backplane: Collector processing,
