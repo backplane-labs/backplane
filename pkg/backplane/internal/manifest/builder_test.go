@@ -2,6 +2,8 @@ package manifest_test
 
 import (
 	"errors"
+	"fmt"
+	"io/fs"
 	"slices"
 	"strings"
 	"testing"
@@ -31,6 +33,24 @@ func build(t *testing.T, b *manifest.Builder) *backplanev1.Manifest {
 	}
 
 	return m
+}
+
+// served is the file names of the descriptor set b serves for m, which
+// names it by hash.
+func served(t *testing.T, b *manifest.Builder, m *backplanev1.Manifest) []string {
+	t.Helper()
+
+	set, ok, err := b.DescriptorFiles()
+	if err != nil || !ok || set.Hash() != m.GetDescriptorsHash() {
+		t.Fatalf("descriptor files: ok %v, %v; hash %q, manifest %q", ok, err, set.Hash(), m.GetDescriptorsHash())
+	}
+
+	raw, err := fs.ReadFile(set, manifest.DescriptorFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return files(t, raw)
 }
 
 func files(t *testing.T, raw []byte) []string {
@@ -112,7 +132,7 @@ func TestSharedDescriptors(t *testing.T) {
 		t.Fatalf("managed route: %v", r)
 	}
 
-	if got := files(t, m.GetDescriptors()); !slices.Contains(got, "grpc/health/v1/health.proto") {
+	if got := served(t, b, m); !slices.Contains(got, "grpc/health/v1/health.proto") {
 		t.Fatalf("shared descriptors: %v", got)
 	}
 }
@@ -130,27 +150,136 @@ func TestInternalServicesSorted(t *testing.T) {
 		t.Fatalf("internal services %v, want %v", m.GetInternalServices(), want)
 	}
 
-	if got := files(t, m.GetDescriptors()); !slices.Contains(got, "grpc/reflection/v1/reflection.proto") {
+	if got := served(t, b, m); !slices.Contains(got, "grpc/reflection/v1/reflection.proto") {
 		t.Fatalf("descriptors: %v", got)
 	}
 }
 
-// A declarative route's own schema is kept and adds nothing to the shared
-// descriptors.
-func TestDeclarativeRouteKeepsSchema(t *testing.T) {
+// givenSet is a FileDescriptorSet of service x.v1.X, which no registry
+// knows, and of a copy of the health file the registry also has.
+func givenSet(t *testing.T) []byte {
+	t.Helper()
+
+	raw, err := proto.Marshal(&descriptorpb.FileDescriptorSet{File: []*descriptorpb.FileDescriptorProto{
+		{
+			Name: proto.String("x/v1/x.proto"), Package: proto.String("x.v1"),
+			Service: []*descriptorpb.ServiceDescriptorProto{{Name: proto.String("X")}},
+		},
+		{Name: proto.String("grpc/health/v1/health.proto"), Package: proto.String("other")},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return raw
+}
+
+// Descriptors a declaration gives join the served set and cover their
+// services; a file the registry gives is taken once, the registry's; the
+// manifest carries only the set's hash, which follows its content.
+func TestGivenDescriptors(t *testing.T) {
 	t.Parallel()
 
 	b := manifest.New("svc", "1.0.0")
-	b.API(&backplanev1.API{
-		Kind:     backplanev1.ApiKind_API_KIND_GRPC,
-		Prefix:   "/x.v1.X/",
-		Services: []string{"x.v1.X"},
-		Schema:   &backplanev1.API_Descriptors{Descriptors: []byte{1}},
-	})
+	b.API(&backplanev1.API{Kind: backplanev1.ApiKind_API_KIND_GRPC, Prefix: "/x.v1.X/", Services: []string{"x.v1.X"}})
+	b.GiveDescriptors(givenSet(t))
+	b.Internal([]string{healthService})
 
 	m := build(t, b)
-	if len(m.GetDescriptors()) != 0 || len(m.GetApis()[0].GetDescriptors()) != 1 {
-		t.Fatalf("manifest: %v", m)
+
+	got := served(t, b, m)
+	if !slices.Contains(got, "x/v1/x.proto") || len(got) != len(slices.Compact(slices.Sorted(slices.Values(got)))) {
+		t.Fatalf("served files: %v", got)
+	}
+
+	set, _, _ := b.DescriptorFiles()
+	raw, _ := fs.ReadFile(set, manifest.DescriptorFile)
+
+	var fds descriptorpb.FileDescriptorSet
+	if err := proto.Unmarshal(raw, &fds); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, f := range fds.GetFile() {
+		if f.GetName() == "grpc/health/v1/health.proto" && f.GetPackage() != "grpc.health.v1" {
+			t.Fatalf("health file from the given set, not the registry: %v", f.GetPackage())
+		}
+	}
+
+	// Another service changes the set and so the hash.
+	other := manifest.New("svc", "1.0.0")
+	other.API(&backplanev1.API{Kind: backplanev1.ApiKind_API_KIND_GRPC, Prefix: "/x.v1.X/", Services: []string{"x.v1.X"}})
+	other.GiveDescriptors(givenSet(t))
+
+	if build(t, other).GetDescriptorsHash() == m.GetDescriptorsHash() {
+		t.Fatal("different sets, one hash")
+	}
+
+	// Without services there is no set.
+	if _, ok, err := manifest.New("svc", "1.0.0").DescriptorFiles(); ok || err != nil {
+		t.Fatalf("no services: ok %v %v", ok, err)
+	}
+
+	bad := manifest.New("svc", "1.0.0")
+	bad.GiveDescriptors([]byte{0xff})
+
+	if _, err := bad.Build(); err == nil {
+		t.Fatal("undecodable given descriptors must fail the build")
+	}
+}
+
+func TestDescribedServices(t *testing.T) {
+	t.Parallel()
+
+	for name, c := range map[string]struct {
+		fds  []byte
+		want []string
+		bad  bool
+	}{
+		"set":  {fds: givenSet(t), want: []string{"x.v1.X"}},
+		"none": {},
+		"bad":  {fds: []byte{0xff}, bad: true},
+	} {
+		got, err := manifest.DescribedServices(c.fds)
+		if (err != nil) != c.bad || !slices.Equal(got, c.want) {
+			t.Errorf("%s: %v %v", name, got, err)
+		}
+	}
+}
+
+// A manifest of many services stays small: their descriptors are served,
+// not carried.
+func TestManyServicesFit(t *testing.T) {
+	t.Parallel()
+
+	b := manifest.New("svc", "1.0.0")
+
+	var set descriptorpb.FileDescriptorSet
+
+	for i := range 2000 {
+		name := fmt.Sprintf("big%d", i)
+		set.File = append(set.File, &descriptorpb.FileDescriptorProto{
+			Name: proto.String(name + ".proto"), Package: proto.String(name),
+			Service: []*descriptorpb.ServiceDescriptorProto{{Name: proto.String("S"), Method: []*descriptorpb.MethodDescriptorProto{
+				{Name: proto.String(strings.Repeat("M", 400)), InputType: proto.String(".google.protobuf.Empty"), OutputType: proto.String(".google.protobuf.Empty")},
+			}}},
+		})
+	}
+
+	raw, err := proto.Marshal(&set)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(raw) <= manifest.MaxSize {
+		t.Fatalf("set of %d bytes does not exceed the KV limit", len(raw))
+	}
+
+	b.API(&backplanev1.API{Kind: backplanev1.ApiKind_API_KIND_GRPC, Prefix: "/big0.S/", Services: []string{"big0.S"}})
+	b.GiveDescriptors(raw)
+
+	if m := build(t, b); proto.Size(m) > manifest.MaxSize || m.GetDescriptorsHash() == "" {
+		t.Fatalf("manifest of %d bytes, hash %q", proto.Size(m), m.GetDescriptorsHash())
 	}
 }
 

@@ -109,3 +109,47 @@ func TestAPIFileProxy(t *testing.T) {
 		t.Fatalf("traversal: %d", w.Code)
 	}
 }
+
+// A manifest's descriptor set is an API file of its hash, fetched from an
+// instance serving it; another hash is not.
+func TestDescriptorFileProxy(t *testing.T) {
+	t.Parallel()
+
+	hash, other := strings.Repeat("d", 64), strings.Repeat("e", 64)
+	now := time.Now()
+	sessions := &apiSessions{session: Session{ID: uuid.New(), CreatedAt: now, LastSeenAt: now, ExpiresAt: now.Add(time.Hour)}}
+	svc := registry.Service{Name: "hello", Manifests: map[string]*backplanev1.Manifest{"1.0.0": {Version: "1.0.0", DescriptorsHash: hash}}}
+	svc.Instances = append(svc.Instances, registry.Instance{Registered: true, Healthy: true, State: &backplanev1.InstanceState{
+		Version: "1.0.0", Phase: backplanev1.InstancePhase_INSTANCE_PHASE_SERVING, Address: "a.example", PlatformPort: 9000,
+	}})
+
+	c := &Console{sessions: sessions, now: func() time.Time { return now }, src: apiSource{catalog: registry.Catalog{Services: map[string]registry.Service{"hello": svc}}}, bundles: newBundles("relay-secret", defaultCacheBytes, nil)}
+	c.bundles.client.Transport = apiTransport(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path != "/_backplane/api/"+hash+"/descriptors.binpb" {
+			t.Fatalf("upstream %s", r.URL.Path)
+		}
+
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Etag": {`"` + hash + `"`}}, Body: io.NopCloser(strings.NewReader("set"))}, nil
+	})
+
+	get := func(h string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodGet, "/schemas/hello/"+h+"/descriptors.binpb", http.NoBody)
+		r.SetPathValue("service", "hello")
+		r.SetPathValue("hash", h)
+		r.SetPathValue("path", "descriptors.binpb")
+		r.AddCookie(&http.Cookie{Name: CookieName, Value: "operator"})
+
+		w := httptest.NewRecorder()
+		c.apiFile(w, r)
+
+		return w
+	}
+
+	if w := get(hash); w.Code != http.StatusOK || w.Body.String() != "set" {
+		t.Fatalf("descriptor set: %d %q", w.Code, w.Body.String())
+	}
+
+	if w := get(other); w.Code == http.StatusOK {
+		t.Fatalf("a hash no manifest names: %d", w.Code)
+	}
+}

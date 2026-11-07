@@ -152,10 +152,15 @@ attach an embedded JSON/YAML byte slice as before. Inline documents support
 internal JSON pointers and report unresolved references.
 
 For managed gRPC and ws-proto registrations the SDK collects the registered
-services' descriptors and **transitive imports** automatically into the shared
-`Manifest.descriptors`. The API viewer limits the methods to the services
-announced on the selected API. For independently served gRPC endpoints, pass
-`api.Descriptors(fds)`; declarative `api.WSProto` takes `fds` directly.
+services' descriptors and **transitive imports** automatically into the
+service's one descriptor set. The set stays out of the manifest: the manifest
+names it by `Manifest.descriptors_hash`, the SDK serves it on the platform port
+as file `descriptors.binpb` of the API file bundle with that hash, and the
+viewer reads it through `readFile` like any API bundle. The API viewer limits
+the methods to the services announced on the selected API. For independently
+served gRPC endpoints, pass `api.Descriptors(fds)`; declarative `api.WSProto`
+takes `fds` directly and announces the services they define. Either set joins
+the service's descriptor set.
 Produce that binary descriptor set with imports included (for example,
 `protoc --include_imports --include_source_info --descriptor_set_out=api.pb ...`)
 and embed it as `[]byte`. Source comments are displayed when source info exists.

@@ -1,7 +1,7 @@
 import { fromBinary, toJson } from '@bufbuild/protobuf';
 import { FileDescriptorSetSchema, type DescriptorProto, type FieldDescriptorProto } from '@bufbuild/protobuf/wkt';
 import { parseDocument } from 'yaml';
-import { ApiKind, type Manifest, type API } from '@backplane-labs/backplane-api/backplanepb/v1/manifest_pb';
+import { ApiKind, type API } from '@backplane-labs/backplane-api/backplanepb/v1/manifest_pb';
 
 type ObjectValue = Record<string, unknown>;
 export interface APIField { name: string; type: string; required?: boolean; description?: string; references?: string[] }
@@ -16,15 +16,18 @@ const string = (value: unknown): string => typeof value === 'string' ? value : '
 const entries = (value: unknown) => Object.entries(object(value));
 const decode = (bytes: Uint8Array) => new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 
-/** The catalog carries self-contained documents. Never fetch a schema's URLs. */
-export function readAPIDocument(route: API, manifest: Manifest): APIResult {
+/** A gRPC or ws-proto route: its document comes from the service's descriptor set (Manifest.descriptorsHash). */
+export const describedByDescriptors = (route: API) => [ApiKind.GRPC, ApiKind.WS_PROTO].includes(route.kind) && route.schema.case === undefined;
+
+/** The file of the descriptor set in the API file bundle its hash names. */
+export const descriptorFile = 'descriptors.binpb';
+
+/** A route's document from its own schema, or for a gRPC or ws-proto route from the service's descriptor set. Never fetches a schema's URLs. */
+export function readAPIDocument(route: API, descriptors?: Uint8Array): APIResult {
   try {
     if (route.schema.case === 'openapi') return { document: openAPI(decode(route.schema.value)) };
     if (route.schema.case === 'graphql') return { document: graphQL(decode(route.schema.value)) };
-    const bytes = route.schema.case === 'descriptors' ? route.schema.value : manifest.descriptors;
-    if ([ApiKind.GRPC, ApiKind.WS_PROTO].includes(route.kind) && bytes.length) {
-      return { document: protobuf(bytes, route.services) };
-    }
+    if (describedByDescriptors(route) && descriptors?.length) return { document: protobuf(descriptors, route.services) };
     return { problem: 'missing' };
   } catch (error) { return { problem: 'invalid', detail: error instanceof Error ? error.message : String(error) }; }
 }

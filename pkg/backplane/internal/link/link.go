@@ -37,6 +37,8 @@ var SetLive func(live, v any) error
 var APIs struct {
 	Decl  func(d any) (*backplanev1.API, error)
 	Files func(d any) *routes.SchemaFiles
+	// Descriptors the declaration gives (a FileDescriptorSet); nil: none.
+	Descriptors func(d any) []byte
 	// Port of the declaration's named listener (api.Port); 0 without one.
 	Port func(d any) uint16
 	GRPC func(opts any) routes.Managed

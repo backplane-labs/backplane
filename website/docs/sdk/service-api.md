@@ -60,7 +60,7 @@ Relative references must remain inside the bundle. HTTP URLs, absolute paths and
 
 ## Protobuf and GraphQL
 
-Managed gRPC/ws-proto registrations collect descriptors and transitive imports automatically. The viewer shows only services announced by the selected api. For an independently served gRPC endpoint, supply `api.Descriptors(fds)` with a binary descriptor set including imports. Include source info when generating it to preserve comments:
+Managed gRPC/ws-proto registrations collect descriptors and transitive imports automatically. All of a service's descriptors form one set, which stays out of the 512 KiB manifest: the manifest carries its content hash, and the set is served like an API file bundle (see below), so a service with many gRPC services still fits. The viewer shows only services announced by the selected api. For an independently served gRPC endpoint, supply `api.Descriptors(fds)` with a binary descriptor set including imports; `api.WSProto` takes the set directly and announces the services it defines. Either joins the service's set. Include source info when generating it to preserve comments:
 
 ```bash
 protoc --include_imports --include_source_info \

@@ -30,6 +30,8 @@ const (
 	sdkModule = "github.com/backplane-labs/backplane"
 	// MaxSize is Consul's KV value limit; the manifest is one value.
 	MaxSize = 512 * 1024
+	// DescriptorFile is the descriptor set's file in its API file bundle.
+	DescriptorFile = "descriptors.binpb"
 )
 
 // Errors.
@@ -47,7 +49,8 @@ type Builder struct {
 	m      *backplanev1.Manifest
 	errs   []error
 	sealed bool
-	names  map[string]string // "<kind>:<name>" -> kind, for duplicates
+	names  map[string]string                   // "<kind>:<name>" -> kind, for duplicates
+	given  []*descriptorpb.FileDescriptorProto // GiveDescriptors, in order
 }
 
 // New starts a manifest for service@version.
@@ -238,20 +241,13 @@ func (b *Builder) Build() (*backplanev1.Manifest, error) {
 	m := proto.CloneOf(b.m)
 	sort.Strings(m.GetInternalServices()) // in place: the clone's own slice
 
-	services := append([]string(nil), m.GetInternalServices()...)
-	for _, r := range m.GetApis() {
-		if r.GetSchema() == nil {
-			services = append(services, r.GetServices()...)
-		}
+	files, ok, err := b.descriptorFiles(m)
+	if err != nil {
+		return nil, err
 	}
 
-	if len(services) > 0 {
-		fds, err := Descriptors(services)
-		if err != nil {
-			return nil, err
-		}
-
-		m.Descriptors = fds
+	if ok {
+		m.DescriptorsHash = files.Hash()
 	}
 
 	if size := proto.Size(m); size > MaxSize {
@@ -306,9 +302,106 @@ func section(schema *sp.Schema) *backplanev1.ConfigSection {
 	return sec
 }
 
-// Descriptors serializes the files of the named services with their
-// transitive imports from the global registry.
-func Descriptors(services []string) ([]byte, error) {
+// GiveDescriptors adds a FileDescriptorSet a declaration gives
+// (api.Descriptors, api.WSProto) to the service's descriptor set.
+func (b *Builder) GiveDescriptors(fds []byte) {
+	b.with("descriptors", func(*backplanev1.Manifest) error {
+		if len(fds) == 0 {
+			return nil
+		}
+
+		var set descriptorpb.FileDescriptorSet
+		if err := proto.Unmarshal(fds, &set); err != nil {
+			return fmt.Errorf("manifest: given descriptors: %w", err)
+		}
+
+		b.given = append(b.given, set.GetFile()...)
+
+		return nil
+	})
+}
+
+// DescriptorFiles is the service's descriptor set as the API file bundle
+// the SDK serves (file DescriptorFile); ok is false when no service is
+// named.
+func (b *Builder) DescriptorFiles() (*apifiles.Files, bool, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return b.descriptorFiles(b.m)
+}
+
+// descriptorFiles is the descriptor set of m's services: the given files,
+// then the files of every other service named by an API or as internal,
+// with transitive imports, from the global registry; a file is taken
+// once, by path. b.mu is held.
+func (b *Builder) descriptorFiles(m *backplanev1.Manifest) (*apifiles.Files, bool, error) {
+	given := map[string]bool{}
+
+	for _, f := range b.given {
+		for _, s := range f.GetService() {
+			given[qualified(f.GetPackage(), s.GetName())] = true
+		}
+	}
+
+	named := map[string]bool{}
+	for _, s := range m.GetInternalServices() {
+		named[s] = true
+	}
+
+	for _, r := range m.GetApis() {
+		for _, s := range r.GetServices() {
+			named[s] = true
+		}
+	}
+
+	services := make([]string, 0, len(named))
+
+	for s := range named {
+		if !given[s] {
+			services = append(services, s)
+		}
+	}
+
+	sort.Strings(services)
+
+	files, err := registryFiles(services)
+	if err != nil {
+		return nil, false, err
+	}
+
+	seen := map[string]bool{}
+	for _, f := range files {
+		seen[f.GetName()] = true
+	}
+
+	for _, f := range b.given {
+		if !seen[f.GetName()] {
+			seen[f.GetName()] = true
+			files = append(files, f)
+		}
+	}
+
+	if len(files) == 0 {
+		return nil, false, nil
+	}
+
+	raw, err := proto.MarshalOptions{Deterministic: true}.Marshal(&descriptorpb.FileDescriptorSet{File: files})
+	if err != nil {
+		return nil, false, fmt.Errorf("manifest: marshal descriptors: %w", err)
+	}
+
+	out, err := apifiles.Of(DescriptorFile, raw)
+	if err != nil {
+		return nil, false, fmt.Errorf("manifest: descriptors: %w", err)
+	}
+
+	return out, true, nil
+}
+
+// registryFiles are the files of the named services with their transitive
+// imports, imports first, from the global registry.
+func registryFiles(services []string) ([]*descriptorpb.FileDescriptorProto, error) {
 	seen := map[string]bool{}
 
 	var (
@@ -338,12 +431,40 @@ func Descriptors(services []string) ([]byte, error) {
 		add(d.ParentFile())
 	}
 
-	fds, err := proto.Marshal(&descriptorpb.FileDescriptorSet{File: files})
-	if err != nil {
-		return nil, fmt.Errorf("manifest: marshal descriptors: %w", err)
+	return files, nil
+}
+
+// DescribedServices are the full names of the services a serialized
+// FileDescriptorSet defines, sorted; nil for none.
+func DescribedServices(fds []byte) ([]string, error) {
+	if len(fds) == 0 {
+		return nil, nil
 	}
 
-	return fds, nil
+	var set descriptorpb.FileDescriptorSet
+	if err := proto.Unmarshal(fds, &set); err != nil {
+		return nil, fmt.Errorf("manifest: descriptors: %w", err)
+	}
+
+	var out []string
+
+	for _, f := range set.GetFile() {
+		for _, s := range f.GetService() {
+			out = append(out, qualified(f.GetPackage(), s.GetName()))
+		}
+	}
+
+	sort.Strings(out)
+
+	return out, nil
+}
+
+func qualified(pkg, name string) string {
+	if pkg == "" {
+		return name
+	}
+
+	return pkg + "." + name
 }
 
 // UIHash addresses an immutable snapshot of the bundle's paths and bytes.

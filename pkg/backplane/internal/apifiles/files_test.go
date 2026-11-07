@@ -56,3 +56,38 @@ func TestSnapshotBounds(t *testing.T) {
 		t.Fatalf("symlink: %v", err)
 	}
 }
+
+// One file is addressed as a snapshot of it is; bad names and oversize
+// data are refused.
+func TestOf(t *testing.T) {
+	t.Parallel()
+
+	data := []byte("set")
+
+	one, err := apifiles.Of("descriptors.binpb", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	snap, err := apifiles.Snapshot(fstest.MapFS{"descriptors.binpb": {Data: data}}, "descriptors.binpb")
+	if err != nil || one.Hash() != snap.Hash() {
+		t.Fatalf("hash %s, snapshot %s %v", one.Hash(), snap.Hash(), err)
+	}
+
+	if got, err := fs.ReadFile(one, "descriptors.binpb"); err != nil || !bytes.Equal(got, data) {
+		t.Fatalf("read %q %v", got, err)
+	}
+
+	for name, c := range map[string]struct {
+		file string
+		data []byte
+	}{
+		"absolute": {"/x", data},
+		"dot":      {".", data},
+		"too big":  {"x", make([]byte, apifiles.MaxBytes+1)},
+	} {
+		if _, err := apifiles.Of(c.file, c.data); !errors.Is(err, apifiles.ErrBundle) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}

@@ -32,10 +32,16 @@ message Manifest {
   // The node tree depends on configuration (drivers): InstanceState.nodes.
   reserved 12;
   reserved "nodes";
-  // Serialized FileDescriptorSet covering every service named by a managed
-  // API (API.services) and by internal_services, with transitive
-  // imports: stored once instead of per API.
-  bytes descriptors = 13;
+  // The descriptor set is served by the SDK on the platform port, outside
+  // Consul KV: descriptors_hash.
+  reserved 13;
+  reserved "descriptors";
+  // Content hash of the service's FileDescriptorSet: every service named by
+  // an API (API.services, with descriptors registration or api.Descriptors
+  // gives) and by internal_services, with transitive imports. The SDK
+  // serves it on the platform port as file descriptors.binpb of the API
+  // file bundle with this hash, like APISchemaBundle; empty: no services.
+  string descriptors_hash = 19;
   // Events the service reacts to.
   repeated Subscription subscriptions = 14;
   // Temporal Schedules of the service's own workflows.
@@ -94,22 +100,20 @@ message API {
   reserved 4;
   reserved "port";
   // gRPC and ws-proto: full names of the services behind the
-  // route; their descriptors are in Manifest.descriptors unless the route
-  // carries its own.
+  // route; their descriptors are in the service's descriptor set
+  // (Manifest.descriptors_hash).
   repeated string services = 8;
   // Schema for the console's API tab; optional.
   oneof schema {
     // OpenAPI document (HTTP).
     bytes openapi = 5;
-    // Serialized FileDescriptorSet (gRPC, Connect, ws-proto).
-    bytes descriptors = 6;
     // Introspection result as JSON (GraphQL).
     bytes graphql = 7;
     // Files served by the SDK on the platform port, outside Consul KV.
     APISchemaBundle bundle = 10;
   }
-  reserved 9;
-  reserved "policy";
+  reserved 9, 6;
+  reserved "policy", "descriptors";
 }
 
 // An immutable API file snapshot, delivered separately from the manifest.

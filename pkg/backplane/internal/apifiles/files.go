@@ -79,8 +79,7 @@ func Snapshot(source fs.FS, entry string) (*Files, error) {
 		}
 
 		files.data[name] = data
-		fmt.Fprintf(hash, "%d:%s:%d:", len(name), name, len(data))
-		hash.Write(data)
+		hashFile(hash, name, data)
 
 		return nil
 	})
@@ -95,6 +94,27 @@ func Snapshot(source fs.FS, entry string) (*Files, error) {
 	files.hash = hex.EncodeToString(hash.Sum(nil))
 
 	return files, nil
+}
+
+// Of is the snapshot of one file, addressed as Snapshot addresses it.
+func Of(name string, data []byte) (*Files, error) {
+	switch {
+	case !fs.ValidPath(name) || name == ".":
+		return nil, fmt.Errorf("%w: %q is not a relative file path", ErrBundle, name)
+	case len(data) > MaxBytes:
+		return nil, fmt.Errorf("%w: %s exceeds %d bytes", ErrBundle, name, MaxBytes)
+	}
+
+	hash := sha256.New()
+	hashFile(hash, name, data)
+
+	return &Files{data: map[string][]byte{name: data}, hash: hex.EncodeToString(hash.Sum(nil))}, nil
+}
+
+// hashFile adds one file, its name and length delimited, to the hash.
+func hashFile(h io.Writer, name string, data []byte) {
+	fmt.Fprintf(h, "%d:%s:%d:", len(name), name, len(data))
+	_, _ = h.Write(data)
 }
 
 // Hash addresses every file in this snapshot.

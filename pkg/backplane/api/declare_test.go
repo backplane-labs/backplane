@@ -1,9 +1,13 @@
 package api_test
 
 import (
+	"bytes"
 	"errors"
 	"slices"
 	"testing"
+
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/descriptorpb"
 
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/api"
@@ -29,7 +33,7 @@ func TestDeclarative(t *testing.T) {
 		},
 		"grpc descriptors": {
 			api.GRPC("hello.v1.Hello", api.Descriptors([]byte{1})),
-			backplanev1.ApiKind_API_KIND_GRPC, "/hello.v1.Hello/", "", "", 0, true,
+			backplanev1.ApiKind_API_KIND_GRPC, "/hello.v1.Hello/", "", "", 0, false,
 		},
 		"http host": {
 			api.HTTP("/x/", api.Host("api.example.com"), api.OpenAPI([]byte("{}"))),
@@ -52,8 +56,8 @@ func TestDeclarative(t *testing.T) {
 			backplanev1.ApiKind_API_KIND_WS_PROTO, "/ws/", "", "", 0, false,
 		},
 		"wsproto descriptors": {
-			api.WSProto("/ws/", []byte{1}, api.Port("ws", 7000)),
-			backplanev1.ApiKind_API_KIND_WS_PROTO, "/ws/", "", "ws", 7000, true,
+			api.WSProto("/ws/", greeterSet(t), api.Port("ws", 7000)),
+			backplanev1.ApiKind_API_KIND_WS_PROTO, "/ws/", "", "ws", 7000, false,
 		},
 	}
 	for name, c := range cases {
@@ -74,6 +78,49 @@ func TestDeclarative(t *testing.T) {
 				t.Fatalf("schema presence: %v", r.GetSchema())
 			}
 		})
+	}
+}
+
+// greeterSet is a FileDescriptorSet of service public.v1.Greeter.
+func greeterSet(t *testing.T) []byte {
+	t.Helper()
+
+	raw, err := proto.Marshal(&descriptorpb.FileDescriptorSet{File: []*descriptorpb.FileDescriptorProto{{
+		Name: proto.String("public/v1/greeter.proto"), Package: proto.String("public.v1"),
+		Service: []*descriptorpb.ServiceDescriptorProto{{Name: proto.String("Greeter")}},
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return raw
+}
+
+// Descriptors a declaration gives go to the service's descriptor set, not
+// the route; a ws-proto route names the services they describe.
+func TestDeclaredDescriptors(t *testing.T) {
+	t.Parallel()
+
+	set := greeterSet(t)
+
+	g := api.GRPC("public.v1.Greeter", api.Descriptors(set))
+	if !bytes.Equal(link.APIs.Descriptors(g), set) {
+		t.Fatal("gRPC declaration lost its descriptors")
+	}
+
+	ws := api.WSProto("/ws/", set)
+
+	r, err := link.APIs.Decl(ws)
+	if err != nil || !slices.Equal(r.GetServices(), []string{"public.v1.Greeter"}) || !bytes.Equal(link.APIs.Descriptors(ws), set) {
+		t.Fatalf("ws-proto: services %v, err %v", r.GetServices(), err)
+	}
+
+	if link.APIs.Descriptors(api.WSProto("/ws/", nil)) != nil {
+		t.Fatal("descriptors without any given")
+	}
+
+	if _, err := link.APIs.Decl(api.WSProto("/ws/", []byte{0xff})); err == nil {
+		t.Fatal("undecodable descriptors must be a declaration error")
 	}
 }
 

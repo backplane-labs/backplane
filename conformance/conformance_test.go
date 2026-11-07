@@ -270,8 +270,15 @@ func (e *env) manifest(t *testing.T) {
 		}
 	}
 
-	// gRPC, Connect, ws-proto and internal services share one descriptor set.
-	described := describedServices(t, m.GetDescriptors())
+	// gRPC, Connect, ws-proto and internal services share one descriptor
+	// set, served on the platform port outside the manifest by its hash.
+	code, set := httpGet("http://"+e.platform+"/_backplane/api/"+m.GetDescriptorsHash()+"/descriptors.binpb",
+		"Bp-Internal-Secret", secret)
+	if code != http.StatusOK || len(m.GetDescriptorsHash()) != 64 {
+		t.Fatalf("descriptor set %q: %d", m.GetDescriptorsHash(), code)
+	}
+
+	described := describedServices(t, []byte(set))
 	for _, name := range []string{"hello.v1.HelloService", "hello.console.v1.AdminService"} {
 		if !described[name] {
 			t.Errorf("descriptors lack %s", name)

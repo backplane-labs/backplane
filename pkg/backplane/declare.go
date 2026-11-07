@@ -62,6 +62,7 @@ func (c *core) API(d api.Decl) {
 		}
 
 		c.env.Manifest.API(r)
+		c.env.Manifest.GiveDescriptors(link.APIs.Descriptors(d))
 		c.mountSchemaFiles(link.APIs.Files(d))
 	})
 }

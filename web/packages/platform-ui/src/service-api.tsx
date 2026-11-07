@@ -1,12 +1,12 @@
 import { useId, useMemo, useState } from 'react';
 import { create } from '@bufbuild/protobuf';
 import { CatalogServiceClient, GetServiceRequestSchema } from '@backplane-labs/backplane-api';
-import { ApiKind, type Manifest } from '@backplane-labs/backplane-api/backplanepb/v1/manifest_pb';
+import { ApiKind, type API, type APISchemaBundle, type Manifest } from '@backplane-labs/backplane-api/backplanepb/v1/manifest_pb';
 import { useBackplane, useClient } from '@backplane-labs/backplane-react';
 import { Badge, Button, ClipboardButton, EmptyState, Input, SelectControl, Panel, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@backplane-labs/backplane-ui';
 import { EditorActions, JSONViewer } from '@backplane-labs/backplane-editors';
 import type { ThemeMode } from '@backplane-labs/backplane-theme';
-import { readAPIDocument, type APIField, type APISection } from './api-document.js';
+import { describedByDescriptors, descriptorFile, readAPIDocument, type APIField, type APIResult, type APISection } from './api-document.js';
 import { usePlatformText } from './locales.js';
 import { QueryState, usePlatformQuery } from './runtime.js';
 import { readAPIBundle, type APIFileReader } from './api-bundle.js';
@@ -35,25 +35,41 @@ export function ServiceAPIDocument({ manifest, mode, state: controlled, onStateC
   const update = (next: ServiceAPIState) => { setLocal(next); onStateChange?.(next); };
   const index = Number.isSafeInteger(state.api) && manifest.apis[state.api] ? state.api : 0;
   const route = manifest.apis[index];
-  const result = useMemo(() => route ? readAPIDocument(route, manifest) : undefined, [route, manifest]);
+  const inline = useMemo(() => route && !describedByDescriptors(route) ? readAPIDocument(route) : undefined, [route]);
   if (!route) return <EmptyState title={text('noAPIs')} />;
+  const browse = { mode, operation: state.operation, onOperation: (operation: string) => update({ api: index, operation }) };
   return <div className="grid min-w-0 gap-4">
     <label className="grid gap-1 text-sm">{text('externalEndpoint')}<SelectControl aria-label={text('externalEndpoint')} value={String(index)} onValueChange={(value) => update({ api: Number(value) })}
       options={manifest.apis.map((entry, i) => ({ value: String(i), label: `${ApiKind[entry.kind]} · ${entry.host}${entry.prefix}${entry.listener ? ` · ${entry.listener}` : ''}` }))} /></label>
-    {route.schema.case === 'bundle' ? <APIBundleView key={`${route.schema.value.hash}:${route.schema.value.entry}`} bundle={route.schema.value} readFile={readFile} mode={mode} operation={state.operation} onOperation={(operation) => update({ api: index, operation })} /> : <>
-      {result && 'problem' in result && <EmptyState title={text(result.problem === 'missing' ? 'apiSchemaMissing' : 'apiSchemaInvalid')} description={result.problem === 'missing' ? text('apiSchemaMissingHelp') : result.detail} />}
-      {result && 'document' in result && <APIBrowser key={`${index}:${manifest.version}`} document={result.document} mode={mode} operation={state.operation} onOperation={(operation) => update({ api: index, operation })} />}
-    </>}
+    {route.schema.case === 'bundle' ? <APIBundleView key={`${route.schema.value.hash}:${route.schema.value.entry}`} bundle={route.schema.value} readFile={readFile} {...browse} />
+      : describedByDescriptors(route) ? (manifest.descriptorsHash ? <DescriptorView key={`${index}:${manifest.descriptorsHash}`} route={route} hash={manifest.descriptorsHash} readFile={readFile} {...browse} /> : <APIResultView result={{ problem: 'missing' }} {...browse} />)
+      : inline && <APIResultView key={`${index}:${manifest.version}`} result={inline} {...browse} />}
   </div>;
 }
 
-function APIBundleView({ bundle, readFile, ...props }: { bundle: import('@backplane-labs/backplane-api/backplanepb/v1/manifest_pb').APISchemaBundle; readFile?: APIFileReader; mode: ThemeMode; operation?: string; onOperation: (id: string) => void }) {
+/** A document, or why there is none. */
+function APIResultView({ result, ...props }: { result: APIResult; mode: ThemeMode; operation?: string; onOperation: (id: string) => void }) {
   const text = usePlatformText();
+  if ('document' in result) return <APIBrowser document={result.document} {...props} />;
+  return <EmptyState title={text(result.problem === 'missing' ? 'apiSchemaMissing' : 'apiSchemaInvalid')} description={result.problem === 'missing' ? text('apiSchemaMissingHelp') : result.detail} />;
+}
+
+/** A gRPC or ws-proto route, documented from the service's descriptor set, fetched once per hash. */
+function DescriptorView({ route, hash, readFile, ...props }: { route: API; hash: string; readFile?: APIFileReader; mode: ThemeMode; operation?: string; onOperation: (id: string) => void }) {
+  const state = usePlatformQuery(`api-descriptors:${hash}`, async (signal) => {
+    if (!readFile) throw new Error('The host client does not provide API file delivery.');
+    return readFile(hash, descriptorFile, signal);
+  });
+  const result = useMemo(() => state.value ? readAPIDocument(route, state.value) : undefined, [route, state.value]);
+  return <><QueryState state={state} />{result && <APIResultView result={result} {...props} />}</>;
+}
+
+function APIBundleView({ bundle, readFile, ...props }: { bundle: APISchemaBundle; readFile?: APIFileReader; mode: ThemeMode; operation?: string; onOperation: (id: string) => void }) {
   const state = usePlatformQuery(`api-files:${bundle.hash}:${bundle.format}:${bundle.entry}`, async (signal) => {
     if (!readFile) throw new Error('The host client does not provide API file delivery.');
     return readAPIBundle(bundle, readFile, signal);
   });
-  return <><QueryState state={state} />{state.value && ('document' in state.value ? <APIBrowser document={state.value.document} {...props} /> : <EmptyState title={text('apiSchemaInvalid')} description={state.value.detail} />)}</>;
+  return <><QueryState state={state} />{state.value && <APIResultView result={'document' in state.value ? state.value : { problem: 'invalid', detail: state.value.detail }} {...props} />}</>;
 }
 
 function APIBrowser({ document, mode, operation, onOperation }: {

@@ -16,7 +16,9 @@ import (
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/build"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/routes"
 )
 
 const devVersion = "0.0.0"
@@ -116,6 +118,19 @@ func (c *core) seal() (*backplanev1.Manifest, error) {
 	m, err := c.env.Manifest.Build()
 	if err != nil {
 		return nil, fmt.Errorf("build: %w", err)
+	}
+
+	// The descriptor set stays out of the manifest (a Consul KV value):
+	// the platform port serves it as an API file bundle.
+	files, ok, err := c.env.Manifest.DescriptorFiles()
+	if err != nil {
+		return nil, fmt.Errorf("build: %w", err)
+	}
+
+	if ok {
+		c.mountSchemaFiles(&routes.SchemaFiles{
+			Files: files, Ref: &backplanev1.APISchemaBundle{Hash: files.Hash(), Entry: manifest.DescriptorFile},
+		})
 	}
 
 	if m.GetVersion() == devVersion {

@@ -267,10 +267,12 @@ type Manifest struct {
 	Hooks            []*Hook     `protobuf:"bytes,9,rep,name=hooks,proto3" json:"hooks,omitempty"`
 	Activities       []*Activity `protobuf:"bytes,10,rep,name=activities,proto3" json:"activities,omitempty"`
 	Ui               *UI         `protobuf:"bytes,11,opt,name=ui,proto3" json:"ui,omitempty"`
-	// Serialized FileDescriptorSet covering every service named by a managed
-	// API (API.services) and by internal_services, with transitive
-	// imports: stored once instead of per API.
-	Descriptors []byte `protobuf:"bytes,13,opt,name=descriptors,proto3" json:"descriptors,omitempty"`
+	// Content hash of the service's FileDescriptorSet: every service named by
+	// an API (API.services, with descriptors registration or api.Descriptors
+	// gives) and by internal_services, with transitive imports. The SDK
+	// serves it on the platform port as file descriptors.binpb of the API
+	// file bundle with this hash, like APISchemaBundle; empty: no services.
+	DescriptorsHash string `protobuf:"bytes,19,opt,name=descriptors_hash,json=descriptorsHash,proto3" json:"descriptors_hash,omitempty"`
 	// Events the service reacts to.
 	Subscriptions []*Subscription `protobuf:"bytes,14,rep,name=subscriptions,proto3" json:"subscriptions,omitempty"`
 	// Temporal Schedules of the service's own workflows.
@@ -390,11 +392,11 @@ func (x *Manifest) GetUi() *UI {
 	return nil
 }
 
-func (x *Manifest) GetDescriptors() []byte {
+func (x *Manifest) GetDescriptorsHash() string {
 	if x != nil {
-		return x.Descriptors
+		return x.DescriptorsHash
 	}
-	return nil
+	return ""
 }
 
 func (x *Manifest) GetSubscriptions() []*Subscription {
@@ -646,15 +648,14 @@ type API struct {
 	// instance's: InstanceState.public_port and listeners.
 	Listener string `protobuf:"bytes,11,opt,name=listener,proto3" json:"listener,omitempty"`
 	// gRPC and ws-proto: full names of the services behind the
-	// route; their descriptors are in Manifest.descriptors unless the route
-	// carries its own.
+	// route; their descriptors are in the service's descriptor set
+	// (Manifest.descriptors_hash).
 	Services []string `protobuf:"bytes,8,rep,name=services,proto3" json:"services,omitempty"`
 	// Schema for the console's API tab; optional.
 	//
 	// Types that are valid to be assigned to Schema:
 	//
 	//	*API_Openapi
-	//	*API_Descriptors
 	//	*API_Graphql
 	//	*API_Bundle
 	Schema        isAPI_Schema `protobuf_oneof:"schema"`
@@ -743,15 +744,6 @@ func (x *API) GetOpenapi() []byte {
 	return nil
 }
 
-func (x *API) GetDescriptors() []byte {
-	if x != nil {
-		if x, ok := x.Schema.(*API_Descriptors); ok {
-			return x.Descriptors
-		}
-	}
-	return nil
-}
-
 func (x *API) GetGraphql() []byte {
 	if x != nil {
 		if x, ok := x.Schema.(*API_Graphql); ok {
@@ -779,11 +771,6 @@ type API_Openapi struct {
 	Openapi []byte `protobuf:"bytes,5,opt,name=openapi,proto3,oneof"`
 }
 
-type API_Descriptors struct {
-	// Serialized FileDescriptorSet (gRPC, Connect, ws-proto).
-	Descriptors []byte `protobuf:"bytes,6,opt,name=descriptors,proto3,oneof"`
-}
-
 type API_Graphql struct {
 	// Introspection result as JSON (GraphQL).
 	Graphql []byte `protobuf:"bytes,7,opt,name=graphql,proto3,oneof"`
@@ -795,8 +782,6 @@ type API_Bundle struct {
 }
 
 func (*API_Openapi) isAPI_Schema() {}
-
-func (*API_Descriptors) isAPI_Schema() {}
 
 func (*API_Graphql) isAPI_Schema() {}
 
@@ -1491,7 +1476,7 @@ var File_backplanepb_v1_manifest_proto protoreflect.FileDescriptor
 
 const file_backplanepb_v1_manifest_proto_rawDesc = "" +
 	"\n" +
-	"\x1dbackplanepb/v1/manifest.proto\x12\fbackplane.v1\x1a\x19google/protobuf/any.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x15schemapb/schema.proto\"\xe0\x06\n" +
+	"\x1dbackplanepb/v1/manifest.proto\x12\fbackplane.v1\x1a\x19google/protobuf/any.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x15schemapb/schema.proto\"\xfc\x06\n" +
 	"\bManifest\x12\x18\n" +
 	"\aservice\x18\x01 \x01(\tR\aservice\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x1f\n" +
@@ -1506,8 +1491,8 @@ const file_backplanepb_v1_manifest_proto_rawDesc = "" +
 	"activities\x18\n" +
 	" \x03(\v2\x16.backplane.v1.ActivityR\n" +
 	"activities\x12 \n" +
-	"\x02ui\x18\v \x01(\v2\x10.backplane.v1.UIR\x02ui\x12 \n" +
-	"\vdescriptors\x18\r \x01(\fR\vdescriptors\x12@\n" +
+	"\x02ui\x18\v \x01(\v2\x10.backplane.v1.UIR\x02ui\x12)\n" +
+	"\x10descriptors_hash\x18\x13 \x01(\tR\x0fdescriptorsHash\x12@\n" +
 	"\rsubscriptions\x18\x0e \x03(\v2\x1a.backplane.v1.SubscriptionR\rsubscriptions\x124\n" +
 	"\tschedules\x18\x0f \x03(\v2\x16.backplane.v1.ScheduleR\tschedules\x124\n" +
 	"\tworkflows\x18\x10 \x03(\v2\x16.backplane.v1.WorkflowR\tworkflows\x12<\n" +
@@ -1515,7 +1500,7 @@ const file_backplanepb_v1_manifest_proto_rawDesc = "" +
 	"\bsections\x18\x12 \x03(\v2$.backplane.v1.Manifest.SectionsEntryR\bsections\x1aQ\n" +
 	"\rSectionsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.google.protobuf.AnyR\x05value:\x028\x01J\x04\b\x05\x10\x06J\x04\b\f\x10\rR\x06staticR\adynamicR\x05nodes\"\xa3\x01\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.google.protobuf.AnyR\x05value:\x028\x01J\x04\b\x05\x10\x06J\x04\b\f\x10\rJ\x04\b\r\x10\x0eR\x06staticR\adynamicR\x05nodesR\vdescriptors\"\xa3\x01\n" +
 	"\n" +
 	"SectionSet\x12B\n" +
 	"\bservices\x18\x01 \x03(\v2&.backplane.v1.SectionSet.ServicesEntryR\bservices\x1aQ\n" +
@@ -1532,20 +1517,19 @@ const file_backplanepb_v1_manifest_proto_rawDesc = "" +
 	"\rConfigSection\x12\x12\n" +
 	"\x04keys\x18\x01 \x03(\tR\x04keys\x12(\n" +
 	"\x06schema\x18\x02 \x01(\v2\x10.schemapb.SchemaR\x06schema\x12\x12\n" +
-	"\x04live\x18\x03 \x03(\tR\x04live\"\xcd\x02\n" +
+	"\x04live\x18\x03 \x03(\tR\x04live\"\xbc\x02\n" +
 	"\x03API\x12\x16\n" +
 	"\x06prefix\x18\x01 \x01(\tR\x06prefix\x12\x12\n" +
 	"\x04host\x18\x02 \x01(\tR\x04host\x12)\n" +
 	"\x04kind\x18\x03 \x01(\x0e2\x15.backplane.v1.ApiKindR\x04kind\x12\x1a\n" +
 	"\blistener\x18\v \x01(\tR\blistener\x12\x1a\n" +
 	"\bservices\x18\b \x03(\tR\bservices\x12\x1a\n" +
-	"\aopenapi\x18\x05 \x01(\fH\x00R\aopenapi\x12\"\n" +
-	"\vdescriptors\x18\x06 \x01(\fH\x00R\vdescriptors\x12\x1a\n" +
+	"\aopenapi\x18\x05 \x01(\fH\x00R\aopenapi\x12\x1a\n" +
 	"\agraphql\x18\a \x01(\fH\x00R\agraphql\x127\n" +
 	"\x06bundle\x18\n" +
 	" \x01(\v2\x1d.backplane.v1.APISchemaBundleH\x00R\x06bundleB\b\n" +
 	"\x06schemaJ\x04\b\x04\x10\x05J\x04\b\t\x10\n" +
-	"R\x04portR\x06policy\"o\n" +
+	"J\x04\b\x06\x10\aR\x04portR\x06policyR\vdescriptors\"o\n" +
 	"\x0fAPISchemaBundle\x12\x12\n" +
 	"\x04hash\x18\x01 \x01(\tR\x04hash\x12\x14\n" +
 	"\x05entry\x18\x02 \x01(\tR\x05entry\x122\n" +
@@ -1709,7 +1693,6 @@ func file_backplanepb_v1_manifest_proto_init() {
 	}
 	file_backplanepb_v1_manifest_proto_msgTypes[5].OneofWrappers = []any{
 		(*API_Openapi)(nil),
-		(*API_Descriptors)(nil),
 		(*API_Graphql)(nil),
 		(*API_Bundle)(nil),
 	}

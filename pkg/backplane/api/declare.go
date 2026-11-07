@@ -10,6 +10,7 @@ import (
 
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/routes"
 )
 
@@ -24,6 +25,7 @@ func init() {
 		return decl.r, errors.Join(decl.err, filesError(decl.files))
 	}
 	link.APIs.Files = func(d any) *routes.SchemaFiles { decl, _ := d.(Decl); return decl.files }
+	link.APIs.Descriptors = func(d any) []byte { decl, _ := d.(Decl); return decl.descriptors }
 	link.APIs.Port = func(d any) uint16 { decl, _ := d.(Decl); return decl.port }
 	link.APIs.GRPC = func(opts any) routes.Managed {
 		var m routes.Managed
@@ -176,13 +178,25 @@ func OpenAPI(spec []byte) OpenAPIOption { return openAPI(spec) }
 
 type descriptors []byte
 
-func (d descriptors) applyGRPCDecl(r *backplanev1.API) {
-	r.Schema = &backplanev1.API_Descriptors{Descriptors: d}
-}
+func (descriptors) applyGRPCDecl(*backplanev1.API) {}
+func (d descriptors) fileDescriptors() []byte      { return d }
 
-// Descriptors attaches a serialized FileDescriptorSet to a declarative gRPC
-// route; managed routes derive descriptors from registration.
+// Descriptors gives the serialized FileDescriptorSet of a declarative gRPC
+// route's service; it joins the service's descriptor set. Managed routes
+// derive descriptors from registration.
 func Descriptors(fds []byte) GRPCDeclOption { return descriptors(fds) }
+
+func declaredDescriptors[T any](opts []T) []byte {
+	var out []byte
+
+	for _, opt := range opts {
+		if d, ok := any(opt).(interface{ fileDescriptors() []byte }); ok {
+			out = d.fileDescriptors()
+		}
+	}
+
+	return out
+}
 
 // Decl describes an API served on the author's own listener.
 // Build one with GRPC, HTTP, GraphQL or WSProto.
@@ -191,6 +205,8 @@ type Decl struct {
 	err   error
 	files *routes.SchemaFiles
 	port  uint16 // of the named listener (Port)
+	// descriptors the declaration gives (api.Descriptors, WSProto).
+	descriptors []byte
 }
 
 // GRPC declares a gRPC service (full name) the author serves.
@@ -204,7 +220,7 @@ func GRPC(service string, opts ...GRPCDeclOption) Decl {
 		o.applyGRPCDecl(r)
 	}
 
-	return Decl{r: r, port: declaredPort(opts)}
+	return Decl{r: r, port: declaredPort(opts), descriptors: declaredDescriptors(opts)}
 }
 
 // HTTP declares an HTTP prefix the author serves.
@@ -233,18 +249,20 @@ func GraphQL(prefix string, introspection []byte, opts ...DeclOption) Decl {
 }
 
 // WSProto declares a ws-proto endpoint the author serves, with its
-// serialized FileDescriptorSet; nil when there is none.
-func WSProto(prefix string, descriptors []byte, opts ...DeclOption) Decl {
+// serialized FileDescriptorSet (nil when there is none), which joins the
+// service's descriptor set; the route names the services it declares.
+func WSProto(prefix string, fds []byte, opts ...DeclOption) Decl {
 	r, err := prefixed(backplanev1.ApiKind_API_KIND_WS_PROTO, prefix)
-	if descriptors != nil {
-		r.Schema = &backplanev1.API_Descriptors{Descriptors: descriptors}
-	}
-
 	for _, o := range opts {
 		o.applyDecl(r)
 	}
 
-	return Decl{r: r, err: err, files: declaredFiles(r, opts), port: declaredPort(opts)}
+	services, derr := manifest.DescribedServices(fds)
+	r.Services = services
+
+	return Decl{
+		r: r, err: errors.Join(err, derr), files: declaredFiles(r, opts), port: declaredPort(opts), descriptors: fds,
+	}
 }
 
 func prefixed(kind backplanev1.ApiKind, prefix string) (*backplanev1.API, error) {
