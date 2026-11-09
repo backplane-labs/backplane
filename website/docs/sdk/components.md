@@ -45,6 +45,8 @@ Readiness answers whether this instance can serve its declared work. Liveness an
 - A failure a dependency may recover from (a connection reconnecting, a database down) fails readiness only. Traffic stops and the process waits.
 - A failure it can never recover from fails liveness, so the orchestrator restarts the process. A provider's `Probe` reports it by wrapping `deps.ErrTerminal`, for example a client that closed for good. From then on the dependency fails liveness. This holds for a required dependency, and for an optional one probed with `deps.ProbeOptional`; an optional dependency without it is never probed.
 - The SDK's own NATS and Temporal connections follow the same rule. They reconnect forever, so only a NATS connection that closed without `Close` fails liveness.
+- Temporal itself stops a worker for good when its polls keep failing with a namespace not found, an invalid argument or an unsupported client. The SDK then starts the worker (and the hooks worker) anew after the retry delay, as it reconnects a connection, so the process recovers once the namespace exists.
+- The SDK's Consul loops (instance state, discovery, mesh, live configuration) retry for ever with capped backoff. Only a manifest conflict ends the presence loop, and that stops the process with an error.
 
 The `pkg/backplane/infra` providers reconnect for ever, so only a closed NATS connection is terminal:
 

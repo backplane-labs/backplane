@@ -1,6 +1,7 @@
 package temporal
 
 import (
+	"context"
 	"time"
 
 	"go.temporal.io/sdk/client"
@@ -17,7 +18,12 @@ func (c *Client) UseFastRetry() {
 }
 
 // WorkerOptions are the options the worker is built with.
-func (c *Client) WorkerOptions() worker.Options { return c.workerOptions() }
+func (c *Client) WorkerOptions() worker.Options { return c.workerOptions(func(error) {}) }
+
+// Keep is keep, for a test's own start.
+func (c *Client) Keep(ctx context.Context, start func(onFatal func(error)) error) {
+	c.keep(ctx, "test worker", start)
+}
 
 // Options are the options the client dials with.
 func (c *Client) Options() (client.Options, error) { return c.options() }

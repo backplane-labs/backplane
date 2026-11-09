@@ -39,10 +39,7 @@ func (c *Client) StartWorker(_ context.Context, g node.Group) error {
 		case <-c.ready:
 		}
 
-		_ = backoff.Retry(ctx, c.retry, func(context.Context) error { return c.startWorker() },
-			func(err error, in time.Duration) {
-				c.log.Warn("temporal worker start failed, retrying", xlog.Err(err), xlog.Duration("retry_in", in))
-			})
+		c.keep(ctx, "temporal worker", c.startWorker)
 
 		return nil
 	})
@@ -50,8 +47,45 @@ func (c *Client) StartWorker(_ context.Context, g node.Group) error {
 	return nil
 }
 
+// keep runs a worker until ctx ends: start is retried while it fails, and
+// a worker the SDK stops on a fatal error (its OnFatalError: the namespace
+// not found, an invalid argument or an unsupported client, past the poll
+// grace period) is started anew after the shortest retry delay, so it
+// recovers as a connection does instead of leaving the process alive and
+// serving nothing.
+func (c *Client) keep(ctx context.Context, what string, start func(onFatal func(error)) error) {
+	fatal := make(chan error, 1)
+	onFatal := func(err error) {
+		select {
+		case fatal <- err:
+		default:
+		}
+	}
+
+	for {
+		_ = backoff.Retry(ctx, c.retry, func(context.Context) error { return start(onFatal) },
+			func(err error, in time.Duration) {
+				c.log.Warn(what+" start failed, retrying", xlog.Err(err), xlog.Duration("retry_in", in))
+			})
+
+		select {
+		case <-ctx.Done():
+			return
+		case err := <-fatal:
+			c.log.Error(what+" stopped on a fatal error, starting it again", xlog.Err(err),
+				xlog.Duration("in", c.retry.Min))
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(c.retry.Min):
+		}
+	}
+}
+
 // startWorker makes one attempt; a worker whose start failed is discarded.
-func (c *Client) startWorker() error {
+func (c *Client) startWorker(onFatal func(error)) error {
 	c.mu.Lock()
 	conn, done := c.client, c.closed || c.stopped
 	c.mu.Unlock()
@@ -60,7 +94,7 @@ func (c *Client) startWorker() error {
 		return nil
 	}
 
-	w := worker.New(conn, c.p.Service, c.workerOptions())
+	w := worker.New(conn, c.p.Service, c.workerOptions(onFatal))
 
 	for name, h := range c.p.Env.Activities() {
 		w.RegisterActivityWithOptions(c.activity(name, h), activity.RegisterOptions{Name: name})
@@ -95,8 +129,9 @@ func (c *Client) startWorker() error {
 	return nil
 }
 
-// workerOptions applies the tuning over Temporal's defaults.
-func (c *Client) workerOptions() worker.Options {
+// workerOptions applies the tuning over Temporal's defaults; onFatal is
+// told the error a worker stopped on.
+func (c *Client) workerOptions(onFatal func(error)) worker.Options {
 	t := c.p.Worker
 
 	return worker.Options{
@@ -105,9 +140,7 @@ func (c *Client) workerOptions() worker.Options {
 		MaxConcurrentActivityTaskPollers:       t.ActivityPollers,
 		MaxConcurrentWorkflowTaskPollers:       t.WorkflowPollers,
 		WorkerStopTimeout:                      stopGrace,
-		OnFatalError: func(err error) {
-			c.log.Error("temporal worker stopped on a fatal error", xlog.Err(err))
-		},
+		OnFatalError:                           onFatal,
 	}
 }
 

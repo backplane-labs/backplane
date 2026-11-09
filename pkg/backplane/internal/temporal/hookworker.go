@@ -3,14 +3,12 @@ package temporal
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
 
 	"github.com/gopherex/xlog"
 
-	"github.com/backplane-labs/backplane/pkg/backplane/internal/backoff"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 )
 
@@ -41,10 +39,7 @@ func (c *Client) StartHookWorker(_ context.Context, g node.Group) error {
 		case <-c.ready:
 		}
 
-		_ = backoff.Retry(ctx, c.retry, func(context.Context) error { return c.startHookWorker() },
-			func(err error, in time.Duration) {
-				c.log.Warn("temporal hooks worker start failed, retrying", xlog.Err(err), xlog.Duration("retry_in", in))
-			})
+		c.keep(ctx, "temporal hooks worker", c.startHookWorker)
 
 		return nil
 	})
@@ -52,7 +47,7 @@ func (c *Client) StartHookWorker(_ context.Context, g node.Group) error {
 	return nil
 }
 
-func (c *Client) startHookWorker() error {
+func (c *Client) startHookWorker(onFatal func(error)) error {
 	c.mu.Lock()
 	conn, done := c.client, c.closed || c.unhook
 	c.mu.Unlock()
@@ -64,9 +59,7 @@ func (c *Client) startHookWorker() error {
 	queue := HooksQueue(c.p.Service)
 	w := worker.New(conn, queue, worker.Options{
 		WorkerStopTimeout: stopGrace,
-		OnFatalError: func(err error) {
-			c.log.Error("temporal hooks worker stopped on a fatal error", xlog.Err(err))
-		},
+		OnFatalError:      onFatal,
 	})
 	w.RegisterWorkflowWithOptions(callHook, workflow.RegisterOptions{Name: CallHookWorkflow})
 
