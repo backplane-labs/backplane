@@ -3,6 +3,7 @@ package deps_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -217,6 +218,72 @@ func TestRequiredProbeDrivesReadiness(t *testing.T) {
 
 	if s.isReady(t.Context()) {
 		t.Fatal("failing probe must take readiness down")
+	}
+}
+
+// A failure the value may recover from takes readiness down only; one its
+// probe reports ErrTerminal takes liveness down for good, for a required
+// dependency and for a probed optional one.
+func TestTerminalFailsLiveness(t *testing.T) {
+	t.Parallel()
+
+	for name, optional := range map[string]bool{"required": false, "optional": true} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			s := newService(t)
+			s.svc.SetProbeInterval(10 * time.Millisecond)
+			live := s.svc.Liveness()
+
+			var state atomic.Int32 // 0 healthy, 1 disconnected, 2 closed
+
+			provider := deps.Func(func(context.Context) (*Pool, error) { return &Pool{}, nil },
+				deps.WithProbe(func(context.Context, *Pool) error {
+					switch state.Load() {
+					case 1:
+						return errBoom
+					case 2:
+						return fmt.Errorf("closed: %w", deps.ErrTerminal)
+					}
+
+					return nil
+				}))
+
+			var probed func() bool
+
+			if optional {
+				dep := deps.NewOptional(s.root, provider, deps.ProbeOptional())
+				probed = func() bool { _, ok := dep.Get(); return !ok }
+
+				s.start(t)
+				waitFor(t, "provided", func() bool { _, ok := dep.Get(); return ok })
+			} else {
+				deps.NewDependency(s.root, provider)
+
+				probed = func() bool { return !s.isReady(t.Context()) }
+
+				s.start(t)
+			}
+
+			alive := func() bool { return live.Check(t.Context()) == probe.StatusUp }
+
+			state.Store(1)
+			waitFor(t, "the transient failure seen", probed)
+
+			if !alive() {
+				t.Fatal("a transient failure must not take liveness down")
+			}
+
+			state.Store(2)
+			waitFor(t, "liveness down", func() bool { probed(); return !alive() })
+
+			state.Store(0)
+			probed()
+
+			if alive() {
+				t.Fatal("a terminal failure must keep liveness down")
+			}
+		})
 	}
 }
 

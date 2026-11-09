@@ -40,7 +40,22 @@ Optional absence must be handled by business logic. Do not dereference a missing
 
 ## Probes
 
-Readiness answers whether this instance can serve its declared work. Liveness answers whether the process is progressing. A temporary downstream outage usually affects readiness, not liveness. Attach additional probes through `svc.ReadinessProbe` and `svc.LivenessProbe`; hello wraps errors with `probe.FromError`.
+Readiness answers whether this instance can serve its declared work. Liveness answers whether the process can still recover on its own. A process is never alive but useless:
+
+- A failure a dependency may recover from (a connection reconnecting, a database down) fails readiness only. Traffic stops and the process waits.
+- A failure it can never recover from fails liveness, so the orchestrator restarts the process. A provider's `Probe` reports it by wrapping `deps.ErrTerminal`, for example a client that closed for good. From then on the dependency fails liveness. This holds for a required dependency, and for an optional one probed with `deps.ProbeOptional`; an optional dependency without it is never probed.
+- The SDK's own NATS and Temporal connections follow the same rule. They reconnect forever, so only a NATS connection that closed without `Close` fails liveness.
+
+The `pkg/backplane/infra` providers reconnect for ever, so only a closed NATS connection is terminal:
+
+| Provider | Reconnect | Terminal |
+| --- | --- | --- |
+| `infra/nats` | for ever, `ReconnectWait` with jitter, also after repeated authorization errors | the connection is closed |
+| `infra/postgres` | the pgx pool dials per acquire | none |
+| `infra/valkey` | the client reconnects by itself | none |
+| `infra/temporal` | the gRPC connection reconnects with capped backoff | none |
+
+Attach additional probes through `svc.ReadinessProbe` and `svc.LivenessProbe`; hello wraps errors with `probe.FromError`.
 
 Return a useful error when not ready. The probe integration preserves a reason, allowing operators to distinguish startup, a failed resource and an application-specific rejection. Avoid credentials or payloads in those reasons.
 

@@ -168,6 +168,9 @@ func Connect(cfg Config, o Options) (*natsgo.Conn, error) {
 		natsgo.Name(o.Name),
 		natsgo.RetryOnFailedConnect(true),
 		natsgo.MaxReconnects(-1),
+		// The same authorization error twice (accounts not loaded yet after
+		// a server restart) would close the connection for good.
+		natsgo.IgnoreAuthErrorAbort(),
 		natsgo.ReconnectWait(wait),
 		natsgo.ReconnectJitter(jitter, jitter),
 		natsgo.ReconnectBufSize(-1),
@@ -242,8 +245,14 @@ func (p provider) Provide(ctx context.Context, s deps.Scope) (*natsgo.Conn, erro
 	return conn, nil
 }
 
+// Probe fails readiness while the connection reconnects and liveness once
+// it is closed: Connect never gives up, so only a closed connection is
+// beyond recovery.
 func (provider) Probe(_ context.Context, conn *natsgo.Conn) error {
-	if !conn.IsConnected() {
+	switch {
+	case conn.IsClosed():
+		return fmt.Errorf("%w: %w", natsgo.ErrConnectionClosed, deps.ErrTerminal)
+	case !conn.IsConnected():
 		return ErrDisconnected
 	}
 

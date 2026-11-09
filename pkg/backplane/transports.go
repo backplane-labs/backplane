@@ -27,6 +27,10 @@ type Connection interface {
 	Connect(ctx context.Context, group TaskGroup) error
 	Close(ctx context.Context) error
 	Connected() bool
+	// Alive is nil while the connection can still recover (connected, or
+	// reconnecting), an error once it never will without a restart of the
+	// process; it fails the service's liveness.
+	Alive() error
 }
 
 // EventTransport publishes events and serves declared consumers.

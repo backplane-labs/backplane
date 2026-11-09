@@ -72,6 +72,7 @@ type Node struct {
 	mu        sync.Mutex
 	children  []*Node
 	ready     probe.Probe
+	live      probe.Probe
 	condition func() Condition
 	life      *lifecycle.Node
 }
@@ -225,6 +226,15 @@ func (n *Node) Ready(p probe.Probe) {
 	n.ready = p
 }
 
+// Live makes p part of the service liveness: it fails only for a state
+// the process cannot leave without a restart.
+func (n *Node) Live(p probe.Probe) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	n.live = p
+}
+
 // Condition is a node's current state as a dependency: ready, or why not.
 type Condition struct {
 	Ready bool
@@ -297,13 +307,23 @@ func (n *Node) Walk(fn func(*Node)) {
 // Readiness is the readiness of n's subtree, evaluated on every check so
 // nodes created during start count too.
 func (n *Node) Readiness() probe.Probe {
+	return n.composite(func(c *Node) probe.Probe { return c.ready })
+}
+
+// Liveness is the liveness of n's subtree, evaluated like Readiness.
+func (n *Node) Liveness() probe.Probe {
+	return n.composite(func(c *Node) probe.Probe { return c.live })
+}
+
+// composite checks the probe pick gives of every node of n's subtree.
+func (n *Node) composite(pick func(c *Node) probe.Probe) probe.Probe {
 	return probe.ResultFunc(func(ctx context.Context) probe.Result {
 		var probes []probe.Probe
 
 		n.Walk(func(c *Node) {
 			c.mu.Lock()
-			if c.ready != nil {
-				probes = append(probes, probe.WithName(c.label(), c.ready))
+			if p := pick(c); p != nil {
+				probes = append(probes, probe.WithName(c.label(), p))
 			}
 			c.mu.Unlock()
 		})

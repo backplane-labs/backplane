@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -15,6 +16,24 @@ func (b *Broker) Connected() bool {
 	b.mu.Unlock()
 
 	return conn != nil && conn.IsConnected()
+}
+
+// ErrClosed: the NATS connection closed for good without Close; it
+// recovers only with a restart of the process.
+var ErrClosed = errors.New("broker: the NATS connection closed for good")
+
+// Alive is nil while the connection is up or reconnecting, ErrClosed once
+// it closed by itself.
+func (b *Broker) Alive() error {
+	b.mu.Lock()
+	conn, closing := b.conn, b.closing
+	b.mu.Unlock()
+
+	if conn != nil && conn.IsClosed() && !closing {
+		return ErrClosed
+	}
+
+	return nil
 }
 
 // JetStream is the service's own JetStream handle, for what the SDK does

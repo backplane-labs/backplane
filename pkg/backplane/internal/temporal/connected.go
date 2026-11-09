@@ -16,6 +16,11 @@ import (
 // while the connection's health check fails.
 func (c *Client) Connected() bool { return c.connected.Load() }
 
+// Alive is always nil: the Temporal client's gRPC connection reconnects
+// with capped backoff for as long as it is not closed, so no state of it
+// needs a restart.
+func (c *Client) Alive() error { return nil }
+
 // setConnected records a change of the connection state.
 func (c *Client) setConnected(ctx context.Context, connected bool) {
 	if c.connected.Swap(connected) == connected {

@@ -13,6 +13,7 @@ import (
 	hv1 "google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/gopherex/xlog"
+	"github.com/gopherex/xprobe/pkg/probe"
 
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
@@ -140,6 +141,9 @@ func newCore(ctx context.Context, o options, conf configrt.State, cfg config.Bac
 
 	c.app = c.svc.Child(id.Service, node.Root, false)
 	c.health.Add(health.Ready, c.app.Readiness())
+	// Liveness covers the whole tree: the SDK's own transports and the
+	// author's dependencies fail it only in a state the process cannot leave.
+	c.health.Add(health.Live, c.svc.Liveness())
 
 	return c
 }
@@ -154,6 +158,7 @@ func (c *core) connect() {
 		n := c.svc.Child("nats", node.System, false)
 		n.OnStart(func(ctx context.Context) error { return c.broker.Connect(ctx, n) })
 		n.OnStop(c.broker.Close)
+		n.Live(probe.FromError(func(context.Context) error { return c.broker.Alive() }))
 		c.env.SetBroker(c.broker)
 	}
 
@@ -162,6 +167,7 @@ func (c *core) connect() {
 		n := c.svc.Child("temporal", node.System, false)
 		n.OnStart(func(ctx context.Context) error { return c.temporal.Connect(ctx, n) })
 		n.OnStop(c.temporal.Close)
+		n.Live(probe.FromError(func(context.Context) error { return c.temporal.Alive() }))
 
 		// Its own worker serves hook calls raised outside workflows, so
 		// components may call hooks from OnStart and OnStop.

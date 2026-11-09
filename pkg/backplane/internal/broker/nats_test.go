@@ -208,6 +208,34 @@ func lastMsg(t *testing.T, jet jetstream.JetStream, stream, subject string) *jet
 	return m
 }
 
+// A connection that closed by itself fails liveness; one closed by Close
+// does not.
+func TestAliveUntilClosedForGood(t *testing.T) {
+	t.Parallel()
+
+	url := natsURL(t)
+
+	dropped := open(t, url, unique("alive"), nil)
+	if err := dropped.Alive(); err != nil {
+		t.Fatalf("connected: %v", err)
+	}
+
+	dropped.DropConnection()
+
+	if err := dropped.Alive(); !errors.Is(err, broker.ErrClosed) {
+		t.Fatalf("closed by itself: %v", err)
+	}
+
+	closed := open(t, url, unique("alive"), nil)
+	if err := closed.Close(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := closed.Alive(); err != nil {
+		t.Fatalf("closed by Close: %v", err)
+	}
+}
+
 func TestPublishIntoStream(t *testing.T) {
 	t.Parallel()
 

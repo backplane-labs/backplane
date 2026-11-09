@@ -23,6 +23,16 @@ func (b *Broker) Fast(maxDeliver int) {
 	b.t.discover = 100 * time.Millisecond
 }
 
+// DropConnection closes the NATS connection as the client does when it
+// gives up, not through Close.
+func (b *Broker) DropConnection() {
+	b.mu.Lock()
+	conn := b.conn
+	b.mu.Unlock()
+
+	conn.Close()
+}
+
 // Event is the metadata of one published event, for BuildHeaders.
 type Event = cloudEvent
 

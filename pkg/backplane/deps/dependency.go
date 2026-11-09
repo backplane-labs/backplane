@@ -21,6 +21,12 @@ var (
 	ErrNotReady = errors.New("deps: not ready")
 	// ErrClosed: the node has stopped.
 	ErrClosed = errors.New("deps: closed")
+	// ErrTerminal is wrapped by a Probe error when the value can never work
+	// again (a client that closed for good): the dependency, required or
+	// optional, then fails the service's liveness, so the orchestrator
+	// restarts the process. A failure the value may recover from fails
+	// readiness only.
+	ErrTerminal = errors.New("deps: terminal: the process must restart")
 )
 
 const (
@@ -51,13 +57,14 @@ type cell[T any] struct {
 	provider Provider[T]
 	opts     nodeOptions
 
-	mu      sync.RWMutex
-	value   T
-	ready   bool
-	failing error // ProbeOptional: the last probe failed; the value is hidden
-	probed  error // required: the last readiness probe's error
-	closed  bool
-	err     error
+	mu       sync.RWMutex
+	value    T
+	ready    bool
+	failing  error // ProbeOptional: the last probe failed; the value is hidden
+	probed   error // required: the last readiness probe's error
+	terminal error // a probe reported ErrTerminal: liveness fails for good
+	closed   bool
+	err      error
 }
 
 // Option configures NewDependency.
@@ -145,7 +152,8 @@ func (probeOptional) applyOptional(o *nodeOptions) { o.probeOptional = true }
 // ProbeOptional probes a provided optional dependency every health interval
 // of the service: while its probe fails, Get reports it absent and Err says
 // why; the value is kept and comes back when the probe passes. It never
-// enters readiness.
+// enters readiness; a probe that reports ErrTerminal fails liveness. An
+// optional dependency without it is never probed.
 func ProbeOptional() OptionalOption { return probeOptional{} }
 
 func newCell[T any](parent Scope, p Provider[T], optional bool, o nodeOptions) *cell[T] {
@@ -195,6 +203,7 @@ func NewDependency[T any](parent Scope, p Provider[T], opts ...Option) Dependenc
 		return backoff.Retry(ctx, c.opts.policy, c.provide, c.warn)
 	})
 	c.node.Ready(probe.FromError(c.probe))
+	c.node.Live(probe.FromError(c.alive))
 
 	return Dependency[T]{c: c}
 }
@@ -209,6 +218,7 @@ func NewOptional[T any](parent Scope, p Provider[T], opts ...OptionalOption) Opt
 	}
 
 	c := newCell(parent, p, true, o)
+	c.node.Live(probe.FromError(c.alive))
 	c.node.Go(func(ctx context.Context) error {
 		if backoff.Retry(ctx, c.opts.policy, c.provide, c.warn) == nil && c.opts.probeOptional {
 			c.watch(ctx)
@@ -372,10 +382,43 @@ func (c *cell[T]) check(ctx context.Context, value T, timeout time.Duration) err
 	}
 
 	if err := c.provider.Probe(ctx, value); err != nil {
-		return fmt.Errorf("probe %s: %w", c.node.Path(), err)
+		err = fmt.Errorf("probe %s: %w", c.node.Path(), err)
+		c.markTerminal(err)
+
+		return err
 	}
 
 	return nil
+}
+
+// markTerminal keeps the first probe error that is ErrTerminal: the
+// dependency fails liveness from then on.
+func (c *cell[T]) markTerminal(err error) {
+	if !errors.Is(err, ErrTerminal) {
+		return
+	}
+
+	c.mu.Lock()
+
+	first := c.terminal == nil
+	if first {
+		c.terminal = err
+	}
+
+	c.mu.Unlock()
+
+	if first {
+		c.node.Log().Error("dependency failed for good, the process must restart", xlog.Err(err))
+	}
+}
+
+// alive is the dependency's liveness: nil until a probe reports
+// ErrTerminal.
+func (c *cell[T]) alive(context.Context) error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	return c.terminal
 }
 
 // watch probes a provided optional dependency every probe interval until

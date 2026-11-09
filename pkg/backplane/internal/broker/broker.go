@@ -146,10 +146,11 @@ type Broker struct {
 	t   tuning
 	log *xlog.Logger
 
-	mu     sync.Mutex
-	conn   *nats.Conn
-	jet    jetstream.JetStream
-	closed chan struct{} // closed when the connection is closed
+	mu      sync.Mutex
+	conn    *nats.Conn
+	jet     jetstream.JetStream
+	closed  chan struct{} // closed when the connection is closed
+	closing bool          // Close was called: a closed connection is expected
 
 	reactors reactors
 }
@@ -277,6 +278,7 @@ func (b *Broker) connected() (jetstream.JetStream, error) {
 func (b *Broker) Close(ctx context.Context) error {
 	b.mu.Lock()
 	conn := b.conn
+	b.closing = true
 	b.mu.Unlock()
 
 	if conn == nil {
