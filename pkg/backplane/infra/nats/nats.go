@@ -55,13 +55,18 @@ type Config struct {
 	// Creds is the content of a .creds file (user JWT and seed).
 	Creds config.Secret `desc:"Content of a .creds file (user JWT and seed)." json:"creds,omitempty"`
 	TLS   config.TLS    `desc:"TLS of the connection."                        json:"tls"`
+	// InboxPrefix replaces _INBOX as the prefix of the connection's reply
+	// subjects, its requests' and its JetStream API calls': a deployment
+	// that grants each identity its own prefix keeps other identities from
+	// reading its replies.
+	InboxPrefix string `desc:"Prefix of reply subjects instead of _INBOX, e.g. _INBOX_billing; no wildcards, no trailing dot." json:"inbox_prefix,omitempty"`
 }
 
 // Enabled reports whether a URL is set.
 func (c Config) Enabled() bool { return c.URL != "" }
 
 // Validate checks what the schema cannot: the URL is set, the credentials
-// and the TLS material parse.
+// and the TLS material parse, the inbox prefix is a subject prefix.
 func (c Config) Validate() error {
 	if !c.Enabled() {
 		return ErrNoURL
@@ -72,9 +77,17 @@ func (c Config) Validate() error {
 	return err
 }
 
-// auth is the credentials and TLS options.
+// auth is the credentials, TLS and inbox prefix options.
 func (c Config) auth() ([]natsgo.Option, error) {
 	var opts []natsgo.Option
+
+	if c.InboxPrefix != "" {
+		if err := config.CheckInboxPrefix(c.InboxPrefix); err != nil {
+			return nil, fmt.Errorf("nats: %w", err)
+		}
+
+		opts = append(opts, natsgo.CustomInboxPrefix(c.InboxPrefix))
+	}
 
 	if c.Creds.Reveal() != "" {
 		creds, err := credentials(c.Creds.Reveal())

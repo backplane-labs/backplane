@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	natsgo "github.com/nats-io/nats.go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	hv1 "google.golang.org/grpc/health/grpc_health_v1"
@@ -31,6 +32,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/api"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 	"github.com/backplane-labs/backplane/pkg/backplane/drivers/standard"
+	"github.com/backplane-labs/backplane/pkg/backplane/event"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/guard"
 	"github.com/backplane-labs/backplane/pkg/backplane/wsproto"
 )
@@ -589,6 +591,71 @@ func TestRequireTransports(t *testing.T) {
 			requireServes(t, p, c.opt, true)
 		})
 	}
+}
+
+// TestNATSInboxPrefix: BACKPLANE_NATS_INBOX_PREFIX reaches the SDK's own
+// connection: the JetStream API answers of its stream setup come on the
+// prefix (BACKPLANE_TEST_NATS).
+func TestNATSInboxPrefix(t *testing.T) {
+	addr := os.Getenv("BACKPLANE_TEST_NATS")
+	if addr == "" {
+		t.Skip("BACKPLANE_TEST_NATS not set")
+	}
+
+	p := setup(t, "")
+	prefix := "_INBOX_svc" + strconv.FormatInt(time.Now().UnixNano(), 36)
+
+	watcher, err := natsgo.Connect(natsURL(addr))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(watcher.Close)
+
+	answers := make(chan string, 64)
+
+	if _, err := watcher.Subscribe(prefix+".>", func(m *natsgo.Msg) { answers <- m.Subject }); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := watcher.Flush(); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("BACKPLANE_NATS_URL", natsURL(addr))
+	t.Setenv("BACKPLANE_NATS_INBOX_PREFIX", prefix)
+
+	svc, err := backplane.Open(t.Context(), func(root backplane.Root[testConfig]) (*testState, error) {
+		event.Declare[greeted](root, "Greeted")
+
+		return &testState{}, nil
+	}, baseOptions("svc-inbox"+strconv.FormatInt(time.Now().UnixNano()%1e6, 10), backplane.RequireNATS())...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	done := run(ctx, svc)
+
+	eventually(t, "ready", ready(p))
+
+	select {
+	case <-answers:
+	case <-time.After(5 * time.Second):
+		t.Fatal("no JetStream answer on the inbox prefix")
+	}
+
+	cancel()
+
+	if err := wait(t, done); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+}
+
+type greeted struct {
+	Name string `json:"name"`
 }
 
 // natsURL of a BACKPLANE_TEST_NATS address (host:port); "" stays "".

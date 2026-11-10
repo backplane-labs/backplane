@@ -742,6 +742,8 @@ func TestOpenRejectsInvalidNATS(t *testing.T) {
 		"negative max_age":    {"BACKPLANE_NATS_MAX_AGE", "-1s"},
 		"negative dlq":        {"BACKPLANE_NATS_DLQ_MAX_AGE", "-1s"},
 		"zero dedup":          {"BACKPLANE_NATS_DEDUP_WINDOW", "0s"},
+		"inbox wildcard":      {"BACKPLANE_NATS_INBOX_PREFIX", "_INBOX_svc.>"},
+		"inbox trailing dot":  {"BACKPLANE_NATS_INBOX_PREFIX", "_INBOX_svc."},
 	} {
 		t.Run(name, func(t *testing.T) {
 			setup(t, "")

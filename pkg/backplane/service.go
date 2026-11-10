@@ -303,5 +303,9 @@ func validateNATS(n config.NATS) error {
 		return fmt.Errorf("%w: nats.dedup_window must be in (0, max_age], got %v", ErrConfig, n.DedupWindow)
 	}
 
+	if err := config.CheckInboxPrefix(n.InboxPrefix); err != nil {
+		return fmt.Errorf("%w: nats.inbox_prefix: %w", ErrConfig, err)
+	}
+
 	return nil
 }

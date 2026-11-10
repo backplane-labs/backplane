@@ -133,6 +133,9 @@ type NATS struct {
 	URL   Secret `desc:"Server URL, or comma-separated URLs; empty: without NATS." json:"url,omitempty"`
 	Creds Secret `desc:"Content of a .creds file (user JWT and seed)."             json:"creds,omitempty"`
 	TLS   TLS    `desc:"TLS of the connection."                                    json:"tls"`
+	// InboxPrefix replaces _INBOX for the connection's reply subjects
+	// (requests, JetStream API calls).
+	InboxPrefix string `desc:"Prefix of reply subjects instead of _INBOX, e.g. _INBOX_billing; no wildcards, no trailing dot." json:"inbox_prefix,omitempty"`
 	// Bound of a Publish whose context has no deadline.
 	PublishTimeout time.Duration `desc:"Bound of a publish whose context has no deadline." json:"publish_timeout" schemapb:"default=5s"`
 

@@ -6,11 +6,14 @@ import (
 	"errors"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	natsgo "github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/nats-io/nkeys"
 
 	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
@@ -39,13 +42,21 @@ func TestValidate(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err := (nats.Config{URL: "nats://n:4222", InboxPrefix: "_INBOX_billing.v1"}).Validate(); err != nil {
+		t.Fatal(err)
+	}
+
 	for name, c := range map[string]struct {
 		cfg  nats.Config
 		want error
 	}{
-		"no url":  {nats.Config{}, nats.ErrNoURL},
-		"creds":   {nats.Config{URL: "nats://n:4222", Creds: "garbage"}, nil},
-		"tls pem": {nats.Config{URL: "nats://n:4222", TLS: config.TLS{Enabled: true, CA: "junk"}}, config.ErrTLSCA},
+		"no url":            {nats.Config{}, nats.ErrNoURL},
+		"creds":             {nats.Config{URL: "nats://n:4222", Creds: "garbage"}, nil},
+		"tls pem":           {nats.Config{URL: "nats://n:4222", TLS: config.TLS{Enabled: true, CA: "junk"}}, config.ErrTLSCA},
+		"inbox wildcard":    {nats.Config{URL: "nats://n:4222", InboxPrefix: "_INBOX_billing.>"}, config.ErrInboxPrefix},
+		"inbox dot":         {nats.Config{URL: "nats://n:4222", InboxPrefix: "_INBOX_billing."}, config.ErrInboxPrefix},
+		"inbox empty token": {nats.Config{URL: "nats://n:4222", InboxPrefix: "_INBOX..billing"}, config.ErrInboxPrefix},
+		"inbox space":       {nats.Config{URL: "nats://n:4222", InboxPrefix: "_INBOX billing"}, config.ErrInboxPrefix},
 	} {
 		err := c.cfg.Validate()
 		if err == nil || c.want != nil && !errors.Is(err, c.want) {
@@ -78,6 +89,74 @@ func TestProvider(t *testing.T) {
 
 	if err := conn.Get().Publish("infra.nats.test", []byte("ping")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// With an inbox prefix, a request's reply and a JetStream API call's
+// answer come on that prefix, none on _INBOX (BACKPLANE_TEST_NATS).
+func TestInboxPrefix(t *testing.T) {
+	t.Parallel()
+
+	addr := os.Getenv("BACKPLANE_TEST_NATS")
+	if addr == "" {
+		t.Skip("BACKPLANE_TEST_NATS not set")
+	}
+
+	url := config.Secret("nats://" + addr)
+	prefix := "_INBOX_test" + strconv.FormatInt(time.Now().UnixNano(), 36)
+
+	watcher, err := nats.Connect(nats.Config{URL: url}, nats.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(watcher.Close)
+
+	own, shared := make(chan string, 16), make(chan string, 16)
+
+	for subject, seen := range map[string]chan string{prefix + ".>": own, "_INBOX.>": shared} {
+		if _, err := watcher.Subscribe(subject, func(m *natsgo.Msg) { seen <- m.Subject }); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := watcher.Flush(); err != nil {
+		t.Fatal(err)
+	}
+
+	conn, err := nats.Connect(nats.Config{URL: url, InboxPrefix: prefix}, nats.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(conn.Close)
+
+	for !conn.IsConnected() {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	js, err := jetstream.New(conn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := js.AccountInfo(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case subject := <-own:
+		if !strings.HasPrefix(subject, prefix+".") {
+			t.Fatalf("answer on %s", subject)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("no JetStream answer on the prefix")
+	}
+
+	select {
+	case subject := <-shared:
+		t.Fatalf("an answer on the shared inbox: %s", subject)
+	case <-time.After(200 * time.Millisecond):
 	}
 }
 

@@ -46,6 +46,7 @@ the instance state.
 | `BACKPLANE_CONSUL_SESSION_TTL` | `30s` | session of the instance state (clamped to 10s..24h) |
 | `BACKPLANE_NATS_URL` | — | NATS; empty: no events |
 | `BACKPLANE_NATS_CREDS` | — | content of a `.creds` file (secret) |
+| `BACKPLANE_NATS_INBOX_PREFIX` | `_INBOX` | prefix of the connection's reply subjects (requests, JetStream API answers), e.g. `_INBOX_billing`; no wildcards, no trailing dot. In operator mode grant each identity `<prefix>.>` alone, so no identity reads another's replies |
 | `BACKPLANE_NATS_TLS_ENABLED`, `_TLS_CA`, `_TLS_CERT`, `_TLS_KEY`, `_TLS_SERVER_NAME`, `_TLS_INSECURE_SKIP_VERIFY` | `false`, … | TLS to NATS, as for Consul |
 | `BACKPLANE_NATS_PUBLISH_TIMEOUT` | `5s` | bound of a publish whose context has no deadline |
 | `BACKPLANE_NATS_MAX_AGE`, `_MAX_BYTES` | `168h`, `0` | retention of the service's event stream `bp_<service>`; `0`: unlimited |
