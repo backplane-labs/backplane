@@ -64,6 +64,7 @@ type Root[C any] struct {
 	deps.Component
 
 	cfg  *C
+	conf *config.Runtime[C]
 	id   Identity
 	mesh *meshState
 }
@@ -78,6 +79,27 @@ func (r Root[C]) Config() C {
 	}
 
 	return *r.cfg
+}
+
+// ConfigRevision is the console revision the applied Live values come
+// from: the same on every replica, a new one for every save, including a
+// rollback or a save that restores earlier values, so it tells apart two
+// applications of equal values; 0 without Consul or before the first save.
+func (r Root[C]) ConfigRevision() uint64 {
+	if r.conf == nil {
+		return 0
+	}
+
+	return r.conf.Revision()
+}
+
+// WatchConfig calls fn with the revision after every applied update of
+// the Live fields, once their own Watch callbacks ran; a rejected update
+// calls nothing.
+func (r Root[C]) WatchConfig(fn func(revision uint64)) {
+	if r.conf != nil {
+		r.conf.OnApplied(fn)
+	}
 }
 
 // Identity of the instance.
@@ -202,7 +224,7 @@ func Open[C config.Backplaner, St any](
 	}
 
 	scope := link.Scope(c.app).(deps.Component) //nolint:forcetypeassert,errcheck // deps installs it
-	root := Root[C]{Component: scope, cfg: conf.Value(), id: c.id, mesh: c.mesh}
+	root := Root[C]{Component: scope, cfg: conf.Value(), conf: conf, id: c.id, mesh: c.mesh}
 
 	state, err := newState(root)
 	if err != nil {

@@ -528,7 +528,14 @@ func TestCloseWithoutRun(t *testing.T) {
 
 	before := runtime.NumGoroutine()
 
-	svc, err := backplane.Open(t.Context(), func(backplane.Root[testConfig]) (*testState, error) {
+	svc, err := backplane.Open(t.Context(), func(root backplane.Root[testConfig]) (*testState, error) {
+		// Consul unreachable: nothing saved has been applied yet.
+		root.WatchConfig(func(uint64) {})
+
+		if rev := root.ConfigRevision(); rev != 0 {
+			t.Errorf("config revision %d before any save", rev)
+		}
+
 		return &testState{}, nil
 	}, baseOptions("svc-close", backplane.ConfigOptions(config.ConsulBackoff(time.Millisecond, 5*time.Millisecond)))...)
 	if err != nil {

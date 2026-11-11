@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -233,8 +235,33 @@ func TestRevisionAppliedAndRejected(t *testing.T) {
 	logs := &safeBuf{}
 	state.SetLog(xlog.NewJSON(xlog.WithWriter(logs)))
 
-	if eff := state.Effective(); eff.Revision != 5 || eff.Err != nil || rt.Value().Limits.Max.Get() != 20 {
-		t.Fatalf("open: rev %d err %v max %d", eff.Revision, eff.Err, rt.Value().Limits.Max.Get())
+	if eff := state.Effective(); eff.Revision != 5 || eff.Err != nil || rt.Value().Limits.Max.Get() != 20 ||
+		rt.Revision() != 5 {
+		t.Fatalf("open: rev %d/%d err %v max %d", eff.Revision, rt.Revision(), eff.Err, rt.Value().Limits.Max.Get())
+	}
+
+	// The field watchers run before the applied callback; a rejected
+	// update calls neither.
+	var (
+		callsMu sync.Mutex
+		calls   []string
+	)
+
+	record := func(s string) {
+		callsMu.Lock()
+		defer callsMu.Unlock()
+
+		calls = append(calls, s)
+	}
+
+	rt.Value().Limits.Max.Watch(func(v int) { record(fmt.Sprint("max ", v)) })
+	rt.OnApplied(func(rev uint64) { record(fmt.Sprint("rev ", rev)) })
+
+	recorded := func() []string {
+		callsMu.Lock()
+		defer callsMu.Unlock()
+
+		return slices.Clone(calls)
 	}
 
 	// Rejected by the author's Validate.
@@ -269,4 +296,12 @@ func TestRevisionAppliedAndRejected(t *testing.T) {
 	// Only the revision changes: the new revision is reported as applied.
 	commit("9", nil)
 	waitFor(t, "revision-only update", func() bool { return state.Effective().Revision == 9 })
+
+	// Back to the earlier value: equal values, a new revision.
+	commit("10", map[string]string{"limits/max": "20"})
+	waitFor(t, "rollback", func() bool { return rt.Revision() == 10 })
+
+	want := []string{"max 30", "rev 8", "rev 9", "max 20", "rev 10"}
+
+	waitFor(t, "callbacks", func() bool { return slices.Equal(recorded(), want) })
 }

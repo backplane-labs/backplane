@@ -63,6 +63,7 @@ type Runtime[C any] struct {
 	rejectedRev uint64
 	degraded    bool
 	changes     []func()
+	appliedFns  []func(revision uint64)
 }
 
 // Open loads the configuration and keeps it live: Consul KV (named by the
@@ -245,7 +246,39 @@ func (r *Runtime[C]) handle(ctx context.Context, event xconf.Event) {
 
 	if update {
 		metrics.ConfigUpdate(ctx, metrics.Applied)
+		r.tellApplied(rev)
 	}
+}
+
+// tellApplied calls the OnApplied callbacks, after the Live watchers ran.
+func (r *Runtime[C]) tellApplied(rev uint64) {
+	r.mu.Lock()
+	fns := append([]func(uint64){}, r.appliedFns...)
+	r.mu.Unlock()
+
+	for _, fn := range fns {
+		notify(fn, rev)
+	}
+}
+
+// Revision is the console revision the applied Live values come from: the
+// same on every replica, a new one for every save, including a rollback or
+// a save that restores earlier values; 0 without Consul or before the first
+// save.
+func (r *Runtime[C]) Revision() uint64 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.revision
+}
+
+// OnApplied calls fn with the revision after every applied update of the
+// Live fields, once their own watchers ran; a rejected update calls nothing.
+func (r *Runtime[C]) OnApplied(fn func(revision uint64)) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.appliedFns = append(r.appliedFns, fn)
 }
 
 // reject records an update that is not applied; a repeat of the same

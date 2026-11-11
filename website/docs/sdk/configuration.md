@@ -80,6 +80,19 @@ revision rejected with `apply <field>: <error>`, as a failed `Validate` does.
 The SDK does not retry; the next revision is applied as usual.
 `backplanetest.SetLive` runs the appliers too and returns their error.
 
+`root.ConfigRevision()` is the console revision the applied live values come
+from. Every save gets a new one, including a rollback or a save that restores
+earlier values, and every replica applying it reports the same number; it is
+0 without Consul and before the first save. A change of the file or
+environment layer keeps it. `root.WatchConfig` calls back once per applied
+update, after the fields' own `Watch` callbacks, and never for a rejected one:
+
+```go
+root.WatchConfig(func(revision uint64) {
+    // Everything from this revision is applied; e.g. report it as seen.
+})
+```
+
 Live fields are the service's own settings. The SDK's connections (the
 `backplane` block's NATS, Temporal and Consul, and the `infra` PostgreSQL,
 Valkey and NATS sections) are startup configuration: a new address or

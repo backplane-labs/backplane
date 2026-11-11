@@ -97,7 +97,7 @@ func TestPlatformModes(t *testing.T) {
 				enabled[capability.GetName()] = capability.GetEnabled()
 			}
 
-			if enabled["events"] != (tc.nats != "") || enabled["schedules"] != (tc.temporal != "") || enabled["rules"] != (tc.nats != "" && tc.temporal != "") || !enabled["audit"] {
+			if enabled["events"] != (tc.nats != "") || enabled["schedules"] != (tc.temporal != "") || enabled["rules"] != (tc.nats != "") || !enabled["audit"] {
 				t.Fatalf("capabilities: %v", &caps)
 			}
 
