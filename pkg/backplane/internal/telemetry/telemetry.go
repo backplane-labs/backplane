@@ -114,13 +114,20 @@ func (t *Telemetry) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop flushes and shuts the providers down.
+// Stop flushes and shuts the providers down within ctx; a flush that
+// fails is logged, never a stop failure.
 func (t *Telemetry) Stop(ctx context.Context) error {
 	if t.shutdown == nil {
 		return nil
 	}
 
-	return t.shutdown(ctx)
+	// What a slow or dead collector does not take within the stop budget
+	// is lost, as an export failure while running is: not a stop failure.
+	if err := t.shutdown(ctx); err != nil {
+		t.log.Warn("telemetry not flushed at stop", xlog.Err(err))
+	}
+
+	return nil
 }
 
 // Status of OTLP export for the instance state: configured when an

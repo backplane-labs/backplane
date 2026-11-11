@@ -64,7 +64,7 @@ the instance state.
 | `BACKPLANE_SHUTDOWN_TIMEOUT` | `25s` | whole stop budget |
 | `BACKPLANE_SHUTDOWN_DRAIN` | `3s` | pause between deregistration and closing the listeners |
 | `BACKPLANE_SHUTDOWN_LISTENERS` | `10s` | in-flight requests of the listeners and the internal API |
-| `BACKPLANE_SHUTDOWN_RESERVE` | `5s` | kept for components, dependencies, telemetry; `drain + listeners + reserve <= timeout` |
+| `BACKPLANE_SHUTDOWN_RESERVE` | `5s` | kept for components, dependencies, telemetry; `drain + listeners + reserve <= timeout`. Telemetry stops last and flushes logs, metrics and traces at once within at most `reserve`; what a slow or dead collector does not take then is lost and logged, never a failed stop |
 | `BACKPLANE_HEALTH_INTERVAL`, `_HEALTH_TIMEOUT` | `5s`, `3s` | probe evaluation; `timeout <= interval` |
 | `BACKPLANE_SERVER_READ_HEADER_TIMEOUT`, `_IDLE_TIMEOUT`, `_MAX_HEADER_BYTES` | `10s`, `2m`, `1048576` | HTTP limits of both port classes |
 | `BACKPLANE_SERVER_GRPC_MAX_RECV_MSG_SIZE` | `4194304` | gRPC message limit |

@@ -11,6 +11,10 @@ import (
 	"github.com/gopherex/xlog"
 )
 
+// stopSlack is left of the stop budget after telemetry's flush, for the
+// lifecycle to finish the stop.
+const stopSlack = 250 * time.Millisecond
+
 // window is one stop deadline several nodes share: the first of them to
 // stop opens it for d, cut short so that reserve is left of the overall
 // stop budget.

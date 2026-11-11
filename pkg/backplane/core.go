@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"time"
 
 	"google.golang.org/grpc"
 	hv1 "google.golang.org/grpc/health/grpc_health_v1"
@@ -130,6 +131,11 @@ func newCore(ctx context.Context, o options, conf configrt.State, cfg config.Bac
 	tn := c.svc.Child("telemetry", node.System, false)
 	tn.OnStart(c.telemetry.Start)
 	tn.OnStop(c.telemetry.Stop)
+	// Telemetry stops last: its flush gets Shutdown.Reserve, ending early
+	// enough that a hung collector never runs the stop past its budget.
+	tn.Budget(func(ctx context.Context) (context.Context, context.CancelFunc) {
+		return context.WithDeadline(ctx, keepReserve(ctx, time.Now().Add(cfg.Shutdown.Reserve), stopSlack))
+	})
 
 	hn := c.svc.Child("health", node.System, false)
 	hn.OnStart(func(ctx context.Context) error { return c.health.Start(ctx, hn) })
