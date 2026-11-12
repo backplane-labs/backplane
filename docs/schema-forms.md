@@ -34,6 +34,18 @@ unmount aborts the callback signal. Reset restores the baseline; a successful
 submit establishes a new baseline. `onDirtyChange` supports a host navigation
 guard; browser unload also warns while a draft is dirty.
 
+`SchemaFields` renders the same fields as a controlled editor inside a larger
+draft: `values` in, `onChange(values)` out, no submit or reset, and a field's
+messages appear once it is edited. The console's configuration page edits a
+Live object with it. The schema must carry an identity name.
+
+`nativeOf(root, field, json)` turns plain JSON (numbers parsed losslessly) into
+the field's native value by its schema: durations from integer nanoseconds or
+text, integers as `bigint`, objects, refs, lists and maps recursively. Go's
+`encoding/json` writes a `time.Duration` as nanoseconds, so values read from a
+Go service go through it before an engine or an editor sees them. A value of
+the wrong shape stays as given, for validation to report.
+
 `SchemaValuesPreview` is a separate read-only masked projection. Never use its
 output as `initialValues`: a display mask is not an editable secret. Secret
 inputs conceal text, require explicit reveal for structured values, and are
@@ -43,4 +55,5 @@ original editable configuration and for handling server-side validation.
 Catalog: `Kit/Schema forms` includes editable and read-only fixtures. Browser
 checks cover both themes, accessibility, exact uint64, dynamic controls,
 variant switching, message visibility, save failure recovery and masked previews. Model tests
-cover defaults/CEL, nanosecond timestamps, literal path segments and masking.
+cover defaults/CEL, nanosecond timestamps, literal path segments, masking and
+`nativeOf` on nested Go JSON.

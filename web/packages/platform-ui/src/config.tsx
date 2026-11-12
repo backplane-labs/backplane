@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { create } from '@bufbuild/protobuf';
+import { clone, create, isMessage } from '@bufbuild/protobuf';
+import { DurationSchema } from '@bufbuild/protobuf/wkt';
 import { ConfigServiceClient, WatchConfigRequestSchema, ListRevisionsRequestSchema, SaveRevisionRequestSchema, ValidateOverrideRequestSchema, RollbackRequestSchema, type ServiceConfig, type Revision, type ConfigViolation, type InstanceConfig } from '@backplane-labs/backplane-api';
 import { ConfigSource, InstancePhase } from '@backplane-labs/backplane-api/backplanepb/v1/instance_pb';
 import { useClient, useSnapshotWatch } from '@backplane-labs/backplane-react';
-import { toNative, type Schema, type Schema_Field } from '@gopherex/schemapb';
-import { fieldSchema } from '@backplane-labs/backplane-schema-forms';
+import { SchemaIdentitySchema, SchemaSchema, defaultValue, toNative, type Native, type NativeStruct, type Schema, type Schema_Field } from '@gopherex/schemapb';
+import { parse as parseLossless, parseNumberAndBigInt } from 'lossless-json';
+import { SchemaFields, fieldSchema, nativeOf } from '@backplane-labs/backplane-schema-forms';
+import { nativeJSON } from './serialization.js';
 import { Badge, Button, ConfirmAction, Count, DetailDrawer, EmptyState, Input, KeyValueList, SelectControl, Panel, Skeleton, StatusBadge, StatusDot, Switch, Timestamp } from '@backplane-labs/backplane-ui';
 import { CodeEditor, DiffViewer } from '@backplane-labs/backplane-editors';
 import { CircleAlert, CircleCheck, History, Lock, RotateCcw, SlidersHorizontal, Undo2 } from 'lucide-react';
@@ -85,11 +88,12 @@ function ConfigDraft({ config, mode }: { config: ServiceConfig; mode: 'dark' | '
         </div>}>
         {!config.live.length ? <EmptyState className="py-8" icon={<Lock />} title={text('noLive')} description={text('noLiveHelp')} /> : groups.map(([group, paths]) => <div key={group} className="border-b border-border last:border-b-0">
           {group && <div className="bg-muted px-3 py-1.5 text-2xs font-semibold tracking-wider text-muted-foreground uppercase">{group}</div>}
-          {paths.map((path) => <LiveSetting key={path} path={path} field={resolveField(config.schema, path)} instances={config.instances} value={values[path]} committed={baseline?.values[path]}
+          {paths.map((path) => <LiveSetting key={path} path={path} root={config.schema} field={resolveField(config.schema, path)} instances={config.instances} value={values[path]} committed={baseline?.values[path]}
             violations={pathViolations(path)} disabled={busy} mode={mode} onChange={(value) => write(path, value)} />)}
         </div>)}
         {general.length > 0 && <ul className="m-0 grid gap-1 border-t border-border px-3 py-2 text-xs text-destructive" role="alert">{general.map((violation, index) => <li key={index}>{violation.instance && <span className="font-mono">{violation.instance}: </span>}{violation.message}</li>)}</ul>}
       </Panel>
+      {config.schema && <StartupSettings root={config.schema} live={config.live} instances={config.instances} />}
     </div>
     <aside className="flex min-h-0 min-w-0 flex-col gap-4">
       <Panel title={text('rollout')} count={config.instances.length} flush description={text('rolloutHelp')} maxBodyHeight={220}>
@@ -143,8 +147,8 @@ function RolloutRow({ instance, current }: { instance: InstanceConfig; current: 
 
 const sourceVariant = (source: ConfigSource) => source === ConfigSource.KV ? 'default' as const : 'outline' as const;
 
-function LiveSetting({ path, field, instances, value, committed, violations, disabled, mode, onChange }: {
-  path: string; field?: Schema_Field; instances: InstanceConfig[]; value?: string; committed?: string; violations: ConfigViolation[]; disabled: boolean; mode: 'dark' | 'light'; onChange: (value: string | undefined) => void;
+function LiveSetting({ path, root, field, instances, value, committed, violations, disabled, mode, onChange }: {
+  path: string; root?: Schema; field?: Schema_Field; instances: InstanceConfig[]; value?: string; committed?: string; violations: ConfigViolation[]; disabled: boolean; mode: 'dark' | 'light'; onChange: (value: string | undefined) => void;
 }) {
   const text = usePlatformText(), overridden = value !== undefined, changed = value !== committed;
   const effective = instances.flatMap((instance) => instance.live.filter((live) => live.path === path));
@@ -156,38 +160,49 @@ function LiveSetting({ path, field, instances, value, committed, violations, dis
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-sm font-medium">{field?.title || path.slice(path.lastIndexOf('.') + 1)}</span>
         {field?.secret && <Lock className="size-3 text-muted-foreground" aria-label={text('secret')} />}
-        {changed && <span className="size-1.5 rounded-full bg-warning" aria-label={text('dirty')} />}
+        {changed && <span role="img" className="size-1.5 rounded-full bg-warning" aria-label={text('dirty')} />}
       </div>
       <div className="font-mono text-2xs text-muted-foreground">{path}{field?.unit && ` · ${field.unit}`}</div>
       {field?.description && <p className="m-0 mt-1 text-xs text-muted-foreground">{field.description}</p>}
       <div className="mt-1.5 flex flex-wrap items-center gap-1 text-2xs text-muted-foreground">
         {sources.map((source) => <Badge key={source} variant={sourceVariant(source)} className="h-4 px-1 text-2xs">{enumLabel(ConfigSource, source)}</Badge>)}
-        <span className="truncate font-mono">{distinct.length > 1 ? text('varies') : inherited ? text('effectiveValue', { value: display(field, inherited) }) : ''}</span>
+        <span className="truncate font-mono">{distinct.length > 1 ? text('varies') : inherited ? text('effectiveValue', { value: display(root, field, inherited) }) : ''}</span>
       </div>
     </div>
     <div className="grid min-w-0 content-start gap-1.5">
       <label className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Switch size="sm" checked={overridden} disabled={disabled} onCheckedChange={(checked) => onChange(checked ? seed(field, inherited) : undefined)} aria-label={`${text('override')} ${path}`} />
+        <Switch size="sm" checked={overridden} disabled={disabled} onCheckedChange={(checked) => onChange(checked ? seed(root, field, inherited) : undefined)} aria-label={`${text('override')} ${path}`} />
         {overridden ? text('overridden') : text('inherits')}
       </label>
-      {overridden && <ValueEditor field={field} path={path} value={value} disabled={disabled} mode={mode} onChange={onChange} />}
+      {overridden && <ValueEditor root={root} field={field} path={path} value={value} disabled={disabled} mode={mode} onChange={onChange} />}
       {violations.map((violation, index) => <p key={index} className="m-0 text-xs text-destructive" role="alert">{violation.instance && <span className="font-mono">{violation.instance}: </span>}{violation.message}</p>)}
     </div>
   </div>;
 }
 
-/** Durations arrive as integer nanoseconds in the effective configuration. */
-function display(field: Schema_Field | undefined, value: string): string {
-  const parsed = parse(value);
-  if (field?.kind.case === 'duration' && typeof parsed === 'number') return formatDuration(parsed / 1e6);
-  return value;
+/**
+ * The native value of a JSON text by the field's schema. Effective values
+ * come from Go's encoding/json (durations as integer nanoseconds, at any
+ * depth); overrides are in the form an override accepts.
+ */
+function native(root: Schema | undefined, field: Schema_Field | undefined, value: string): Native | undefined {
+  let parsed: unknown;
+  try { parsed = parseLossless(value, null, parseNumberAndBigInt); } catch { return undefined; }
+  return root && field ? nativeOf(root, field, parsed) : undefined;
+}
+
+function display(root: Schema | undefined, field: Schema_Field | undefined, value: string): string {
+  const parsed = native(root, field, value);
+  if (parsed === undefined) return value;
+  if (isMessage(parsed, DurationSchema)) return formatDuration(Number(parsed.seconds) * 1000 + parsed.nanos / 1e6);
+  return nativeJSON(parsed);
 }
 
 /** First override value: the effective one, in the form the override accepts. */
-function seed(field: Schema_Field | undefined, inherited: string | undefined): string {
+function seed(root: Schema | undefined, field: Schema_Field | undefined, inherited: string | undefined): string {
   if (!inherited) return initialFor(field);
-  const parsed = parse(inherited);
-  return field?.kind.case === 'duration' && typeof parsed === 'number' ? JSON.stringify(`${parsed / 1e6}ms`) : inherited;
+  const parsed = native(root, field, inherited);
+  return parsed === undefined ? inherited : nativeJSON(parsed);
 }
 
 function initialFor(field?: Schema_Field): string {
@@ -201,9 +216,15 @@ function initialFor(field?: Schema_Field): string {
 }
 function parse(value: string): unknown { try { return JSON.parse(value); } catch { return undefined; } }
 
-function ValueEditor({ field, path, value, disabled, mode, onChange }: { field?: Schema_Field; path: string; value: string; disabled: boolean; mode: 'dark' | 'light'; onChange: (value: string) => void }) {
+function ValueEditor({ root, field, path, value, disabled, mode, onChange }: { root?: Schema; field?: Schema_Field; path: string; value: string; disabled: boolean; mode: 'dark' | 'light'; onChange: (value: string) => void }) {
   const parsed = parse(value);
+  const nested = root && field ? fieldSchema(root, field, undefined) : undefined;
   switch (field?.kind.case) {
+    case 'object': case 'ref': {
+      const values = native(root, field, value);
+      if (!nested || !root || !values || typeof values !== 'object' || Array.isArray(values) || '$typeName' in values) break;
+      return <ObjectEditor root={root} schema={nested} path={path} values={values as NativeStruct} disabled={disabled} onChange={(next) => onChange(nativeJSON(next))} />;
+    }
     case 'bool': return <label className="flex items-center gap-2 text-sm"><Switch checked={parsed === true} disabled={disabled} onCheckedChange={(checked) => onChange(String(checked))} aria-label={path} />{String(parsed === true)}</label>;
     case 'int32': case 'int64': case 'uint32': case 'uint64': case 'float': case 'double':
       return <Input className="h-8 font-mono" inputMode="decimal" aria-label={path} disabled={disabled} value={typeof parsed === 'number' || typeof parsed === 'string' ? String(parsed) : value}
@@ -215,6 +236,88 @@ function ValueEditor({ field, path, value, disabled, mode, onChange }: { field?:
       return <SelectControl className="h-8" aria-label={path} disabled={disabled} value={value} onValueChange={onChange}
         options={options.some((option) => option.value === value) ? options : [{ value, label: value }, ...options]} />;
     }
-    default: return <CodeEditor label={path} language="json" mode={mode} value={value} onChange={onChange} height={96} disabled={disabled} />;
+    default:
   }
+  return <CodeEditor label={path} language="json" mode={mode} value={value} onChange={onChange} height={96} disabled={disabled} />;
+}
+
+/** Leaf paths of the schema outside the Live ones: what an instance reads once, at start. */
+function startupPaths(root: Schema, live: readonly string[]): { path: string; field: Schema_Field }[] {
+  const out: { path: string; field: Schema_Field }[] = [];
+  const walk = (schema: Schema, prefix: string, open: ReadonlySet<Schema>) => {
+    for (const field of schema.fields) {
+      const path = prefix ? `${prefix}.${field.name}` : field.name;
+      if (live.includes(path)) continue;
+      const nested = field.kind.case === 'object' || field.kind.case === 'ref' ? fieldSchema(root, field, undefined) : undefined;
+      // A ref back to an enclosing definition is shown as one value, not walked again.
+      if (nested && !open.has(nested)) walk(nested, path, new Set(open).add(nested));
+      else out.push({ path, field });
+    }
+  };
+  walk(root, '', new Set([root]));
+  return out;
+}
+
+function valueAtPath(document: unknown, path: string): { found: boolean; value: unknown } {
+  let value = document;
+  for (const key of path.split('.')) {
+    if (!value || typeof value !== 'object' || Array.isArray(value) || !Object.hasOwn(value, key)) return { found: false, value: undefined };
+    value = (value as Record<string, unknown>)[key];
+  }
+  return { found: true, value };
+}
+
+/** Startup values are read-only: the effective value each instance runs with, beside the declaration. */
+function StartupSettings({ root, live, instances }: { root: Schema; live: readonly string[]; instances: InstanceConfig[] }) {
+  const text = usePlatformText();
+  const rows = useMemo(() => startupPaths(root, live), [root, live]);
+  const documents = useMemo(() => instances.map((instance) => {
+    try { return parseLossless(new TextDecoder().decode(instance.config), null, parseNumberAndBigInt); } catch { return undefined; }
+  }), [instances]);
+  if (!rows.length) return null;
+  const groups = new Map<string, typeof rows>();
+  for (const row of rows) { const group = row.path.includes('.') ? row.path.slice(0, row.path.indexOf('.')) : ''; groups.set(group, [...groups.get(group) ?? [], row]); }
+  const show = (field: Schema_Field, value: unknown) => {
+    const parsed = nativeOf(root, field, value);
+    return isMessage(parsed, DurationSchema) ? formatDuration(Number(parsed.seconds) * 1000 + parsed.nanos / 1e6) : nativeJSON(parsed);
+  };
+  return <section aria-label={text('startupSettings')}><Panel title={<><Lock className="size-4 text-muted-foreground" />{text('startupSettings')}</>} count={rows.length} flush description={text('startupSettingsHelp')} maxBodyHeight={480}>
+    {[...groups.entries()].map(([group, entries]) => <div key={group} className="border-b border-border last:border-b-0">
+      {group && <div className="bg-muted px-3 py-1.5 text-2xs font-semibold tracking-wider text-muted-foreground uppercase">{group}</div>}
+      {entries.map(({ path, field }) => {
+        const values = documents.map((document) => valueAtPath(document, path)).filter((entry) => entry.found).map((entry) => show(field, entry.value));
+        const distinct = [...new Set(values)];
+        const preset = defaultValue(field);
+        return <div key={path} className="grid gap-2 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-sm font-medium">{field.title || field.name}</span>
+              {field.secret && <Lock className="size-3 text-muted-foreground" aria-label={text('secret')} />}
+              <Badge variant="outline" className="h-4 px-1 font-mono text-2xs">{field.kind.case ?? 'json'}</Badge>
+            </div>
+            <div className="font-mono text-2xs text-muted-foreground">{path}{field.unit && ` · ${field.unit}`}</div>
+            {field.description && <p className="m-0 mt-1 text-xs text-muted-foreground">{field.description}</p>}
+          </div>
+          <div className="grid min-w-0 content-start gap-1 text-xs">
+            <div className="flex min-w-0 items-baseline gap-1.5"><span className="shrink-0 text-muted-foreground">{text('runsWith')}</span>
+              <span className="min-w-0 break-all font-mono">{!distinct.length ? <span className="text-muted-foreground italic">{text('notReported')}</span> : distinct.length > 1 ? text('varies') : distinct[0]}</span></div>
+            <div className="truncate font-mono text-2xs text-muted-foreground">{preset === undefined ? text('noDefault') : text('defaultIs', { value: show(field, preset) })}</div>
+            <span className="text-2xs text-muted-foreground">{text('restartToChange')}</span>
+          </div>
+        </div>;
+      })}
+    </div>)}
+  </Panel></section>;
+}
+
+/** An object value as a nested form; its schema keeps the root's definitions for refs. */
+function ObjectEditor({ root, schema, path, values, disabled, onChange }: { root: Schema; schema: Schema; path: string; values: NativeStruct; disabled: boolean; onChange: (values: NativeStruct) => void }) {
+  const standalone = useMemo(() => {
+    const own = clone(SchemaSchema, schema);
+    // An engine compiles named schemas only; a nested object is named by its path.
+    own.id = create(SchemaIdentitySchema, { namespace: schema.id?.namespace, version: schema.id?.version, name: schema.id?.name || path });
+    own.defs = { ...root.defs, ...schema.defs };
+    return own;
+  }, [root, schema, path]);
+  return <div className="rounded-md border border-border p-3"><SchemaFields schema={standalone} values={values} label={path} disabled={disabled} onChange={onChange} /></div>;
 }

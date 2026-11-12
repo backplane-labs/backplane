@@ -108,6 +108,44 @@ function FormBody({ engine, initialValues = {}, onSubmit, onDirtyChange, ...prop
   </form>;
 }
 
+export interface SchemaFieldsProps {
+  schema: Schema;
+  /** Native schemapb values (see nativeOf for JSON from a Go service). */
+  values: NativeStruct;
+  onChange: (values: NativeStruct) => void;
+  disabled?: boolean;
+  label: string;
+}
+
+/**
+ * The fields of schema as a controlled editor inside a larger draft: no
+ * submit or reset, every change goes to onChange, and a field's messages
+ * show once it is edited.
+ */
+export function SchemaFields(props: SchemaFieldsProps) {
+  const t = useText();
+  const engine = useMemo(() => { try { return Engine.compile(props.schema); } catch { return undefined; } }, [props.schema]);
+  if (!engine) return <p role="alert">{t('schemaError')}</p>;
+  return <FieldsBody {...props} engine={engine} />;
+}
+
+function FieldsBody({ engine, values, onChange, disabled, label }: SchemaFieldsProps & { engine: Engine }) {
+  const [touched, setTouched] = useState(() => new Set<string>());
+  const outcome = useMemo(() => evaluateForm(engine, values), [engine, values]);
+  const context: Context = {
+    engine, values: outcome.resolved, errors: outcome.result.errors, disabled: !!disabled,
+    shown: (path) => touched.has(pathKey(path)),
+    update: (path, value) => {
+      onChange(setValue(values, path, value));
+      setTouched((old) => old.has(pathKey(path)) ? old : new Set(old).add(pathKey(path)));
+    },
+    invalid: () => {},
+  };
+  return <div role="group" aria-label={label} style={stack}>
+    {engine.schema.fields.map((field) => <FormField key={field.name} field={field} path={[field.name]} context={context} />)}
+  </div>;
+}
+
 interface Context {
   engine: Engine;
   values: NativeStruct;

@@ -42,7 +42,7 @@ type Backplane struct {
 	// Default listener of managed public routes.
 	PublicPort int64 `desc:"Default listener of managed public routes." json:"public_port" schemapb:"default=8080;gte=1;lte=65535"`
 	// Log level; changed live from the console.
-	LogLevel Live[string] `desc:"Log level: debug, info, warn or error. Applied live." json:"log_level" schemapb:"default=info"`
+	LogLevel Live[string] `desc:"Log level. Applied live." json:"log_level" schemapb:"default={\"stringValue\":\"info\"}" validate:"oneof=trace debug info warn error critical"`
 	// Serve /debug/pprof on the platform port behind the internal secret.
 	Pprof bool `desc:"Serve /debug/pprof on the platform port behind the internal secret." json:"pprof" schemapb:"default=false"`
 }

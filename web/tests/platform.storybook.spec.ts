@@ -25,6 +25,20 @@ for (const theme of ['dark', 'light']) for (const story of stories) {
       await page.getByRole('checkbox', { name: 'Simulate write failure' }).uncheck(); await page.getByRole('button', { name: 'Validate', exact: true }).click();
       await expect(page.getByText('Validation passed.')).toBeVisible(); await page.getByRole('button', { name: 'Save revision', exact: true }).click(); await expect(page.getByRole('button', { name: 'Save revision', exact: true })).toBeDisabled();
       await expect(page.getByLabel('Write attempts')).toHaveText('2');
+      // A Live object overrides as a nested form, seeded from the effective value: the nested
+      // duration arrives as nanoseconds and becomes a duration.
+      await page.getByRole('switch', { name: 'Override greeter.limits', exact: true }).click();
+      const limits = page.getByRole('group', { name: 'greeter.limits', exact: true });
+      await expect(limits.getByRole('textbox', { name: /Window/ })).toHaveValue('30s');
+      // Startup values are read-only, beside their declaration.
+      const startup = page.getByRole('region', { name: 'Startup settings', exact: true });
+      await expect(startup.getByText('greeter.port', { exact: true })).toBeVisible();
+      await expect(startup.getByText('8080', { exact: true })).toBeVisible();
+      await expect(startup.getByText('default 8080', { exact: true })).toBeVisible();
+      await expect(startup.getByText('greeter.timeout', { exact: true })).toBeVisible();
+      await expect(startup.getByText('5s', { exact: true })).toBeVisible();
+      await expect(startup.getByText('"***"', { exact: true })).toBeVisible();
+      await expect(startup.getByRole('textbox')).toHaveCount(0);
     }
     if (story === 'errors') {
       // Groups first: one row per distinct error; a group opens its drawer, an occurrence in it opens its own.

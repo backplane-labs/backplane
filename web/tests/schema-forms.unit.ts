@@ -1,7 +1,34 @@
 import { create } from '@bufbuild/protobuf';
+import { DurationSchema } from '@bufbuild/protobuf/wkt';
 import { describe, expect, it } from 'vitest';
 import { Engine, SchemaSchema, Schema_FieldSchema, masked, structToNative } from '@gopherex/schemapb';
-import { decodeValue, encodeValue, evaluateForm, parseScalar, scalarText, setValue, valueAt } from '../packages/schema-forms/src/model';
+import { decodeValue, encodeValue, evaluateForm, nativeOf, parseScalar, scalarText, setValue, valueAt } from '../packages/schema-forms/src/model';
+
+describe('JSON from a Go service as native values', () => {
+  const root = create(SchemaSchema, { id: { name: 'config' }, defs: { 'window': { id: { name: 'window' }, fields: [{ name: 'every', kind: { case: 'duration', value: {} } }] } }, fields: [] });
+  const limits = create(Schema_FieldSchema, { name: 'limits', kind: { case: 'object', value: { schema: { fields: [
+    { name: 'max', kind: { case: 'int64', value: {} } },
+    { name: 'window', kind: { case: 'duration', value: {} } },
+    { name: 'ratio', kind: { case: 'double', value: {} } },
+    { name: 'steps', kind: { case: 'list', value: { items: [{ kind: { case: 'duration', value: {} } }] } } },
+    { name: 'per', kind: { case: 'map', value: { valueField: { kind: { case: 'duration', value: {} } } } } },
+    { name: 'nested', kind: { case: 'ref', value: { target: { case: 'name', value: 'window' } } } },
+  ] } } } });
+  const d = (seconds: bigint, nanos = 0) => create(DurationSchema, { seconds, nanos });
+  it.each([
+    ['integer nanoseconds at every depth', { max: 5, window: 30_000_000_000, ratio: 1n, steps: [1_500_000_000], per: { a: 2_000_000_000n }, nested: { every: 60_000_000_000 } },
+      { max: 5n, window: d(30n), ratio: 1, steps: [d(1n, 500_000_000)], per: { a: d(2n) }, nested: { every: d(60n) } }],
+    ['duration text and unknown keys kept', { window: '90s', extra: { any: 1 } }, { window: d(90n), extra: { any: 1 } }],
+    ['a negative duration', { window: -1_500_000_000 }, { window: d(-1n, -500_000_000) }],
+  ])('%s', (_name, input, want) => {
+    expect(nativeOf(root, limits, input)).toEqual(want);
+  });
+  it('leaves a value of the wrong shape as given, for validation to report', () => {
+    expect(nativeOf(root, limits, 'not an object')).toBe('not an object');
+    const duration = create(Schema_FieldSchema, { name: 'd', kind: { case: 'duration', value: {} } });
+    expect(nativeOf(root, duration, true)).toBe(true);
+  });
+});
 
 describe('schema form engine boundary', () => {
   it('resolves defaults and CEL without mutating caller input', () => {

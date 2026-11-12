@@ -1,7 +1,7 @@
-import { fromJsonString, toJsonString } from '@bufbuild/protobuf';
+import { create, fromJsonString, toJsonString } from '@bufbuild/protobuf';
 import { DurationSchema, TimestampSchema } from '@bufbuild/protobuf/wkt';
 import {
-  Engine, ValueSchema, defaultValue, fromNative, toNative, refDefKey,
+  Engine, ValueSchema, defaultValue, fromNative, toNative, refDefKey, listItemDef,
   type Native, type NativeStruct, type Schema, type Schema_Field, type Value,
 } from '@gopherex/schemapb';
 
@@ -82,6 +82,59 @@ export function scalarText(value: Native | undefined): string {
   }
   return typeof value === 'object' ? encodeValue(value) : String(value);
 }
+
+/**
+ * Plain JSON (numbers parsed losslessly) as the field's native value:
+ * durations from integer nanoseconds or text, integers as bigint, objects,
+ * lists and maps through their schemas. Go's encoding/json writes a
+ * time.Duration as nanoseconds, so a value read from a Go service converts
+ * here before an engine or an editor sees it. Anything else stays as given.
+ */
+export function nativeOf(root: Schema, field: Schema_Field, value: unknown): Native {
+  switch (field.kind.case) {
+    case 'duration':
+      if (typeof value === 'number' && Number.isInteger(value)) value = BigInt(value);
+      if (typeof value === 'bigint') return create(DurationSchema, { seconds: value / 1_000_000_000n, nanos: Number(value % 1_000_000_000n) });
+      return typeof value === 'string' ? parseScalar(field, value) : plain(value);
+    case 'timestamp':
+      return typeof value === 'string' ? parseScalar(field, value) : plain(value);
+    case 'int32': case 'int64': case 'uint32': case 'uint64':
+      if (typeof value === 'number' && Number.isInteger(value)) return BigInt(value);
+      return typeof value === 'string' && /^-?\d+$/.test(value) ? BigInt(value) : plain(value);
+    case 'float': case 'double':
+      return typeof value === 'bigint' ? Number(value) : plain(value);
+    case 'object': case 'ref': case 'oneOf': {
+      const nested = isRecord(value) ? fieldSchema(root, field, plain(value)) : undefined;
+      return nested && isRecord(value) ? structOf(root, nested, value) : plain(value);
+    }
+    case 'list': {
+      const list = field.kind.value;
+      return Array.isArray(value) ? value.map((item, index) => { const def = listItemDef(list, index); return def ? nativeOf(root, def, item) : plain(item); }) : plain(value);
+    }
+    case 'map': {
+      const map = field.kind.value;
+      if (!isRecord(value)) return plain(value);
+      const result: NativeStruct = {};
+      for (const [key, item] of Object.entries(value)) {
+        const next = map.valueField ? nativeOf(root, map.valueField, item) : map.valueSchema && isRecord(item) ? structOf(root, map.valueSchema, item) : plain(item);
+        Object.defineProperty(result, key, { value: next, enumerable: true, writable: true, configurable: true });
+      }
+      return result;
+    }
+    default: return plain(value);
+  }
+}
+function structOf(root: Schema, schema: Schema, value: Record<string, unknown>): NativeStruct {
+  const result: NativeStruct = {};
+  for (const [key, item] of Object.entries(value)) {
+    const child = schema.fields.find((field) => field.name === key);
+    Object.defineProperty(result, key, { value: child ? nativeOf(root, child, item) : plain(item), enumerable: true, writable: true, configurable: true });
+  }
+  return result;
+}
+const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
+/** JSON has no other shapes: strings, numbers, bigints, booleans, null, arrays and objects are all Native. */
+const plain = (value: unknown) => value as Native;
 
 export function fieldSchema(root: Schema, field: Schema_Field, value: Native | undefined): Schema | undefined {
   switch (field.kind.case) {

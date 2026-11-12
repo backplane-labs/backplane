@@ -83,7 +83,7 @@ the instance state.
 | `BACKPLANE_INTERNAL_SECRET` | — | secret backplane presents on the platform port (secret); empty: the internal API and bundle are open to whoever reaches the port |
 | `BACKPLANE_INTERNAL_SECRET_PREVIOUS` | — | also accepted while the secret rotates |
 | `BACKPLANE_PUBLIC_PORT` | `8080` | shared public port of managed APIs |
-| `BACKPLANE_LOG_LEVEL` | `info` | log level; live from Consul KV `config/<service>/backplane/log_level` |
+| `BACKPLANE_LOG_LEVEL` | `info` | log level: `trace`, `debug`, `info`, `warn`, `error` or `critical` (any other value is refused); live from Consul KV `config/<service>/backplane/log_level` |
 | `BACKPLANE_PPROF` | `false` | `/debug/pprof/*` on the platform port, behind the secret |
 | `BACKPLANE_CONFIG_FILE` | — | configuration file (not a block field) |
 

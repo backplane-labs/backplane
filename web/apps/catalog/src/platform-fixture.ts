@@ -123,7 +123,19 @@ export class PlatformFixture implements ClientRuntime {
   logout() { this.state = { connection: 'anonymous', session: null, connectionId: this.state.connectionId }; this.listeners.forEach((listener) => listener()); }
   client<T extends object>(_constructor: ClientConstructor<T>): T {
     const fixture = this;
-    const config = () => create(api.ServiceConfigSchema, { service: 'hello', live: ['greeter.suffix'], current: fixture.revision, instances: [{ id: 'hello-1', version: '1.0.0', appliedRevision: fixture.revision.revision, live: [{ path: 'greeter.suffix', value: fixture.revision.values['greeter.suffix'] }] }] });
+    // As a Go service reports it: durations as integer nanoseconds at any depth, secrets masked.
+    const effective = { greeter: { suffix: '!', limits: { max: 5, window: 30_000_000_000 }, port: 8080, timeout: 5_000_000_000, token: '***' } };
+    const configSchema = create(SchemaSchema, { fields: [{ name: 'greeter', kind: { case: 'object', value: { schema: { fields: [
+      { name: 'suffix', kind: { case: 'json', value: {} } },
+      { name: 'limits', title: 'Limits', kind: { case: 'object', value: { schema: { fields: [
+        { name: 'max', title: 'Max', kind: { case: 'int64', value: { default: 5n } } },
+        { name: 'window', title: 'Window', kind: { case: 'duration', value: {} } },
+      ] } } } },
+      { name: 'port', title: 'Port', description: 'Listener of the greeter.', kind: { case: 'int64', value: { default: 8080n } } },
+      { name: 'timeout', title: 'Timeout', kind: { case: 'duration', value: {} } },
+      { name: 'token', title: 'Token', secret: true, kind: { case: 'string', value: {} } },
+    ] } } } }] });
+    const config = () => create(api.ServiceConfigSchema, { service: 'hello', schema: configSchema, live: ['greeter.suffix', 'greeter.limits'], current: fixture.revision, instances: [{ id: 'hello-1', version: '1.0.0', appliedRevision: fixture.revision.revision, config: new TextEncoder().encode(JSON.stringify(effective)), live: [{ path: 'greeter.suffix', value: fixture.revision.values['greeter.suffix'] }, { path: 'greeter.limits', value: JSON.stringify(effective.greeter.limits) }] }] });
     const snapshot = async function* <R>(value: R, signal?: AbortSignal) { fixture.active++; try { yield value; await untilAbort(signal); } finally { fixture.active--; } };
     const beforeWrite = () => { fixture.writes++; if (fixture.failWrites) throw new WsStatusError(14, 'Fixture outage'); };
     const methods = {

@@ -52,6 +52,8 @@ export const platformEnglish = {
   revisionTitle: 'Revision #{{revision}}', rollbackTo: 'Roll back to #{{revision}}', rollbackHelp: 'A new revision with the values of #{{revision}} will be saved and delivered to every instance.',
   diffAgainstDraft: 'Revision (left) against the current draft (right)', pendingApply: 'applied rev {{applied}}, waiting for rev {{current}}',
   secret: 'Secret', varies: 'differs between instances', effectiveValue: 'effective {{value}}', overridden: 'Overridden', inherits: 'Inherits effective value',
+  startupSettings: 'Startup settings', startupSettingsHelp: 'Read from files, env and defaults when an instance starts: a change takes a restart or a redeploy. The console cannot change them.',
+  restartToChange: 'restart to change', defaultIs: 'default {{value}}', noDefault: 'no default', runsWith: 'runs with', notReported: 'not reported',
   allStatuses: 'All', noRuns: 'No runs match.', startedAt: 'Started', duration: 'Duration', taskQueue: 'Task queue', closedAt: 'Closed',
   stillRunning: 'Still running', parent: 'Parent', pendingActivities: 'Pending activities', attempt: 'attempt {{attempt}}/{{max}}', controls: 'Run controls',
   cancelConfirm: 'Cancel this run?', cancelHelp: 'The workflow receives a cancellation request and may clean up before it stops.',

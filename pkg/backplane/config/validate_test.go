@@ -98,6 +98,49 @@ func TestValidateAtOpen(t *testing.T) {
 	}
 }
 
+// log_level is a choice of the logger's levels: the console offers them and
+// any other value is refused.
+func TestLogLevelChoice(t *testing.T) {
+	t.Setenv("BACKPLANE_CONSUL_ADDR", "")
+
+	opts := []config.Option{consuldriver.Config(), config.Service("validated"), config.WithoutFile()}
+
+	rt, err := config.Open[ValidatedConfig](t.Context(), opts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	field := link.ConfigState(rt).Schema().GetFields()
+	_ = rt.Close()
+
+	var options []string
+
+	for _, section := range field {
+		if section.GetName() != "backplane" {
+			continue
+		}
+
+		for _, f := range section.GetObject().GetSchema().GetFields() {
+			if f.GetName() == "log_level" {
+				for _, o := range f.GetChoice().GetOptions() {
+					options = append(options, o.GetValue().GetStringValue())
+				}
+			}
+		}
+	}
+
+	if got := strings.Join(options, " "); got != "trace debug info warn error critical" {
+		t.Fatalf("log_level options: %q", got)
+	}
+
+	t.Setenv("BACKPLANE_LOG_LEVEL", "verbose")
+
+	if _, err := config.Open[ValidatedConfig](t.Context(), opts...); err == nil ||
+		!strings.Contains(err.Error(), "log_level") {
+		t.Fatalf("verbose accepted: %v", err)
+	}
+}
+
 // safeBuf collects log output across goroutines.
 type safeBuf struct {
 	mu  sync.Mutex
