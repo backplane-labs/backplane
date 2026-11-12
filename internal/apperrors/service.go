@@ -183,6 +183,7 @@ type listed struct {
 	Environment string
 	Release     string
 	Instance    string
+	Tenant      string
 	Origin      string
 	Ingest      string
 	EventID     string
@@ -201,7 +202,8 @@ type listed struct {
 func occurrenceOf(r *db.SearchErrorsRow) *consolev1.ErrorOccurrence {
 	return occurrence(listed{
 		ID: r.ID, Fingerprint: r.Fingerprint, Service: r.Service, Time: r.Time, ReceivedAt: r.ReceivedAt,
-		Environment: r.Environment, Release: r.Release, Instance: r.Instance, Origin: r.Origin, Ingest: r.Ingest,
+		Environment: r.Environment, Release: r.Release, Instance: r.Instance, Tenant: r.Tenant,
+		Origin: r.Origin, Ingest: r.Ingest,
 		EventID: r.EventID, Type: r.Type, Message: r.Message, Severity: r.Severity, Mechanism: r.Mechanism,
 		Handled: r.Handled, GroupKey: r.GroupKey, TraceID: r.TraceID, SpanID: r.SpanID, RuntimeID: r.RuntimeID,
 		Truncated: r.Truncated,
@@ -219,7 +221,7 @@ func occurrence(r listed) *consolev1.ErrorOccurrence {
 		Environment: r.Environment, Release: r.Release, Type: r.Type, Message: r.Message, Severity: r.Severity,
 		TraceId: r.TraceID, SpanId: r.SpanID, RuntimeId: r.RuntimeID, Mechanism: r.Mechanism, GroupKey: r.GroupKey,
 		Fingerprint: HexFingerprint(r.Fingerprint), Unhandled: r.Handled != nil && !*r.Handled, Ingest: r.Ingest,
-		ReceivedAt: timestamppb.New(r.ReceivedAt), Truncated: r.Truncated,
+		ReceivedAt: timestamppb.New(r.ReceivedAt), Truncated: r.Truncated, Tenant: r.Tenant,
 	}
 }
 
@@ -346,6 +348,9 @@ func (a API) facet(
 	case consolev1.ErrorField_ERROR_FIELD_INSTANCE:
 		return facetOf(ctx, w, db.ErrorFacetInstanceParams{PageSize: limit}, queries.ErrorFacetInstance,
 			func(r db.ErrorFacetInstanceRow) facetValue { return facetValue{r.Value, r.Count, r.LastSeen} })
+	case consolev1.ErrorField_ERROR_FIELD_TENANT:
+		return facetOf(ctx, w, db.ErrorFacetTenantParams{PageSize: limit}, queries.ErrorFacetTenant,
+			func(r db.ErrorFacetTenantRow) facetValue { return facetValue{r.Value, r.Count, r.LastSeen} })
 	case consolev1.ErrorField_ERROR_FIELD_HANDLED:
 		return facetOf(ctx, w, db.ErrorFacetHandledParams{PageSize: limit}, queries.ErrorFacetHandled,
 			func(r db.ErrorFacetHandledRow) facetValue { return facetValue{r.Value, r.Count, r.LastSeen} })
@@ -409,7 +414,8 @@ func (a API) GetError(ctx context.Context, req *consolev1.GetErrorRequest) (*con
 func (a API) detail(r *db.GetErrorRow) *consolev1.GetErrorResponse {
 	o := occurrence(listed{
 		ID: r.ID, Fingerprint: r.Fingerprint, Service: r.Service, Time: r.Time, ReceivedAt: r.ReceivedAt,
-		Environment: r.Environment, Release: r.Release, Instance: r.Instance, Origin: r.Origin, Ingest: r.Ingest,
+		Environment: r.Environment, Release: r.Release, Instance: r.Instance, Tenant: r.Tenant,
+		Origin: r.Origin, Ingest: r.Ingest,
 		EventID: r.EventID, Type: r.Type, Message: r.Message, Severity: r.Severity, Mechanism: r.Mechanism,
 		Handled: r.Handled, GroupKey: r.GroupKey, TraceID: r.TraceID, SpanID: r.SpanID, RuntimeID: r.RuntimeID,
 		Truncated: r.Truncated,
@@ -419,7 +425,7 @@ func (a API) detail(r *db.GetErrorRow) *consolev1.GetErrorResponse {
 		Occurrence: o, Stacktrace: r.Stacktrace, Scope: r.Scope,
 		Fields: map[string]string{
 			"service.name": r.Service, "deployment.environment.name": r.Environment, "service.version": r.Release,
-			"service.instance.id": r.Instance, "exception.type": r.Type, "exception.message": r.Message,
+			"service.instance.id": r.Instance, AttrTenant: r.Tenant, "exception.type": r.Type, "exception.message": r.Message,
 			"trace_id": r.TraceID, "span_id": r.SpanID, "event_name": r.EventName,
 			"severity_number": strconv.Itoa(int(r.Severity)),
 			"severity_text":   r.SeverityText, "backplane.origin": r.Origin, "backplane.ingest": r.Ingest,

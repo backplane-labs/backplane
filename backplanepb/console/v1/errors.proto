@@ -84,6 +84,9 @@ message ErrorOccurrence {
   google.protobuf.Timestamp received_at = 19;
   // The stored record was cut to the size limit (stack, envelope).
   bool truncated = 20;
+  // The resource's tenant.id: the tenant (an installation, a customer) an
+  // upstream installation received it for; empty without one.
+  string tenant = 21;
 }
 
 // ErrorField is a filterable field of an occurrence.
@@ -106,6 +109,8 @@ enum ErrorField {
   // "proxy" / "trusted"; is / is_not.
   ERROR_FIELD_INGEST = 12;
   ERROR_FIELD_INSTANCE = 13;
+  // The resource's tenant.id; is / is_not / exists.
+  ERROR_FIELD_TENANT = 14;
 }
 
 enum ErrorOperator {

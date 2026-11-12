@@ -196,15 +196,21 @@ type BackplaneAppErrorGroup struct {
 	LastSeen    time.Time
 	Count       int64
 	Stored      int64
-	MinuteStart time.Time
-	MinuteCount int32
-	DayStart    time.Time
-	DayCount    int32
 	State       string
 	StateAt     *time.Time
 	StateBy     string
 	StateNote   string
 	RegressedAt *time.Time
+}
+
+type BackplaneAppErrorBurst struct {
+	Fingerprint []byte
+	Service     string
+	Tenant      string
+	MinuteStart time.Time
+	MinuteCount int32
+	DayStart    time.Time
+	DayCount    int32
 }
 
 type BackplaneAppError struct {
@@ -217,6 +223,7 @@ type BackplaneAppError struct {
 	Environment  string
 	Release      string
 	Instance     string
+	Tenant       string
 	Origin       string
 	Ingest       string
 	EventID      string

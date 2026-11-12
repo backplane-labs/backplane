@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -143,6 +144,108 @@ func exception(service, env, typ, message string, when time.Time, attrs ...*comm
 
 func is(field consolev1.ErrorField, values ...string) *consolev1.ErrorCondition {
 	return &consolev1.ErrorCondition{Field: field, Op: consolev1.ErrorOperator_ERROR_OPERATOR_IS, Values: values}
+}
+
+// tenanted is req for tenant: the resource's tenant.id, as a gateway in
+// front of an upstream installation sets it.
+func tenanted(req *collogspb.ExportLogsServiceRequest, tenant string) *collogspb.ExportLogsServiceRequest {
+	resource := req.GetResourceLogs()[0].GetResource()
+	resource.Attributes = append(resource.GetAttributes(), str(apperrors.AttrTenant, tenant))
+
+	return req
+}
+
+// One group across tenants: each tenant has its own burst windows, so a
+// storm from one leaves the others stored; the tenant is filterable,
+// faceted, listed and in the occurrence's fields.
+func TestErrorsLiveTenants(t *testing.T) {
+	t.Parallel()
+
+	dsn := isolatedDatabase(t)
+	svc, api := service(t, dsn, apperrors.Settings{Retention: 24 * time.Hour, BurstPerMinute: 2, BurstPerDay: 100, MaxRecordBytes: 64 << 10})
+
+	ctx := t.Context()
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	base := now.Add(-time.Hour)
+
+	save := func(req *collogspb.ExportLogsServiceRequest) (int64, int64) {
+		t.Helper()
+
+		records, rejected := apperrors.Records(req, now, svc.Limits())
+		if rejected != 0 {
+			t.Fatal("rejected", rejected)
+		}
+
+		stored, counted, err := svc.Save(ctx, records)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return stored, counted
+	}
+
+	// A storm of five from installation a: two stored, three counted.
+	for i := range 5 {
+		save(tenanted(exception("app", "prod", "CrashError", "crashed "+strconv.Itoa(i), base.Add(time.Duration(i)*time.Second)), "inst-a"))
+	}
+
+	// The same group from installation b and from no tenant still stores.
+	if stored, counted := save(tenanted(exception("app", "prod", "CrashError", "crashed 9", base.Add(10*time.Second)), "inst-b")); stored != 1 || counted != 0 {
+		t.Fatalf("tenant b in a's storm: stored %d counted %d", stored, counted)
+	}
+
+	if stored, _ := save(exception("app", "prod", "CrashError", "crashed 8", base.Add(11*time.Second))); stored != 1 {
+		t.Fatal("no tenant in a's storm")
+	}
+
+	filter := func(conditions ...*consolev1.ErrorCondition) *consolev1.ErrorFilter {
+		return &consolev1.ErrorFilter{Start: timestamppb.New(base.Add(-time.Minute)), End: timestamppb.New(now), Conditions: conditions}
+	}
+
+	groups, err := api.SearchErrorGroups(ctx, &consolev1.SearchErrorGroupsRequest{Filter: filter()})
+	if err != nil || len(groups.GetGroups()) != 1 || groups.GetGroups()[0].GetCount() != 7 {
+		t.Fatalf("one group counting all seven: %v %v", groups, err)
+	}
+
+	for name, c := range map[string]struct {
+		condition *consolev1.ErrorCondition
+		want      int
+	}{
+		"tenant a": {is(consolev1.ErrorField_ERROR_FIELD_TENANT, "inst-a"), 2},
+		"tenant b": {is(consolev1.ErrorField_ERROR_FIELD_TENANT, "inst-b"), 1},
+		"not a":    {&consolev1.ErrorCondition{Field: consolev1.ErrorField_ERROR_FIELD_TENANT, Op: consolev1.ErrorOperator_ERROR_OPERATOR_IS_NOT, Values: []string{"inst-a"}}, 2},
+		"with one": {&consolev1.ErrorCondition{Field: consolev1.ErrorField_ERROR_FIELD_TENANT, Op: consolev1.ErrorOperator_ERROR_OPERATOR_EXISTS}, 3},
+		"without":  {&consolev1.ErrorCondition{Field: consolev1.ErrorField_ERROR_FIELD_TENANT, Op: consolev1.ErrorOperator_ERROR_OPERATOR_NOT_EXISTS}, 1},
+	} {
+		found, err := api.SearchErrors(ctx, &consolev1.SearchErrorsRequest{Filter: filter(c.condition)})
+		if err != nil || len(found.GetOccurrences()) != c.want {
+			t.Fatalf("%s: %d occurrences, want %d (%v)", name, len(found.GetOccurrences()), c.want, err)
+		}
+	}
+
+	facets, err := api.ErrorFacets(ctx, &consolev1.ErrorFacetsRequest{Filter: filter(), Fields: []consolev1.ErrorField{consolev1.ErrorField_ERROR_FIELD_TENANT}})
+	if err != nil || len(facets.GetFacets()) != 1 {
+		t.Fatalf("facets %v %v", facets, err)
+	}
+
+	counts := map[string]uint64{}
+	for _, v := range facets.GetFacets()[0].GetValues() {
+		counts[v.GetValue()] = v.GetCount()
+	}
+
+	if len(counts) != 2 || counts["inst-a"] != 2 || counts["inst-b"] != 1 {
+		t.Fatalf("tenant facet %v", counts)
+	}
+
+	found, err := api.SearchErrors(ctx, &consolev1.SearchErrorsRequest{Filter: filter(is(consolev1.ErrorField_ERROR_FIELD_TENANT, "inst-b"))})
+	if err != nil || found.GetOccurrences()[0].GetTenant() != "inst-b" {
+		t.Fatalf("listed tenant %v %v", found, err)
+	}
+
+	detail, err := api.GetError(ctx, &consolev1.GetErrorRequest{Ref: found.GetOccurrences()[0].GetRef()})
+	if err != nil || detail.GetFields()[apperrors.AttrTenant] != "inst-b" || detail.GetOccurrence().GetTenant() != "inst-b" {
+		t.Fatalf("detail %v %v", detail.GetFields(), err)
+	}
 }
 
 // Records are stored once per key, counted past the group's burst, listed,

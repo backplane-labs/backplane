@@ -60,6 +60,8 @@ type where struct {
 	Handled                                            int32
 	IngestIn, IngestNot                                []string
 	InstanceIn, InstanceNot                            []string
+	TenantIn, TenantNot                                []string
+	TenantExists                                       int32
 	Text                                               string
 	TextInStack                                        bool
 	// Groups only: the states listed.
@@ -200,6 +202,8 @@ func (w *where) apply(c *consolev1.ErrorCondition) error {
 		f = textField{in: &w.IngestIn, not: &w.IngestNot}
 	case consolev1.ErrorField_ERROR_FIELD_INSTANCE:
 		f = textField{in: &w.InstanceIn, not: &w.InstanceNot}
+	case consolev1.ErrorField_ERROR_FIELD_TENANT:
+		f = textField{in: &w.TenantIn, not: &w.TenantNot, exists: &w.TenantExists}
 	case consolev1.ErrorField_ERROR_FIELD_FINGERPRINT:
 		return w.fingerprints(c)
 	case consolev1.ErrorField_ERROR_FIELD_HANDLED:

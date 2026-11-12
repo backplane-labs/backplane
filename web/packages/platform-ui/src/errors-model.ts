@@ -5,15 +5,21 @@ import type { ErrorCause, LogRecord, StackFrame } from '@backplane-labs/backplan
 import type { FeedChip, FeedOp } from './feed.js';
 
 /** A filterable field of an error, as chips name it. */
-export type ErrorFieldName = 'service' | 'environment' | 'type' | 'message' | 'release' | 'trace_id' | 'runtime_id' | 'group_key' | 'origin' | 'fingerprint' | 'handled' | 'ingest' | 'instance';
-export const errorFieldNames: readonly ErrorFieldName[] = ['service', 'environment', 'type', 'message', 'release', 'trace_id', 'runtime_id', 'group_key', 'origin', 'fingerprint', 'handled', 'ingest', 'instance'];
+export type ErrorFieldName = 'service' | 'environment' | 'type' | 'message' | 'release' | 'trace_id' | 'runtime_id' | 'group_key' | 'origin' | 'fingerprint' | 'handled' | 'ingest' | 'instance' | 'tenant';
+export const errorFieldNames: readonly ErrorFieldName[] = ['service', 'environment', 'type', 'message', 'release', 'trace_id', 'runtime_id', 'group_key', 'origin', 'fingerprint', 'handled', 'ingest', 'instance', 'tenant'];
 export const errorFieldEnum: Record<ErrorFieldName, ErrorField> = {
   service: ErrorField.SERVICE, environment: ErrorField.ENVIRONMENT, type: ErrorField.TYPE, message: ErrorField.MESSAGE, release: ErrorField.RELEASE,
   trace_id: ErrorField.TRACE_ID, runtime_id: ErrorField.RUNTIME_ID, group_key: ErrorField.GROUP_KEY, origin: ErrorField.ORIGIN,
-  fingerprint: ErrorField.FINGERPRINT, handled: ErrorField.HANDLED, ingest: ErrorField.INGEST, instance: ErrorField.INSTANCE,
+  fingerprint: ErrorField.FINGERPRINT, handled: ErrorField.HANDLED, ingest: ErrorField.INGEST, instance: ErrorField.INSTANCE, tenant: ErrorField.TENANT,
 };
-/** Fields that take only is / is not (an enumeration or an exact id). */
-export const exactErrorFields: readonly ErrorFieldName[] = ['origin', 'fingerprint', 'handled', 'ingest', 'instance'];
+const exact: readonly FeedOp[] = ['is', 'is_not'], present: readonly FeedOp[] = ['is', 'is_not', 'exists', 'not_exists'];
+/** The operators the server takes for each field (internal/apperrors filter.go): a chip offers only these. */
+export const errorFieldOps: Record<ErrorFieldName, readonly FeedOp[]> = {
+  service: ['is', 'is_not', 'prefix'], environment: present, release: ['is', 'is_not', 'prefix', 'exists', 'not_exists'],
+  type: ['is', 'is_not', 'contains', 'not_contains', 'prefix'], message: ['is', 'is_not', 'contains', 'not_contains', 'prefix'],
+  trace_id: present, runtime_id: present, group_key: present, tenant: present,
+  origin: exact, fingerprint: exact, handled: exact, ingest: exact, instance: exact,
+};
 const opEnum: Partial<Record<FeedOp, ErrorOperator>> = {
   is: ErrorOperator.IS, is_not: ErrorOperator.IS_NOT, contains: ErrorOperator.CONTAINS, not_contains: ErrorOperator.NOT_CONTAINS,
   prefix: ErrorOperator.PREFIX, exists: ErrorOperator.EXISTS, not_exists: ErrorOperator.NOT_EXISTS,

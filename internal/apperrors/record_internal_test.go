@@ -108,8 +108,12 @@ func TestRecordsSDK(t *testing.T) {
 		t.Fatalf("payloads %s %s %s", r.Body, r.Attributes, r.Resource)
 	}
 
-	if records[0].Touch.Minute != now.UTC().Truncate(time.Minute) || records[0].Touch.Day != now.UTC().Truncate(24*time.Hour) ||
-		!records[0].Touch.Time.Equal(r.Time) || !bytes.Equal(records[0].Touch.Fingerprint, r.Fingerprint) {
+	if b := records[0].Burst; b.Minute != now.UTC().Truncate(time.Minute) || b.Day != now.UTC().Truncate(24*time.Hour) ||
+		!bytes.Equal(b.Fingerprint, r.Fingerprint) || b.Service != r.Service || b.Tenant != "" {
+		t.Fatalf("burst %+v", b)
+	}
+
+	if !records[0].Touch.Time.Equal(r.Time) || !bytes.Equal(records[0].Touch.Fingerprint, r.Fingerprint) {
 		t.Fatalf("touch %+v", records[0].Touch)
 	}
 

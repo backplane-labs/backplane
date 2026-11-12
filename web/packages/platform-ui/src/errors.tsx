@@ -16,7 +16,7 @@ import { serviceColor } from './wiring/graph.js';
 import { TraceLookup } from './explore-traces.js';
 import { FilterRow } from './audit.js';
 import { addValue, FeedFacets, FeedFilterBar, FeedHistogram, FeedTimeBar, textOps, useFresh, valueLabel, type FeedChip, type FeedOp, type FeedTarget } from './feed.js';
-import { causesOf, errorFieldEnum, errorFieldNames, errorFieldOf, errorFilterOf, exactErrorFields, groupFilterOf, historyOf, relatedRecords, reportOf, retentionText,
+import { causesOf, errorFieldEnum, errorFieldNames, errorFieldOf, errorFieldOps, errorFilterOf, groupFilterOf, historyOf, relatedRecords, reportOf, retentionText,
   stateOf, type ErrorFieldName, type ErrorGroupRef } from './errors-model.js';
 
 /** How the errors page lists: by group (one row per distinct error) or every occurrence. */
@@ -38,8 +38,8 @@ const statesEnum: Record<ErrorsStates, ErrorGroupState[]> = {
 };
 const stateName: Partial<Record<ErrorGroupState, 'open' | 'resolved' | 'muted'>> = { [ErrorGroupState.OPEN]: 'open', [ErrorGroupState.RESOLVED]: 'resolved', [ErrorGroupState.MUTED]: 'muted' };
 
-const facetFields: readonly ErrorFieldName[] = ['service', 'type', 'environment', 'release', 'handled'];
-const exactOps: readonly FeedOp[] = ['is', 'is_not'];
+// tenant: only an upstream installation has values; elsewhere its facet stays hidden.
+const facetFields: readonly ErrorFieldName[] = ['service', 'type', 'environment', 'release', 'handled', 'tenant'];
 const sortEnum: Record<ErrorsSort, ErrorGroupSort> = { last_seen: ErrorGroupSort.LAST_SEEN, count: ErrorGroupSort.COUNT, first_seen: ErrorGroupSort.FIRST_SEEN };
 type Mode = 'dark' | 'light';
 
@@ -91,7 +91,7 @@ export function ErrorsExplorer({ mode, service, state, onStateChange }: { mode: 
     const field = errorFieldOf(facet.field);
     return { key: field, label: text(`errorField_${field}`), values: facet.values.map((entry) => ({ value: entry.value as JsonValue, count: Number(entry.count) })) };
   }), [facets.value, text]);
-  const targets = useMemo<FeedTarget[]>(() => errorFieldNames.map((field) => ({ key: field, label: text(`errorField_${field}`), ops: exactErrorFields.includes(field) ? exactOps : textOps })), [text]);
+  const targets = useMemo<FeedTarget[]>(() => errorFieldNames.map((field) => ({ key: field, label: text(`errorField_${field}`), ops: errorFieldOps[field] })), [text]);
   const suggest = (field: string) => field === 'origin' ? ['sdk', 'otel_log'] : field === 'handled' ? ['true', 'false'] : field === 'ingest' ? ['trusted', 'proxy']
     : facetValues.find((facet) => facet.key === field)?.values.map((entry) => entry.value) ?? [];
 
@@ -343,7 +343,7 @@ function ErrorDetail({ refId, mode, info, onAdd, onOpenGroup }: {
 
 /** Stored fields a chip can filter on. */
 const fieldOfStored: Record<string, ErrorFieldName> = {
-  'service.name': 'service', 'deployment.environment.name': 'environment', 'exception.type': 'type', 'service.version': 'release', 'service.instance.id': 'instance', trace_id: 'trace_id',
+  'service.name': 'service', 'deployment.environment.name': 'environment', 'exception.type': 'type', 'service.version': 'release', 'service.instance.id': 'instance', 'tenant.id': 'tenant', trace_id: 'trace_id',
   'app.debug.runtime.id': 'runtime_id', 'app.debug.group.key': 'group_key', 'app.debug.exception.handled': 'handled', 'backplane.fingerprint': 'fingerprint', 'backplane.ingest': 'ingest', 'backplane.origin': 'origin',
 };
 
@@ -352,7 +352,7 @@ function EnvironmentTab({ detail, mode, onAdd }: { detail: GetErrorResponse; mod
   const text = usePlatformText(), o = detail.occurrence!;
   const facts: [ErrorFieldName | undefined, string, string][] = [
     ['service', text('service'), o.service], ['environment', text('errorField_environment'), o.environment], ['release', text('errorField_release'), o.release],
-    ['instance', text('errorField_instance'), detail.fields['service.instance.id'] ?? ''], ['origin', text('errorField_origin'), o.origin === ErrorOrigin.SDK ? 'sdk' : 'otel_log'],
+    ['instance', text('errorField_instance'), detail.fields['service.instance.id'] ?? ''], ['tenant', text('errorField_tenant'), o.tenant], ['origin', text('errorField_origin'), o.origin === ErrorOrigin.SDK ? 'sdk' : 'otel_log'],
     ['ingest', text('errorField_ingest'), o.ingest], [undefined, text('receivedAt'), o.receivedAt ? timestampDate(o.receivedAt).toISOString() : ''], [undefined, text('scope'), detail.scope],
     ['runtime_id', text('errorField_runtime_id'), o.runtimeId], ['group_key', text('errorField_group_key'), o.groupKey],
   ];

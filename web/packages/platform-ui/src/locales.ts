@@ -201,7 +201,7 @@ export const platformEnglish = {
   errorTab_stack: 'Stack', errorTab_state: 'State', errorTab_history: 'History', errorTab_trace: 'Trace', errorTab_logs: 'Logs', errorTab_environment: 'Environment', errorTab_fields: 'Fields',
   errorField_service: 'Service', errorField_environment: 'Environment', errorField_type: 'Type', errorField_message: 'Message', errorField_release: 'Release',
   errorField_trace_id: 'Trace ID', errorField_runtime_id: 'Runtime', errorField_group_key: 'Group key', errorField_origin: 'Origin', errorField_fingerprint: 'Fingerprint', errorField_handled: 'Handled',
-  errorField_ingest: 'Ingest', errorField_instance: 'Instance',
+  errorField_ingest: 'Ingest', errorField_instance: 'Instance', errorField_tenant: 'Tenant',
   itemType: 'Item type', makeForEach: 'Run for each item…', stopForEach: 'Run once', inLoop: 'in {{name}}', itemN: 'item {{item}}', items_one: '{{count}} item', items_other: '{{count}} items',
 } as const;
 type PlatformKey = keyof typeof platformEnglish extends infer K ? K extends `${infer B}_${'one' | 'other'}` ? B : K : never;

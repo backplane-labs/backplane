@@ -319,11 +319,6 @@ CREATE TABLE backplane.app_error_group (
   last_seen    timestamptz NOT NULL,
   count        bigint      NOT NULL DEFAULT 0,
   stored       bigint      NOT NULL DEFAULT 0,
-  -- Burst windows: occurrences seen in the current minute and day.
-  minute_start timestamptz NOT NULL,
-  minute_count integer     NOT NULL DEFAULT 0,
-  day_start    timestamptz NOT NULL,
-  day_count    integer     NOT NULL DEFAULT 0,
   -- Triage: open, resolved or muted, by whom and why; a resolved group
   -- reopens on an occurrence after its resolution and remembers when.
   state        text        NOT NULL DEFAULT 'open',
@@ -338,6 +333,21 @@ CREATE TABLE backplane.app_error_group (
 CREATE INDEX app_error_group_last_seen_idx ON backplane.app_error_group (last_seen);
 CREATE INDEX app_error_group_service_idx ON backplane.app_error_group (service, last_seen);
 
+-- Burst windows of a group per tenant: occurrences seen in the current
+-- minute and day, so one tenant's storm does not use up the group's
+-- storage for the others ('' is the occurrences without a tenant).
+CREATE TABLE backplane.app_error_burst (
+  fingerprint  bytea       NOT NULL,
+  service      text        NOT NULL,
+  tenant       text        NOT NULL,
+  minute_start timestamptz NOT NULL,
+  minute_count integer     NOT NULL DEFAULT 0,
+  day_start    timestamptz NOT NULL,
+  day_count    integer     NOT NULL DEFAULT 0,
+  PRIMARY KEY (fingerprint, service, tenant),
+  FOREIGN KEY (fingerprint, service) REFERENCES backplane.app_error_group (fingerprint, service) ON DELETE CASCADE
+);
+
 CREATE TABLE backplane.app_error (
   id            uuid        PRIMARY KEY,
   -- Deduplicates the Collector's retries: the SDK's event id, else a hash
@@ -350,6 +360,9 @@ CREATE TABLE backplane.app_error (
   environment   text        NOT NULL DEFAULT '',
   release       text        NOT NULL DEFAULT '',
   instance      text        NOT NULL DEFAULT '',
+  -- The resource's tenant.id: the tenant (an installation, a customer) an
+  -- upstream installation received it for; '' without one.
+  tenant        text        NOT NULL DEFAULT '',
   -- sdk | otel_log
   origin        text        NOT NULL,
   -- proxy (the public OTLP ingest: browsers) | trusted (the Collector's own senders)
@@ -383,4 +396,5 @@ CREATE INDEX app_error_group_idx ON backplane.app_error (fingerprint, service, t
 CREATE INDEX app_error_trace_idx ON backplane.app_error (trace_id) WHERE trace_id <> '';
 CREATE INDEX app_error_runtime_idx ON backplane.app_error (runtime_id) WHERE runtime_id <> '';
 CREATE INDEX app_error_type_idx ON backplane.app_error (type, time DESC);
+CREATE INDEX app_error_tenant_idx ON backplane.app_error (tenant, time DESC) WHERE tenant <> '';
 CREATE INDEX app_error_attributes_idx ON backplane.app_error USING gin (attributes jsonb_path_ops);

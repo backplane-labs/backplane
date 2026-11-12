@@ -97,6 +97,8 @@ const (
 	// "proxy" / "trusted"; is / is_not.
 	ErrorField_ERROR_FIELD_INGEST   ErrorField = 12
 	ErrorField_ERROR_FIELD_INSTANCE ErrorField = 13
+	// The resource's tenant.id; is / is_not / exists.
+	ErrorField_ERROR_FIELD_TENANT ErrorField = 14
 )
 
 // Enum value maps for ErrorField.
@@ -116,6 +118,7 @@ var (
 		11: "ERROR_FIELD_HANDLED",
 		12: "ERROR_FIELD_INGEST",
 		13: "ERROR_FIELD_INSTANCE",
+		14: "ERROR_FIELD_TENANT",
 	}
 	ErrorField_value = map[string]int32{
 		"ERROR_FIELD_UNSPECIFIED": 0,
@@ -132,6 +135,7 @@ var (
 		"ERROR_FIELD_HANDLED":     11,
 		"ERROR_FIELD_INGEST":      12,
 		"ERROR_FIELD_INSTANCE":    13,
+		"ERROR_FIELD_TENANT":      14,
 	}
 )
 
@@ -429,7 +433,10 @@ type ErrorOccurrence struct {
 	Ingest     string                 `protobuf:"bytes,18,opt,name=ingest,proto3" json:"ingest,omitempty"`
 	ReceivedAt *timestamppb.Timestamp `protobuf:"bytes,19,opt,name=received_at,json=receivedAt,proto3" json:"received_at,omitempty"`
 	// The stored record was cut to the size limit (stack, envelope).
-	Truncated     bool `protobuf:"varint,20,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	Truncated bool `protobuf:"varint,20,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	// The resource's tenant.id: the tenant (an installation, a customer) an
+	// upstream installation received it for; empty without one.
+	Tenant        string `protobuf:"bytes,21,opt,name=tenant,proto3" json:"tenant,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -602,6 +609,13 @@ func (x *ErrorOccurrence) GetTruncated() bool {
 		return x.Truncated
 	}
 	return false
+}
+
+func (x *ErrorOccurrence) GetTenant() string {
+	if x != nil {
+		return x.Tenant
+	}
+	return ""
 }
 
 type ErrorCondition struct {
@@ -2344,7 +2358,7 @@ var File_backplanepb_console_v1_errors_proto protoreflect.FileDescriptor
 
 const file_backplanepb_console_v1_errors_proto_rawDesc = "" +
 	"\n" +
-	"#backplanepb/console/v1/errors.proto\x12\x14backplane.console.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8a\x05\n" +
+	"#backplanepb/console/v1/errors.proto\x12\x14backplane.console.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa2\x05\n" +
 	"\x0fErrorOccurrence\x12\x10\n" +
 	"\x03ref\x18\x01 \x01(\tR\x03ref\x129\n" +
 	"\x06origin\x18\x02 \x01(\x0e2!.backplane.console.v1.ErrorOriginR\x06origin\x12\x19\n" +
@@ -2368,7 +2382,8 @@ const file_backplanepb_console_v1_errors_proto_rawDesc = "" +
 	"\x06ingest\x18\x12 \x01(\tR\x06ingest\x12;\n" +
 	"\vreceived_at\x18\x13 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"receivedAt\x12\x1c\n" +
-	"\ttruncated\x18\x14 \x01(\bR\ttruncated\"\x95\x01\n" +
+	"\ttruncated\x18\x14 \x01(\bR\ttruncated\x12\x16\n" +
+	"\x06tenant\x18\x15 \x01(\tR\x06tenant\"\x95\x01\n" +
 	"\x0eErrorCondition\x126\n" +
 	"\x05field\x18\x01 \x01(\x0e2 .backplane.console.v1.ErrorFieldR\x05field\x123\n" +
 	"\x02op\x18\x02 \x01(\x0e2#.backplane.console.v1.ErrorOperatorR\x02op\x12\x16\n" +
@@ -2522,7 +2537,7 @@ const file_backplanepb_console_v1_errors_proto_rawDesc = "" +
 	"\vErrorOrigin\x12\x1c\n" +
 	"\x18ERROR_ORIGIN_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10ERROR_ORIGIN_SDK\x10\x01\x12\x19\n" +
-	"\x15ERROR_ORIGIN_OTEL_LOG\x10\x02*\xf8\x02\n" +
+	"\x15ERROR_ORIGIN_OTEL_LOG\x10\x02*\x90\x03\n" +
 	"\n" +
 	"ErrorField\x12\x1b\n" +
 	"\x17ERROR_FIELD_UNSPECIFIED\x10\x00\x12\x17\n" +
@@ -2539,7 +2554,8 @@ const file_backplanepb_console_v1_errors_proto_rawDesc = "" +
 	"\x12\x17\n" +
 	"\x13ERROR_FIELD_HANDLED\x10\v\x12\x16\n" +
 	"\x12ERROR_FIELD_INGEST\x10\f\x12\x18\n" +
-	"\x14ERROR_FIELD_INSTANCE\x10\r*\xf4\x01\n" +
+	"\x14ERROR_FIELD_INSTANCE\x10\r\x12\x16\n" +
+	"\x12ERROR_FIELD_TENANT\x10\x0e*\xf4\x01\n" +
 	"\rErrorOperator\x12\x1e\n" +
 	"\x1aERROR_OPERATOR_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11ERROR_OPERATOR_IS\x10\x01\x12\x19\n" +

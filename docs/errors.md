@@ -120,9 +120,17 @@ Each record becomes one occurrence (`backplane.app_error`) in a group
 - **Deduplication**: a retry of one record (the Collector's, the SDK's) is
   stored once, by the service and the SDK's event id, else by the record and
   its resource as sent.
+- **Tenant**: the resource attribute `tenant.id` names the tenant a record
+  was received for: an installation, a customer. A gateway in front of an
+  upstream installation sets it on the records it forwards from many
+  installations. It is stored per occurrence, listed, filterable
+  (is / is not / exists) and a facet; groups stay one per fingerprint and
+  service across tenants, so one bug is one group wherever it happens.
 - **Bursts**: a group stores at most `BACKPLANE_ERRORS_BURST_PER_MINUTE` (60)
-  occurrences a minute and `BACKPLANE_ERRORS_BURST_PER_DAY` (2000) a day;
-  past that it only counts. The console shows the stored and the counted.
+  occurrences a minute and `BACKPLANE_ERRORS_BURST_PER_DAY` (2000) a day per
+  tenant (the records without one are a tenant of their own), so one
+  tenant's storm does not use up the others' storage; past that it only
+  counts. The console shows the stored and the counted.
 - **Size**: a record over `BACKPLANE_ERRORS_MAX_RECORD_BYTES` (512 KiB) has
   its body and attributes replaced by a marker, a stack over 64 KiB is cut,
   small text fields over 4 KiB too; the occurrence is marked `truncated`.
@@ -166,8 +174,8 @@ log store of [obs-api.md](obs-api.md)):
   (none: open only).
 - `ErrorHistogram(filter)`: occurrences per bucket, at most 120 buckets.
 - `ErrorFacets(filter, fields, limit?)`: service, environment, type, release,
-  origin, ingest, instance, handled with counts and last seen; a field's own
-  conditions are left out.
+  origin, ingest, instance, tenant (only the occurrences that have one),
+  handled with counts and last seen; a field's own conditions are left out.
 - `GetError(ref)`: the stored fields, the stack, the resource, attributes and
   scope as `Struct`s, the group, and for the SDK the envelope checked against
   its schema (`internal/errors/envelope`); what did not check out is a
@@ -183,8 +191,9 @@ The filter is a range (required, at most 31 days; without a filter the last
 24 hours), a text (substring of the message or the stack, case-insensitive)
 and conditions on service, environment, type, message, release, trace id,
 runtime id, group key, origin (`sdk`, `otel_log`), fingerprint, handled
-(`true`, `false`), ingest (`trusted`, `proxy`) and instance with is / is not
-/ contains / starts with / exists where the field allows it. Everything is a
+(`true`, `false`), ingest (`trusted`, `proxy`), instance and tenant with is /
+is not / contains / starts with / exists where the field allows it; the
+console offers each field only the operators it takes. Everything is a
 parameter of a generated query (`internal/store/queries/app_error*.sql`); no
 SQL is built from callers.
 

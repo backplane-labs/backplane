@@ -67,7 +67,10 @@ for (const theme of ['dark', 'light']) for (const story of stories) {
       await drawer.getByRole('tab', { name: 'State', exact: true }).click(); await expect(drawer.getByText('cart', { exact: true })).toBeVisible();
       await drawer.getByRole('tab', { name: 'Logs', exact: true }).click(); await expect(drawer.getByText('rendering cart').first()).toBeVisible();
       await drawer.getByRole('tab', { name: 'Environment', exact: true }).click(); await expect(drawer.getByText('app-debug.browser@0.1.0', { exact: true })).toBeVisible();
+      // An upstream installation's tenant: a fact of the occurrence and a facet of the list.
+      await expect(drawer.getByText('inst-7', { exact: true })).toBeVisible();
       await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
+      await expect(page.getByRole('button', { name: /^inst-7/ }).first()).toBeVisible();
       await expect(table.locator('tbody tr')).toHaveCount(1);
       await page.getByRole('combobox', { name: 'State', exact: true }).click(); await page.getByRole('option', { name: 'All states', exact: true }).click();
       await expect(table.locator('tbody tr')).toHaveCount(2);

@@ -44,7 +44,7 @@ const fingerprintOf = (service: string) => service === 'shop-web' ? '0f1e2d3c4b5
 const errorOccurrences = () => [
   create(api.ErrorOccurrenceSchema, { ref: 'err-web', origin: api.ErrorOrigin.SDK, eventId: 'd45238c7-4ff0-4e5f-819b-f8d0f4c3c143', time: appTime(4), receivedAt: appTime(4), service: 'shop-web',
     environment: 'production', release: '1.4.2', type: 'TypeError', message: "Cannot read properties of undefined (reading 'price')", severity: 17, fingerprint: fingerprintOf('shop-web'), ingest: 'proxy',
-    traceId: '0102030405060708090a0b0c0d0e0f10', spanId: '0102030405060708', runtimeId: 'b35e19ae-b217-4f30-ab89-0a9084b7f144', mechanism: 'window.error', unhandled: true }),
+    traceId: '0102030405060708090a0b0c0d0e0f10', spanId: '0102030405060708', runtimeId: 'b35e19ae-b217-4f30-ab89-0a9084b7f144', mechanism: 'window.error', unhandled: true, tenant: 'inst-7' }),
   create(api.ErrorOccurrenceSchema, { ref: 'err-api', origin: api.ErrorOrigin.OTEL_LOG, time: appTime(3), receivedAt: appTime(3), service: 'billing', environment: 'production', release: '2.0.0',
     type: '*billing.DeclinedError', message: 'charge: card declined', severity: 17, fingerprint: fingerprintOf('billing'), ingest: 'trusted' }),
 ];
@@ -167,7 +167,8 @@ export class PlatformFixture implements ClientRuntime {
       async errorHistogram() { return create(api.ErrorHistogramResponseSchema, { stepMillis: 60_000n, total: 2n, buckets: [0, 1, 2, 3, 4, 5].map((minute) => ({ start: appTime(minute), count: minute === 3 || minute === 4 ? 1n : 0n })) }); },
       async errorFacets(request: api.ErrorFacetsRequest) {
         return create(api.ErrorFacetsResponseSchema, { facets: request.fields.map((field) => ({ field, values: field === api.ErrorField.SERVICE
-          ? [{ value: 'shop-web', count: 1n, lastSeen: appTime(4) }, { value: 'billing', count: 1n, lastSeen: appTime(3) }] : [] })) });
+          ? [{ value: 'shop-web', count: 1n, lastSeen: appTime(4) }, { value: 'billing', count: 1n, lastSeen: appTime(3) }]
+          : field === api.ErrorField.TENANT ? [{ value: 'inst-7', count: 1n, lastSeen: appTime(4) }] : [] })) });
       },
       async getError(request: api.GetErrorRequest) { return errorDetail(request.ref); },
       async relatedLogs() { return create(api.RelatedLogsResponseSchema, { status: 'available', logs: [{ time: appTime(4), fields: { _msg: 'rendering cart', service: 'shop-web', severity: 'INFO' } }] }); },

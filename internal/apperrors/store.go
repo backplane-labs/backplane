@@ -92,8 +92,9 @@ func (s *Service) Limits() Limits { return s.settings.limits() }
 // Ready reports whether records can be stored.
 func (s *Service) Ready() bool { return !s.store.IsZero() && s.store.Ready() }
 
-// Save stores the records: each touches its group and is stored while the
-// group's burst windows allow; a retried record (same key) is stored once.
+// Save stores the records: each touches its group and is stored while its
+// tenant's burst windows in the group allow, so one tenant's storm leaves
+// the others' storage alone; a retried record (same key) is stored once.
 // Returns how many were stored and how many only counted.
 func (s *Service) Save(ctx context.Context, records []Record) (int64, int64, error) {
 	if !s.Ready() {
@@ -108,9 +109,13 @@ func (s *Service) Save(ctx context.Context, records []Record) (int64, int64, err
 		r := &records[i]
 
 		err := st.InTx(ctx, func(ctx context.Context) error {
-			windows, err := st.Q.TouchErrorGroup(ctx, r.Touch)
-			if err != nil {
+			if err := st.Q.TouchErrorGroup(ctx, r.Touch); err != nil {
 				return fmt.Errorf("touch group: %w", err)
+			}
+
+			windows, err := st.Q.TouchErrorBurst(ctx, r.Burst)
+			if err != nil {
+				return fmt.Errorf("touch burst: %w", err)
 			}
 
 			if int64(windows.MinuteCount) > s.settings.BurstPerMinute || int64(windows.DayCount) > s.settings.BurstPerDay {
@@ -126,8 +131,14 @@ func (s *Service) Save(ctx context.Context, records []Record) (int64, int64, err
 
 			if n == 0 {
 				// A retry of a stored record: its touch counted it twice.
-				return st.Q.UncountErrorDuplicate(ctx, db.UncountErrorDuplicateParams{
+				if err := st.Q.UncountErrorDuplicate(ctx, db.UncountErrorDuplicateParams{
 					Fingerprint: r.Touch.Fingerprint, Service: r.Touch.Service,
+				}); err != nil {
+					return fmt.Errorf("uncount duplicate: %w", err)
+				}
+
+				return st.Q.UncountErrorBurst(ctx, db.UncountErrorBurstParams{
+					Fingerprint: r.Burst.Fingerprint, Service: r.Burst.Service, Tenant: r.Burst.Tenant,
 				})
 			}
 

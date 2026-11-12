@@ -5,7 +5,7 @@
 -- alone.
 
 -- name: SearchErrors :many
-SELECT e.id, e.fingerprint, e.service, e.time, e.received_at, e.environment, e.release, e.instance, e.origin, e.ingest,
+SELECT e.id, e.fingerprint, e.service, e.time, e.received_at, e.environment, e.release, e.instance, e.tenant, e.origin, e.ingest,
   e.event_id, e.type, e.message, e.severity, e.mechanism, e.handled, e.group_key, e.trace_id, e.span_id, e.runtime_id,
   e.truncated
 FROM backplane.app_error e
@@ -48,6 +48,9 @@ WHERE e.time >= @start AND e.time < @end
   AND (cardinality(@ingest_not::text[]) = 0 OR NOT (e.ingest = ANY(@ingest_not::text[])))
   AND (cardinality(@instance_in::text[]) = 0 OR e.instance = ANY(@instance_in::text[]))
   AND (cardinality(@instance_not::text[]) = 0 OR NOT (e.instance = ANY(@instance_not::text[])))
+  AND (cardinality(@tenant_in::text[]) = 0 OR e.tenant = ANY(@tenant_in::text[]))
+  AND (cardinality(@tenant_not::text[]) = 0 OR NOT (e.tenant = ANY(@tenant_not::text[])))
+  AND (@tenant_exists::int = 0 OR (@tenant_exists::int > 0) = (e.tenant <> ''))
   AND (@text::text = '' OR e.message ILIKE '%' || @text::text || '%' OR e.type ILIKE '%' || @text::text || '%'
     OR (@text_in_stack::bool AND e.stacktrace ILIKE '%' || @text::text || '%'))
   AND (e.time, e.id) < (@before_time::timestamptz, @before_id::uuid)
@@ -96,6 +99,9 @@ WHERE e.time >= @start AND e.time < @end
   AND (cardinality(@ingest_not::text[]) = 0 OR NOT (e.ingest = ANY(@ingest_not::text[])))
   AND (cardinality(@instance_in::text[]) = 0 OR e.instance = ANY(@instance_in::text[]))
   AND (cardinality(@instance_not::text[]) = 0 OR NOT (e.instance = ANY(@instance_not::text[])))
+  AND (cardinality(@tenant_in::text[]) = 0 OR e.tenant = ANY(@tenant_in::text[]))
+  AND (cardinality(@tenant_not::text[]) = 0 OR NOT (e.tenant = ANY(@tenant_not::text[])))
+  AND (@tenant_exists::int = 0 OR (@tenant_exists::int > 0) = (e.tenant <> ''))
   AND (@text::text = '' OR e.message ILIKE '%' || @text::text || '%' OR e.type ILIKE '%' || @text::text || '%'
     OR (@text_in_stack::bool AND e.stacktrace ILIKE '%' || @text::text || '%'))
 GROUP BY bucket
@@ -143,6 +149,9 @@ WHERE e.time >= @start AND e.time < @end
   AND (cardinality(@ingest_not::text[]) = 0 OR NOT (e.ingest = ANY(@ingest_not::text[])))
   AND (cardinality(@instance_in::text[]) = 0 OR e.instance = ANY(@instance_in::text[]))
   AND (cardinality(@instance_not::text[]) = 0 OR NOT (e.instance = ANY(@instance_not::text[])))
+  AND (cardinality(@tenant_in::text[]) = 0 OR e.tenant = ANY(@tenant_in::text[]))
+  AND (cardinality(@tenant_not::text[]) = 0 OR NOT (e.tenant = ANY(@tenant_not::text[])))
+  AND (@tenant_exists::int = 0 OR (@tenant_exists::int > 0) = (e.tenant <> ''))
   AND (@text::text = '' OR e.message ILIKE '%' || @text::text || '%' OR e.type ILIKE '%' || @text::text || '%'
     OR (@text_in_stack::bool AND e.stacktrace ILIKE '%' || @text::text || '%'))
 GROUP BY e.service
@@ -191,6 +200,9 @@ WHERE e.time >= @start AND e.time < @end
   AND (cardinality(@ingest_not::text[]) = 0 OR NOT (e.ingest = ANY(@ingest_not::text[])))
   AND (cardinality(@instance_in::text[]) = 0 OR e.instance = ANY(@instance_in::text[]))
   AND (cardinality(@instance_not::text[]) = 0 OR NOT (e.instance = ANY(@instance_not::text[])))
+  AND (cardinality(@tenant_in::text[]) = 0 OR e.tenant = ANY(@tenant_in::text[]))
+  AND (cardinality(@tenant_not::text[]) = 0 OR NOT (e.tenant = ANY(@tenant_not::text[])))
+  AND (@tenant_exists::int = 0 OR (@tenant_exists::int > 0) = (e.tenant <> ''))
   AND (@text::text = '' OR e.message ILIKE '%' || @text::text || '%' OR e.type ILIKE '%' || @text::text || '%'
     OR (@text_in_stack::bool AND e.stacktrace ILIKE '%' || @text::text || '%'))
 GROUP BY e.type
@@ -239,6 +251,9 @@ WHERE e.time >= @start AND e.time < @end
   AND (cardinality(@ingest_not::text[]) = 0 OR NOT (e.ingest = ANY(@ingest_not::text[])))
   AND (cardinality(@instance_in::text[]) = 0 OR e.instance = ANY(@instance_in::text[]))
   AND (cardinality(@instance_not::text[]) = 0 OR NOT (e.instance = ANY(@instance_not::text[])))
+  AND (cardinality(@tenant_in::text[]) = 0 OR e.tenant = ANY(@tenant_in::text[]))
+  AND (cardinality(@tenant_not::text[]) = 0 OR NOT (e.tenant = ANY(@tenant_not::text[])))
+  AND (@tenant_exists::int = 0 OR (@tenant_exists::int > 0) = (e.tenant <> ''))
   AND (@text::text = '' OR e.message ILIKE '%' || @text::text || '%' OR e.type ILIKE '%' || @text::text || '%'
     OR (@text_in_stack::bool AND e.stacktrace ILIKE '%' || @text::text || '%'))
 GROUP BY e.environment
@@ -287,6 +302,9 @@ WHERE e.time >= @start AND e.time < @end
   AND (cardinality(@ingest_not::text[]) = 0 OR NOT (e.ingest = ANY(@ingest_not::text[])))
   AND (cardinality(@instance_in::text[]) = 0 OR e.instance = ANY(@instance_in::text[]))
   AND (cardinality(@instance_not::text[]) = 0 OR NOT (e.instance = ANY(@instance_not::text[])))
+  AND (cardinality(@tenant_in::text[]) = 0 OR e.tenant = ANY(@tenant_in::text[]))
+  AND (cardinality(@tenant_not::text[]) = 0 OR NOT (e.tenant = ANY(@tenant_not::text[])))
+  AND (@tenant_exists::int = 0 OR (@tenant_exists::int > 0) = (e.tenant <> ''))
   AND (@text::text = '' OR e.message ILIKE '%' || @text::text || '%' OR e.type ILIKE '%' || @text::text || '%'
     OR (@text_in_stack::bool AND e.stacktrace ILIKE '%' || @text::text || '%'))
 GROUP BY e.release
@@ -335,6 +353,9 @@ WHERE e.time >= @start AND e.time < @end
   AND (cardinality(@ingest_not::text[]) = 0 OR NOT (e.ingest = ANY(@ingest_not::text[])))
   AND (cardinality(@instance_in::text[]) = 0 OR e.instance = ANY(@instance_in::text[]))
   AND (cardinality(@instance_not::text[]) = 0 OR NOT (e.instance = ANY(@instance_not::text[])))
+  AND (cardinality(@tenant_in::text[]) = 0 OR e.tenant = ANY(@tenant_in::text[]))
+  AND (cardinality(@tenant_not::text[]) = 0 OR NOT (e.tenant = ANY(@tenant_not::text[])))
+  AND (@tenant_exists::int = 0 OR (@tenant_exists::int > 0) = (e.tenant <> ''))
   AND (@text::text = '' OR e.message ILIKE '%' || @text::text || '%' OR e.type ILIKE '%' || @text::text || '%'
     OR (@text_in_stack::bool AND e.stacktrace ILIKE '%' || @text::text || '%'))
 GROUP BY e.origin
@@ -383,6 +404,9 @@ WHERE e.time >= @start AND e.time < @end
   AND (cardinality(@ingest_not::text[]) = 0 OR NOT (e.ingest = ANY(@ingest_not::text[])))
   AND (cardinality(@instance_in::text[]) = 0 OR e.instance = ANY(@instance_in::text[]))
   AND (cardinality(@instance_not::text[]) = 0 OR NOT (e.instance = ANY(@instance_not::text[])))
+  AND (cardinality(@tenant_in::text[]) = 0 OR e.tenant = ANY(@tenant_in::text[]))
+  AND (cardinality(@tenant_not::text[]) = 0 OR NOT (e.tenant = ANY(@tenant_not::text[])))
+  AND (@tenant_exists::int = 0 OR (@tenant_exists::int > 0) = (e.tenant <> ''))
   AND (@text::text = '' OR e.message ILIKE '%' || @text::text || '%' OR e.type ILIKE '%' || @text::text || '%'
     OR (@text_in_stack::bool AND e.stacktrace ILIKE '%' || @text::text || '%'))
 GROUP BY e.ingest
@@ -431,9 +455,65 @@ WHERE e.time >= @start AND e.time < @end
   AND (cardinality(@ingest_not::text[]) = 0 OR NOT (e.ingest = ANY(@ingest_not::text[])))
   AND (cardinality(@instance_in::text[]) = 0 OR e.instance = ANY(@instance_in::text[]))
   AND (cardinality(@instance_not::text[]) = 0 OR NOT (e.instance = ANY(@instance_not::text[])))
+  AND (cardinality(@tenant_in::text[]) = 0 OR e.tenant = ANY(@tenant_in::text[]))
+  AND (cardinality(@tenant_not::text[]) = 0 OR NOT (e.tenant = ANY(@tenant_not::text[])))
+  AND (@tenant_exists::int = 0 OR (@tenant_exists::int > 0) = (e.tenant <> ''))
   AND (@text::text = '' OR e.message ILIKE '%' || @text::text || '%' OR e.type ILIKE '%' || @text::text || '%'
     OR (@text_in_stack::bool AND e.stacktrace ILIKE '%' || @text::text || '%'))
 GROUP BY e.instance
+ORDER BY count DESC, value
+LIMIT @page_size;
+
+-- name: ErrorFacetTenant :many
+-- Only the occurrences with a tenant: an installation that is no one's
+-- upstream has none, and its facet stays empty.
+SELECT e.tenant::text AS value, count(*)::bigint AS count, max(e.time) AS last_seen
+FROM backplane.app_error e
+WHERE e.time >= @start AND e.time < @end AND e.tenant <> ''
+  AND (cardinality(@service_in::text[]) = 0 OR e.service = ANY(@service_in::text[]))
+  AND (cardinality(@service_not::text[]) = 0 OR NOT (e.service = ANY(@service_not::text[])))
+  AND (cardinality(@service_prefix::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest(@service_prefix::text[]) p WHERE e.service LIKE p || '%'))
+  AND (cardinality(@environment_in::text[]) = 0 OR e.environment = ANY(@environment_in::text[]))
+  AND (cardinality(@environment_not::text[]) = 0 OR NOT (e.environment = ANY(@environment_not::text[])))
+  AND (@environment_exists::int = 0 OR (@environment_exists::int > 0) = (e.environment <> ''))
+  AND (cardinality(@release_in::text[]) = 0 OR e.release = ANY(@release_in::text[]))
+  AND (cardinality(@release_not::text[]) = 0 OR NOT (e.release = ANY(@release_not::text[])))
+  AND (cardinality(@release_prefix::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest(@release_prefix::text[]) p WHERE e.release LIKE p || '%'))
+  AND (@release_exists::int = 0 OR (@release_exists::int > 0) = (e.release <> ''))
+  AND (cardinality(@type_in::text[]) = 0 OR e.type = ANY(@type_in::text[]))
+  AND (cardinality(@type_not::text[]) = 0 OR NOT (e.type = ANY(@type_not::text[])))
+  AND (cardinality(@type_like::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest(@type_like::text[]) p WHERE e.type ILIKE '%' || p || '%'))
+  AND (cardinality(@type_not_like::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest(@type_not_like::text[]) p WHERE e.type ILIKE '%' || p || '%'))
+  AND (cardinality(@type_prefix::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest(@type_prefix::text[]) p WHERE e.type LIKE p || '%'))
+  AND (cardinality(@message_in::text[]) = 0 OR e.message = ANY(@message_in::text[]))
+  AND (cardinality(@message_not::text[]) = 0 OR NOT (e.message = ANY(@message_not::text[])))
+  AND (cardinality(@message_like::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest(@message_like::text[]) p WHERE e.message ILIKE '%' || p || '%'))
+  AND (cardinality(@message_not_like::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest(@message_not_like::text[]) p WHERE e.message ILIKE '%' || p || '%'))
+  AND (cardinality(@message_prefix::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest(@message_prefix::text[]) p WHERE e.message LIKE p || '%'))
+  AND (cardinality(@trace_in::text[]) = 0 OR e.trace_id = ANY(@trace_in::text[]))
+  AND (cardinality(@trace_not::text[]) = 0 OR NOT (e.trace_id = ANY(@trace_not::text[])))
+  AND (@trace_exists::int = 0 OR (@trace_exists::int > 0) = (e.trace_id <> ''))
+  AND (cardinality(@runtime_in::text[]) = 0 OR e.runtime_id = ANY(@runtime_in::text[]))
+  AND (cardinality(@runtime_not::text[]) = 0 OR NOT (e.runtime_id = ANY(@runtime_not::text[])))
+  AND (@runtime_exists::int = 0 OR (@runtime_exists::int > 0) = (e.runtime_id <> ''))
+  AND (cardinality(@group_key_in::text[]) = 0 OR e.group_key = ANY(@group_key_in::text[]))
+  AND (cardinality(@group_key_not::text[]) = 0 OR NOT (e.group_key = ANY(@group_key_not::text[])))
+  AND (@group_key_exists::int = 0 OR (@group_key_exists::int > 0) = (e.group_key <> ''))
+  AND (cardinality(@origin_in::text[]) = 0 OR e.origin = ANY(@origin_in::text[]))
+  AND (cardinality(@origin_not::text[]) = 0 OR NOT (e.origin = ANY(@origin_not::text[])))
+  AND (cardinality(@fingerprint_in::bytea[]) = 0 OR e.fingerprint = ANY(@fingerprint_in::bytea[]))
+  AND (cardinality(@fingerprint_not::bytea[]) = 0 OR NOT (e.fingerprint = ANY(@fingerprint_not::bytea[])))
+  AND (@handled::int = 0 OR (@handled::int > 0 AND e.handled IS TRUE) OR (@handled::int < 0 AND e.handled IS FALSE))
+  AND (cardinality(@ingest_in::text[]) = 0 OR e.ingest = ANY(@ingest_in::text[]))
+  AND (cardinality(@ingest_not::text[]) = 0 OR NOT (e.ingest = ANY(@ingest_not::text[])))
+  AND (cardinality(@instance_in::text[]) = 0 OR e.instance = ANY(@instance_in::text[]))
+  AND (cardinality(@instance_not::text[]) = 0 OR NOT (e.instance = ANY(@instance_not::text[])))
+  AND (cardinality(@tenant_in::text[]) = 0 OR e.tenant = ANY(@tenant_in::text[]))
+  AND (cardinality(@tenant_not::text[]) = 0 OR NOT (e.tenant = ANY(@tenant_not::text[])))
+  AND (@tenant_exists::int = 0 OR (@tenant_exists::int > 0) = (e.tenant <> ''))
+  AND (@text::text = '' OR e.message ILIKE '%' || @text::text || '%' OR e.type ILIKE '%' || @text::text || '%'
+    OR (@text_in_stack::bool AND e.stacktrace ILIKE '%' || @text::text || '%'))
+GROUP BY e.tenant
 ORDER BY count DESC, value
 LIMIT @page_size;
 
@@ -480,6 +560,9 @@ WHERE e.time >= @start AND e.time < @end AND e.handled IS NOT NULL
   AND (cardinality(@ingest_not::text[]) = 0 OR NOT (e.ingest = ANY(@ingest_not::text[])))
   AND (cardinality(@instance_in::text[]) = 0 OR e.instance = ANY(@instance_in::text[]))
   AND (cardinality(@instance_not::text[]) = 0 OR NOT (e.instance = ANY(@instance_not::text[])))
+  AND (cardinality(@tenant_in::text[]) = 0 OR e.tenant = ANY(@tenant_in::text[]))
+  AND (cardinality(@tenant_not::text[]) = 0 OR NOT (e.tenant = ANY(@tenant_not::text[])))
+  AND (@tenant_exists::int = 0 OR (@tenant_exists::int > 0) = (e.tenant <> ''))
   AND (@text::text = '' OR e.message ILIKE '%' || @text::text || '%' OR e.type ILIKE '%' || @text::text || '%'
     OR (@text_in_stack::bool AND e.stacktrace ILIKE '%' || @text::text || '%'))
 GROUP BY 1
@@ -541,6 +624,9 @@ FROM (
   AND (cardinality(@ingest_not::text[]) = 0 OR NOT (e.ingest = ANY(@ingest_not::text[])))
   AND (cardinality(@instance_in::text[]) = 0 OR e.instance = ANY(@instance_in::text[]))
   AND (cardinality(@instance_not::text[]) = 0 OR NOT (e.instance = ANY(@instance_not::text[])))
+  AND (cardinality(@tenant_in::text[]) = 0 OR e.tenant = ANY(@tenant_in::text[]))
+  AND (cardinality(@tenant_not::text[]) = 0 OR NOT (e.tenant = ANY(@tenant_not::text[])))
+  AND (@tenant_exists::int = 0 OR (@tenant_exists::int > 0) = (e.tenant <> ''))
   AND (@text::text = '' OR e.message ILIKE '%' || @text::text || '%' OR e.type ILIKE '%' || @text::text || '%'
     OR (@text_in_stack::bool AND e.stacktrace ILIKE '%' || @text::text || '%'))
   GROUP BY e.fingerprint, e.service
@@ -596,6 +682,9 @@ WHERE e.time >= @start AND e.time < @end
   AND (cardinality(@ingest_not::text[]) = 0 OR NOT (e.ingest = ANY(@ingest_not::text[])))
   AND (cardinality(@instance_in::text[]) = 0 OR e.instance = ANY(@instance_in::text[]))
   AND (cardinality(@instance_not::text[]) = 0 OR NOT (e.instance = ANY(@instance_not::text[])))
+  AND (cardinality(@tenant_in::text[]) = 0 OR e.tenant = ANY(@tenant_in::text[]))
+  AND (cardinality(@tenant_not::text[]) = 0 OR NOT (e.tenant = ANY(@tenant_not::text[])))
+  AND (@tenant_exists::int = 0 OR (@tenant_exists::int > 0) = (e.tenant <> ''))
   AND (@text::text = '' OR e.message ILIKE '%' || @text::text || '%' OR e.type ILIKE '%' || @text::text || '%'
     OR (@text_in_stack::bool AND e.stacktrace ILIKE '%' || @text::text || '%'))
   AND e.fingerprint = ANY(@fingerprints::bytea[])

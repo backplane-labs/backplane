@@ -42,11 +42,15 @@ const (
 	AttrGroupKey   = "app.debug.group.key"
 	AttrIngest     = "backplane.ingest"
 	AttrAudit      = "backplane.audit"
-	attrService    = "service.name"
-	attrEnv        = "deployment.environment.name"
-	attrRelease    = "service.version"
-	attrInstance   = "service.instance.id"
-	kindException  = "exception"
+	// AttrTenant is the resource attribute naming the tenant (an
+	// installation, a customer) a record was received for: a gateway in
+	// front of an upstream installation sets it.
+	AttrTenant    = "tenant.id"
+	attrService   = "service.name"
+	attrEnv       = "deployment.environment.name"
+	attrRelease   = "service.version"
+	attrInstance  = "service.instance.id"
+	kindException = "exception"
 )
 
 // Origins and ingests of a record.
@@ -86,10 +90,11 @@ var DefaultLimits = Limits{MaxRecord: defaultMaxRecord, MaxStack: defaultMaxStac
 const fingerprintBytes = 16
 
 // Record is one exception record as the store takes it: the occurrence's
-// row and its group's touch.
+// row, its group's touch and its tenant's burst windows in the group.
 type Record struct {
 	Insert db.InsertErrorParams
 	Touch  db.TouchErrorGroupParams
+	Burst  db.TouchErrorBurstParams
 }
 
 // IsException reports whether the record is an exception: by the OTel
@@ -203,13 +208,15 @@ func recordOf(
 	groupKey := otlprecord.StringAttr(attrs, AttrGroupKey)
 	fingerprint := Fingerprint(service, groupKey, typ, message, stack)
 	cut := func(s string) string { return otlprecord.CutBytes(s, limits.MaxField) }
+	tenant := cut(otlprecord.StringAttr(resource.GetAttributes(), AttrTenant))
 
 	return Record{
 		Insert: db.InsertErrorParams{
 			ID: uuid.Must(uuid.NewV7()), Key: recordKey(record, resource, service, eventID), Fingerprint: fingerprint,
 			Service: cut(service), Time: when, Environment: cut(otlprecord.StringAttr(resource.GetAttributes(), attrEnv)),
 			Release:  cut(otlprecord.StringAttr(resource.GetAttributes(), attrRelease)),
-			Instance: cut(otlprecord.StringAttr(resource.GetAttributes(), attrInstance)), Origin: origin, Ingest: ingest,
+			Instance: cut(otlprecord.StringAttr(resource.GetAttributes(), attrInstance)), Tenant: tenant,
+			Origin: origin, Ingest: ingest,
 			EventID: eventID, Type: cut(typ), Message: cut(message), Stacktrace: p.stack,
 			Severity: int32(record.GetSeverityNumber()), SeverityText: cut(otlprecord.SeverityText(record)),
 			EventName: cut(eventName(record)), Mechanism: cut(otlprecord.StringAttr(attrs, AttrMechanism)),
@@ -219,6 +226,9 @@ func recordOf(
 		},
 		Touch: db.TouchErrorGroupParams{
 			Fingerprint: fingerprint, Service: cut(service), Type: cut(typ), Message: cut(message), Time: when,
+		},
+		Burst: db.TouchErrorBurstParams{
+			Fingerprint: fingerprint, Service: cut(service), Tenant: tenant,
 			Minute: now.UTC().Truncate(time.Minute), Day: now.UTC().Truncate(dayWindow),
 		},
 	}, nil
