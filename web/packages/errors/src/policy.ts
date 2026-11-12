@@ -53,7 +53,7 @@ export function redactKeys(keys: readonly string[], replacement = '[REDACTED]'):
   }
 }
 
-export function tokenBucket(limits?: RateLimit) {
+export function tokenBucket(limits: RateLimit | undefined, monotonic: () => number) {
   if (
     limits &&
     (!Number.isFinite(limits.perSecond) ||
@@ -63,10 +63,10 @@ export function tokenBucket(limits?: RateLimit) {
   )
     throw new TypeError('invalid_rate_limit')
   let tokens = limits?.burst ?? 0,
-    last = performance.now()
+    last = monotonic()
   return () => {
     if (!limits) return true
-    const now = performance.now()
+    const now = monotonic()
     tokens = Math.min(limits.burst, tokens + (Math.max(0, now - last) * limits.perSecond) / 1000)
     last = now
     if (tokens < 1) return false

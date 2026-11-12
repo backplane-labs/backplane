@@ -26,7 +26,7 @@ dependencies; the public npm registry is not a publication target.
 | `schema-forms` | schemapb forms, validation presentation and JSON fallback | Configuration writes |
 | `platform-ui` | API-aware service, operation, audit and telemetry compositions | A second console shell |
 | `plugin-sdk` | Typed plugin definition, relative routes, navigation registry and host context; `usePluginErrorReporter()` reports a module's handled errors to the installation's Errors, marked `backplane.module` | Service deployment |
-| `errors` (`@backplane-labs/backplane-errors`) | Browser error capture for any frontend (the console, modules, applications) over OTLP logs; see [errors.md](errors.md) | Storage, queries, sourcemaps |
+| `errors` (`@backplane-labs/backplane-errors`) | Error capture for any frontend (the console, modules, applications; browser or another JavaScript host through ports) over OTLP logs; see [errors.md](errors.md) | Storage, queries, sourcemaps |
 | `plugin-build` | Pinned build preset, shared dependency contract, remote and manifest output | Running a local platform for authors |
 
 Names are `@backplane-labs/backplane-<suffix>`. Create packages when they have a real

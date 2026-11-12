@@ -10,14 +10,16 @@ import {
   type SnapshotOptions,
   type SnapshotResult,
 } from '../packages/errors/src/index'
+import { nodeRuntime } from './errors-runtime'
 import type { DebugEnvelopeV1, DebugSnapshotV1 } from '../packages/errors/src/protocol'
 
 function setup(options: Partial<ClientOptions> = {}) {
   const records: LogRecord[] = []
   const emit = vi.fn((record: LogRecord) => records.push(record))
   const client = createClient({
-    loggerProvider: { getLogger: () => ({ emit, enabled: () => true }) },
     ...options,
+    loggerProvider: options.loggerProvider ?? { getLogger: () => ({ emit, enabled: () => true }) },
+    runtime: options.runtime ?? nodeRuntime,
   })
   return {
     client,

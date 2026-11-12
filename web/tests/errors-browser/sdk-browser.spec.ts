@@ -11,8 +11,10 @@ test('local snapshot is detached and matches capture with native browser clocks 
   await page.goto('http://127.0.0.1:4181')
   const result = await page.evaluate(async (base) => {
     const { createClient, redactKeys } = await import(`${base}/index.ts`)
+    const { browserRuntime } = await import(`${base}/browser.ts`)
     const records: { body: string }[] = []
     const client = createClient({
+      runtime: browserRuntime,
       loggerProvider: { getLogger: () => ({ emit: (r: { body: string }) => records.push(r) }) },
       sanitize: redactKeys(['password']),
     })
@@ -54,9 +56,9 @@ test('local snapshot leaves native IndexedDB outbox and transport untouched', as
     return route.fulfill({ status: 200 })
   })
   const result = await page.evaluate(async (base) => {
-    const { createOtlpClient } = await import(`${base}/otlp.ts`)
+    const { createBrowserClient } = await import(`${base}/browser.ts`)
     let filters = 0
-    const client = createOtlpClient({
+    const client = createBrowserClient({
       url: `${location.origin}/snapshot-only/v1/logs`,
       outbox: { name: `snapshot-${crypto.randomUUID()}` },
       filter: () => {
@@ -96,9 +98,10 @@ test('native fetch/XHR/navigation: safe metadata, exclusions, failures, ownershi
   await page.route('**/network-failure', (route) => route.abort())
   const result = await page.evaluate(async (base) => {
     const { createClient } = await import(`${base}/index.ts`)
-    const { instrumentBrowser } = await import(`${base}/browser.ts`)
+    const { browserRuntime, instrumentBrowser } = await import(`${base}/browser.ts`)
     const records: { body: string }[] = []
     const client = createClient({
+      runtime: browserRuntime,
       loggerProvider: {
         getLogger: () => ({ emit: (record: { body: string }) => records.push(record) }),
       },
@@ -178,10 +181,10 @@ test('native IndexedDB stores sanitized data only and enforces whole-record budg
   await page.goto('http://127.0.0.1:4181')
   await page.route('**/blocked/v1/logs', (route) => route.abort())
   const result = await page.evaluate(async (base) => {
-    const { createOtlpClient } = await import(`${base}/otlp.ts`)
+    const { createBrowserClient } = await import(`${base}/browser.ts`)
     const { redactKeys } = await import(`${base}/index.ts`)
     const name = `privacy-${crypto.randomUUID()}`
-    const client = createOtlpClient({
+    const client = createBrowserClient({
       url: `${location.origin}/blocked/v1/logs`,
       sanitize: redactKeys(['password']),
       outbox: { name, maxEntries: 5, maxBytes: 40_000 },
@@ -243,8 +246,8 @@ test('real protobuf exporter classifies HTTP rejection and recovers after a netw
     } else await route.abort()
   })
   const rejected = await page.evaluate(async (base) => {
-    const { createOtlpClient } = await import(`${base}/otlp.ts`)
-    const client = createOtlpClient({
+    const { createBrowserClient } = await import(`${base}/browser.ts`)
+    const client = createBrowserClient({
       url: `${location.origin}/permanent/v1/logs`,
       outbox: { name: crypto.randomUUID() },
     })
@@ -259,8 +262,8 @@ test('real protobuf exporter classifies HTTP rejection and recovers after a netw
   expect(rejected.rejected).toBe(1)
   expect(rejected.entries).toBe(0)
   const before = await page.evaluate(async (base) => {
-    const { createOtlpClient } = await import(`${base}/otlp.ts`)
-    const client = createOtlpClient({
+    const { createBrowserClient } = await import(`${base}/browser.ts`)
+    const client = createBrowserClient({
       url: `${location.origin}/retry/v1/logs`,
       outbox: { name: crypto.randomUUID() },
     })
@@ -299,6 +302,7 @@ test('large captures and an error storm: measured latency, intact payload and ea
   await page.goto('http://127.0.0.1:4181')
   const result = await page.evaluate(async (base) => {
     const { createClient } = await import(`${base}/index.ts`)
+    const { browserRuntime: runtime } = await import(`${base}/browser.ts`)
     let last = '',
       reads = 0
     const provider = {
@@ -308,7 +312,7 @@ test('large captures and an error storm: measured latency, intact payload and ea
         },
       }),
     }
-    const client = createClient({ loggerProvider: provider })
+    const client = createClient({ loggerProvider: provider, runtime })
     const measurements = []
     for (const bytes of [10_240, 1_048_576]) {
       const values: number[] = []
@@ -331,6 +335,7 @@ test('large captures and an error storm: measured latency, intact payload and ea
     client.dispose()
     const limited = createClient({
       loggerProvider: provider,
+      runtime,
       rateLimit: { burst: 2, perSecond: 0.001 },
     })
     limited.registerState('expensive', {

@@ -16,7 +16,7 @@ All public packages use the `@backplane-labs` scope and GitHub Packages. They sh
 | `@backplane-labs/backplane-platform-ui` | Catalog, configuration, wiring, runs, API reference and investigation compositions |
 | `@backplane-labs/backplane-plugin-sdk` | Module routes, context, navigation, host contract and error reporting |
 | `@backplane-labs/backplane-plugin-build` | Vite/Module Federation build contract and shared dependency policy |
-| `@backplane-labs/backplane-errors` | Browser exception capture, state/breadcrumbs and OTLP delivery |
+| `@backplane-labs/backplane-errors` | Exception capture, state/breadcrumbs and OTLP delivery; host APIs behind ports, browser ports in `/browser` |
 
 ## Install from GitHub Packages
 

@@ -1,81 +1,51 @@
 import { retryDelay } from './delivery.js'
-/** Private IndexedDB format; never part of the app-debug wire contract. */
-export interface OutboxOptions {
-  /** Stable application/account namespace. Change on account or tenant changes. */
-  name: string
-  maxBytes?: number
-  maxEntries?: number
-  maxAgeMs?: number
-}
-export interface StoredExport {
-  id: string
-  payload: string
-  bytes: number
-  created: number
-  expires: number
-  next: number
-  attempts: number
-  owner?: string
-  lease?: number
-}
-export type OutboxLimits = Required<OutboxOptions>
-export function outboxLimits(options: OutboxOptions): OutboxLimits {
-  const limits = {
-    maxBytes: 10 * 1024 * 1024,
-    maxEntries: 1000,
-    maxAgeMs: 24 * 3600 * 1000,
-    ...options,
-  }
-  if (
-    !/^[a-zA-Z0-9_.-]{1,100}$/.test(limits.name) ||
-    ![limits.maxBytes, limits.maxEntries, limits.maxAgeMs].every(
-      (value) => Number.isSafeInteger(value) && value > 0
-    )
-  )
-    throw new TypeError('invalid_outbox_options')
-  return limits
-}
+import type { OutboxLimits, OutboxStorage, StoredExport } from './ports.js'
 
-export class OutboxStore {
+/** OutboxStorage on IndexedDB: shared by the tabs and workers of one origin. */
+export class IndexedDbOutbox implements OutboxStorage {
   private database?: IDBDatabase
   private opening?: Promise<IDBDatabase>
   private closed = false
   constructor(
-    private readonly name: string,
-    readonly limits: OutboxLimits
+    private readonly name: string | Promise<string>,
+    readonly limits: OutboxLimits,
+    private readonly now: () => number = Date.now
   ) {}
   private open() {
     if (this.closed) return Promise.reject(new Error('outbox_closed'))
-    this.opening ??= new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open(this.name, 1)
-      let finished = false
-      const timer = setTimeout(() => {
-        finished = true
-        reject(new Error('outbox_open_timeout'))
-      }, 3000)
-      const fail = () => {
-        finished = true
-        clearTimeout(timer)
-        reject(new Error('outbox_unavailable'))
-      }
-      request.onerror = fail
-      request.onblocked = fail
-      request.onupgradeneeded = () => {
-        const store = request.result.createObjectStore('records', { keyPath: 'id' })
-        store.createIndex('created', 'created')
-      }
-      request.onsuccess = () => {
-        clearTimeout(timer)
-        if (finished || this.closed) {
-          request.result.close()
-          reject(new Error('outbox_closed'))
-          return
-        }
-        this.database = request.result
-        this.database.onversionchange = () => this.close()
-        resolve(this.database)
-      }
-    })
+    this.opening ??= Promise.resolve(this.name).then(
+      (name) =>
+        new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open(name, 1)
+          let finished = false
+          const timer = setTimeout(() => {
+            finished = true
+            reject(new Error('outbox_open_timeout'))
+          }, 3000)
+          const fail = () => {
+            finished = true
+            clearTimeout(timer)
+            reject(new Error('outbox_unavailable'))
+          }
+          request.onerror = fail
+          request.onblocked = fail
+          request.onupgradeneeded = () => {
+            const store = request.result.createObjectStore('records', { keyPath: 'id' })
+            store.createIndex('created', 'created')
+          }
+          request.onsuccess = () => {
+            clearTimeout(timer)
+            if (finished || this.closed) {
+              request.result.close()
+              reject(new Error('outbox_closed'))
+              return
+            }
+            this.database = request.result
+            this.database.onversionchange = () => this.close()
+            resolve(this.database)
+          }
+        })
+    )
     return this.opening
   }
   async transaction<T>(
@@ -117,13 +87,14 @@ export class OutboxStore {
       let bytes = entry.bytes,
         count = 1,
         evicted = 0
+      const now = this.now()
       const existing: StoredExport[] = []
       const request = store.index('created').openCursor()
       request.onsuccess = () => {
         const cursor = request.result
         if (cursor) {
           const row = cursor.value as StoredExport
-          if (row.expires <= Date.now() || !Number.isSafeInteger(row.bytes) || row.bytes < 0) {
+          if (row.expires <= now || !Number.isSafeInteger(row.bytes) || row.bytes < 0) {
             cursor.delete()
             evicted++
           } else if (row.id !== entry.id) {
@@ -152,7 +123,7 @@ export class OutboxStore {
   }
   async claim(owner: string, force: boolean) {
     return this.transaction<{ entries: StoredExport[]; expired: number }>((store, done) => {
-      const now = Date.now(),
+      const now = this.now(),
         entries: StoredExport[] = []
       let expired = 0
       const request = store.index('created').openCursor()
@@ -182,6 +153,7 @@ export class OutboxStore {
   }
   async finish(entries: StoredExport[], owner: string, success: boolean) {
     return this.transaction<void>((store, done) => {
+      const now = this.now()
       for (const entry of entries) {
         const request = store.get(entry.id)
         request.onsuccess = () => {
@@ -190,7 +162,7 @@ export class OutboxStore {
           if (success) store.delete(row.id)
           else {
             row.attempts++
-            row.next = Date.now() + retryDelay(row.attempts)
+            row.next = now + retryDelay(row.attempts)
             delete row.owner
             delete row.lease
             store.put(row)
@@ -203,6 +175,7 @@ export class OutboxStore {
   async stats() {
     return this.transaction<{ entries: number; bytes: number; oldestAgeMs: number }>(
       (store, done) => {
+        const now = this.now()
         let entries = 0,
           bytes = 0,
           oldestAgeMs = 0
@@ -215,10 +188,10 @@ export class OutboxStore {
           }
           const row = cursor.value as StoredExport
           // Expiry is deleted by claim/put, which also report the diagnostic count.
-          if (row.expires > Date.now()) {
+          if (row.expires > now) {
             entries++
             bytes += row.bytes
-            oldestAgeMs = Math.max(oldestAgeMs, Date.now() - row.created)
+            oldestAgeMs = Math.max(oldestAgeMs, now - row.created)
           }
           cursor.continue()
         }

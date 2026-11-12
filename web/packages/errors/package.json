@@ -3,7 +3,7 @@
   "version": "0.1.1",
   "type": "module",
   "license": "MIT",
-  "description": "Browser error capture over OpenTelemetry logs, for any web frontend reporting to a Backplane installation",
+  "description": "Error capture over OpenTelemetry logs for any JavaScript runtime reporting to a Backplane installation, with browser adapters",
   "repository": {
     "type": "git",
     "url": "https://github.com/backplane-labs/backplane.git",
@@ -37,7 +37,7 @@
   },
   "sideEffects": false,
   "scripts": {
-    "build": "node scripts/version.mjs && tsc -p tsconfig.build.json",
+    "build": "node scripts/version.mjs && tsc -p tsconfig.core.json && tsc -p tsconfig.build.json",
     "prepack": "yarn build"
   },
   "peerDependencies": {

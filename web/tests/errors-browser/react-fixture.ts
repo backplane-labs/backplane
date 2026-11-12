@@ -1,11 +1,12 @@
 import { Component, createElement, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { createClient } from '../../packages/errors/src/index'
-import { createReactErrorHandler } from '../../packages/errors/src/browser'
+import { createClient, createReactErrorHandler } from '../../packages/errors/src/index'
+import { browserRuntime } from '../../packages/errors/src/browser'
 
 export async function reactFixture() {
   const records: unknown[] = []
   const client = createClient({
+    runtime: browserRuntime,
     loggerProvider: {
       getLogger: () => ({
         enabled: () => true,

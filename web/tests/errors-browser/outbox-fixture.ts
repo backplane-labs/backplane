@@ -1,10 +1,10 @@
 import { ROOT_CONTEXT, trace, createTraceState } from '@opentelemetry/api'
-import { createOtlpClient } from '../../packages/errors/src/otlp'
-import type { OutboxOptions } from '../../packages/errors/src/outbox'
+import { createBrowserClient } from '../../packages/errors/src/browser'
+import type { OutboxOptions } from '../../packages/errors/src/ports'
 
 export function outboxFixture(name: string, url: string, limits: Partial<OutboxOptions> = {}) {
   const diagnostics: string[] = []
-  const client = createOtlpClient({
+  const client = createBrowserClient({
     url,
     resource: { 'service.name': name },
     outbox: { name, ...limits },
@@ -38,11 +38,22 @@ export function outboxFixture(name: string, url: string, limits: Partial<OutboxO
 
 // Exporter fixtures only: failure paths use native IndexedDB, with deterministic transport results.
 export async function processorFixture() {
-  const [{ PersistentLogProcessor }, { LoggerProvider }, { createClient }] = await Promise.all([
+  const [
+    { PersistentLogProcessor },
+    { LoggerProvider },
+    { createClient },
+    { browserRuntime, browserTriggers, indexedDbOutbox },
+  ] = await Promise.all([
     import('../../packages/errors/src/outbox'),
     import('@opentelemetry/sdk-logs'),
     import('../../packages/errors/src/index'),
+    import('../../packages/errors/src/browser'),
   ])
+  const url = 'http://localhost:14318/v1/logs'
+  const ports = (options: OutboxOptions) => ({
+    storage: indexedDbOutbox(url, options),
+    triggers: browserTriggers(),
+  })
   const diagnostics: string[] = []
   const bodies: string[] = []
   let succeed = false,
@@ -64,14 +75,9 @@ export async function processorFixture() {
     if (reentrant) client?.captureException('diagnostic recursion')
   }
   const name = `processor-${crypto.randomUUID()}`
-  const processor = new PersistentLogProcessor(
-    exporter,
-    'http://localhost:14318/v1/logs',
-    { name },
-    diagnostic
-  )
+  const processor = new PersistentLogProcessor(exporter, ports({ name }), browserRuntime, diagnostic)
   const provider = new LoggerProvider({ processors: [processor] })
-  client = createClient({ loggerProvider: provider })
+  client = createClient({ loggerProvider: provider, runtime: browserRuntime })
   client.captureException('retry original')
   await processor.flushStorage()
   await processor.forceFlush()
@@ -112,12 +118,12 @@ export async function processorFixture() {
 
   const oversized = new PersistentLogProcessor(
     exporter,
-    'http://localhost:14318/v1/logs',
-    { name: `${name}-small`, maxBytes: 100 },
+    ports({ name: `${name}-small`, maxBytes: 100 }),
+    browserRuntime,
     diagnostic
   )
   const smallProvider = new LoggerProvider({ processors: [oversized] })
-  client = createClient({ loggerProvider: smallProvider })
+  client = createClient({ loggerProvider: smallProvider, runtime: browserRuntime })
   reentrant = true
   client.captureException('oversized', { state: 'x'.repeat(100_000) })
   await oversized.forceFlush()
@@ -131,12 +137,12 @@ export async function processorFixture() {
   const before = bodies.length
   const unavailable = new PersistentLogProcessor(
     exporter,
-    'http://localhost:14318/v1/logs',
-    { name: `${name}-blocked` },
+    ports({ name: `${name}-blocked` }),
+    browserRuntime,
     diagnostic
   )
   const blockedProvider = new LoggerProvider({ processors: [unavailable] })
-  client = createClient({ loggerProvider: blockedProvider })
+  client = createClient({ loggerProvider: blockedProvider, runtime: browserRuntime })
   client.captureException('storage blocked')
   try {
     await unavailable.flushStorage()

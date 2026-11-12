@@ -5,12 +5,22 @@ import type {
   ReadableLogRecord,
 } from '@opentelemetry/sdk-logs'
 import { decodeRecord, encodeRecord } from './outbox-record.js'
-import { OutboxStore, outboxLimits, type OutboxOptions, type StoredExport } from './outbox-store.js'
-import { globalScope } from './scope.js'
+import type {
+  DeliveryTriggers,
+  OutboxLimits,
+  OutboxStorage,
+  Runtime,
+  StoredExport,
+} from './ports.js'
 
-export type { OutboxOptions } from './outbox-store.js'
+/** Where an outbox keeps exports and what tells it to retry. */
+export interface OutboxPorts {
+  storage: OutboxStorage
+  /** Without triggers the outbox retries on its 1 s timer only. */
+  triggers?: DeliveryTriggers
+}
 
-/** Opt-in processor for the owned browser provider, using the standard protobuf exporter. */
+/** Persists every export before sending it, and replays what is pending. */
 export class PersistentLogProcessor implements LogRecordProcessor {
   private readonly counters: DeliveryStats = {
     exportAttempts: 0,
@@ -25,9 +35,9 @@ export class PersistentLogProcessor implements LogRecordProcessor {
     unpersistedLost: 0,
     storageFailures: 0,
   }
-  private readonly owner = crypto.randomUUID()
-  private readonly limits
-  private readonly store: Promise<OutboxStore>
+  private readonly owner: string
+  private readonly limits: OutboxLimits
+  private readonly store: OutboxStorage
   private readonly writes = new Set<Promise<void>>()
   private pendingBytes = 0
   private inFlight = 0
@@ -37,32 +47,18 @@ export class PersistentLogProcessor implements LogRecordProcessor {
   private diagnosing = false
   private timer: ReturnType<typeof setInterval>
   private shutdownPromise?: Promise<void>
-  private readonly online = () => this.kick()
-  private readonly visibility = () => {
-    if (document.visibilityState === 'hidden') this.kick(true)
-  }
+  private readonly untrigger: () => void
 
   constructor(
     private readonly exporter: LogRecordExporter,
-    url: string,
-    options: OutboxOptions,
+    ports: OutboxPorts,
+    private readonly runtime: Runtime,
     private readonly onDiagnostic: (code: string) => void
   ) {
-    this.limits = outboxLimits(options)
-    // Bind replay to the destination without storing the URL, headers, or credentials.
-    this.store = crypto.subtle
-      .digest('SHA-256', new TextEncoder().encode(new URL(url, location.href).href))
-      .then(
-        (bytes) =>
-          new OutboxStore(
-            `backplane.errors.outbox.v1.${this.limits.name}.${Array.from(new Uint8Array(bytes), (n) => n.toString(16).padStart(2, '0')).join('')}`,
-            this.limits
-          )
-      )
-    void this.store.catch(() => this.report('outbox_unavailable'))
-    // A worker has no document: its global scope still sends 'online', and the timer replays the rest.
-    globalScope()?.addEventListener('online', this.online)
-    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.visibility)
+    this.store = ports.storage
+    this.limits = ports.storage.limits
+    this.owner = runtime.randomId()
+    this.untrigger = ports.triggers?.subscribe((urgent) => this.kick(urgent)) ?? (() => {})
     this.timer = setInterval(() => this.kick(), 1000)
     this.kick()
   }
@@ -94,9 +90,9 @@ export class PersistentLogProcessor implements LogRecordProcessor {
         this.fallback(record)
         return
       }
-      const created = Date.now()
+      const created = this.runtime.now()
       const entry: StoredExport = {
-        id: crypto.randomUUID(),
+        id: this.runtime.randomId(),
         payload,
         bytes,
         created,
@@ -118,7 +114,7 @@ export class PersistentLogProcessor implements LogRecordProcessor {
 
   private async persist(entry: StoredExport, record: ReadableLogRecord) {
     try {
-      const result = await (await this.store).put(entry)
+      const result = await this.store.put(entry)
       if (result.evicted) {
         this.counters.evicted += result.evicted
         this.report('outbox_evicted')
@@ -164,7 +160,7 @@ export class PersistentLogProcessor implements LogRecordProcessor {
         this.inFlight--
         if (outcome === 'accepted') {
           this.counters.accepted += records.length
-          this.counters.lastAcceptedAt = Date.now()
+          this.counters.lastAcceptedAt = this.runtime.now()
         } else if (outcome === 'rejected') this.counters.rejected += records.length
         else this.counters.retried += records.length
         resolve(outcome)
@@ -193,7 +189,7 @@ export class PersistentLogProcessor implements LogRecordProcessor {
   }
 
   private async run(force: boolean) {
-    const store = await this.store
+    const store = this.store
     let remaining = force ? this.limits.maxEntries : 32
     while (remaining > 0) {
       const claimed = await store.claim(this.owner, force)
@@ -226,7 +222,7 @@ export class PersistentLogProcessor implements LogRecordProcessor {
     }
   }
 
-  /** Waits for IndexedDB transactions, not OTLP delivery. Rejects after storage failure. */
+  /** Waits for storage writes, not OTLP delivery. Rejects after storage failure. */
   async flushStorage(): Promise<void> {
     await Promise.all([...this.writes])
     if (this.storageFailed) throw new Error('outbox_storage_failed')
@@ -234,12 +230,12 @@ export class PersistentLogProcessor implements LogRecordProcessor {
 
   async stats() {
     await this.flushStorage()
-    return { ...(await (await this.store).stats()), ...this.counters }
+    return { ...(await this.store.stats()), ...this.counters }
   }
 
   async clear() {
     await Promise.all([...this.writes])
-    await (await this.store).clear()
+    await this.store.clear()
   }
 
   async forceFlush(): Promise<void> {
@@ -252,8 +248,7 @@ export class PersistentLogProcessor implements LogRecordProcessor {
   stop() {
     this.stopped = true
     clearInterval(this.timer)
-    globalScope()?.removeEventListener('online', this.online)
-    if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', this.visibility)
+    this.untrigger()
   }
 
   shutdown(): Promise<void> {
@@ -265,7 +260,7 @@ export class PersistentLogProcessor implements LogRecordProcessor {
         try {
           await this.exporter.shutdown()
         } finally {
-          ;(await this.store).close()
+          this.store.close()
         }
       }
     })()

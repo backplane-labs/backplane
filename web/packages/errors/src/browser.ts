@@ -1,7 +1,121 @@
+// The browser's ports (a page or a dedicated/shared worker) and the client assembled on them.
 import { context } from '@opentelemetry/api'
-import type { createClient, CaptureOptions } from './index.js'
+import type { createClient } from './index.js'
+import { IndexedDbOutbox } from './indexeddb.js'
+import { createOtlpClient, type OtlpClientOptions } from './otlp.js'
+import {
+  outboxLimits,
+  type DeliveryTriggers,
+  type OutboxOptions,
+  type OutboxStorage,
+  type Runtime,
+  type UncaughtSource,
+} from './ports.js'
+import { globalScope } from './scope.js'
 
-type Client = ReturnType<typeof createClient>
+type Client = Pick<ReturnType<typeof createClient>, 'addBreadcrumb' | 'onDispose'>
+
+export const browserRuntime: Runtime = {
+  now: () => Date.now(),
+  monotonic: () => performance.now(),
+  randomId: () => crypto.randomUUID(),
+}
+
+const uncaughtKey = Symbol.for('backplane.errors.auto-handlers.v1')
+/**
+ * error and unhandledrejection of the page's window or the worker's self.
+ * One subscriber per global scope at a time: a second throws.
+ */
+export function globalUncaught(): UncaughtSource {
+  return {
+    subscribe(report) {
+      const scope = globalScope()
+      if (!scope) throw new Error('uncaught_needs_a_browser_scope')
+      const host = scope as unknown as Record<symbol, unknown>
+      if (host[uncaughtKey]) throw new Error('auto_handlers_already_owned')
+      const owner = {}
+      host[uncaughtKey] = owner
+      const onError = (event: ErrorEvent) => {
+        if (!(event instanceof ErrorEvent) || event.target !== scope) return
+        report({
+          error: event.error ?? event.message,
+          mechanism: 'window.error',
+          location: {
+            ...(event.filename ? { url: event.filename } : {}),
+            line: event.lineno,
+            column: event.colno,
+          },
+        })
+      }
+      const onRejection = (event: PromiseRejectionEvent) => {
+        report({ error: event.reason, mechanism: 'unhandledrejection' })
+      }
+      scope.addEventListener('error', onError)
+      scope.addEventListener('unhandledrejection', onRejection)
+      return () => {
+        scope.removeEventListener('error', onError)
+        scope.removeEventListener('unhandledrejection', onRejection)
+        if (host[uncaughtKey] === owner) delete host[uncaughtKey]
+      }
+    },
+  }
+}
+
+/** online of the global scope; a hidden page is urgent. A worker has no document: online only. */
+export function browserTriggers(): DeliveryTriggers {
+  return {
+    subscribe(kick) {
+      const scope = globalScope()
+      const online = () => kick(false)
+      const visibility = () => {
+        if (document.visibilityState === 'hidden') kick(true)
+      }
+      scope?.addEventListener('online', online)
+      if (typeof document !== 'undefined') document.addEventListener('visibilitychange', visibility)
+      return () => {
+        scope?.removeEventListener('online', online)
+        if (typeof document !== 'undefined')
+          document.removeEventListener('visibilitychange', visibility)
+      }
+    },
+  }
+}
+
+/** An IndexedDB outbox bound to url and options.name, without storing the URL, headers or credentials. */
+export function indexedDbOutbox(
+  url: string,
+  options: OutboxOptions,
+  runtime: Runtime = browserRuntime
+): OutboxStorage {
+  const { name, ...limits } = outboxLimits(options)
+  const database = crypto.subtle
+    .digest('SHA-256', new TextEncoder().encode(new URL(url, location.href).href))
+    .then(
+      (bytes) =>
+        `backplane.errors.outbox.v1.${name}.${Array.from(new Uint8Array(bytes), (n) => n.toString(16).padStart(2, '0')).join('')}`
+    )
+  return new IndexedDbOutbox(database, limits, () => runtime.now())
+}
+
+export type BrowserClientOptions = Omit<OtlpClientOptions, 'runtime' | 'uncaught' | 'outbox'> & {
+  /** error and unhandledrejection of the window, or of a worker's self. */
+  captureUnhandled?: boolean
+  /** Persist exports in IndexedDB across reloads and offline periods. */
+  outbox?: OutboxOptions
+}
+
+/** createOtlpClient on the browser's ports. */
+export function createBrowserClient(options: BrowserClientOptions) {
+  const { captureUnhandled, outbox, ...rest } = options
+  return createOtlpClient({
+    ...rest,
+    runtime: browserRuntime,
+    ...(captureUnhandled ? { uncaught: globalUncaught() } : {}),
+    ...(outbox
+      ? { outbox: { storage: indexedDbOutbox(options.url, outbox), triggers: browserTriggers() } }
+      : {}),
+  })
+}
 export interface BrowserBreadcrumbOptions {
   fetch?: boolean
   xhr?: boolean
@@ -187,20 +301,4 @@ export function instrumentBrowser(client: Client, options: BrowserBreadcrumbOpti
   }
   unregister = client.onDispose(dispose)
   return dispose
-}
-
-/** React componentDidCatch / onCaughtError compatible, with no React runtime dependency. */
-export function createReactErrorHandler(client: Client, options: CaptureOptions = {}) {
-  return (error: unknown, info: { componentStack?: string | null }) => {
-    client.captureException(error, {
-      ...options,
-      handled: true,
-      extensions: {
-        ...options.extensions,
-        'backplane.react': {
-          componentStack: typeof info.componentStack === 'string' ? info.componentStack : null,
-        },
-      },
-    })
-  }
 }

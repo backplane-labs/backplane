@@ -1,5 +1,5 @@
-import { createOtlpClient } from '@backplane-labs/backplane-errors/otlp';
-import { createReactErrorHandler, instrumentBrowser } from '@backplane-labs/backplane-errors/browser';
+import { createReactErrorHandler } from '@backplane-labs/backplane-errors';
+import { createBrowserClient, instrumentBrowser } from '@backplane-labs/backplane-errors/browser';
 
 /**
  * The console reports its own errors like any frontend: through the
@@ -9,7 +9,7 @@ import { createReactErrorHandler, instrumentBrowser } from '@backplane-labs/back
  */
 export function consoleErrors(base: string) {
   const url = new URL(`${base.replace(/\/$/, '')}/auth/telemetry/v1/logs`, location.origin).href;
-  const client = createOtlpClient({
+  const client = createBrowserClient({
     url,
     resource: { 'service.name': 'backplane-console' },
     captureUnhandled: true,

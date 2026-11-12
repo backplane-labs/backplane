@@ -1,10 +1,10 @@
 // A dedicated worker running the SDK as an application's worker does: no window, no document.
-import { createOtlpClient } from '../../packages/errors/src/otlp'
+import { createBrowserClient } from '../../packages/errors/src/browser'
 
 const diagnostics: string[] = []
 
 try {
-  const client = createOtlpClient({
+  const client = createBrowserClient({
     url: '/v1/logs',
     resource: { 'service.name': 'worker' },
     outbox: { name: `worker-${crypto.randomUUID()}` },

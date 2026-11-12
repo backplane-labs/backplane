@@ -8,12 +8,12 @@ test('native IndexedDB storage: budgets, expiry, leases, clear and namespace iso
 }) => {
   await page.goto('http://127.0.0.1:4181')
   const result = await page.evaluate(async (modulePath) => {
-    const { OutboxStore, outboxLimits } = await import(modulePath)
+    const { IndexedDbOutbox } = await import(modulePath)
     const name = `storage-${crypto.randomUUID()}`
-    const limits = outboxLimits({ name, maxBytes: 10, maxEntries: 2 })
-    const first = new OutboxStore(name, limits),
-      second = new OutboxStore(name, limits)
-    const other = new OutboxStore(`${name}-other`, limits)
+    const limits = { maxBytes: 10, maxEntries: 2, maxAgeMs: 3600_000 }
+    const first = new IndexedDbOutbox(name, limits),
+      second = new IndexedDbOutbox(name, limits)
+    const other = new IndexedDbOutbox(`${name}-other`, limits)
     const now = Date.now()
     const row = (id: string, bytes = 4) => ({
       id,
@@ -59,7 +59,7 @@ test('native IndexedDB storage: budgets, expiry, leases, clear and namespace iso
       second.close()
       other.close()
     }
-  }, `/@fs/${root}/packages/errors/src/outbox-store.ts`)
+  }, `/@fs/${root}/packages/errors/src/indexeddb.ts`)
   expect(result.evicted).toEqual({ stored: true, evicted: 1 })
   expect(result.oversized.stored).toBe(false)
   expect(result.stats).toMatchObject({ entries: 2, bytes: 8 })

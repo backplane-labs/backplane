@@ -3,8 +3,20 @@ import { SeverityNumber, type LoggerProvider, type LogAttributes } from '@opente
 import { materialize } from './json.js'
 import { budgetSnapshot } from './snapshot.js'
 import { SDK_VERSION } from './version.js'
-import { globalScope } from './scope.js'
+import type { Runtime, UncaughtSource } from './ports.js'
 export { SDK_VERSION } from './version.js'
+export { outboxLimits } from './ports.js'
+export type {
+  Runtime,
+  UncaughtError,
+  UncaughtSource,
+  DeliveryTriggers,
+  OutboxLimits,
+  OutboxOptions,
+  OutboxStorage,
+  StoredExport,
+} from './ports.js'
+export { retryDelay } from './delivery.js'
 import { exceptionReader, type ExceptionLimits } from './exception.js'
 import {
   tokenBucket,
@@ -35,7 +47,10 @@ export type * from './protocol.js'
 
 export interface ClientOptions {
   loggerProvider: LoggerProvider
-  captureUnhandled?: boolean
+  /** The host's clock and ids; /browser has browserRuntime. */
+  runtime: Runtime
+  /** Captures what the source reports, from creation until dispose. */
+  uncaught?: UncaughtSource
   sanitize?: Sanitizer
   filter?: CaptureFilter
   rateLimit?: RateLimit
@@ -72,10 +87,6 @@ export type SnapshotResult =
 export type HistoryResult =
   | { status: 'recorded'; id: string }
   | { status: 'not_recorded'; reason: string }
-const ownerKey = Symbol.for('backplane.errors.auto-handlers.v1')
-const nano = () => (BigInt(Date.now()) * 1_000_000n).toString()
-const mono = () => performance.now()
-const id = () => crypto.randomUUID()
 
 function correlation(explicit?: Context): { context: Context; trace?: TraceRef } {
   for (const [ctx, origin] of [
@@ -100,9 +111,13 @@ function correlation(explicit?: Context): { context: Context; trace?: TraceRef }
   return { context: ROOT_CONTEXT }
 }
 export function createClient(options: ClientOptions) {
+  const { runtime } = options
+  const nano = () => (BigInt(Math.trunc(runtime.now())) * 1_000_000n).toString()
+  const mono = () => runtime.monotonic()
+  const id = () => runtime.randomId()
   const logger = options.loggerProvider.getLogger('app-debug.browser', SDK_VERSION)
   const exceptionData = exceptionReader(options.exceptionLimits)
-  const allowCapture = tokenBucket(options.rateLimit)
+  const allowCapture = tokenBucket(options.rateLimit, mono)
   const counts = {
     snapshots: 0,
     attempted: 0,
@@ -574,32 +589,13 @@ export function createClient(options: ClientOptions) {
     }
   }
   let removeHandlers = () => {}
-  // A page's window or a worker's self: both report uncaught errors and unhandled rejections.
-  const scope = globalScope()
-  if (options.captureUnhandled && scope) {
-    const host = scope as unknown as Record<symbol, unknown>
-    if (host[ownerKey]) diagnostic('auto_handlers_already_owned')
-    else {
-      const owner = {}
-      host[ownerKey] = owner
-      const onError = (event: ErrorEvent) => {
-        if (!(event instanceof ErrorEvent) || event.target !== scope) return
-        capture(event.error ?? event.message, {}, 'window.error', {
-          ...(event.filename ? { url: event.filename } : {}),
-          line: event.lineno,
-          column: event.colno,
-        })
-      }
-      const onRejection = (event: PromiseRejectionEvent) => {
-        capture(event.reason, {}, 'unhandledrejection')
-      }
-      scope.addEventListener('error', onError)
-      scope.addEventListener('unhandledrejection', onRejection)
-      removeHandlers = () => {
-        scope.removeEventListener('error', onError)
-        scope.removeEventListener('unhandledrejection', onRejection)
-        if (host[ownerKey] === owner) delete host[ownerKey]
-      }
+  if (options.uncaught) {
+    try {
+      removeHandlers = options.uncaught.subscribe((uncaught) => {
+        capture(uncaught.error, {}, uncaught.mechanism, uncaught.location)
+      })
+    } catch {
+      diagnostic('uncaught_unavailable')
     }
   }
   return {
@@ -643,5 +639,24 @@ export function createClient(options: ClientOptions) {
         clearHistory()
       }
     },
+  }
+}
+
+/** React componentDidCatch / onCaughtError compatible, with no React runtime dependency. */
+export function createReactErrorHandler(
+  client: Pick<ReturnType<typeof createClient>, 'captureException'>,
+  options: CaptureOptions = {}
+) {
+  return (error: unknown, info: { componentStack?: string | null }) => {
+    client.captureException(error, {
+      ...options,
+      handled: true,
+      extensions: {
+        ...options.extensions,
+        'backplane.react': {
+          componentStack: typeof info.componentStack === 'string' ? info.componentStack : null,
+        },
+      },
+    })
   }
 }

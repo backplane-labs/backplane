@@ -19,17 +19,20 @@ log store only serves the logs related to an occurrence.
 
 ### Frontends
 
-`@backplane-labs/backplane-errors` (web/packages/errors) runs in any web frontend,
-not only in the console. It sends OTLP/HTTP protobuf logs to Backplane's
+`@backplane-labs/backplane-errors` (web/packages/errors) runs in any JavaScript
+frontend, not only in the console. It sends OTLP/HTTP protobuf logs to Backplane's
 public OTLP ingest (`<console>/telemetry/v1/logs`, see
 [telemetry-admission.md](telemetry-admission.md)); an ingest key there
 (`BACKPLANE_OTLP_KEYS`) filters stray traffic but is public in a browser.
 
-```ts
-import { createOtlpClient } from '@backplane-labs/backplane-errors/otlp';
-import { createReactErrorHandler, instrumentBrowser } from '@backplane-labs/backplane-errors/browser';
+In a browser, `createBrowserClient` assembles the client on the browser's
+ports:
 
-const errors = createOtlpClient({
+```ts
+import { createReactErrorHandler } from '@backplane-labs/backplane-errors';
+import { createBrowserClient, instrumentBrowser } from '@backplane-labs/backplane-errors/browser';
+
+const errors = createBrowserClient({
   url: 'https://example.com/backplane/telemetry/v1/logs',
   headers: { authorization: 'Bearer <ingest key>' },
   resource: { 'service.name': 'shop-web', 'deployment.environment.name': 'production', 'service.version': '1.4.2' },
@@ -40,6 +43,23 @@ instrumentBrowser(errors, { fetch: true, xhr: true, navigation: true });
 errors.registerState('cart', { read: () => cart.summary() });
 createRoot(root, { onCaughtError: createReactErrorHandler(errors) });
 ```
+
+The core (`.`, `/otlp`) touches no browser API. It reaches its host only
+through ports that the caller passes in, so it runs anywhere: React Native,
+Node, a worker.
+
+| Port | What it is | Browser implementation (`/browser`) |
+| --- | --- | --- |
+| `runtime: Runtime` | `now()` Unix ms, `monotonic()` ms, `randomId()` a lowercase UUID v4 | `browserRuntime` |
+| `uncaught?: UncaughtSource` | `subscribe(report) → unsubscribe`: uncaught errors (`window.error`) and unhandled rejections | `globalUncaught()`, one subscriber per global scope |
+| `outbox.storage: OutboxStorage` | durable exports: `put`, `claim` (32 due entries, 30 s lease), `finish`, `stats`, `clear`, `close`; the contract is on the interface | `indexedDbOutbox(url, { name })` |
+| `outbox.triggers?: DeliveryTriggers` | `subscribe(kick(urgent)) → unsubscribe`: retry now, everything when urgent | `browserTriggers()`: `online`, hidden page urgent |
+
+On any other host, the application supplies the ports itself and calls
+`createOtlpClient({ url, resource, runtime, uncaught, outbox | batch })` from
+`/otlp`. Without an outbox, exports batch in memory. The core's only host
+globals are timers and `TextEncoder`: `web/packages/errors/tsconfig.core.json`
+checks it without the DOM library, and the unit tests run it in Node.
 
 - `captureException(error, { handled, state, groupKey, attributes })` captures
   one error; `addBreadcrumb(name, data)` and `recordState(name)` add history.
@@ -197,6 +217,7 @@ regression) and expires against PostgreSQL;
 `internal/audit` `TestExceptionsRoutedToErrors` sends exceptions and audit
 through one listener. `TestRelatedLogsLive` (`make test-otlp`) reads related
 logs from a real Collector and VictoriaLogs. The SDK's unit tests
-(`web/tests/errors-*.unit.ts`) and browser tests (`yarn test:errors-browser`,
-Chromium) cover capture, breadcrumbs, React errors and the IndexedDB outbox;
+(`web/tests/errors-*.unit.ts`, the core and the outbox on in-memory ports in
+Node) and browser tests (`yarn test:errors-browser`, Chromium) cover capture,
+breadcrumbs, React errors and the IndexedDB outbox;
 the console's errors story is covered by `yarn test:storybook`.

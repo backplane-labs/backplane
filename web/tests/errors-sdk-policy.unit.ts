@@ -2,8 +2,13 @@ import { readFileSync } from 'node:fs'
 import Ajv from 'ajv/dist/2020'
 import { afterEach, expect, it, vi } from 'vitest'
 import type { LogRecord } from '@opentelemetry/api-logs'
-import { createClient, redactKeys, type ClientOptions } from '../packages/errors/src/index'
-import { createReactErrorHandler } from '../packages/errors/src/browser'
+import {
+  createClient,
+  createReactErrorHandler,
+  redactKeys,
+  type ClientOptions,
+} from '../packages/errors/src/index'
+import { nodeRuntime } from './errors-runtime'
 import { deliveryOutcome, retryDelay } from '../packages/errors/src/delivery'
 import type { DebugEnvelopeV1, JsonValue } from '../packages/errors/src/protocol'
 import { SDK_VERSION } from '../packages/errors/src/version'
@@ -19,7 +24,11 @@ function setup(options: Partial<ClientOptions> = {}) {
       records.push(record)
     },
   }))
-  const client = createClient({ loggerProvider: { getLogger }, ...options })
+  const client = createClient({
+    ...options,
+    loggerProvider: { getLogger },
+    runtime: options.runtime ?? nodeRuntime,
+  })
   const body = () => {
     const result = JSON.parse(String(records.at(-1)?.body)) as DebugEnvelopeV1
     expect(validate(result), JSON.stringify(validate.errors)).toBe(true)

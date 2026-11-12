@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": [],
+    "paths": {},
+    "noEmit": true
+  },
+  "include": [
+    "core-host.d.ts",
+    "src/index.ts",
+    "src/otlp.ts",
+    "src/outbox.ts",
+    "src/protocol.ts"
+  ]
+}

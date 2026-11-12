@@ -3,9 +3,10 @@ import { context, ROOT_CONTEXT, trace, type Context, type ContextManager } from 
 import type { LoggerProvider, LogRecord } from '@opentelemetry/api-logs'
 import Ajv from 'ajv/dist/2020'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createClient, type ClientOptions } from '../packages/errors/src/index'
+import { createClient, type ClientOptions, type UncaughtSource } from '../packages/errors/src/index'
 import { materialize } from '../packages/errors/src/json'
 import type { DebugEnvelopeV1, JsonValue } from '../packages/errors/src/protocol'
+import { nodeRuntime } from './errors-runtime'
 
 const schema = JSON.parse(readFileSync('../internal/errors/envelope/app-debug-v1.schema.json', 'utf8'))
 const validate = new Ajv({ strict: false, allErrors: true }).compile(schema)
@@ -19,7 +20,11 @@ function setup(options: Partial<ClientOptions> = {}) {
       },
     }),
   }
-  const client = createClient({ loggerProvider: provider, ...options })
+  const client = createClient({
+    ...options,
+    loggerProvider: options.loggerProvider ?? provider,
+    runtime: options.runtime ?? nodeRuntime,
+  })
   function body(index = 0) {
     const result = JSON.parse(String(records[index].body)) as DebugEnvelopeV1
     expect(validate(result), JSON.stringify(validate.errors)).toBe(true)
@@ -278,4 +283,56 @@ it('readable OTLP fixture contains the exact envelope in one standard LogRecord'
   expect(payload).toEqual(JSON.parse(readFileSync('tests/fixtures/errors/exception-envelope.json', 'utf8')))
   expect(records[0].traceId).toBe(payload.trace.traceId)
   expect(records[0].timeUnixNano).toBe(payload.timestampUnixNano)
+})
+
+describe('host ports', () => {
+  it('takes time and ids from the runtime only', () => {
+    let ids = 0
+    const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
+    const { client, body } = setup({
+      runtime: { now: () => 1_700_000_000_123, monotonic: () => 42, randomId: () => uuid(++ids) },
+    })
+    client.captureException(new Error('ported'))
+    const envelope = body()
+    expect(envelope.timestampUnixNano).toBe('1700000000123000000')
+    expect(envelope.monotonicMs).toBe(42)
+    expect(envelope.runtime.id).toBe(uuid(1))
+    expect(envelope.eventId).toBe(uuid(ids))
+  })
+  it('captures what the uncaught source reports until dispose', () => {
+    let report: Parameters<UncaughtSource['subscribe']>[0] | undefined
+    const unsubscribe = vi.fn()
+    const { client, records, body } = setup({
+      uncaught: {
+        subscribe: (fn) => {
+          report = fn
+          return unsubscribe
+        },
+      },
+    })
+    report?.({ error: new Error('fatal'), mechanism: 'window.error', location: { line: 3, column: 7 } })
+    report?.({ error: 'rejected', mechanism: 'unhandledrejection' })
+    expect(body(0).exception).toMatchObject({
+      mechanism: 'window.error',
+      handled: false,
+      message: 'fatal',
+      location: { line: 3, column: 7 },
+    })
+    expect(body(1).exception).toMatchObject({ mechanism: 'unhandledrejection', handled: false })
+    client.dispose()
+    expect(unsubscribe).toHaveBeenCalledOnce()
+    expect(records).toHaveLength(2)
+  })
+  it('a source that cannot subscribe is a diagnostic, not a failure', () => {
+    const diagnostics: string[] = []
+    setup({
+      uncaught: {
+        subscribe: () => {
+          throw new Error('taken')
+        },
+      },
+      onDiagnostic: (d) => diagnostics.push(d.code),
+    })
+    expect(diagnostics).toEqual(['uncaught_unavailable'])
+  })
 })
