@@ -926,10 +926,10 @@
     "@bufbuild/protobuf" "^2.2.0"
     "@bufbuild/protoplugin" "^2.2.0"
 
-"@gopherex/schemapb@1.9.7":
-  version "1.9.7"
-  resolved "https://npm.pkg.github.com/download/@gopherex/schemapb/1.9.7/bf1f9c6a6706a54fa1c8ef4c46ace74092c6c087#bf1f9c6a6706a54fa1c8ef4c46ace74092c6c087"
-  integrity sha512-Aks980IOx1mDAQysIE3mi3e5AtVDdgUvfBXbiVU0ileS6ugF0AY+S/wanjDcFrn641bBZL6Fzsj8L4phOeDqpw==
+"@gopherex/schemapb@1.10.1":
+  version "1.10.1"
+  resolved "https://npm.pkg.github.com/download/@gopherex/schemapb/1.10.1/c55d2f54cff665c367e48fcbfe62743e756fc681#c55d2f54cff665c367e48fcbfe62743e756fc681"
+  integrity sha512-PWjynE7P6uNI4e7BZ++lTMMkNqDCelqH6jHcLKW2mMF75y4Pbu2utOs/7vpqHtk1BKPzgWP6xkbTtt25TIpk2A==
   dependencies:
     "@bufbuild/cel" "0.6.0"
     "@bufbuild/protobuf" "^2.11.0"

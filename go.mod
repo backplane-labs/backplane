@@ -8,7 +8,7 @@ require (
 	github.com/google/cel-go v0.30.0
 	github.com/google/uuid v1.6.0
 	github.com/gopherex/pgtx v1.1.2
-	github.com/gopherex/schemapb/go v1.9.9
+	github.com/gopherex/schemapb/go v1.10.1
 	github.com/gopherex/sqld v1.1.3
 	github.com/gopherex/ws-proto v1.9.1
 	github.com/gopherex/xconf v1.4.2

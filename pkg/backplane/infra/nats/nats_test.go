@@ -112,12 +112,18 @@ func TestInboxPrefix(t *testing.T) {
 
 	t.Cleanup(watcher.Close)
 
-	own, shared := make(chan string, 16), make(chan string, 16)
+	// own: JetStream's answers on the prefix. replies: where this
+	// connection's requests ask to be answered, seen by a responder of its
+	// own subject, so other clients of the shared server do not interfere.
+	own, replies := make(chan string, 16), make(chan string, 16)
+	service := prefix + "-service"
 
-	for subject, seen := range map[string]chan string{prefix + ".>": own, "_INBOX.>": shared} {
-		if _, err := watcher.Subscribe(subject, func(m *natsgo.Msg) { seen <- m.Subject }); err != nil {
-			t.Fatal(err)
-		}
+	if _, err := watcher.Subscribe(prefix+".>", func(m *natsgo.Msg) { own <- m.Subject }); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := watcher.Subscribe(service, func(m *natsgo.Msg) { replies <- m.Reply; _ = m.Respond(nil) }); err != nil {
+		t.Fatal(err)
 	}
 
 	if err := watcher.Flush(); err != nil {
@@ -153,10 +159,12 @@ func TestInboxPrefix(t *testing.T) {
 		t.Fatal("no JetStream answer on the prefix")
 	}
 
-	select {
-	case subject := <-shared:
-		t.Fatalf("an answer on the shared inbox: %s", subject)
-	case <-time.After(200 * time.Millisecond):
+	if _, err := conn.Request(service, nil, 5*time.Second); err != nil {
+		t.Fatal(err)
+	}
+
+	if reply := <-replies; !strings.HasPrefix(reply, prefix+".") {
+		t.Fatalf("a request asked for an answer on %s, not on the prefix", reply)
 	}
 }
 
