@@ -918,10 +918,10 @@
   dependencies:
     tslib "^2.8.0"
 
-"@gopherex/protoc-gen-ws-es@1.7.0":
-  version "1.7.0"
-  resolved "https://npm.pkg.github.com/download/@gopherex/protoc-gen-ws-es/1.7.0/b16ce1b178b154256c406595e2a3cc838160ac06#b16ce1b178b154256c406595e2a3cc838160ac06"
-  integrity sha512-RzkDl0zw7dmf1YL2znzCnZLzqsPGYDTQUIIVHAdGQf4aorYXAr9zNZYRRBnf0pPrvASry9Zy6V2TFd+qMPHPFw==
+"@gopherex/protoc-gen-ws-es@1.9.1":
+  version "1.9.1"
+  resolved "https://npm.pkg.github.com/download/@gopherex/protoc-gen-ws-es/1.9.1/9f55c26ace53ec4d069be9c565c16c3b72efb7c3#9f55c26ace53ec4d069be9c565c16c3b72efb7c3"
+  integrity sha512-nRs2EAZk0vL0O3d38LOGR3HPf7xpoPBGxrBWV+7gb9ycYDos4lR6q8Dg2pYomR9sBwbZ/r6az/BamQOr9h5/Gg==
   dependencies:
     "@bufbuild/protobuf" "^2.2.0"
     "@bufbuild/protoplugin" "^2.2.0"
@@ -936,10 +936,10 @@
     mustache "^4.2.0"
     semver "^7.7.0"
 
-"@gopherex/ws-proto-transport@1.7.0":
-  version "1.7.0"
-  resolved "https://npm.pkg.github.com/download/@gopherex/ws-proto-transport/1.7.0/f0c6721ad0b648f648c813aab292a3ad6104f92c#f0c6721ad0b648f648c813aab292a3ad6104f92c"
-  integrity sha512-jXL+cwO11jEM6abd/TNepZO107/oItsXMa7A/7+F+YVOf/PMfyKZigSSFGjPU1xUiahaTme+7+HvZmKV0SToKA==
+"@gopherex/ws-proto-transport@1.9.1":
+  version "1.9.1"
+  resolved "https://npm.pkg.github.com/download/@gopherex/ws-proto-transport/1.9.1/97f2a6945fb98c411dddde5f53812a83cdc734a6#97f2a6945fb98c411dddde5f53812a83cdc734a6"
+  integrity sha512-4H/Y2MqgNzzdzZvKDArf7JiXvi6SE6QDD+nCfeZzukkQlGSRxkZ9Ut8nnt4xn6wD4cgnRxvkqILLYLiPKbiVOA==
   dependencies:
     "@bufbuild/protobuf" "^2.2.0"
 

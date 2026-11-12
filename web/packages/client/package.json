@@ -26,6 +26,6 @@
     "prepack": "yarn build"
   },
   "dependencies": {
-    "@gopherex/ws-proto-transport": "1.7.0"
+    "@gopherex/ws-proto-transport": "1.9.1"
   }
 }
