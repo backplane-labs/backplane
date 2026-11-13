@@ -181,6 +181,11 @@ func TestRenderError(t *testing.T) {
 			want: `Get "https://s3.example.com": timeout`,
 		},
 		{
+			name: "malformed url never leaks its user info, path or query",
+			err:  &url.Error{Op: "Get", URL: "https://user:secret@host/p%zz?signature=s", Err: errors.New("timeout")},
+			want: `Get "https://host": timeout`,
+		},
+		{
 			name: "postgres error keeps its code",
 			err: fmt.Errorf("insert user: %w", &pgconn.PgError{
 				Code: "23505", Message: "duplicate key", Detail: "Key (email)=(a@b.c) already exists",
