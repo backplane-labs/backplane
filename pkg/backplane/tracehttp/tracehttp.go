@@ -2,8 +2,11 @@
 // URL may hide: every request is a client span of the caller's trace whose
 // attributes are the method, the server's host and port and the response
 // status, never the path or the query (a device token, a webhook secret, a
-// signed link), and the W3C trace context goes out in its headers.
-// OpenTelemetry's otelhttp records the full URL and cannot be told not to.
+// signed link). The trace context stays local: no traceparent, tracestate or
+// baggage goes out, since the destination is outside the installation (a
+// user's URL, a push service). A destination that takes part in the trace
+// gets it with WithPropagator. OpenTelemetry's otelhttp records the full URL
+// and cannot be told not to.
 package tracehttp
 
 import (
@@ -46,8 +49,9 @@ func WithTracerProvider(provider trace.TracerProvider) Option {
 	return func(o *options) { o.provider = provider }
 }
 
-// WithPropagator injects the trace context with propagator instead of the
-// global one.
+// WithPropagator sends the trace context with propagator, for a
+// destination that takes part in the installation's trace; by default
+// nothing is sent.
 func WithPropagator(propagator propagation.TextMapPropagator) Option {
 	return func(o *options) { o.propagator = propagator }
 }
@@ -58,7 +62,7 @@ func NewTransport(base http.RoundTripper, opts ...Option) *Transport {
 		base = http.DefaultTransport
 	}
 
-	o := options{provider: otel.GetTracerProvider(), propagator: otel.GetTextMapPropagator()}
+	o := options{provider: otel.GetTracerProvider(), propagator: propagation.NewCompositeTextMapPropagator()}
 	for _, opt := range opts {
 		opt(&o)
 	}

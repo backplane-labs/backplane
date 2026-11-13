@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -17,19 +18,20 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/tracehttp"
 )
 
-// spans records the client spans: the SDK's global provider and W3C
-// propagator stand in, set once for the package.
+// spans records the client spans: the SDK's global provider and its W3C
+// trace context and baggage propagators stand in, set once for the package.
 var spans = tracetest.NewSpanRecorder()
 
 func TestMain(m *testing.M) {
-	otel.SetTextMapPropagator(propagation.TraceContext{})
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(spans)))
 	os.Exit(m.Run())
 }
 
-// A request is a client span of the caller's trace carrying traceparent;
-// the span names the method, host, port and status, never the path or the
-// query; a 5xx is an error.
+// A request is a client span of the caller's trace that sends no trace
+// context (traceparent, baggage) to the destination; the span names the
+// method, host, port and status, never the path or the query; a 5xx is an
+// error.
 func TestTransport(t *testing.T) {
 	t.Parallel()
 
@@ -48,12 +50,22 @@ func TestTransport(t *testing.T) {
 
 			got := make(chan string, 1)
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				got <- r.Header.Get("Traceparent")
+				got <- r.Header.Get("Traceparent") + r.Header.Get("Tracestate") + r.Header.Get("Baggage")
 				w.WriteHeader(tc.status)
 			}))
 			t.Cleanup(srv.Close)
 
-			ctx, caller := otel.Tracer("test").Start(t.Context(), "caller")
+			member, err := baggage.NewMember("tenant", "acme")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			bag, err := baggage.New(member)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			ctx, caller := otel.Tracer("test").Start(baggage.ContextWithBaggage(t.Context(), bag), "caller")
 
 			secretURL := srv.URL + "/3/device/secret-device-token?sig=secret-signature"
 
@@ -70,8 +82,8 @@ func TestTransport(t *testing.T) {
 			_ = res.Body.Close()
 			caller.End()
 
-			if tp := <-got; !strings.Contains(tp, caller.SpanContext().TraceID().String()) {
-				t.Fatalf("traceparent %q", tp)
+			if sent := <-got; sent != "" {
+				t.Fatalf("trace context sent to the destination: %q", sent)
 			}
 
 			span := clientSpanOf(t, caller.SpanContext().SpanID().String())

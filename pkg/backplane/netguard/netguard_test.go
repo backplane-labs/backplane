@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
@@ -178,23 +179,34 @@ func BenchmarkForbidden(b *testing.B) {
 	}
 }
 
-// TestMain installs the W3C propagator, as the SDK does at start.
+// TestMain installs the W3C propagators, as the SDK does at start.
 func TestMain(m *testing.M) {
-	otel.SetTextMapPropagator(propagation.TraceContext{})
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 	os.Exit(m.Run())
 }
 
-// A request carries the caller's trace context to the server.
-func TestClientCarriesTrace(t *testing.T) {
+// A request to a guarded (untrusted) URL carries none of the caller's trace
+// context: no traceparent, tracestate or baggage.
+func TestClientSendsNoTrace(t *testing.T) {
 	t.Parallel()
 
 	got := make(chan string, 1)
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-		got <- r.Header.Get("Traceparent")
+		got <- r.Header.Get("Traceparent") + r.Header.Get("Tracestate") + r.Header.Get("Baggage")
 	}))
 	t.Cleanup(srv.Close)
 
-	ctx, span := sdktrace.NewTracerProvider().Tracer("test").Start(t.Context(), "caller")
+	member, err := baggage.NewMember("tenant", "acme")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bag, err := baggage.New(member)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, span := sdktrace.NewTracerProvider().Tracer("test").Start(baggage.ContextWithBaggage(t.Context(), bag), "caller")
 	defer span.End()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL, http.NoBody)
@@ -209,7 +221,7 @@ func TestClientCarriesTrace(t *testing.T) {
 
 	_ = res.Body.Close()
 
-	if tp := <-got; !strings.Contains(tp, span.SpanContext().TraceID().String()) {
-		t.Fatalf("traceparent %q, caller's trace %s", tp, span.SpanContext().TraceID())
+	if sent := <-got; sent != "" {
+		t.Fatalf("trace context sent to an untrusted URL: %q", sent)
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v5"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
@@ -147,8 +148,10 @@ func New(parent deps.Scope, settings Settings, opts ...Option) *Forwarder {
 		o(f)
 	}
 
-	// Each export is a client span carrying its trace context.
-	f.client.Transport = tracehttp.NewTransport(f.client.Transport)
+	// Each export is a client span carrying its trace context: the upstream
+	// is the operator's own receiver, part of the installation's tracing.
+	f.client.Transport = tracehttp.NewTransport(f.client.Transport,
+		tracehttp.WithPropagator(otel.GetTextMapPropagator()))
 
 	f.records, _ = f.Meter().Int64Counter("backplane.errors.upstream.records",
 		metric.WithDescription("Error records forwarded upstream, by outcome (sent, dropped) and drop reason"))
