@@ -7,7 +7,10 @@ import {
   type Baked, type Native, type NativeStruct, type Schema, type Schema_Field,
   type ValidationError,
 } from '@gopherex/schemapb';
-import { Button, Input, Textarea, Checkbox, SelectControl, Field, FieldLabel, FieldDescription, FieldError, Badge } from '@backplane-labs/backplane-ui';
+import {
+  Button, Input, Textarea, Checkbox, SelectControl, Field, FieldLabel, FieldDescription, FieldError, Badge,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@backplane-labs/backplane-ui';
 import { decodeValue, emptyValue, encodeValue, evaluateForm, fieldSchema, parseScalar, pathKey, scaffoldForm, scaffoldValue, scalarText, setValue, valueAt, type FieldPath } from './model.js';
 import { schemaFormsEnglish } from './locales.js';
 
@@ -30,7 +33,15 @@ export interface SchemaFormProps {
   submitLabel?: string;
   onSubmit: (baked: Baked, signal: AbortSignal) => void | Promise<void>;
   onDirtyChange?: (dirty: boolean) => void;
+  /**
+   * Asks before sending, stating the consequence (a destructive action):
+   * a submit that passes validation opens this dialog; confirming runs
+   * onSubmit, cancelling sends nothing and keeps the draft.
+   */
+  confirm?: SchemaFormConfirm;
 }
+
+export interface SchemaFormConfirm { title: string; description: string; confirmLabel?: string }
 
 export function SchemaForm(props: SchemaFormProps) {
   const t = useText();
@@ -42,7 +53,7 @@ export function SchemaForm(props: SchemaFormProps) {
   return <FormBody key={`${compiled.key}:${props.resetKey ?? ''}`} {...props} engine={compiled.engine} />;
 }
 
-function FormBody({ engine, initialValues = {}, onSubmit, onDirtyChange, ...props }: SchemaFormProps & { engine: Engine }) {
+function FormBody({ engine, initialValues = {}, onSubmit, onDirtyChange, confirm, ...props }: SchemaFormProps & { engine: Engine }) {
   const t = useText();
   const [baseline, setBaseline] = useState(() => evaluateForm(engine, scaffoldForm(engine.schema, initialValues)).resolved);
   const [values, setValues] = useState(baseline);
@@ -55,6 +66,8 @@ function FormBody({ engine, initialValues = {}, onSubmit, onDirtyChange, ...prop
   const [touched, setTouched] = useState(() => new Set<string>());
   const [attempted, setAttempted] = useState(false);
   const active = useRef<AbortController | null>(null);
+  // The validated submit waiting for confirmation: what will be sent.
+  const [pending, setPending] = useState<{ baked: Baked; resolved: NativeStruct } | null>(null);
   const outcome = useMemo(() => evaluateForm(engine, values), [engine, values]);
   const dirty = encodeValue(values) !== encodeValue(baseline) || invalidEditors.size > 0;
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
@@ -77,16 +90,22 @@ function FormBody({ engine, initialValues = {}, onSubmit, onDirtyChange, ...prop
       const next = new Set(old); if (invalid) next.add(path); else next.delete(path); return next;
     }),
   };
+  // send runs onSubmit once at a time; true when it succeeded.
+  const send = async (baked: Baked, resolved: NativeStruct) => {
+    const controller = new AbortController(); active.current = controller; setSaving(true); setSubmitFailed(false);
+    try {
+      await onSubmit(baked, controller.signal);
+      if (!controller.signal.aborted) { setBaseline(resolved); setValues(resolved); }
+      return !controller.signal.aborted;
+    } catch { if (!controller.signal.aborted) setSubmitFailed(true); return false; }
+    finally { if (!controller.signal.aborted) { active.current = null; setSaving(false); } }
+  };
   return <form aria-label={props.label} aria-busy={saving} style={stack} noValidate onSubmit={async (event) => {
     event.preventDefault();
     setAttempted(true);
     if (disabled || active.current || invalidEditors.size || !outcome.baked || resultBlocking(outcome.result)) return;
-    const controller = new AbortController(); active.current = controller; setSaving(true); setSubmitFailed(false);
-    try {
-      await onSubmit(outcome.baked, controller.signal);
-      if (!controller.signal.aborted) { setBaseline(outcome.resolved); setValues(outcome.resolved); }
-    } catch { if (!controller.signal.aborted) setSubmitFailed(true); }
-    finally { if (!controller.signal.aborted) { active.current = null; setSaving(false); } }
+    if (confirm) { setSubmitFailed(false); setPending({ baked: outcome.baked, resolved: outcome.resolved }); return; }
+    await send(outcome.baked, outcome.resolved);
   }}>
     <div key={resetEpoch} style={stack}>
       {engine.schema.fields.map((field) => <FormField key={field.name} field={field} path={[field.name]} context={context} />)}
@@ -105,6 +124,19 @@ function FormBody({ engine, initialValues = {}, onSubmit, onDirtyChange, ...prop
       }}>{t('reset')}</Button>
       {dirty && <span role="status">{t('dirty')}</span>}
     </div>}
+    {confirm && <Dialog open={!!pending} onOpenChange={(open) => { if (!open && !saving) setPending(null); }}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{confirm.title}</DialogTitle><DialogDescription>{confirm.description}</DialogDescription></DialogHeader>
+        {submitFailed && <p role="alert">{t('submitError')}</p>}
+        <DialogFooter>
+          <Button type="button" variant="outline" disabled={saving} onClick={() => setPending(null)}>{t('cancel')}</Button>
+          <Button type="button" disabled={saving} onClick={async () => {
+            if (!pending || active.current) return;
+            if (await send(pending.baked, pending.resolved)) setPending(null);
+          }}>{saving ? t('saving') : confirm.confirmLabel ?? t('confirm')}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>}
   </form>;
 }
 

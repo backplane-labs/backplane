@@ -31,20 +31,25 @@ const schema = create(SchemaSchema, {
   ],
 });
 
-function Fixture({ readOnly = false }: { readOnly?: boolean }) {
+function Fixture({ readOnly = false, confirm = false }: { readOnly?: boolean; confirm?: boolean }) {
   const [saved, setSaved] = useState<Baked>();
   const [fail, setFail] = useState(false);
+  const [sent, setSent] = useState(0);
   return <div style={{ display: 'grid', gap: 24 }}>
     <h1>Schema forms</h1>
     <p>Native validation, conditional fields and lossless values.</p>
     {!readOnly && <div style={{ display: 'flex', gap: 8 }}><Checkbox id="simulate-failure" checked={fail} onCheckedChange={(value) => setFail(value === true)} /><Label htmlFor="simulate-failure">Simulate save failure</Label></div>}
     <SchemaForm schema={schema} label="Service configuration" readOnly={readOnly} initialValues={{ labels: { env: 'dev' }, ports: [8080n], destination: { kind: 'http' }, metadata: { enabled: true } }}
+      confirm={confirm ? { title: 'Delete the service?', description: 'Its instances stop and its data is erased. This cannot be undone.', confirmLabel: 'Delete' } : undefined}
+      submitLabel={confirm ? 'Delete service' : undefined}
       onSubmit={async (baked, signal) => {
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        setSent((old) => old + 1);
+        await new Promise((resolve) => setTimeout(resolve, confirm ? 400 : 50));
         if (signal.aborted) return;
         if (fail) throw new Error('Simulated failure');
         setSaved(baked);
       }} />
+    {confirm && <p role="status">Requests sent: {sent}</p>}
     {saved && <section><h2>Saved configuration</h2><SchemaValuesPreview schema={schema} values={saved.values} /></section>}
   </div>;
 }
@@ -53,3 +58,4 @@ export default { title: 'Kit/Schema forms', component: Fixture } satisfies Meta<
 type Story = StoryObj<typeof Fixture>;
 export const Editable: Story = {};
 export const ReadOnly: Story = { args: { readOnly: true } };
+export const Confirmed: Story = { args: { confirm: true } };

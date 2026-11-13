@@ -136,6 +136,48 @@ for (const theme of ['dark', 'light']) {
     expect(result.violations).toEqual([]);
     expect(failures).toEqual([]);
   });
+  test(`${theme}: schema form asks before a destructive submit`, async ({ page }) => {
+    const failures: string[] = [];
+    page.on('pageerror', (error) => failures.push(error.message));
+    await page.goto(`/iframe.html?id=kit-schema-forms--confirmed&viewMode=story&globals=theme:${theme}`);
+    const sent = page.getByRole('status').filter({ hasText: 'Requests sent' });
+    const submit = page.getByRole('button', { name: 'Delete service', exact: true });
+    const dialog = page.getByRole('dialog', { name: 'Delete the service?' });
+    // A form that fails validation never asks.
+    const name = page.getByLabel('Service name *', { exact: true });
+    await name.fill('');
+    await submit.click();
+    await expect(page.getByRole('region', { name: 'Validation messages' })).toBeVisible();
+    await expect(dialog).toHaveCount(0);
+    // Cancel sends nothing and keeps the draft.
+    await name.fill('payments');
+    await submit.click();
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText('This cannot be undone.');
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(sent).toHaveText('Requests sent: 0');
+    await expect(name).toHaveValue('payments');
+    // A failure stays in the dialog with the draft kept; the retry goes.
+    await page.getByRole('checkbox', { name: 'Simulate save failure' }).check();
+    await submit.click();
+    await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(dialog.getByRole('alert')).toContainText('Could not save');
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await page.getByRole('checkbox', { name: 'Simulate save failure' }).uncheck();
+    await expect(name).toHaveValue('payments');
+    // Confirm runs onSubmit once; while it runs both buttons are disabled.
+    await submit.click();
+    await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(dialog.getByRole('button', { name: 'Saving…', exact: true })).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: 'Cancel', exact: true })).toBeDisabled();
+    await expect(dialog).toHaveCount(0);
+    await expect(sent).toHaveText('Requests sent: 2');
+    await expect(page.getByLabel('Masked values')).toBeVisible();
+    const result = await new AxeBuilder({ page }).include('main').withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+    expect(result.violations).toEqual([]);
+    expect(failures).toEqual([]);
+  });
   for (const story of ['actions', 'inputs', 'overlays', 'menus', 'navigation-and-layout', 'calendar']) {
     test(`${theme}: ${story}`, async ({ page }) => {
       const failures: string[] = [];
