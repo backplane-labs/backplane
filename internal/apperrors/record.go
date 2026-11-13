@@ -23,6 +23,7 @@ import (
 	resourcepb "go.opentelemetry.io/proto/otlp/resource/v1"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/backplane-labs/backplane/internal/apperrors/upstream"
 	"github.com/backplane-labs/backplane/internal/otlprecord"
 	"github.com/backplane-labs/backplane/internal/store/db"
 )
@@ -95,6 +96,8 @@ type Record struct {
 	Insert db.InsertErrorParams
 	Touch  db.TouchErrorGroupParams
 	Burst  db.TouchErrorBurstParams
+	// Source is the record as received, for the upstream.
+	Source upstream.Record
 }
 
 // IsException reports whether the record is an exception: by the OTel
@@ -150,6 +153,11 @@ func Records(req *collogspb.ExportLogsServiceRequest, now time.Time, limits Limi
 					rejected++
 
 					continue
+				}
+
+				r.Source = upstream.Record{
+					Resource: resource, ResourceSchemaURL: logs.GetSchemaUrl(),
+					Scope: scopeLogs.GetScope(), ScopeSchemaURL: scopeLogs.GetSchemaUrl(), Log: record,
 				}
 
 				out = append(out, r)

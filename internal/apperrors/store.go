@@ -11,6 +11,7 @@ import (
 
 	"github.com/gopherex/xlog"
 
+	"github.com/backplane-labs/backplane/internal/apperrors/upstream"
 	"github.com/backplane-labs/backplane/internal/store"
 	"github.com/backplane-labs/backplane/internal/store/db"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
@@ -29,6 +30,8 @@ const (
 type Settings struct {
 	// Retention of occurrences; 0 keeps them for ever.
 	Retention time.Duration `json:"retention" schemapb:"default=2160h;gte=0"`
+	// Upstream forwards accepted records to the vendor's backplane.
+	Upstream upstream.Settings `json:"upstream"`
 	// BurstPerMinute and BurstPerDay bound the occurrences stored per group
 	// (one fingerprint in one service) in a minute and in a day; past them
 	// the group only counts.
@@ -59,6 +62,13 @@ type Service struct {
 	related  Related
 	author   func(context.Context) string
 	records  metric.Int64Counter
+	upstream Upstream
+}
+
+// Upstream takes the records the store accepted (stored or counted, not
+// duplicates) without blocking.
+type Upstream interface {
+	Offer(ctx context.Context, records ...upstream.Record)
 }
 
 // Option configures New.
@@ -68,11 +78,16 @@ type Option func(*Service)
 // telemetry stores); without one RelatedLogs says unavailable.
 func WithRelated(r Related) Option { return func(s *Service) { s.related = r } }
 
+// WithUpstream installs the forwarder of accepted records; without one
+// nothing leaves the installation.
+func WithUpstream(u Upstream) Option { return func(s *Service) { s.upstream = u } }
+
 // New creates the service under parent, over st.
 func New(parent deps.Scope, st deps.Dependency[*store.Store], settings Settings, opts ...Option) *Service {
 	s := &Service{
 		Component: deps.NewComponent(parent, "errors"), store: st, settings: settings,
-		author: func(context.Context) string { return DefaultAuthor },
+		author:   func(context.Context) string { return DefaultAuthor },
+		upstream: upstream.None{},
 	}
 	for _, o := range opts {
 		o(s)
@@ -108,7 +123,12 @@ func (s *Service) Save(ctx context.Context, records []Record) (int64, int64, err
 	for i := range records {
 		r := &records[i]
 
+		// The record's outcome, known once its transaction commits.
+		var outcome *int64
+
 		err := st.InTx(ctx, func(ctx context.Context) error {
+			outcome = nil
+
 			if err := st.Q.TouchErrorGroup(ctx, r.Touch); err != nil {
 				return fmt.Errorf("touch group: %w", err)
 			}
@@ -119,7 +139,7 @@ func (s *Service) Save(ctx context.Context, records []Record) (int64, int64, err
 			}
 
 			if int64(windows.MinuteCount) > s.settings.BurstPerMinute || int64(windows.DayCount) > s.settings.BurstPerDay {
-				counted++
+				outcome = &counted
 
 				return nil
 			}
@@ -142,7 +162,7 @@ func (s *Service) Save(ctx context.Context, records []Record) (int64, int64, err
 				})
 			}
 
-			stored++
+			outcome = &stored
 
 			return st.Q.CountErrorStored(ctx, db.CountErrorStoredParams{
 				Fingerprint: r.Touch.Fingerprint, Service: r.Touch.Service,
@@ -150,6 +170,12 @@ func (s *Service) Save(ctx context.Context, records []Record) (int64, int64, err
 		})
 		if err != nil {
 			return stored, counted, fmt.Errorf("store error record: %w", err)
+		}
+
+		if outcome != nil {
+			*outcome++
+
+			s.upstream.Offer(ctx, r.Source)
 		}
 	}
 

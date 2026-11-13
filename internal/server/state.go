@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/http"
 	"os"
 
 	"github.com/hashicorp/consul/api"
@@ -12,6 +13,7 @@ import (
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	"github.com/backplane-labs/backplane/internal/apperrors"
+	"github.com/backplane-labs/backplane/internal/apperrors/upstream"
 	"github.com/backplane-labs/backplane/internal/audit"
 	"github.com/backplane-labs/backplane/internal/bindings"
 	"github.com/backplane-labs/backplane/internal/config"
@@ -145,7 +147,7 @@ func NewState(root backplane.Root[Config]) (*State, error) {
 	root.OnStop(func(context.Context) error { st.Obs.Close(); return nil })
 
 	st.Errors = apperrors.New(root, st.Store, cfg.Errors, apperrors.WithRelated(st.Obs.Errors()),
-		apperrors.WithAuthor(sessionAuthor))
+		apperrors.WithAuthor(sessionAuthor), errorsUpstream(root, cfg.Errors.Upstream))
 	st.AuditIngest = audit.NewIngest(root, st.Store, cfg.Audit, audit.WithErrors(st.Errors))
 
 	st.Config = config.New(root, cfg.LiveConfig, client, st.Store, st.Registry, config.Author(sessionAuthor))
@@ -241,4 +243,21 @@ func (st *State) runtime(root backplane.Root[Config],
 	}
 
 	return consoleOptions
+}
+
+// errorsUpstream forwards accepted errors to errors.upstream.url, over the
+// mesh's mutual TLS when errors.upstream.service names the receiver (the
+// installation's own service: no proxy); without a URL (an air-gapped
+// installation) no forwarder runs.
+func errorsUpstream(root backplane.Root[Config], settings upstream.Settings) apperrors.Option {
+	if settings.URL == "" {
+		return apperrors.WithUpstream(upstream.None{})
+	}
+
+	var opts []upstream.Option
+	if settings.Service != "" {
+		opts = append(opts, upstream.WithTransport(&http.Transport{TLSClientConfig: root.ServiceTLS(settings.Service)}))
+	}
+
+	return apperrors.WithUpstream(upstream.New(root, settings, opts...))
 }

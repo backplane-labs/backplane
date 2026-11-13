@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/backplane-labs/backplane/internal/server"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
@@ -27,6 +28,8 @@ func TestConfigFromEnv(t *testing.T) {
 	t.Setenv("BACKPLANE_OBS_METRICS_URL", "http://grafana:3000")
 	t.Setenv("BACKPLANE_OTLP_URL", "http://collector:4318")
 	t.Setenv("BACKPLANE_OTLP_KEYS", `["previous-ingest-key","current-ingest-key"]`)
+	t.Setenv("BACKPLANE_ERRORS_UPSTREAM_URL", "https://core.service.consul:8443/v1/logs")
+	t.Setenv("BACKPLANE_ERRORS_UPSTREAM_SERVICE", "core")
 
 	cfg, err := load(t)
 	if err != nil {
@@ -51,6 +54,13 @@ func TestConfigFromEnv(t *testing.T) {
 	if cfg.OTLP.Concurrent != 16 || cfg.OTLP.BodyBytes != 2<<20 || len(cfg.OTLP.Keys) != 2 ||
 		cfg.OTLP.Keys[1].Reveal() != "current-ingest-key" {
 		t.Fatal("OTLP admission defaults or deployment keys were not loaded")
+	}
+
+	up := cfg.Errors.Upstream
+	if up.URL != "https://core.service.consul:8443/v1/logs" || up.Service != "core" || !up.Enabled.Get() ||
+		up.Queue != 10000 || up.Batch != 512 || up.Flush != 5*time.Second || up.Timeout != 10*time.Second ||
+		up.GiveUp != 15*time.Minute {
+		t.Fatalf("errors upstream: %+v", up)
 	}
 }
 

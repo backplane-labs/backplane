@@ -142,7 +142,51 @@ Each record becomes one occurrence (`backplane.app_error`) in a group
   last seen before it. `ErrorInfo` reports the retention and limits.
 
 Occurrence ids are UUIDv7 and the API's `ref`; a fingerprint is shown as hex.
-`BACKPLANE_ERRORS_*` are deployment-only.
+`BACKPLANE_ERRORS_*` are deployment-only, except the upstream switch below.
+
+### Forwarding upstream
+
+An installation can pass the errors it accepted on to another receiver,
+typically a service of its own that sends them to the vendor, where errors
+of many installations group by `tenant.id`. Backplane only forwards: who
+receives, signs or filters further is the receiver's business.
+
+- **What**: every record the error store accepted (stored, or only counted
+  past a burst limit), after its transaction commits: the browser SDK's and
+  the services' exceptions alike. Retries the store deduplicated, records
+  it rejected and audit records (an exception marked `backplane.audit=true`
+  included) are never forwarded.
+- **As received**: each record goes with its resource and scope (and their
+  schema URLs), every field untouched; consecutive records of one resource
+  and scope share their `ResourceLogs` and `ScopeLogs`.
+- **The request**: `POST <url>`, an OTLP/HTTP logs export
+  (`opentelemetry.proto.collector.logs.v1.ExportLogsServiceRequest`),
+  `Content-Type: application/x-protobuf`, `Content-Encoding: gzip`, at most
+  `BATCH` records. Any 2xx is delivered (a partial success is not
+  inspected); 408, 429 and 5xx and network failures are retried with
+  exponential backoff and jitter from 1 s to 1 min, honoring `Retry-After`
+  in seconds, until `GIVE_UP`; any other status drops the batch.
+- **Transport**: with `SERVICE` set, mutual TLS of the mesh
+  (backplane's certificate, the server verified as that service) and never
+  the environment's proxy; without it, a plain HTTP(S) request.
+- **Never blocking**: records wait in a bounded in-memory queue; a full
+  queue, the switch off, a refused or abandoned batch drop records and
+  count them. On shutdown what is queued gets one attempt within `TIMEOUT`.
+
+| Setting | Default | |
+| --- | --- | --- |
+| `BACKPLANE_ERRORS_UPSTREAM_URL` | empty | the receiver's OTLP/HTTP logs endpoint; empty: no forwarder at all (an air-gapped installation leaves it empty) |
+| `BACKPLANE_ERRORS_UPSTREAM_SERVICE` | empty | the receiver's mesh identity; set: mutual TLS, the URL must be `https` |
+| `BACKPLANE_ERRORS_UPSTREAM_ENABLED` | `true` | the operator's switch, live (the console's configuration of service `backplane`, `errors.upstream.enabled`): off drops the queue and forwards nothing |
+| `BACKPLANE_ERRORS_UPSTREAM_QUEUE` | `10000` | records waiting at most |
+| `BACKPLANE_ERRORS_UPSTREAM_BATCH` | `512` | records per request at most |
+| `BACKPLANE_ERRORS_UPSTREAM_FLUSH` | `5s` | how long a record waits for a fuller batch |
+| `BACKPLANE_ERRORS_UPSTREAM_TIMEOUT` | `10s` | one request |
+| `BACKPLANE_ERRORS_UPSTREAM_GIVE_UP` | `15m` | how long a batch is retried |
+
+Metrics: `backplane.errors.upstream.records{outcome=sent|dropped}`, drops
+with `reason=full|off|refused|expired`; `backplane.errors.upstream.queue`,
+the records waiting.
 
 ### Triage
 
@@ -224,7 +268,10 @@ truncation; `TestErrorsLive` (`BACKPLANE_TEST_PG`) stores, deduplicates,
 bursts, searches, facets, groups, triages (with the audit entries and the
 regression) and expires against PostgreSQL;
 `internal/audit` `TestExceptionsRoutedToErrors` sends exceptions and audit
-through one listener. `TestRelatedLogsLive` (`make test-otlp`) reads related
+through one listener, and `TestAcceptedExceptionsForwardedUpstream` checks
+that only the accepted exceptions reach the upstream, once and as received;
+`internal/apperrors/upstream` covers batching, retries, refusals, the
+switch, a full queue and the shutdown flush against a TLS receiver. `TestRelatedLogsLive` (`make test-otlp`) reads related
 logs from a real Collector and VictoriaLogs. The SDK's unit tests
 (`web/tests/errors-*.unit.ts`, the core and the outbox on in-memory ports in
 Node) and browser tests (`yarn test:errors-browser`, Chromium) cover capture,
