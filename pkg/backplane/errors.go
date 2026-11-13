@@ -5,8 +5,17 @@ import (
 
 	"github.com/gopherex/xlog"
 
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/errtext"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/exception"
 )
+
+// RenderError is err's text as the SDK's root logger and tracers write it:
+// a *url.Error without its URL's path and query, a database error (any
+// error with a SQLState method) as its SQLSTATE code alone. Hand it to
+// whatever else writes errors out of the service (xlog.WithErrorRenderer,
+// xtrace.WithErrorRenderer, an outbox's last error) so that every place
+// cuts the same.
+func RenderError(err error) string { return errtext.Render(err) }
 
 // CaptureError logs err as an OpenTelemetry exception record (its type,
 // message and the caller's stack, and the context's trace), which the

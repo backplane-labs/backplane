@@ -164,3 +164,46 @@ func TestRootsRenderErrors(t *testing.T) {
 		t.Fatalf("nothing exported: %d records, %d spans", len(exported.text), len(spans.Ended()))
 	}
 }
+
+func TestRenderError(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{name: "nil", err: nil, want: ""},
+		{name: "plain", err: errors.New("boom"), want: "boom"},
+		{
+			name: "url error keeps scheme and host",
+			err:  &url.Error{Op: "Get", URL: "https://s3.example.com/bucket/key?X-Amz-Signature=secret", Err: errors.New("timeout")},
+			want: `Get "https://s3.example.com": timeout`,
+		},
+		{
+			name: "postgres error keeps its code",
+			err: fmt.Errorf("insert user: %w", &pgconn.PgError{
+				Code: "23505", Message: "duplicate key", Detail: "Key (email)=(a@b.c) already exists",
+			}),
+			want: "insert user: SQLSTATE 23505",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := backplane.RenderError(tc.err); got != tc.want {
+				t.Fatalf("RenderError = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func BenchmarkRenderError(b *testing.B) {
+	err := fmt.Errorf("insert user: %w", &pgconn.PgError{Code: "23505", Detail: "Key (email)=(a@b.c) already exists"})
+
+	for b.Loop() {
+		_ = backplane.RenderError(err)
+	}
+}

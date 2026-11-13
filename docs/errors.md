@@ -98,6 +98,13 @@ The record's type is the deepest cause of a telling type (a sentinel's
 `*errors.errorString` and fmt's wrappers say nothing), its stack the caller's,
 its trace the context's.
 
+The SDK's root logger and tracers write every error through
+`backplane.RenderError`: a `*url.Error` loses its URL's path and query, a
+database error (any error with a `SQLState()` method) is reduced to
+`SQLSTATE <code>`. Anything else that writes errors out of the service uses
+the same function (`xlog.WithErrorRenderer(backplane.RenderError)`, an
+outbox's last error) so that every output cuts the same.
+
 ## Storage
 
 The Collector's backplane pipeline (`deployments/otel-collector.audit.yaml`,
