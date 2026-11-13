@@ -78,6 +78,16 @@ func method(name string) string {
 	}
 }
 
+// CloseIdleConnections closes the base's idle connections when it keeps
+// any (http.Client.CloseIdleConnections reaches the base through it).
+func (t *Transport) CloseIdleConnections() {
+	switch base := t.base.(type) {
+	case interface{ CloseIdleConnections() }:
+		base.CloseIdleConnections()
+	default:
+	}
+}
+
 // RoundTrip sends req as a client span of its context's trace.
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	host, port := req.URL.Hostname(), req.URL.Port()

@@ -179,3 +179,33 @@ func TestOptionsAndMethod(t *testing.T) {
 		}
 	}
 }
+
+// closing counts the idle-connection closes it is asked for.
+type closing struct {
+	http.RoundTripper
+
+	closed int
+}
+
+func (c *closing) CloseIdleConnections() { c.closed++ }
+
+// A client's CloseIdleConnections reaches the base under the tracing.
+func TestCloseIdleConnections(t *testing.T) {
+	t.Parallel()
+
+	base := &closing{RoundTripper: http.DefaultTransport}
+	client := &http.Client{Transport: tracehttp.NewTransport(base)}
+
+	client.CloseIdleConnections()
+
+	if base.closed != 1 {
+		t.Fatalf("base closed %d times", base.closed)
+	}
+
+	// A base without idle connections is left alone.
+	(&http.Client{Transport: tracehttp.NewTransport(roundTripFunc(nil))}).CloseIdleConnections()
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
