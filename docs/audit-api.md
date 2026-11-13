@@ -158,9 +158,12 @@ audit only: application audit is never expired by backplane.
 ## Application audit
 
 An application audits what happens in it by writing an ordinary OpenTelemetry
-log record with the attribute `backplane.audit=true` (a boolean). The log goes
-wherever logs go; the deployment's Collector also forwards every marked record
-to backplane, which keeps it in PostgreSQL with no expiry. Nothing is required
+log record with the attribute `backplane.audit=true` (a boolean). The
+deployment's Collector forwards every marked record to backplane, which keeps
+it in PostgreSQL with no expiry, and only there: the reference configuration
+drops audit records from the general logs (`filter/no_audit` in
+`deployments/otel-collector.audit.yaml`), so an audit trail (actors, subjects,
+operators' notes) is never copied into the log store. Nothing is required
 of the application beyond the label, so third-party services (an identity
 server's audit log, say) are audited by labelling their records in the
 Collector.

@@ -1,5 +1,5 @@
 import { timestampDate, type Duration, type Timestamp } from '@bufbuild/protobuf/wkt';
-import { formatDuration, type StatusTone } from '@backplane-labs/backplane-ui';
+import { formatDuration, prettyJson, type StatusTone } from '@backplane-labs/backplane-ui';
 
 /** "WS_PROTO" → "ws-proto"; numeric enums keep their reverse mapping. */
 export function enumLabel(values: Record<number, string>, value: number): string {
@@ -12,6 +12,6 @@ export function durationText(value?: Duration): string | undefined {
 }
 export function jsonText(bytes: Uint8Array): string {
   const text = new TextDecoder().decode(bytes);
-  try { return JSON.stringify(JSON.parse(text), null, 2); } catch { return text; }
+  return prettyJson(text) ?? text;
 }
 export const phaseTones: Record<string, StatusTone> = { starting: 'info', serving: 'success', stopping: 'warning' };

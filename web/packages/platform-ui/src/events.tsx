@@ -4,7 +4,7 @@ import * as api from '@backplane-labs/backplane-api';
 import { structToNative } from '@gopherex/schemapb';
 import { useClient } from '@backplane-labs/backplane-react';
 import { SchemaForm } from '@backplane-labs/backplane-schema-forms';
-import { Badge, Button, Checkbox, ConfirmAction, Count, DetailDrawer, EmptyState, Input, KeyValueList, Panel, StatusBadge, StatusDot, Timestamp, type StatusTone } from '@backplane-labs/backplane-ui';
+import { Badge, Button, Checkbox, ConfirmAction, Count, DetailDrawer, EmptyState, Input, KeyValueList, Panel, StatusBadge, StatusDot, Timestamp, type StatusTone, prettyJson } from '@backplane-labs/backplane-ui';
 import { CodeEditor, JSONViewer } from '@backplane-labs/backplane-editors';
 import { Inbox, Radio, RefreshCw, RotateCcw, Send, Trash2, TriangleAlert } from 'lucide-react';
 import { usePlatformAction, usePlatformQuery } from './runtime.js';
@@ -16,7 +16,7 @@ const kindTone: Record<api.SubscriberKind, StatusTone> = {
   [api.SubscriberKind.UNSPECIFIED]: 'neutral', [api.SubscriberKind.REACTOR]: 'info', [api.SubscriberKind.RULE]: 'accent', [api.SubscriberKind.OTHER]: 'neutral',
 };
 const PAGE = 50;
-const pretty = (data: string) => { try { return JSON.stringify(JSON.parse(data), null, 2); } catch { return data; } };
+const pretty = (data: string) => prettyJson(data) ?? data;
 
 /** Events a service publishes and consumes, their subscribers, messages and dead letters. */
 export function EventStreams(props: { service: string; mode: 'dark' | 'light' }) { return <ServiceEvents key={props.service} {...props} />; }

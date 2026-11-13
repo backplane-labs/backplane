@@ -124,3 +124,58 @@ func clientSpanOf(t *testing.T, parent string) sdktrace.ReadOnlySpan {
 
 	return nil
 }
+
+// Private providers (parallel tests, components with their own telemetry)
+// and a bounded method attribute.
+func TestOptionsAndMethod(t *testing.T) {
+	t.Parallel()
+
+	own := tracetest.NewSpanRecorder()
+	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(own))
+
+	got := make(chan string, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		got <- r.Header.Get("Traceparent")
+	}))
+	t.Cleanup(srv.Close)
+
+	ctx, caller := provider.Tracer("test").Start(t.Context(), "caller")
+
+	req, err := http.NewRequestWithContext(ctx, "PURGE", srv.URL, http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client := &http.Client{Transport: tracehttp.NewTransport(nil,
+		tracehttp.WithTracerProvider(provider), tracehttp.WithPropagator(propagation.TraceContext{}))}
+
+	res, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_ = res.Body.Close()
+	caller.End()
+
+	if tp := <-got; !strings.Contains(tp, caller.SpanContext().TraceID().String()) {
+		t.Fatalf("traceparent %q", tp)
+	}
+
+	var span sdktrace.ReadOnlySpan
+
+	for _, s := range own.Ended() {
+		if s.Parent().SpanID() == caller.SpanContext().SpanID() {
+			span = s
+		}
+	}
+
+	if span == nil || span.Name() != "HTTP _OTHER" {
+		t.Fatalf("span on the private provider: %v", span)
+	}
+
+	for _, a := range span.Attributes() {
+		if a.Key == "http.request.method" && a.Value.AsString() != "_OTHER" {
+			t.Fatalf("method attribute %s", a.Value.AsString())
+		}
+	}
+}

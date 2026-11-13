@@ -61,5 +61,6 @@ export * from './components/layout.js';
 export * from './components/entity-card.js';
 export * from './components/filter.js';
 export { decimal, stepDecimal } from './lib/decimal.js';
+export { prettyJson } from './lib/json.js';
 import './style.css';
 export { englishResources } from './locales/en.js';

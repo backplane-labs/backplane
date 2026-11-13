@@ -10,7 +10,9 @@ import (
 
 // Application audit (§14): a log record carrying AuditLabel=true is audit.
 // The deployment's Collector forwards such records to backplane, which keeps
-// them; the log itself goes wherever logs go. The rest of the keys are
+// them, and only there: the reference Collector configuration drops them
+// from the general logs (deployments/otel-collector.audit.yaml). The rest of
+// the keys are
 // optional and filterable in the console's Audit; the action is the record's
 // event.name, else its message.
 const (

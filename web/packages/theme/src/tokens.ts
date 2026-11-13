@@ -32,6 +32,8 @@ export const tokens = {
     border: palette.dark[5], 'border-strong': palette.dark[4], input: palette.dark[4], ring: palette.green[5],
     link: palette.green[3], radius: '4px',
     'chart-1': '#25e2a5', 'chart-2': '#4dabf7', 'chart-3': '#fcc419', 'chart-4': '#ff8787', 'chart-5': '#b197fc',
+    // Code syntax is text: at least 4.5:1 on the editor's surfaces.
+    'syntax-key': '#4dabf7', 'syntax-string': '#25e2a5', 'syntax-number': '#fcc419', 'syntax-tag': '#ff8787', 'syntax-literal': '#b197fc',
   },
   light: {
     background: '#f7f7f9', foreground: '#1a1b1e',
@@ -49,6 +51,9 @@ export const tokens = {
     border: '#e4e4ea', 'border-strong': palette.gray[2], input: palette.gray[2], ring: palette.green[6],
     link: palette.green[8], radius: '4px',
     'chart-1': '#0ca678', 'chart-2': '#1c7ed6', 'chart-3': '#f08c00', 'chart-4': '#e03131', 'chart-5': '#7048e8',
+    // Code syntax is text: at least 4.5:1 on the editor's surfaces (the
+    // chart hues are for graphics, 3:1).
+    'syntax-key': '#1864ab', 'syntax-string': '#066b4c', 'syntax-number': '#9a4d00', 'syntax-tag': '#b02525', 'syntax-literal': '#5f3dc4',
   },
 } as const;
 

@@ -27,15 +27,55 @@ const instrumentation = "github.com/backplane-labs/backplane/pkg/backplane/trace
 const statusServerError = 500
 
 // Transport traces the requests of base.
-type Transport struct{ base http.RoundTripper }
+type Transport struct {
+	base       http.RoundTripper
+	tracer     trace.Tracer
+	propagator propagation.TextMapPropagator
+}
+
+// Option configures NewTransport.
+type Option func(*options)
+
+type options struct {
+	provider   trace.TracerProvider
+	propagator propagation.TextMapPropagator
+}
+
+// WithTracerProvider makes the spans with provider instead of the global one.
+func WithTracerProvider(provider trace.TracerProvider) Option {
+	return func(o *options) { o.provider = provider }
+}
+
+// WithPropagator injects the trace context with propagator instead of the
+// global one.
+func WithPropagator(propagator propagation.TextMapPropagator) Option {
+	return func(o *options) { o.propagator = propagator }
+}
 
 // NewTransport is a Transport over base (http.DefaultTransport when nil).
-func NewTransport(base http.RoundTripper) *Transport {
+func NewTransport(base http.RoundTripper, opts ...Option) *Transport {
 	if base == nil {
 		base = http.DefaultTransport
 	}
 
-	return &Transport{base: base}
+	o := options{provider: otel.GetTracerProvider(), propagator: otel.GetTextMapPropagator()}
+	for _, opt := range opts {
+		opt(&o)
+	}
+
+	return &Transport{base: base, tracer: o.provider.Tracer(instrumentation), propagator: o.propagator}
+}
+
+// method is req's method as a bounded attribute value: the methods
+// OpenTelemetry names, any other _OTHER.
+func method(name string) string {
+	switch name {
+	case http.MethodConnect, http.MethodDelete, http.MethodGet, http.MethodHead, http.MethodOptions,
+		http.MethodPatch, http.MethodPost, http.MethodPut, http.MethodTrace:
+		return name
+	default:
+		return "_OTHER"
+	}
 }
 
 // RoundTrip sends req as a client span of its context's trace.
@@ -45,20 +85,21 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		port = map[string]string{"http": "80", "https": "443"}[req.URL.Scheme]
 	}
 
+	verb := method(req.Method)
 	attrs := []attribute.KeyValue{
-		attribute.String("http.request.method", req.Method), attribute.String("server.address", host),
+		attribute.String("http.request.method", verb), attribute.String("server.address", host),
 	}
 
 	if p, err := strconv.Atoi(port); err == nil {
 		attrs = append(attrs, attribute.Int("server.port", p))
 	}
 
-	ctx, span := otel.Tracer(instrumentation).Start(req.Context(), "HTTP "+req.Method,
+	ctx, span := t.tracer.Start(req.Context(), "HTTP "+verb,
 		trace.WithSpanKind(trace.SpanKindClient), trace.WithAttributes(attrs...))
 	defer span.End()
 
 	out := req.Clone(ctx)
-	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(out.Header))
+	t.propagator.Inject(ctx, propagation.HeaderCarrier(out.Header))
 
 	res, err := t.base.RoundTrip(out)
 	if err != nil {

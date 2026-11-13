@@ -9,6 +9,7 @@ import { autocompletion, completionKeymap, type CompletionContext } from '@codem
 import { linter, lintGutter, setDiagnostics, type Diagnostic } from '@codemirror/lint';
 import { jsonParseLinter } from '@codemirror/lang-json';
 import { tokens, typography } from '@backplane-labs/backplane-theme';
+import { prettyJson } from '@backplane-labs/backplane-ui';
 import { boundDiagnostics } from './model.js';
 import { languageExtension, queryKeywords } from './language.js';
 import { useEditorText } from './locales.js';
@@ -19,11 +20,11 @@ export function editorHighlight(mode: 'dark' | 'light') {
   // Keys, strings, numbers and literals each get their own color: JSON and
   // YAML read at a glance; punctuation and comments step back.
   return syntaxHighlighting(HighlightStyle.define([
-    { tag: [tags.propertyName, tags.definition(tags.propertyName), tags.attributeName], color: c['chart-2'] },
-    { tag: [tags.string, tags.special(tags.string), tags.content, tags.attributeValue], color: c['chart-1'] },
-    { tag: [tags.tagName], color: c['chart-4'] },
-    { tag: [tags.number, tags.integer, tags.float], color: c['chart-3'] },
-    { tag: [tags.bool, tags.null, tags.atom, tags.keyword], color: c['chart-5'] },
+    { tag: [tags.propertyName, tags.definition(tags.propertyName), tags.attributeName], color: c['syntax-key'] },
+    { tag: [tags.string, tags.special(tags.string), tags.content, tags.attributeValue], color: c['syntax-string'] },
+    { tag: [tags.tagName], color: c['syntax-tag'] },
+    { tag: [tags.number, tags.integer, tags.float], color: c['syntax-number'] },
+    { tag: [tags.bool, tags.null, tags.atom, tags.keyword], color: c['syntax-literal'] },
     { tag: [tags.comment, tags.lineComment, tags.blockComment], color: c['muted-foreground'], fontStyle: 'italic' },
     { tag: [tags.punctuation, tags.separator, tags.bracket, tags.squareBracket, tags.brace, tags.angleBracket, tags.meta], color: c['muted-foreground'] },
     { tag: [tags.variableName, tags.operator, tags.typeName], color: c.foreground },
@@ -65,15 +66,15 @@ export function editorTheme(mode: 'dark' | 'light', height: number | 'fill' = 16
 /** shown is the text a viewer displays: read-only JSON without diagnostics reads pretty-printed. */
 function shown(props: CodeEditorProps): string {
   if (!props.readOnly || props.language !== 'json' || props.diagnostics?.length) return props.value;
-  try { return JSON.stringify(JSON.parse(props.value), null, 2); } catch { return props.value; }
+  return prettyJson(props.value) ?? props.value;
 }
 
 /** formatDocument pretty-prints JSON in place (two spaces); false for other languages or invalid JSON. */
 export function formatDocument(view: EditorView, language?: string): boolean {
   if (language !== 'json' || view.state.readOnly) return false;
   const text = view.state.doc.toString();
-  let pretty: string;
-  try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch { return false; }
+  const pretty = prettyJson(text);
+  if (pretty === undefined) return false;
   if (pretty !== text) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: pretty } });
   return true;
 }
