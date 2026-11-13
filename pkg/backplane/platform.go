@@ -1,9 +1,7 @@
 package backplane
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/pprof"
 	"runtime"
@@ -22,12 +20,6 @@ import (
 const (
 	infoPath  = "/_backplane/info"
 	pprofPath = "/debug/pprof/"
-)
-
-// Transport readiness errors.
-var (
-	errNATSDown     = errors.New("nats not connected")
-	errTemporalDown = errors.New("temporal not connected")
 )
 
 // platformHandler: probes open, everything else behind the guard; a
@@ -107,22 +99,10 @@ func (c *core) info(w http.ResponseWriter, _ *http.Request) {
 // configured.
 func (c *core) requireTransports() {
 	if c.opts.requireNATS && c.broker != nil {
-		c.health.Add(health.Ready, probe.FromError(func(context.Context) error {
-			if !c.broker.Connected() {
-				return errNATSDown
-			}
-
-			return nil
-		}))
+		c.health.Add(health.Ready, probe.FromError(c.broker.Ready))
 	}
 
 	if c.opts.requireTemporal && c.temporal != nil {
-		c.health.Add(health.Ready, probe.FromError(func(context.Context) error {
-			if !c.temporal.Connected() {
-				return errTemporalDown
-			}
-
-			return nil
-		}))
+		c.health.Add(health.Ready, probe.FromError(c.temporal.Ready))
 	}
 }

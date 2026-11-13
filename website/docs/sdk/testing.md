@@ -23,6 +23,7 @@ The `pkg/backplane/backplanetest` package and repository conformance tests provi
 | --- | --- |
 | `Config[C](t, vars)` | Load schema defaults and explicit environment-style values without reading process env/files/Consul |
 | `Ready(h)` | Inspect readiness with required-dependency reasons |
+| `Live(h)` | Inspect liveness as the liveness probe does (dependency probes run first, so a `deps.ErrTerminal` is seen); `ErrNotLive` with the failing reasons |
 | `Answer(h, hookRef, fn)` | Supply a hook answer |
 | `Events(h, eventRef)` / `EventsWithMeta` | Inspect published payloads and IDs/keys/headers |
 | `FailPublish(h, err)` | Exercise publication failure |

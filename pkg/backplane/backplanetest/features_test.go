@@ -336,6 +336,58 @@ func TestReady(t *testing.T) {
 	}
 }
 
+// A dependency that is down fails Ready only; one whose probe reports
+// deps.ErrTerminal fails Live too, for good.
+func TestLive(t *testing.T) {
+	t.Parallel()
+
+	h := backplanetest.New(t)
+
+	var state atomic.Int32 // 0 healthy, 1 down, 2 terminal
+
+	errDown := errors.New("bus down")
+
+	deps.NewDependency(h.Root(), deps.Func(func(context.Context) (int, error) { return 1, nil },
+		deps.WithProbe(func(context.Context, int) error {
+			switch state.Load() {
+			case 1:
+				return errDown
+			case 2:
+				return fmt.Errorf("bus closed: %w", deps.ErrTerminal)
+			}
+
+			return nil
+		})), deps.Name("bus"))
+	h.Start()
+
+	if err := backplanetest.Live(h); err != nil {
+		t.Fatalf("healthy: %v", err)
+	}
+
+	state.Store(1)
+
+	if err := backplanetest.Live(h); err != nil {
+		t.Fatalf("down but recoverable: %v", err)
+	}
+
+	if err := backplanetest.Ready(h); !errors.Is(err, errDown) {
+		t.Fatalf("down: ready %v", err)
+	}
+
+	state.Store(2)
+
+	err := backplanetest.Live(h)
+	if !errors.Is(err, backplanetest.ErrNotLive) || !strings.Contains(err.Error(), "bus closed") {
+		t.Fatalf("terminal: %v", err)
+	}
+
+	state.Store(0)
+
+	if err := backplanetest.Live(h); !errors.Is(err, backplanetest.ErrNotLive) {
+		t.Fatalf("terminal is for good: %v", err)
+	}
+}
+
 type (
 	sectionConfig struct {
 		Greeting config.Live[string] `json:"greeting" schemapb:"default=Hello"`

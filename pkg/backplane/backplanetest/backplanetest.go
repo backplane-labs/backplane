@@ -50,6 +50,8 @@ var (
 	ErrNotDeclared = errors.New("backplanetest: not declared")
 	// ErrNotReady: the tree's readiness is down (Ready).
 	ErrNotReady = errors.New("backplanetest: not ready")
+	// ErrNotLive: the tree's liveness is down (Live).
+	ErrNotLive = errors.New("backplanetest: not live")
 )
 
 // Option configures New.
@@ -309,6 +311,28 @@ func Ready(h *Harness) error {
 	}
 
 	return fmt.Errorf("%w: %w", ErrNotReady, errors.Join(errs...))
+}
+
+// Live evaluates the tree's liveness as the service's liveness probe does
+// (the same composite, bounded like Ready): nil while every component and
+// dependency can still recover; otherwise an error matching ErrNotLive
+// with the failing probes' reasons, e.g. a dependency whose probe reported
+// deps.ErrTerminal (a NATS connection closed for good). A dependency that
+// is only down (reconnecting) fails Ready, not Live. Dependencies learn
+// they are terminal from their probes, which the service runs every
+// interval: Live runs them first too.
+func Live(h *Harness) error {
+	ctx, cancel := context.WithTimeout(h.t.Context(), readyTimeout)
+	defer cancel()
+
+	h.svc.Readiness().Check(ctx)
+
+	result := probe.Evaluate(ctx, h.svc.Liveness())
+	if result.Status == probe.StatusUp {
+		return nil
+	}
+
+	return fmt.Errorf("%w: %s", ErrNotLive, result.Reason)
 }
 
 // SetLive changes a Live field as the console would: its appliers

@@ -79,7 +79,9 @@ func GRPCServerOptions(opts ...grpc.ServerOption) Option {
 }
 
 // RequireNATS makes the NATS connection part of readiness: the instance is
-// not ready while it is down. Without NATS configured, Open fails.
+// not ready while it is down or while JetStream, which carries the
+// service's events, does not answer (asked within the probe's deadline).
+// Without NATS configured, Open fails.
 func RequireNATS() Option { return func(o *options) { o.requireNATS = true } }
 
 // RequireTemporal makes the Temporal connection part of readiness: the

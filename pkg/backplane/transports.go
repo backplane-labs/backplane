@@ -27,6 +27,10 @@ type Connection interface {
 	Connect(ctx context.Context, group TaskGroup) error
 	Close(ctx context.Context) error
 	Connected() bool
+	// Ready is nil while the transport can serve within ctx: connected and
+	// its server side usable (for NATS, JetStream answers); it fails the
+	// service's readiness under RequireNATS / RequireTemporal.
+	Ready(ctx context.Context) error
 	// Alive is nil while the connection can still recover (connected, or
 	// reconnecting), an error once it never will without a restart of the
 	// process; it fails the service's liveness.

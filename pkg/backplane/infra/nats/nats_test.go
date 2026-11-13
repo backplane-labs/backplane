@@ -20,6 +20,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 	"github.com/backplane-labs/backplane/pkg/backplane/infra/nats"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/nats/natstest"
 )
 
 func TestValidate(t *testing.T) {
@@ -262,4 +263,77 @@ func TestCanceledConnectionRedactsCredentials(t *testing.T) {
 	if strings.Contains(err.Error(), "synthetic-password") {
 		t.Fatal("connection error contains credentials")
 	}
+}
+
+// Chaos: a JetStream cluster loses its meta leader under a live
+// connection (two of three nodes down, the client's node up) and gets it
+// back. With WithJetStream the probe fails readiness meanwhile, bounded by
+// its deadline, never liveness, and recovers by itself; without it only
+// the connection counts.
+func TestJetStreamReadiness(t *testing.T) {
+	t.Parallel()
+
+	cluster := natstest.StartCluster(t, 3)
+	cfg := nats.Config{URL: config.Secret(cluster.URL(0))}
+	h := backplanetest.New(t)
+
+	conn, err := nats.New(cfg).Provide(t.Context(), h.Root())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(conn.Close)
+
+	withJS, plain := nats.New(cfg, nats.WithJetStream()), nats.New(cfg)
+
+	ready := func() error {
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+
+		return withJS.Probe(ctx, conn)
+	}
+
+	waitFor := func(what string, ok func(error) bool) {
+		t.Helper()
+
+		var err error
+
+		for deadline := time.Now().Add(30 * time.Second); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
+			if err = ready(); ok(err) {
+				return
+			}
+		}
+
+		t.Fatalf("%s: %v", what, err)
+	}
+
+	waitFor("cluster formed", func(err error) bool { return err == nil })
+
+	cluster.Stop(1)
+	cluster.Stop(2)
+
+	waitFor("meta leader lost", func(err error) bool { return errors.Is(err, nats.ErrJetStream) })
+
+	ctx, cancel := context.WithTimeout(t.Context(), 300*time.Millisecond)
+	defer cancel()
+
+	began := time.Now()
+
+	err = withJS.Probe(ctx, conn)
+	if !errors.Is(err, nats.ErrJetStream) || errors.Is(err, deps.ErrTerminal) || !conn.IsConnected() {
+		t.Fatalf("jetstream down: %v, connected %v", err, conn.IsConnected())
+	}
+
+	if took := time.Since(began); took > time.Second {
+		t.Fatalf("the probe took %v past its 300ms deadline", took)
+	}
+
+	if err := plain.Probe(t.Context(), conn); err != nil {
+		t.Fatalf("without WithJetStream the connection alone counts: %v", err)
+	}
+
+	cluster.Restart(t, 1)
+	cluster.Restart(t, 2)
+
+	waitFor("meta leader back", func(err error) bool { return err == nil })
 }

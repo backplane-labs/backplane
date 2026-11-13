@@ -23,6 +23,7 @@ import (
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	infranats "github.com/backplane-labs/backplane/pkg/backplane/infra/nats"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/nats/natstest"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/broker"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
@@ -820,4 +821,51 @@ func TestReactorFollowsRecreatedStream(t *testing.T) {
 	}
 
 	expect(`{"n":4}`)
+}
+
+// Chaos: the bus's JetStream cluster loses its meta leader while the
+// connection stays up, then regains it: Ready fails meanwhile, bounded by
+// its context, liveness holds, and Ready recovers by itself.
+func TestReadyFollowsJetStream(t *testing.T) {
+	t.Parallel()
+
+	cluster := natstest.StartCluster(t, 3)
+	b := open(t, cluster.URL(0), unique("ready"), nil)
+
+	ready := func() error {
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+
+		return b.Ready(ctx)
+	}
+
+	waitReady := func(what string, ok func(error) bool) {
+		t.Helper()
+
+		var err error
+
+		for deadline := time.Now().Add(30 * time.Second); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
+			if err = ready(); ok(err) {
+				return
+			}
+		}
+
+		t.Fatalf("%s: %v", what, err)
+	}
+
+	waitReady("cluster formed", func(err error) bool { return err == nil })
+
+	cluster.Stop(1)
+	cluster.Stop(2)
+
+	waitReady("meta leader lost", func(err error) bool { return errors.Is(err, broker.ErrJetStream) })
+
+	if !b.Connected() || b.Alive() != nil {
+		t.Fatalf("the connection should stay up and alive: connected %v, alive %v", b.Connected(), b.Alive())
+	}
+
+	cluster.Restart(t, 1)
+	cluster.Restart(t, 2)
+
+	waitReady("meta leader back", func(err error) bool { return err == nil })
 }

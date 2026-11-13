@@ -2,6 +2,7 @@ package temporal
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"go.temporal.io/sdk/client"
@@ -15,6 +16,18 @@ import (
 // its last check: false before the first dial succeeds, after Close, and
 // while the connection's health check fails.
 func (c *Client) Connected() bool { return c.connected.Load() }
+
+// ErrDisconnected: the client's connection did not answer its last check.
+var ErrDisconnected = errors.New("temporal: not connected")
+
+// Ready is nil while the connection answered its last health check.
+func (c *Client) Ready(context.Context) error {
+	if !c.Connected() {
+		return ErrDisconnected
+	}
+
+	return nil
+}
 
 // Alive is always nil: the Temporal client's gRPC connection reconnects
 // with capped backoff for as long as it is not closed, so no state of it

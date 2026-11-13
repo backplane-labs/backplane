@@ -12,8 +12,12 @@
 //	    Realtime nats.Config `json:"realtime"` // CALLS_REALTIME_URL, ...
 //	}
 //
-//	rt := deps.NewDependency(root, nats.New(cfg.Realtime), deps.Name("realtime"))
+//	rt := deps.NewDependency(root, nats.New(cfg.Realtime, nats.WithJetStream()), deps.Name("realtime"))
 //	js, err := jetstream.New(rt.Get())
+//
+// WithJetStream makes JetStream part of the dependency's readiness: a
+// server can hold the connection while JetStream is unusable (no meta
+// leader, storage full, its cluster lost).
 package nats
 
 import (
@@ -23,6 +27,7 @@ import (
 	"time"
 
 	natsgo "github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/nats-io/nkeys"
 
 	"github.com/gopherex/xlog"
@@ -38,6 +43,9 @@ var (
 	// ErrDisconnected is what the probe reports while the connection is
 	// down.
 	ErrDisconnected = errors.New("nats: not connected")
+	// ErrJetStream is what the probe reports, with WithJetStream, while the
+	// connection is up but JetStream does not answer.
+	ErrJetStream = errors.New("nats: jetstream unavailable")
 )
 
 // Defaults of Options.
@@ -227,12 +235,35 @@ func Connect(cfg Config, o Options) (*natsgo.Conn, error) {
 	return conn, nil
 }
 
+// Option configures New.
+type Option func(*provider)
+
+// WithJetStream makes the probe ask JetStream for the account's info
+// (within the probe's deadline) once the connection is up: readiness
+// fails while JetStream does not answer, and recovers with it; it never
+// fails liveness. opts are the JetStream options the service uses (a
+// domain, an API prefix).
+func WithJetStream(opts ...jetstream.JetStreamOpt) Option {
+	return func(p *provider) { p.jetstream, p.jetOpts = true, opts }
+}
+
 // New is the provider of the connection: Provide connects and waits for
 // the first connection, the probe reports the status, Close drains
 // nothing and closes.
-func New(cfg Config) deps.Provider[*natsgo.Conn] { return provider{cfg: cfg} }
+func New(cfg Config, opts ...Option) deps.Provider[*natsgo.Conn] {
+	p := provider{cfg: cfg}
+	for _, o := range opts {
+		o(&p)
+	}
 
-type provider struct{ cfg Config }
+	return p
+}
+
+type provider struct {
+	cfg       Config
+	jetstream bool
+	jetOpts   []jetstream.JetStreamOpt
+}
 
 func (provider) Name() string { return "nats" }
 
@@ -258,15 +289,33 @@ func (p provider) Provide(ctx context.Context, s deps.Scope) (*natsgo.Conn, erro
 	return conn, nil
 }
 
-// Probe fails readiness while the connection reconnects and liveness once
-// it is closed: Connect never gives up, so only a closed connection is
-// beyond recovery.
-func (provider) Probe(_ context.Context, conn *natsgo.Conn) error {
+// Probe fails readiness while the connection reconnects (or, with
+// WithJetStream, while JetStream does not answer) and liveness once it is
+// closed: Connect never gives up, so only a closed connection is beyond
+// recovery.
+func (p provider) Probe(ctx context.Context, conn *natsgo.Conn) error {
 	switch {
 	case conn.IsClosed():
 		return fmt.Errorf("%w: %w", natsgo.ErrConnectionClosed, deps.ErrTerminal)
 	case !conn.IsConnected():
 		return ErrDisconnected
+	case p.jetstream:
+		return JetStreamReady(ctx, conn, p.jetOpts...)
+	}
+
+	return nil
+}
+
+// JetStreamReady is nil when JetStream answers an account info request
+// on conn within ctx, ErrJetStream otherwise.
+func JetStreamReady(ctx context.Context, conn *natsgo.Conn, opts ...jetstream.JetStreamOpt) error {
+	js, err := jetstream.New(conn, opts...)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrJetStream, err)
+	}
+
+	if _, err := js.AccountInfo(ctx); err != nil {
+		return fmt.Errorf("%w: %w", ErrJetStream, err)
 	}
 
 	return nil
