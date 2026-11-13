@@ -32,7 +32,7 @@ func TestConfig(t *testing.T) {
 
 	opts, err := temporal.Options(temporal.Config{Addr: "h:7233", APIKey: "secret"}, "svc-1", nil)
 	if err != nil || opts.Namespace != temporal.DefaultNamespace || opts.Credentials == nil ||
-		opts.Identity != "svc-1" || len(opts.Interceptors) != 1 || opts.MetricsHandler == nil {
+		opts.Identity != "svc-1" || len(opts.Interceptors) != 2 || opts.MetricsHandler == nil {
 		t.Fatalf("options: %+v %v", opts, err)
 	}
 }

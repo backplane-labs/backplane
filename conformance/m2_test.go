@@ -151,9 +151,13 @@ func m2JetStream(t *testing.T, url string) jetstream.JetStream {
 // TestM2 runs backplane and hello with NATS and Temporal and walks the M2
 // scenario.
 //
-//nolint:paralleltest // owns the hello service identity
+// Not parallel: it owns the hello service identity.
 func TestM2(t *testing.T) {
 	addr, dsn, natsAddr, temporalAddr := m2Env(t)
+
+	// Traces exported (to nowhere): backplane and hello install recording
+	// providers, as in production, so a rule run's trace is its own.
+	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://127.0.0.1:1")
 	natsURL := "nats://" + natsAddr
 
 	c, err := api.NewClient(&api.Config{Address: addr})
@@ -1112,7 +1116,8 @@ func (w *m2) rules(t *testing.T) {
 	w.settled(t, max(first.seq, skip.seq))
 	w.runsAre(t, "after r1 and skip", r1Run)
 
-	// The run: Echo got event.name, and the event's trace.
+	// The run: Echo got event.name, in the run's own trace (an asynchronous
+	// continuation of the event: a new trace linked to it).
 	var got consolev1.GetRuleRunResponse
 	w.call(t, "/backplane.console.v1.RuleService/GetRuleRun",
 		&consolev1.GetRuleRunRequest{Id: w.ruleID, WorkflowId: r1Run}, &got)
@@ -1124,9 +1129,9 @@ func (w *m2) rules(t *testing.T) {
 			got.GetRun().GetFailure())
 	}
 
-	if !traced(strings.Join(acts, "\n"), traceID) {
-		t.Errorf("rule run %s: ActivityCall of Echo without the trace id %s of GET ?name=r1: %v (input %s)",
-			r1Run, traceID, acts, got.GetRun().GetInput())
+	if all := strings.Join(acts, "\n"); traced(all, traceID) || !strings.Contains(all, "traceparent") {
+		t.Errorf("rule run %s: ActivityCall of Echo must carry the run's own trace, not %s of GET ?name=r1: %v",
+			r1Run, traceID, acts)
 	}
 
 	// The same ce-id again: through the console (JetStream's dedup window

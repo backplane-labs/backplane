@@ -11,18 +11,26 @@ import (
 	"math/big"
 	"net"
 	"net/url"
+	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health"
 	hv1 "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/listener"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/mtls"
@@ -337,5 +345,51 @@ func TestDialRejectsBadAddress(t *testing.T) {
 
 	if _, err := meshdial.Dial("dns:///platform:1", credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})); err != nil {
 		t.Fatalf("dns scheme: %v", err)
+	}
+}
+
+// TestMain installs the W3C propagator, as the SDK does at start.
+func TestMain(m *testing.M) {
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	os.Exit(m.Run())
+}
+
+// A call carries the caller's trace context: the server receives the
+// traceparent of the caller's trace.
+func TestCallCarriesTrace(t *testing.T) {
+	t.Parallel()
+
+	got := make(chan string, 1)
+	srv := grpc.NewServer(grpc.UnknownServiceHandler(func(_ any, stream grpc.ServerStream) error {
+		md, _ := metadata.FromIncomingContext(stream.Context())
+		got <- strings.Join(md.Get("traceparent"), ",")
+
+		return status.Error(codes.Unimplemented, "test")
+	}))
+
+	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	go func() { _ = srv.Serve(ln) }()
+
+	t.Cleanup(srv.Stop)
+
+	conn, err := meshdial.Dial(ln.Addr().String(), insecure.NewCredentials())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() { _ = conn.Close() })
+
+	ctx, span := sdktrace.NewTracerProvider().Tracer("test").Start(t.Context(), "caller")
+	defer span.End()
+
+	_ = conn.Invoke(ctx, "/test.Service/Call", &emptypb.Empty{}, &emptypb.Empty{})
+
+	traceparent := <-got
+	if !strings.Contains(traceparent, span.SpanContext().TraceID().String()) {
+		t.Fatalf("traceparent %q, caller's trace %s", traceparent, span.SpanContext().TraceID())
 	}
 }

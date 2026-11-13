@@ -3,10 +3,11 @@ package rules_test
 import (
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/nats-io/nats.go"
+	"go.opentelemetry.io/otel"
 
 	"github.com/backplane-labs/backplane/internal/bindings"
 	"github.com/backplane-labs/backplane/internal/rules"
@@ -248,11 +249,14 @@ func TestParseMeta(t *testing.T) {
 		t.Fatalf("no id: %v", err)
 	}
 
-	if tr := rules.TraceOf(headers("e1")); len(tr) != 1 || tr["traceparent"] == "" {
+	ctx, span := otel.Tracer("test").Start(t.Context(), "run")
+	defer span.End()
+
+	if tr := rules.TraceOf(ctx); len(tr) != 1 || !strings.Contains(tr["traceparent"], span.SpanContext().TraceID().String()) {
 		t.Fatalf("trace %v", tr)
 	}
 
-	if tr := rules.TraceOf(nats.Header{}); tr != nil {
+	if tr := rules.TraceOf(t.Context()); tr != nil {
 		t.Fatalf("empty trace %v", tr)
 	}
 }

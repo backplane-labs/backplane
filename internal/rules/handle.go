@@ -9,6 +9,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 
 	"github.com/gopherex/xlog"
 
@@ -99,11 +100,23 @@ func (e *Engine) handle(work context.Context, id uuid.UUID, p *program, msg mess
 	}
 
 	h := msg.Headers()
-	ctx := otel.GetTextMapPropagator().Extract(work, carrier(h))
 	rule := id.String()
+
+	ctx, span := e.tracer.Start(work, "rule "+rule, consumeOptions(work, h)...)
+	defer span.End()
+
+	// Tracing off (no exporter: a no-op tracer starts no span): the run
+	// keeps the event's trace, so its logs still correlate with it.
+	if !span.SpanContext().IsValid() {
+		ctx = otel.GetTextMapPropagator().Extract(work, carrier(h))
+	}
 
 	out, meta, err := e.decide(ctx, id, p, msg.Data(), h)
 	e.metrics.record(ctx, rule, out)
+
+	if out == outcomeFailed || out == outcomeInvalid {
+		span.SetStatus(codes.Error, string(out))
+	}
 
 	log := e.Log().Ctx()
 	fields := []xlog.Field{xlog.String("rule", rule), xlog.String("ce_id", meta.ID), xlog.Int64("version", p.version)}
@@ -173,7 +186,7 @@ func (e *Engine) decide(
 
 	rule := id.String()
 
-	err = starter.StartRule(sctx, rule, p.version, p.prog, data, meta, TraceOf(h), RunID(rule, meta.ID))
+	err = starter.StartRule(sctx, rule, p.version, p.prog, data, meta, TraceOf(ctx), RunID(rule, meta.ID))
 
 	switch {
 	case alreadyStarted(err):

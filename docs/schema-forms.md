@@ -13,7 +13,9 @@ a submit that passes validation opens a dialog stating the consequence;
 confirming runs `onSubmit` (the dialog shows it pending, both buttons
 disabled, and keeps a failure with the draft for a retry), cancelling sends
 nothing and leaves the draft as it was; a form that fails validation never
-asks. Its buttons read `confirm` and `cancel` of `backplane.schemaForms`.
+asks. Its buttons read `confirm` and `cancel` of `backplane.schemaForms`;
+`tone: 'danger'` gives the confirm button the kit's destructive style, as
+`ConfirmAction`'s `tone` does.
 The schema must be fully linked before rendering. Invalid descriptors produce
 a schema error state. Only English resources are supplied; the exported
 `schemaFormsEnglish` namespace is `backplane.schemaForms`.

@@ -37,6 +37,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go/jetstream"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"go.temporal.io/sdk/client"
 
 	"github.com/gopherex/xlog"
@@ -182,6 +184,7 @@ type Engine struct {
 
 	src      Source
 	reg      registry.Source
+	tracer   trace.Tracer
 	jet      JetStreamFunc
 	temporal TemporalFunc
 	// codec decodes payloads of history read through the raw API.
@@ -249,6 +252,7 @@ func (e *Engine) init(src Source, reg registry.Source, opts []Option) {
 	e.replicas = 1
 	e.workflow = Workflow
 	e.temporalEnabled = true
+	e.tracer = otel.Tracer(instrumentation)
 	e.kick = make(chan struct{}, 1)
 	e.consumers = map[uuid.UUID]*consumer{}
 	e.broken = map[uuid.UUID]string{}

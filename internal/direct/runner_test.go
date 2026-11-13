@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -12,6 +13,10 @@ import (
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -810,5 +815,59 @@ func TestFailures(t *testing.T) {
 	noBinding := &direct.Failure{Msg: "no binding for iam.SendEmail", Type: wire.NoBindingType}
 	if st := direct.Status(noBinding); status.Code(st) != codes.FailedPrecondition {
 		t.Fatalf("no binding: %v", st)
+	}
+}
+
+// TestMain installs the W3C propagator, as the SDK does at start.
+func TestMain(m *testing.M) {
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	os.Exit(m.Run())
+}
+
+// A run's activity calls carry its trace: the caller's (Run.Trace) when
+// the run has no span of its own, else the run's span.
+func TestExecuteCarriesTrace(t *testing.T) {
+	t.Parallel()
+
+	p := program(t, `
+hook: iam.SendEmail
+steps:
+  send: {activity: smtp.Send, input: {to: req.to}}
+result: {id: send.id}
+`)
+
+	const caller = "4bf92f3577b34da6a3ce929d0e0e4736"
+
+	_, span := sdktrace.NewTracerProvider().Tracer("test").Start(t.Context(), "run")
+	t.Cleanup(func() { span.End() })
+
+	for _, tc := range []struct {
+		name string
+		ctx  context.Context
+		want string
+	}{
+		{name: "the caller's trace travels on", ctx: t.Context(), want: caller},
+		{name: "the run's span", ctx: trace.ContextWithSpan(t.Context(), span), want: span.SpanContext().TraceID().String()},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			f := newFake(map[string]handler{
+				"smtp.Send": func(context.Context, map[string]any) (any, error) { return map[string]any{"id": "m"}, nil },
+			})
+
+			_, err := direct.NewRunner(f).Execute(tc.ctx, direct.Run{
+				ID: "direct/binding/iam.SendEmail/t", Kind: direct.KindBinding, Program: p,
+				Payload: []byte(`{"to":"ann"}`), Identity: "iam.SendEmail@1",
+				Trace: map[string]string{"traceparent": "00-" + caller + "-00f067aa0ba902b7-01"},
+			}, &recorder{})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if got := f.of("send").GetTrace()["traceparent"]; !strings.Contains(got, tc.want) {
+				t.Fatalf("ActivityCall traceparent %q, want trace %s", got, tc.want)
+			}
+		})
 	}
 }

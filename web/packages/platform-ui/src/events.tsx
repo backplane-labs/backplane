@@ -180,7 +180,7 @@ function DeadLetters({ subscriber, initialConsumer, mode }: { subscriber: string
           className="h-6 rounded-sm border border-border px-2 font-mono text-xs text-muted-foreground aria-pressed:bg-primary/10 aria-pressed:text-foreground">{count.consumer} · {count.count.toString()}</button>)}
       </div>
       <ConfirmAction trigger={<><RotateCcw className="size-3.5" />{text('redrive')}</>} title={text('redriveConfirm', { count: selected.size })} description={text('redriveHelp')} disabled={!selected.size || !consumer || action.pending || action.disabled} onConfirm={operate('redrive')} />
-      <ConfirmAction trigger={<><Trash2 className="size-3.5" />{text('purge')}</>} title={text('purgeConfirm', { count: selected.size })} description={text('purgeHelp')} disabled={!selected.size || action.pending || action.disabled} onConfirm={operate('purge')} />
+      <ConfirmAction trigger={<><Trash2 className="size-3.5" />{text('purge')}</>} tone="danger" title={text('purgeConfirm', { count: selected.size })} description={text('purgeHelp')} disabled={!selected.size || action.pending || action.disabled} onConfirm={operate('purge')} />
     </>}
     footer={<>{action.value && <span role="status">{action.value}</span>}{action.error !== undefined && <span className="text-destructive" role="alert">{text('mutationFailed')}</span>}
       {!consumer && <span>{text('redriveNeedsConsumer')}</span>}

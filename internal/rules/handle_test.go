@@ -4,10 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	tracenoop "go.opentelemetry.io/otel/trace/noop"
 	"go.temporal.io/api/serviceerror"
 
 	"github.com/backplane-labs/backplane/internal/direct"
@@ -15,6 +22,19 @@ import (
 )
 
 func engineWith(s rules.Starter) *rules.Engine { return rules.Detached(nil, rules.WithStarter(s)) }
+
+// spans records what the engine traces: the SDK's global provider and W3C
+// propagator stand in, set once for the package.
+var spans = tracetest.NewSpanRecorder()
+
+func TestMain(m *testing.M) {
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(spans)))
+	os.Exit(m.Run())
+}
+
+// eventTrace is the trace of the fixture's event (headers).
+const eventTrace = "0af7651916cd43dd8448eb211c80319c"
 
 func deliver(
 	ctx context.Context, t *testing.T, e *rules.Engine, data, id string, delivered uint64,
@@ -57,6 +77,40 @@ func TestHandleStartsAndAcks(t *testing.T) {
 
 	if c.trace["traceparent"] == "" || string(c.event) != `{"email":"a@b.c","plan":"pro"}` {
 		t.Fatalf("trace %v, event %s", c.trace, c.event)
+	}
+
+	// The run is an asynchronous continuation of the event: a new trace
+	// whose rule span links the event's span.
+	if strings.Contains(c.trace["traceparent"], eventTrace) {
+		t.Fatalf("the run continues the event's trace: %s", c.trace["traceparent"])
+	}
+
+	var rule sdktrace.ReadOnlySpan
+
+	for _, s := range spans.Ended() {
+		if strings.Contains(c.trace["traceparent"], s.SpanContext().TraceID().String()) {
+			rule = s
+		}
+	}
+
+	if rule == nil || rule.Name() != "rule "+ruleUUID.String() || len(rule.Links()) != 1 ||
+		rule.Links()[0].SpanContext.TraceID().String() != eventTrace || rule.Parent().IsValid() {
+		t.Fatalf("rule span: %+v", rule)
+	}
+}
+
+// Tracing off (no exporter, a no-op tracer): the run keeps the event's
+// trace, so its logs still correlate with the event.
+func TestHandleWithoutTracingKeepsTheEventsTrace(t *testing.T) {
+	t.Parallel()
+
+	s := &fakeStarter{}
+	e := rules.Detached(nil, rules.WithStarter(s), rules.WithTracer(tracenoop.NewTracerProvider().Tracer("")))
+
+	msg := &fakeMsg{data: []byte(`{"email":"a@b.c","plan":"pro"}`), h: headers("ev-noop"), delivered: 1}
+	if out := e.Handle(t.Context(), ruleUUID, compile(t, proRule("iam.UserRegistered")), 3, msg); out != rules.OutcomeStarted ||
+		len(s.calls) != 1 || !strings.Contains(s.calls[0].trace["traceparent"], eventTrace) {
+		t.Fatalf("outcome %s, calls %+v", out, s.calls)
 	}
 }
 

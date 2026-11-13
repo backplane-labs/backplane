@@ -12,6 +12,8 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 
 	infranats "github.com/backplane-labs/backplane/pkg/backplane/infra/nats"
@@ -21,8 +23,13 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
 )
 
+// spans records what the broker traces: the SDK's global provider and W3C
+// propagator stand in, set once for the package.
+var spans = tracetest.NewSpanRecorder()
+
 func TestMain(m *testing.M) {
 	otel.SetTextMapPropagator(propagation.TraceContext{})
+	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(spans)))
 	os.Exit(m.Run())
 }
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go/jetstream"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/backplane-labs/backplane/internal/bindings"
 )
@@ -131,3 +132,6 @@ func ConsumerConfig(d Desired) jetstream.ConsumerConfig { return (&Engine{}).con
 
 // RuleOf is ruleOf.
 func RuleOf(metadata map[string]string) (uuid.UUID, int64, bool) { return ruleOf(metadata) }
+
+// WithTracer replaces the engine's tracer (the global provider's).
+func WithTracer(t trace.Tracer) Option { return func(e *Engine) { e.tracer = t } }

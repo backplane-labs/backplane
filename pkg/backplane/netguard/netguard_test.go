@@ -5,9 +5,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/backplane-labs/backplane/pkg/backplane/netguard"
 )
@@ -170,5 +175,41 @@ func BenchmarkForbidden(b *testing.B) {
 				netguard.Forbidden(ip)
 			}
 		})
+	}
+}
+
+// TestMain installs the W3C propagator, as the SDK does at start.
+func TestMain(m *testing.M) {
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	os.Exit(m.Run())
+}
+
+// A request carries the caller's trace context to the server.
+func TestClientCarriesTrace(t *testing.T) {
+	t.Parallel()
+
+	got := make(chan string, 1)
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		got <- r.Header.Get("Traceparent")
+	}))
+	t.Cleanup(srv.Close)
+
+	ctx, span := sdktrace.NewTracerProvider().Tracer("test").Start(t.Context(), "caller")
+	defer span.End()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL, http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := netguard.LoopbackClient(srv).Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_ = res.Body.Close()
+
+	if tp := <-got; !strings.Contains(tp, span.SpanContext().TraceID().String()) {
+		t.Fatalf("traceparent %q, caller's trace %s", tp, span.SpanContext().TraceID())
 	}
 }

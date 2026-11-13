@@ -23,6 +23,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // Errors.
@@ -171,7 +173,7 @@ func Hosts(hosts ...string) Option {
 func Redirects(n int) Option { return func(s *settings) { s.redirects = n } }
 
 // Client is an *http.Client over Transport whose every request and
-// redirect is https to an allowed host. Set its Timeout, or use request
+// redirect is https to an allowed host, traced (OpenTelemetry). Set its Timeout, or use request
 // contexts, to bound a fetch.
 func Client(opts ...Option) *http.Client { return client(Transport(), opts) }
 
@@ -182,7 +184,9 @@ func client(base http.RoundTripper, opts []Option) *http.Client {
 	}
 
 	return &http.Client{
-		Transport: checked{base: base, hosts: s.hosts},
+		// Every allowed request is a client span carrying the caller's
+		// trace context (traceparent); a refused one never leaves.
+		Transport: checked{base: otelhttp.NewTransport(base), hosts: s.hosts},
 		CheckRedirect: func(_ *http.Request, via []*http.Request) error {
 			if s.redirects <= 0 {
 				return http.ErrUseLastResponse

@@ -162,7 +162,7 @@ function RunDetail({ workflowId, runId, mode, children, source, onOpenRun }: { w
           <ConfirmAction trigger={<><CircleX className="size-3.5" />{text('cancel')}</>} title={text('cancelConfirm')} description={text('cancelHelp')} disabled={action.pending || action.disabled}
             onConfirm={control((signal) => source?.cancel ? source.cancel({ workflowId, runId }, signal) : client.cancelRun(create(api.CancelRunRequestSchema, { workflowId, runId }), { signal }))} />
           <Input className="h-8 w-56" aria-label={text('reason')} placeholder={text('terminateReason')} value={reason} onChange={(event) => setReason(event.target.value)} />
-          <ConfirmAction trigger={<><OctagonX className="size-3.5" />{text('terminate')}</>} title={text('terminateConfirm')} description={text('terminateHelp')} disabled={action.pending || action.disabled}
+          <ConfirmAction trigger={<><OctagonX className="size-3.5" />{text('terminate')}</>} tone="danger" title={text('terminateConfirm')} description={text('terminateHelp')} disabled={action.pending || action.disabled}
             onConfirm={control((signal) => client.terminateRun(create(api.TerminateRunRequestSchema, { workflowId, runId, reason }), { signal }))} />
         </div>
         <div className="grid gap-2">

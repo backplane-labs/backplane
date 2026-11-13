@@ -49,12 +49,16 @@ type received struct {
 // CloudEvents metadata and trace. Requires BACKPLANE_TEST_NATS (e.g.
 // localhost:4222).
 //
-//nolint:paralleltest // hello's ports and stream are shared with TestContract
+// Not parallel: hello's ports and stream are shared with TestContract.
 func TestEvents(t *testing.T) {
 	addr := os.Getenv("BACKPLANE_TEST_NATS")
 	if addr == "" {
 		t.Skip("BACKPLANE_TEST_NATS not set (make up)")
 	}
+
+	// Traces exported (to nowhere): the SDK installs a recording provider,
+	// as in production, so the reactor's span is real.
+	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://127.0.0.1:1")
 
 	url := "nats://" + addr
 	watcher := "watch-" + randomHex(t)
@@ -70,7 +74,8 @@ func TestEvents(t *testing.T) {
 	h := runHello(t, url)
 	name := "ev-" + randomHex(t)
 
-	// The caller's trace travels with the event to the reactor.
+	// The caller's trace travels with the event; the reactor's handling is
+	// an asynchronous continuation, a new trace linked to it.
 	const traceID = "4bf92f3577b34da6a3ce929d0e0e4736"
 
 	traceparent := "00-" + traceID + "-00f067aa0ba902b7-01"
@@ -112,8 +117,12 @@ func TestEvents(t *testing.T) {
 		t.Errorf("ce-id %q, Nats-Msg-Id %q", id, m.Header.Get("Nats-Msg-Id"))
 	}
 
-	if tp := m.Header.Get("traceparent"); !strings.Contains(tp, traceID) || r.trace.String() != traceID {
-		t.Errorf("event traceparent %q, reactor trace %s, want trace %s", tp, r.trace, traceID)
+	if tp := m.Header.Get("traceparent"); !strings.Contains(tp, traceID) {
+		t.Errorf("event traceparent %q, want trace %s", tp, traceID)
+	}
+
+	if !r.trace.IsValid() || r.trace.String() == traceID {
+		t.Errorf("reactor trace %s: want a new trace linked to %s", r.trace, traceID)
 	}
 }
 

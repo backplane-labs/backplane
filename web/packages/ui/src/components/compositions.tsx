@@ -35,10 +35,12 @@ export function ClipboardButton({ value, label, disabled }: { value: string; lab
 export interface ConfirmActionProps {
   trigger: ReactNode; title: string; description: string; confirmLabel?: string;
   onConfirm: (signal: AbortSignal) => void | Promise<void>; disabled?: boolean;
+  /** danger: the confirm button takes the destructive style (deleting, erasing). */
+  tone?: 'default' | 'danger';
   /** Fields the confirmation asks for (a note, a reason), between the description and the buttons. */
   children?: ReactNode;
 }
-export function ConfirmAction({ trigger, title, description, confirmLabel, onConfirm, disabled, children }: ConfirmActionProps) {
+export function ConfirmAction({ trigger, title, description, confirmLabel, onConfirm, disabled, tone, children }: ConfirmActionProps) {
   const { t } = useTranslation('backplane.ui');
   const [open, setOpen] = useState(false), [pending, setPending] = useState(false), [error, setError] = useState(false);
   const active = useRef<AbortController | null>(null);
@@ -49,7 +51,7 @@ export function ConfirmAction({ trigger, title, description, confirmLabel, onCon
       {children}
       {error && <FieldError>{t('actionFailed')}</FieldError>}
       <DialogFooter><Button type="button" variant="outline" disabled={pending} onClick={() => setOpen(false)}>{t('cancel')}</Button>
-        <Button type="button" disabled={pending} onClick={async () => {
+        <Button type="button" variant={tone === 'danger' ? 'destructive' : 'default'} disabled={pending} onClick={async () => {
           if (active.current) return;
           const controller = new AbortController(); active.current = controller; setPending(true); setError(false);
           try { await onConfirm(controller.signal); if (!controller.signal.aborted) setOpen(false); }

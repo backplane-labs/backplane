@@ -16,6 +16,8 @@ import { schemaFormsEnglish } from './locales.js';
 
 const stack: CSSProperties = { display: 'grid', gap: 16 };
 const row: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' };
+// A compact action under an item: its own width, not the column's.
+const itemAction: CSSProperties = { justifySelf: 'start' };
 function useText() {
   const { t } = useTranslation('backplane.schemaForms');
   return (key: keyof typeof schemaFormsEnglish, args?: Record<string, string | number>) => t(key, { defaultValue: schemaFormsEnglish[key], ...args });
@@ -41,7 +43,11 @@ export interface SchemaFormProps {
   confirm?: SchemaFormConfirm;
 }
 
-export interface SchemaFormConfirm { title: string; description: string; confirmLabel?: string }
+export interface SchemaFormConfirm {
+  title: string; description: string; confirmLabel?: string;
+  /** danger: the confirm button takes the kit's destructive style (deleting, erasing). */
+  tone?: 'default' | 'danger';
+}
 
 export function SchemaForm(props: SchemaFormProps) {
   const t = useText();
@@ -130,7 +136,7 @@ function FormBody({ engine, initialValues = {}, onSubmit, onDirtyChange, confirm
         {submitFailed && <p role="alert">{t('submitError')}</p>}
         <DialogFooter>
           <Button type="button" variant="outline" disabled={saving} onClick={() => setPending(null)}>{t('cancel')}</Button>
-          <Button type="button" disabled={saving} onClick={async () => {
+          <Button type="button" variant={confirm.tone === 'danger' ? 'destructive' : 'default'} disabled={saving} onClick={async () => {
             if (!pending || active.current) return;
             if (await send(pending.baked, pending.resolved)) setPending(null);
           }}>{saving ? t('saving') : confirm.confirmLabel ?? t('confirm')}</Button>
@@ -237,7 +243,7 @@ function FormField({ field, path, context, depth = 0 }: { field: Schema_Field; p
       return <div key={key} style={stack}>
         {child ? <FormField field={{ ...child, title: key }} path={[...path, key]} context={{ ...context, disabled }} depth={depth + 1} />
           : <StructuredControl id={`${id}-${encodeURIComponent(key)}`} label={key} value={(value as NativeStruct)[key]} path={[...path, key]} context={context} disabled={disabled} />}
-        {!disabled && <Button type="button" variant="outline" onClick={() => context.update([...path, key], undefined)}>{t('remove', { name: key })}</Button>}
+        {!disabled && <Button type="button" variant="outline" size="sm" style={itemAction} onClick={() => context.update([...path, key], undefined)}>{t('remove', { name: key })}</Button>}
       </div>;
     })}{!disabled && <MapEntry title={title} value={value as NativeStruct} onAdd={(key) => context.update([...path, key], map.valueField ? emptyValue(map.valueField) : {})} />}</div>;
   } else if (field.kind.case === 'bool') {
@@ -283,12 +289,13 @@ function ListControl({ list, value, title, id, path, context, disabled, depth }:
     return <div key={keys.current[index]} style={stack}>
       {item ? <FormField field={{ ...item, title: t('item', { index: index + 1 }) }} path={[...path, index]} context={{ ...context, disabled }} depth={depth + 1} />
         : <StructuredControl id={`${id}-${index}`} value={entry} path={[...path, index]} context={context} disabled={disabled} />}
-      {!disabled && <Button type="button" variant="outline" aria-label={t('remove', { name: `${title} ${index + 1}` })} onClick={() => {
+      {/* The visible "Remove" is part of the name (label in name, WCAG 2.5.3). */}
+      {!disabled && <Button type="button" variant="outline" size="sm" style={itemAction} aria-label={t('remove', { name: `${title} ${index + 1}` })} onClick={() => {
         keys.current.splice(index, 1);
         context.update(path, value.filter((_, i) => i !== index));
-      }}>{t('remove', { name: t('item', { index: index + 1 }) })}</Button>}
+      }}>{t('removeItem')}</Button>}
     </div>;
-  })}{!disabled && <Button type="button" variant="outline" onClick={() => {
+  })}{!disabled && <Button type="button" variant="outline" size="sm" style={itemAction} onClick={() => {
     const item = listItemDef(list, value.length); context.update(path, [...value, item ? emptyValue(item) : null]);
   }}>{t('addItem')}</Button>}</div>;
 }
@@ -364,7 +371,7 @@ function StructuredControl({ value, path, context, label, ...props }: ControlPro
 function MapEntry({ title, value, onAdd }: { title: string; value: NativeStruct; onAdd: (key: string) => void }) {
   const t = useText(); const [key, setKey] = useState(''); const exists = Object.hasOwn(value, key);
   return <div style={row}><Input aria-label={t('key', { name: title })} value={key} aria-invalid={exists} onChange={(event) => setKey(event.target.value)} />
-    <Button type="button" variant="outline" disabled={exists || !key} onClick={() => { onAdd(key); setKey(''); }}>{t('addEntry')}</Button>
+    <Button type="button" variant="outline" size="sm" disabled={exists || !key} onClick={() => { onAdd(key); setKey(''); }}>{t('addEntry')}</Button>
     {exists && <FieldError>{t('duplicateKey')}</FieldError>}
   </div>;
 }

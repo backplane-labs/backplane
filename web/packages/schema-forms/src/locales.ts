@@ -1,7 +1,7 @@
 export const schemaFormsEnglish = {
   save: 'Save', saving: 'Saving…', reset: 'Reset', dirty: 'Unsaved changes', confirm: 'Confirm', cancel: 'Cancel',
   add: 'Set value', unset: 'Unset', nullValue: 'Set null', null: 'Null', absent: 'Not set',
-  addItem: 'Add item', remove: 'Remove {{name}}', item: 'Item {{index}}',
+  addItem: 'Add item', remove: 'Remove {{name}}', removeItem: 'Remove', item: 'Item {{index}}',
   key: 'New key for {{name}}', addEntry: 'Add entry', duplicateKey: 'This key already exists.',
   variant: '{{name}} variant', choose: 'Choose…',
   deprecated: 'Deprecated', computed: 'Computed', immutable: 'Fixed by schema',

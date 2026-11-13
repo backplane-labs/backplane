@@ -576,10 +576,18 @@ func (b *Broker) handle(work context.Context, re reactor, msg jetstream.Msg) {
 }
 
 // invoke runs the reactor's handler on one event: in a consumer span, with
-// the reactor's timeout and the event's metadata (env.Incoming) on ctx.
+// the reactor's timeout and the event's metadata (env.Incoming) on ctx. A
+// delivery is an asynchronous continuation of its publish: the span starts
+// a new trace linked to the event's span (ctx carries it, extracted from
+// the headers), not a child of it.
 func (b *Broker) invoke(
 	ctx context.Context, re reactor, subject string, data []byte, h nats.Header, attempt uint64,
 ) error {
+	spanOpts := []trace.SpanStartOption{trace.WithNewRoot(), trace.WithSpanKind(trace.SpanKindConsumer)}
+	if origin := trace.SpanContextFromContext(ctx); origin.IsValid() {
+		spanOpts = append(spanOpts, trace.WithLinks(trace.Link{SpanContext: origin}))
+	}
+
 	ctx = env.WithIncoming(ctx, incoming(h, re.consumer, attempt))
 
 	hctx, cancel := context.WithTimeout(ctx, re.delivery.timeout)
@@ -588,7 +596,7 @@ func (b *Broker) invoke(
 	//nolint:wrapcheck // the handler's error as it is
 	return xtrace.Run(hctx, otel.Tracer(instrumentation), "process "+re.event,
 		func(ctx context.Context, _ trace.Span) error { return call(ctx, re.handler, data) },
-		xtrace.WithSpanOptions(trace.WithSpanKind(trace.SpanKindConsumer)), xtrace.WithAttrs(
+		xtrace.WithSpanOptions(spanOpts...), xtrace.WithAttrs(
 			attribute.String("messaging.system", "nats"),
 			attribute.String("messaging.destination.name", subject),
 			attribute.String("messaging.consumer.group.name", re.durable),

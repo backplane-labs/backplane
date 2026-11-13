@@ -116,7 +116,7 @@ func Options(cfg Config, identity string, log *xlog.Logger) (client.Options, err
 		return client.Options{}, fmt.Errorf("temporal: %w", err)
 	}
 
-	tracer, err := otelsdk.NewTracingInterceptor(otelsdk.TracerOptions{})
+	tracer, err := otelsdk.NewTracingInterceptor(otelsdk.TracerOptions{HeaderKey: tracerHeaderKey})
 	if err != nil {
 		return client.Options{}, fmt.Errorf("temporal: tracing: %w", err)
 	}
@@ -126,7 +126,7 @@ func Options(cfg Config, identity string, log *xlog.Logger) (client.Options, err
 		Namespace:    cfg.Namespace,
 		Identity:     identity,
 		Logger:       tlog.NewStructuredLogger(slog.New(xlog.NewSlogHandler(log))),
-		Interceptors: []interceptor.ClientInterceptor{tracer},
+		Interceptors: []interceptor.ClientInterceptor{tracer, &scheduleRoots{}},
 		MetricsHandler: otelsdk.NewMetricsHandler(otelsdk.MetricsHandlerOptions{
 			Meter:                otel.GetMeterProvider().Meter(scopeName),
 			OnError:              func(err error) { log.Debug("temporal metric", xlog.Err(err)) },
@@ -171,9 +171,43 @@ func connectionOptions(c config.TemporalConnection, tlsCfg *tls.Config) client.C
 	return opts
 }
 
+// tracerHeaderKey is the Temporal header the tracing interceptor carries
+// the trace context in.
+const tracerHeaderKey = "_tracer-data"
+
+// scheduleRoots keeps a schedule's runs out of the trace that created it:
+// the tracing interceptor writes the creating span into the schedule
+// action's header, and every run, for as long as the schedule lives, would
+// continue it. Without it each run's workflow span is a root, one trace per
+// run. It runs after the tracing interceptor.
+type scheduleRoots struct {
+	interceptor.ClientInterceptorBase
+}
+
+func (*scheduleRoots) InterceptClient(
+	next interceptor.ClientOutboundInterceptor,
+) interceptor.ClientOutboundInterceptor {
+	return &scheduleRootsOutbound{ClientOutboundInterceptorBase: interceptor.ClientOutboundInterceptorBase{Next: next}}
+}
+
+type scheduleRootsOutbound struct {
+	interceptor.ClientOutboundInterceptorBase
+}
+
+func (s *scheduleRootsOutbound) CreateSchedule(
+	ctx context.Context, in *interceptor.ScheduleClientCreateInput,
+) (client.ScheduleHandle, error) {
+	delete(interceptor.Header(ctx), tracerHeaderKey)
+
+	handle, err := s.Next.CreateSchedule(ctx, in)
+	if err != nil {
+		return nil, fmt.Errorf("temporal: create schedule: %w", err)
+	}
+
+	return handle, nil
+}
+
 // Dial makes one connection attempt bounded by the dial timeout.
-//
-//nolint:ireturn // the Temporal SDK's client is an interface
 func Dial(ctx context.Context, cfg Config, opts client.Options) (Client, error) {
 	ctx, cancel := context.WithTimeout(ctx, cfg.WithDefaults().DialTimeout)
 	defer cancel()
@@ -194,7 +228,6 @@ type provider struct{ cfg Config }
 
 func (provider) Name() string { return "temporal" }
 
-//nolint:ireturn // the Temporal SDK's client is an interface
 func (p provider) Provide(ctx context.Context, s deps.Scope) (Client, error) {
 	if err := p.cfg.Validate(); err != nil {
 		return nil, err

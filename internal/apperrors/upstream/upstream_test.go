@@ -7,10 +7,15 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	logspb "go.opentelemetry.io/proto/otlp/logs/v1"
@@ -37,6 +42,7 @@ type receiver struct {
 	exports []*collogspb.ExportLogsServiceRequest
 	calls   int
 	bodies  [][]byte
+	traces  []string
 	got     chan struct{}
 }
 
@@ -90,6 +96,7 @@ func (v *receiver) serve(w http.ResponseWriter, r *http.Request) {
 
 	v.mu.Lock()
 	v.bodies = append(v.bodies, raw)
+	v.traces = append(v.traces, r.Header.Get("Traceparent"))
 	if status == http.StatusOK {
 		v.exports = append(v.exports, export)
 	}
@@ -389,4 +396,29 @@ func equal(a, b []string) bool {
 	}
 
 	return true
+}
+
+// TestMain installs the W3C propagator and a recording provider, as the
+// SDK does at start.
+func TestMain(m *testing.M) {
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	otel.SetTracerProvider(sdktrace.NewTracerProvider())
+	os.Exit(m.Run())
+}
+
+// Every export is a client span: the receiver gets its traceparent.
+func TestExportIsTraced(t *testing.T) {
+	t.Parallel()
+
+	f := start(t, nil)
+
+	f.fwd.Offer(t.Context(), record(resource("web"), nil, "traced"))
+	f.receiver.wait(t, 1)
+
+	f.receiver.mu.Lock()
+	defer f.receiver.mu.Unlock()
+
+	if len(f.receiver.traces) != 1 || !strings.HasPrefix(f.receiver.traces[0], "00-") {
+		t.Fatalf("traceparent of the export: %q", f.receiver.traces)
+	}
 }

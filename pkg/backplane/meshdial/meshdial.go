@@ -29,6 +29,8 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/filters"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials"
@@ -92,9 +94,12 @@ func (d Dialer) Dial(addr string, creds credentials.TransportCredentials, opts .
 	}
 
 	// A mesh address is the installation's own: never through the
-	// environment's proxy, which would not reach it.
+	// environment's proxy, which would not reach it. Every call is a client
+	// span whose trace context travels in the call's metadata, so the
+	// server's span continues the caller's trace.
 	base := []grpc.DialOption{
 		grpc.WithTransportCredentials(creds), grpc.WithConnectParams(connectParams()), grpc.WithNoProxy(),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithFilter(filters.Not(filters.HealthCheck())))),
 	}
 
 	target := addr

@@ -297,12 +297,12 @@ func TestReactorReceives(t *testing.T) {
 
 	type got struct {
 		payload string
-		trace   trace.TraceID
+		span    trace.SpanContext
 	}
 
 	received := make(chan got, 1)
 	e, consumer := subscriber(t, sub, src, func(ctx context.Context, in []byte) ([]byte, error) {
-		received <- got{payload: string(in), trace: trace.SpanContextFromContext(ctx).TraceID()}
+		received <- got{payload: string(in), span: trace.SpanContextFromContext(ctx)}
 
 		return nil, nil
 	})
@@ -321,9 +321,26 @@ func TestReactorReceives(t *testing.T) {
 
 	select {
 	case g := <-received:
-		if g.payload != `{"n":1}` || g.trace != spanCtx.TraceID() {
+		if g.payload != `{"n":1}` {
 			t.Fatalf("got %+v", g)
 		}
+
+		// A delivery is an asynchronous continuation: a new trace whose
+		// consumer span links the publisher's span.
+		if g.span.TraceID() == spanCtx.TraceID() {
+			t.Fatalf("the reactor continues the publisher's trace %s", g.span.TraceID())
+		}
+
+		eventually(t, "consumer span", func() bool {
+			for _, s := range spans.Ended() {
+				if s.SpanContext().SpanID() == g.span.SpanID() {
+					return !s.Parent().IsValid() && len(s.Links()) == 1 &&
+						s.Links()[0].SpanContext.TraceID() == spanCtx.TraceID()
+				}
+			}
+
+			return false
+		})
 	case <-time.After(waitFor):
 		t.Fatal("not received")
 	}

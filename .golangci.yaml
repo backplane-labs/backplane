@@ -296,6 +296,11 @@ linters:
       - legacy
       - std-error-handling
     rules:
+      # Temporal's client, its interceptors and schedule handles are
+      # interfaces by the Temporal SDK's design.
+      - linters:
+          - ireturn
+        path: pkg/backplane/infra/temporal/temporal\.go
       # The bounded pool stands in for *pgxpool.Pool: it answers pgx's own
       # interfaces (Rows, Row, BatchResults, Tx) as the pool does.
       - linters:

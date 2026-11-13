@@ -4,10 +4,16 @@ import (
 	"context"
 	"errors"
 	"net"
+	"os"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -53,13 +59,15 @@ func TestServer(t *testing.T) {
 	e := env.New("smtp", manifest.New("smtp", "1.0.0"))
 
 	var (
-		info env.ActivityInfo
-		user string
+		info    env.ActivityInfo
+		user    string
+		traceID trace.TraceID
 	)
 
 	e.Activity("Send", func(ctx context.Context, in []byte) ([]byte, error) {
 		info, _ = env.ActivityInfoOf(ctx)
 		user = meta.Get(ctx, "user")
+		traceID = trace.SpanContextFromContext(ctx).TraceID()
 
 		return []byte(`{"got":` + string(in) + `}`), nil
 	})
@@ -86,6 +94,7 @@ func TestServer(t *testing.T) {
 	res, err := client.Run(t.Context(), &backplanev1.RunRequest{Call: &backplanev1.ActivityCall{
 		Activity: "smtp.Send", Payload: []byte(`{"to":"a"}`), Binding: "iam.SendEmail@3", Step: "send", Attempt: 2,
 		Key: "run-1/send", Metadata: map[string]string{"user": "u-1"},
+		Trace: map[string]string{"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"},
 	}})
 	if err != nil || string(res.GetResult().GetPayload()) != `{"got":{"to":"a"}}` {
 		t.Fatalf("%s %v", res.GetResult().GetPayload(), err)
@@ -94,6 +103,11 @@ func TestServer(t *testing.T) {
 	if info.Attempt != 2 || info.Binding != "iam.SendEmail@3" || info.Step != "send" || info.Key != "run-1/send" ||
 		user != "u-1" {
 		t.Fatalf("info %+v user %q", info, user)
+	}
+
+	// The activity continues the run's trace (ActivityCall.trace).
+	if traceID.String() != "4bf92f3577b34da6a3ce929d0e0e4736" {
+		t.Fatalf("activity trace %s", traceID)
 	}
 
 	for _, tc := range []struct {
@@ -146,14 +160,16 @@ type hookServer struct {
 	secret atomic.Pointer[string]
 	key    atomic.Pointer[string]
 	meta   atomic.Pointer[map[string]string]
+	trace  atomic.Pointer[map[string]string]
 }
 
 func (s *hookServer) Raise(ctx context.Context, req *consolev1.RaiseRequest) (*consolev1.RaiseResponse, error) {
 	s.calls.Add(1)
 
 	call := req.GetCall()
-	callMeta := call.GetMetadata()
+	callMeta, callTrace := call.GetMetadata(), call.GetTrace()
 	s.meta.Store(&callMeta)
+	s.trace.Store(&callTrace)
 
 	if s.down.Load() {
 		return nil, status.Error(codes.Unavailable, "down")
@@ -216,9 +232,17 @@ func TestCaller(t *testing.T) {
 	})
 	t.Cleanup(c.Close)
 
-	out, err := c.Call(env.WithCallKey(meta.With(t.Context(), "user", "u-1"), "k-1"), "iam.SendEmail", []byte(`{"to":"a"}`))
+	traced, span := sdktrace.NewTracerProvider().Tracer("test").Start(t.Context(), "caller")
+	defer span.End()
+
+	out, err := c.Call(env.WithCallKey(meta.With(traced, "user", "u-1"), "k-1"), "iam.SendEmail", []byte(`{"to":"a"}`))
 	if err != nil || len(out) == 0 {
 		t.Fatalf("%s %v", out, err)
+	}
+
+	// The hook call carries the caller's trace to the run.
+	if tr := b.trace.Load(); tr == nil || !strings.Contains((*tr)["traceparent"], span.SpanContext().TraceID().String()) {
+		t.Fatalf("HookCall trace %v, caller's trace %s", tr, span.SpanContext().TraceID())
 	}
 
 	if b.secret.Load() == nil || *b.secret.Load() != "s3cret" || b.key.Load() == nil || *b.key.Load() != "k-1" ||
@@ -256,4 +280,12 @@ func TestCaller(t *testing.T) {
 	if _, err := c.Call(t.Context(), "iam.SendEmail", nil); !errors.Is(err, env.ErrUnavailable) {
 		t.Fatalf("all down: %v", err)
 	}
+}
+
+// TestMain installs the W3C propagator and a recording provider, as the
+// SDK does at start.
+func TestMain(m *testing.M) {
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	otel.SetTracerProvider(sdktrace.NewTracerProvider())
+	os.Exit(m.Run())
 }

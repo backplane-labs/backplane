@@ -40,7 +40,7 @@ function Fixture({ readOnly = false, confirm = false }: { readOnly?: boolean; co
     <p>Native validation, conditional fields and lossless values.</p>
     {!readOnly && <div style={{ display: 'flex', gap: 8 }}><Checkbox id="simulate-failure" checked={fail} onCheckedChange={(value) => setFail(value === true)} /><Label htmlFor="simulate-failure">Simulate save failure</Label></div>}
     <SchemaForm schema={schema} label="Service configuration" readOnly={readOnly} initialValues={{ labels: { env: 'dev' }, ports: [8080n], destination: { kind: 'http' }, metadata: { enabled: true } }}
-      confirm={confirm ? { title: 'Delete the service?', description: 'Its instances stop and its data is erased. This cannot be undone.', confirmLabel: 'Delete' } : undefined}
+      confirm={confirm ? { title: 'Delete the service?', description: 'Its instances stop and its data is erased. This cannot be undone.', confirmLabel: 'Delete', tone: 'danger' } : undefined}
       submitLabel={confirm ? 'Delete service' : undefined}
       onSubmit={async (baked, signal) => {
         setSent((old) => old + 1);

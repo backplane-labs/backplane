@@ -194,7 +194,7 @@ function ScheduleRow({ schedule, onOpenRun, onShowRuns, onChanged, onEdit }: { o
     </div>
     <div className="flex flex-wrap items-center gap-1.5">
       {!managed && <Button size="sm" variant="ghost" disabled={blocked} onClick={onEdit}>{text('editSchedule')}</Button>}
-      {!managed && <ConfirmAction trigger={text('deleteSchedule')} title={text('deleteSchedule')} description={text('deleteScheduleHelp')} disabled={blocked} onConfirm={control('delete')} />}
+      {!managed && <ConfirmAction trigger={text('deleteSchedule')} tone="danger" title={text('deleteSchedule')} description={text('deleteScheduleHelp')} disabled={blocked} onConfirm={control('delete')} />}
       {paused ? <ConfirmAction trigger={<><Play className="size-3.5" />{text('resume')}</>} title={text('resumeConfirm', { name: schedule.name })} description={text('resumeHelp')} disabled={blocked} onConfirm={control('resume')}>{noteField}</ConfirmAction>
         : <ConfirmAction trigger={<><Pause className="size-3.5" />{text('pause')}</>} title={text('pauseConfirm', { name: schedule.name })} description={text('pauseHelp')} disabled={blocked} onConfirm={control('pause')}>{noteField}</ConfirmAction>}
       <ConfirmAction trigger={<><Zap className="size-3.5" />{text('trigger')}</>} title={text('triggerConfirm', { name: schedule.name })} description={text('triggerHelp')} disabled={blocked} onConfirm={control('trigger')} />

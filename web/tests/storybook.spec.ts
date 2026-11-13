@@ -103,6 +103,8 @@ for (const theme of ['dark', 'light']) {
     await expect(page.getByLabel('Sequence', { exact: true })).toHaveValue('18446744073709551615');
     await expect(page.getByLabel('Capacity (MB)', { exact: true })).toHaveValue('256');
     await expect(page.getByLabel('Region', { exact: true })).toHaveCount(0);
+    // A list item's remove action: the visible "Remove" is part of its name.
+    await expect(page.getByRole('button', { name: 'Remove Ports 1', exact: true })).toHaveText('Remove');
     // An untouched form shows no messages; editing a field shows its own,
     // and a submit attempt summarizes every one without saving.
     await expect(page.getByRole('region', { name: 'Validation messages' })).toHaveCount(0);
@@ -154,6 +156,7 @@ for (const theme of ['dark', 'light']) {
     await submit.click();
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText('This cannot be undone.');
+    await expect(dialog.getByRole('button', { name: 'Delete', exact: true })).toHaveAttribute('data-variant', 'destructive');
     await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(dialog).toHaveCount(0);
     await expect(sent).toHaveText('Requests sent: 0');
