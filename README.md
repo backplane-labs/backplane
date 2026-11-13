@@ -12,7 +12,7 @@ workflows, API discovery, telemetry and one console for the whole installation.
 [![CI](https://img.shields.io/github/actions/workflow/status/backplane-labs/backplane/ci.yml?branch=master&label=CI&style=flat-square)](https://github.com/backplane-labs/backplane/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/backplane-labs/backplane?style=flat-square&color=12d6a3)](https://github.com/backplane-labs/backplane/releases)
 [![Release build](https://img.shields.io/github/actions/workflow/status/backplane-labs/backplane/release.yml?label=release%20build&style=flat-square)](https://github.com/backplane-labs/backplane/actions/workflows/release.yml)
-[![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white&style=flat-square)](https://go.dev)
+[![Go](https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white&style=flat-square)](https://go.dev)
 [![TypeScript](https://img.shields.io/badge/SDK-TypeScript-3178C6?logo=typescript&logoColor=white&style=flat-square)](web/README.md)
 [![Container](https://img.shields.io/badge/container-GHCR-12d6a3?logo=docker&logoColor=white&style=flat-square)](https://github.com/backplane-labs/backplane/pkgs/container/backplane)
 [![License](https://img.shields.io/github/license/backplane-labs/backplane?style=flat-square)](LICENSE)
@@ -38,7 +38,7 @@ It does not deploy services or replace your orchestrator.
 
 ## Quickstart
 
-Requirements: Go 1.26, Node.js 24, Yarn 1.22.22 and Docker Compose. Gopherex
+Requirements: Go 1.27, Node.js 24, Yarn 1.22.22 and Docker Compose. Gopherex
 frontend dependencies come from GitHub Packages; configure a token with package
 read access in your user [package-manager configuration](web/README.md).
 

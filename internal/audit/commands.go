@@ -27,6 +27,11 @@ const (
 	lookupDeadline = 2 * time.Second
 	// maxWords bounds the operator's words kept in a detail (runes).
 	maxWords = 256
+	// Identity names, spelled the same in the requests' fields, in run ids
+	// and in the feed's columns.
+	fieldService  = "service"
+	fieldHook     = "hook"
+	fieldActivity = "activity"
 )
 
 // Commands wraps only the enumerated external-control RPCs. Database mutations
@@ -137,9 +142,9 @@ func commandSubject(value any) string {
 	var parts []string
 
 	for _, name := range []protoreflect.Name{
-		"service",
-		"hook",
-		"activity",
+		fieldService,
+		fieldHook,
+		fieldActivity,
 		"workflow",
 		"subscriber",
 		"consumer",
@@ -315,9 +320,9 @@ func runOwner(workflowID string) (owner, string) {
 		return ownerRule, parts[2]
 	case len(parts) > 2 && parts[0] == "rule":
 		return ownerRule, parts[1]
-	case parts[0] == "hook":
+	case parts[0] == fieldHook:
 		return service(parts[1:])
-	case len(parts) == consoleActivityParts && parts[0] == "console" && parts[1] == "activity":
+	case len(parts) == consoleActivityParts && parts[0] == "console" && parts[1] == fieldActivity:
 		return service(parts[2:])
 	case parts[0] == "console":
 		return service(parts[1:])
@@ -340,13 +345,13 @@ func queueService(queue string) string {
 // declaredService reads the service a request names directly or through a
 // qualified hook, activity, event or unsaved definition.
 func declaredService(message proto.Message, value any) string {
-	for _, name := range []protoreflect.Name{"service", "subscriber"} {
+	for _, name := range []protoreflect.Name{fieldService, "subscriber"} {
 		if service := stringField(message, name); service != "" {
 			return service
 		}
 	}
 
-	for _, name := range []protoreflect.Name{"hook", "activity"} {
+	for _, name := range []protoreflect.Name{fieldHook, fieldActivity} {
 		if qualified := stringField(message, name); qualified != "" {
 			return store.ServiceOf(qualified)
 		}

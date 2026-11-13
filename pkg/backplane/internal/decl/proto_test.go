@@ -22,8 +22,7 @@ import (
 // payloads is a .proto of hook and activity payloads with what protojson
 // and Go reflection disagree on: snake_case names, a Timestamp, a uint64,
 // an enum, a oneof and a nested message.
-//
-//nolint:ireturn // protodesc's
+// It returns protodesc's interface.
 func payloads(t *testing.T) protoreflect.FileDescriptor {
 	t.Helper()
 

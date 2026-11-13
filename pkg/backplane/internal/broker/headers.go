@@ -103,7 +103,7 @@ func headers(ctx context.Context, e cloudEvent) nats.Header {
 func incoming(h nats.Header, consumer string, attempt uint64) env.Incoming {
 	in := env.Incoming{
 		ID: h.Get(HeaderID), Source: h.Get(HeaderSource), Type: h.Get(HeaderType), Subject: h.Get(HeaderSubject),
-		Attempt: int(min(attempt, math.MaxInt32)), Consumer: consumer, //nolint:gosec // bounded
+		Attempt: int(min(attempt, math.MaxInt32)), Consumer: consumer, // bounded
 	}
 
 	if t, err := time.Parse(time.RFC3339Nano, h.Get(HeaderTime)); err == nil {

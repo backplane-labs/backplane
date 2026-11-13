@@ -5,7 +5,7 @@ This walkthrough starts Backplane, hello and formatter with containerized infras
 ## Prerequisites
 
 - Docker with Compose and permission to use the Docker daemon.
-- Go 1.26, Node 24 and Yarn 1.22.22.
+- Go 1.27, Node 24 and Yarn 1.22.22.
 - Git and GitHub Packages read credentials for the `@backplane-labs` and `@gopherex` packages.
 
 Configure the registry in your user package-manager configuration. Keep the token in the environment or your credential manager; never commit it:

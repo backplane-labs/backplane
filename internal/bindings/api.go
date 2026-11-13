@@ -78,7 +78,7 @@ func pageSize(n uint32) int {
 	return min(size, maxPage)
 }
 
-func toInt64(v uint64) int64 { return int64(min(v, math.MaxInt64)) } //nolint:gosec // bounded
+func toInt64(v uint64) int64 { return int64(min(v, math.MaxInt64)) } // bounded
 
 // ---- BindingService ---------------------------------------------------------
 

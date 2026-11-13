@@ -143,7 +143,7 @@ func (b builder) Build(target resolver.Target, cc resolver.ClientConn, _ resolve
 	}
 
 	// Canceled by Close.
-	ctx, cancel := context.WithCancel(context.Background()) //nolint:gosec // kept in the resolver
+	ctx, cancel := context.WithCancel(context.Background()) // kept in the resolver
 	r := &dnsResolver{
 		host: host, port: port, cc: cc, lookup: b.lookup,
 		now: make(chan struct{}, 1), cancel: cancel, done: make(chan struct{}),

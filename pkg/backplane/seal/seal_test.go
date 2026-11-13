@@ -9,7 +9,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/seal"
 )
 
-func open(t *testing.T, cfg seal.Config) seal.Sealer { //nolint:ireturn // the package's interface
+func open(t *testing.T, cfg seal.Config) seal.Sealer { // the package's interface
 	t.Helper()
 
 	s, err := seal.Open(cfg)

@@ -43,7 +43,7 @@ const (
 var (
 	// columns are the feed's columns of the fixed fields.
 	columns = map[consolev1.AuditField]string{
-		consolev1.AuditField_AUDIT_FIELD_SOURCE: "source", consolev1.AuditField_AUDIT_FIELD_SERVICE: "service",
+		consolev1.AuditField_AUDIT_FIELD_SOURCE: "source", consolev1.AuditField_AUDIT_FIELD_SERVICE: fieldService,
 		consolev1.AuditField_AUDIT_FIELD_ACTION: "action", consolev1.AuditField_AUDIT_FIELD_ACTOR: "actor",
 		consolev1.AuditField_AUDIT_FIELD_SUBJECT: "subject", consolev1.AuditField_AUDIT_FIELD_OUTCOME: "outcome",
 		consolev1.AuditField_AUDIT_FIELD_OPERATION: "operation", consolev1.AuditField_AUDIT_FIELD_SEVERITY: "severity",

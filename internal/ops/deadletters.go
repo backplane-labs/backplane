@@ -281,7 +281,7 @@ func (a EventAPI) deadLetters(
 			return nil, nil, fmt.Errorf("stream %s: %w", wire.DLQStreamName(subscriber), err)
 		}
 
-		limit := int(min(info.State.Msgs, maxBatch)) //nolint:gosec // bounded by maxBatch
+		limit := int(min(info.State.Msgs, maxBatch)) // bounded by maxBatch
 		msgs, _, err := forward(ctx, s, subject, info.State.FirstSeq, info.State.LastSeq, limit)
 
 		return msgs, nil, err

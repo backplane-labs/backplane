@@ -16,7 +16,7 @@ BIN := $(CURDIR)/bin
 EASYP_VERSION              := v0.16.6
 PROTOC_GEN_GO_VERSION      := v1.36.11
 PROTOC_GEN_GO_GRPC_VERSION := v1.6.2
-GOLANGCI_LINT_VERSION      := v2.11.3
+GOLANGCI_LINT_VERSION      := v2.15.0
 SQLD_VERSION               := v1.1.8
 
 # Scratch database `make db-init` realizes schemas in: sqld drops every

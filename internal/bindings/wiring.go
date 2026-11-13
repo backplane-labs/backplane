@@ -108,7 +108,7 @@ func (a Analysis) PB() *consolev1.Analysis {
 	for i := range a.Steps {
 		s := &a.Steps[i]
 		out.Steps = append(out.Steps, &consolev1.StepAnalysis{
-			Name: s.Name, Level: int32(max(min(s.Level, math.MaxInt32), -1)), //nolint:gosec // bounded
+			Name: s.Name, Level: int32(max(min(s.Level, math.MaxInt32), -1)), // bounded
 			Data: s.Data, After: s.After, When: s.When, Undo: s.Undo, Parent: s.Parent, ItemType: s.ItemType,
 		})
 	}

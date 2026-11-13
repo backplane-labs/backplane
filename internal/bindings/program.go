@@ -515,7 +515,7 @@ func (p *Program) StartEvent(payload []byte, meta Meta) (Scope, error) {
 	}
 
 	vars[VarMeta] = map[string]any{
-		"id": meta.ID, "source": meta.Source, "subject": meta.Subject, "type": meta.Type, "time": eventTime,
+		metaID: meta.ID, metaSource: meta.Source, metaSubject: meta.Subject, metaType: meta.Type, metaTime: eventTime,
 	}
 
 	return Scope{vars: vars}, nil
@@ -536,13 +536,13 @@ func (p *Program) declare(vars, steps map[string]any) {
 	for i := range p.spec.Steps {
 		st := &p.spec.Steps[i]
 		if st.ForEach != nil {
-			steps[st.Name] = map[string]any{"skipped": false, "failed": int64(0), "errors": []any{}}
+			steps[st.Name] = map[string]any{fieldSkipped: false, fieldFailed: int64(0), fieldErrors: []any{}}
 			vars[st.Name] = []any{}
 
 			continue
 		}
 
-		steps[st.Name] = map[string]any{"skipped": false}
+		steps[st.Name] = map[string]any{fieldSkipped: false}
 		vars[st.Name] = map[string]any{}
 	}
 }
@@ -578,7 +578,7 @@ func (s Scope) with(step string, value any, skipped bool) Scope {
 
 	steps, _ := vars[VarSteps].(map[string]any)
 	steps = maps.Clone(steps)
-	steps[step] = map[string]any{"skipped": skipped}
+	steps[step] = map[string]any{fieldSkipped: skipped}
 	vars[VarSteps] = steps
 
 	return Scope{vars: vars}

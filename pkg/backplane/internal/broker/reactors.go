@@ -173,7 +173,7 @@ func (b *Broker) StartReactors(ctx context.Context, g node.Group) error {
 	st := &b.reactors
 	st.mu.Lock()
 	st.stop = make(chan struct{})
-	st.work, st.cancel = context.WithCancel(context.WithoutCancel(ctx)) //nolint:gosec // StopReactors cancels
+	st.work, st.cancel = context.WithCancel(context.WithoutCancel(ctx)) // StopReactors cancels
 	st.mu.Unlock()
 
 	for i := range list {
@@ -592,7 +592,7 @@ func (b *Broker) invoke(
 			attribute.String("messaging.system", "nats"),
 			attribute.String("messaging.destination.name", subject),
 			attribute.String("messaging.consumer.group.name", re.durable),
-			attribute.Int64("messaging.message.delivery_count", int64(min(attempt, math.MaxInt64))), //nolint:gosec // bounded
+			attribute.Int64("messaging.message.delivery_count", int64(min(attempt, math.MaxInt64))), // bounded
 		))
 }
 

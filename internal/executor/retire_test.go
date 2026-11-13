@@ -65,7 +65,7 @@ type endpointClient struct {
 	api *endpointAPI
 }
 
-//nolint:ireturn // Temporal client interface
+// Temporal client interface.
 func (c endpointClient) OperatorService() operatorservice.OperatorServiceClient { return c.api }
 
 type verifiedCatalog struct {

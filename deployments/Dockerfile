@@ -11,7 +11,7 @@ RUN --mount=type=secret,id=github_token,required=true \
     yarn build:packages && \
     yarn workspace @backplane/console build
 
-FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS go
+FROM --platform=$BUILDPLATFORM golang:1.27-bookworm AS go
 WORKDIR /src
 ARG TARGETOS
 ARG TARGETARCH

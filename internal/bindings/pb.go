@@ -116,13 +116,13 @@ func stepsPB(in []Step) map[string]*consolev1.Step {
 			After: append([]string(nil), s.After...), Undo: s.Undo, UndoInput: s.UndoInput.PB(),
 			StartToClose: durationPB(s.StartToClose), Heartbeat: durationPB(s.Heartbeat), Description: s.Description,
 			ForEach: s.ForEach, As: s.As, OnError: s.OnError, Steps: stepsPB(s.Steps), Result: s.Result.PB(),
-			Concurrency: uint32(min(max(s.Concurrency, 0), math.MaxInt32)), //nolint:gosec // bounded
-			MaxItems:    uint32(min(max(s.MaxItems, 0), math.MaxInt32)),    //nolint:gosec // bounded
+			Concurrency: uint32(min(max(s.Concurrency, 0), math.MaxInt32)), // bounded
+			MaxItems:    uint32(min(max(s.MaxItems, 0), math.MaxInt32)),    // bounded
 		}
 
 		if !s.Retry.IsZero() {
 			m.Retry = &consolev1.StepRetry{
-				Attempts:        uint32(min(max(s.Retry.Attempts, 0), math.MaxInt32)), //nolint:gosec // bounded
+				Attempts:        uint32(min(max(s.Retry.Attempts, 0), math.MaxInt32)), // bounded
 				InitialInterval: durationPB(s.Retry.InitialInterval),
 				MaxInterval:     durationPB(s.Retry.MaxInterval),
 				Backoff:         s.Retry.Backoff,

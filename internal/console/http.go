@@ -152,12 +152,12 @@ func (c *Console) crossSite(r *http.Request) bool {
 	return site != "" && site != "same-origin" && site != "none"
 }
 
-// cookie is the session cookie for token, or a deleting one when token is
-// empty.
-func (c *Console) cookie(token string, expires time.Time) *http.Cookie {
+// setCookie writes the session cookie for token, or a deleting one when
+// token is empty.
+func (c *Console) setCookie(w http.ResponseWriter, token string, expires time.Time) {
 	cookie := &http.Cookie{
 		Name: CookieName, Value: token, Path: c.Route(),
-		HttpOnly: true, Secure: !c.settings.InsecureCookie, SameSite: http.SameSiteStrictMode,
+		HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode,
 	}
 
 	if token == "" {
@@ -166,7 +166,17 @@ func (c *Console) cookie(token string, expires time.Time) *http.Cookie {
 		cookie.Expires = expires
 	}
 
-	return cookie
+	if c.settings.InsecureCookie {
+		// Plain-HTTP development drops Secure from the cookie, or the
+		// browser never sends it back over http. The attribute is the only
+		// place "; Secure" can occur: net/http strips separators from the
+		// value and the path when serializing.
+		w.Header().Add("Set-Cookie", strings.Replace(cookie.String(), "; Secure", "", 1))
+
+		return
+	}
+
+	http.SetCookie(w, cookie)
 }
 
 // sessionView is the JSON of a session over HTTP.
@@ -254,7 +264,7 @@ func (c *Console) login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c.Log().Info("console: login", xlog.String("session", s.ID.String()), xlog.String("address", addr))
-	http.SetCookie(w, c.cookie(token, s.ExpiresAt))
+	c.setCookie(w, token, s.ExpiresAt)
 	writeJSON(w, http.StatusOK, view(s))
 }
 
@@ -283,7 +293,7 @@ func (c *Console) logout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	http.SetCookie(w, c.cookie("", time.Time{}))
+	c.setCookie(w, "", time.Time{})
 	w.WriteHeader(http.StatusNoContent)
 }
 

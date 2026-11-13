@@ -529,5 +529,5 @@ func IsRunOf(id uuid.UUID, workflowID string) bool {
 func toInt64(v uint64) int64 {
 	const maxInt64 = 1<<63 - 1
 
-	return int64(min(v, maxInt64)) //nolint:gosec // bounded
+	return int64(min(v, maxInt64)) // bounded
 }

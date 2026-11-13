@@ -72,7 +72,7 @@ func TestWorkflowCall(t *testing.T) {
 	temporaltest.Hooks(t, tc, svc, price())
 
 	// A workflow returns an error last, whether it uses it or not.
-	quote := func(ctx workflow.Context, amount int) (outcome, error) { //nolint:unparam // workflow signature
+	quote := func(ctx workflow.Context, amount int) (outcome, error) { // workflow signature
 		out, err := workflows.CallHook(ctx, ref, Quote{Amount: amount}, hook.Metadata("bonus", "1"))
 		if err != nil {
 			return outcome{NoBinding: errors.Is(err, hook.ErrNoBinding), Err: err.Error()}, nil

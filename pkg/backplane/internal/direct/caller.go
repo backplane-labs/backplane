@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand/v2"
 	"sync"
 	"time"
 
@@ -19,6 +18,7 @@ import (
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/shuffle"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/guard"
 	"github.com/backplane-labs/backplane/pkg/backplane/meshdial"
@@ -131,7 +131,7 @@ func (c *Caller) Call(ctx context.Context, hook string, in []byte) ([]byte, erro
 	}
 	ctx = metadata.AppendToOutgoingContext(ctx, guard.Header, c.secret, KeyHeader, env.CallKeyOf(ctx))
 
-	rand.Shuffle(len(addrs), func(i, j int) { addrs[i], addrs[j] = addrs[j], addrs[i] })
+	shuffle.Strings(addrs)
 
 	var last error
 

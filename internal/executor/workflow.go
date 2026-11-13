@@ -729,7 +729,7 @@ func readableFailure(err error) (string, string) {
 		}
 
 		if msg == "" {
-			msg = "canceled"
+			msg = outcomeCanceled
 		}
 
 		return msg, ""

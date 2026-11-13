@@ -93,11 +93,11 @@ func (c Config) poolConfig() (*pgxpool.Config, error) {
 	}
 
 	if c.Pool.MaxConns > 0 {
-		cfg.MaxConns = int32(min(c.Pool.MaxConns, 1<<31-1)) //nolint:gosec // bounded above
+		cfg.MaxConns = int32(min(c.Pool.MaxConns, 1<<31-1)) // bounded above
 	}
 
 	if c.Pool.MinConns > 0 {
-		cfg.MinConns = int32(min(c.Pool.MinConns, 1<<31-1)) //nolint:gosec // bounded above
+		cfg.MinConns = int32(min(c.Pool.MinConns, 1<<31-1)) // bounded above
 	}
 
 	if c.Pool.MaxConnLifetime > 0 {

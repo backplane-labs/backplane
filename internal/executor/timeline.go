@@ -277,7 +277,7 @@ func failed(
 	if run.GetError() == "" {
 		run.Error = map[consolev1.StepRunStatus]string{
 			consolev1.StepRunStatus_STEP_RUN_STATUS_TIMED_OUT: "timed out",
-			consolev1.StepRunStatus_STEP_RUN_STATUS_CANCELED:  "canceled",
+			consolev1.StepRunStatus_STEP_RUN_STATUS_CANCELED:  outcomeCanceled,
 		}[st]
 	}
 }

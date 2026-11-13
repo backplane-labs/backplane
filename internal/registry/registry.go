@@ -141,7 +141,7 @@ func (r *Registry) run(ctx context.Context) error {
 	// here. The cancel is kept in r.watchers and called when the service
 	// is dropped; ctx ends the rest.
 	r.spawn = func(name string) {
-		wctx, cancel := context.WithCancel(ctx) //nolint:gosec // cancelled through r.watchers or ctx
+		wctx, cancel := context.WithCancel(ctx) // cancelled through r.watchers or ctx
 		r.watchers[name] = cancel
 
 		watches.Go(func() { r.watch(wctx, "health "+name, r.healthQuery(name)) })

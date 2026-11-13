@@ -179,7 +179,11 @@ func (in *Ingest) serve(ctx context.Context) error {
 		return fmt.Errorf("audit serve: %w", err)
 	case <-ctx.Done():
 		srv.GracefulStop()
-		<-done
+
+		// Drain the goroutine; Serve returns nil after GracefulStop.
+		if err := <-done; err != nil {
+			return fmt.Errorf("audit serve: %w", err)
+		}
 
 		return nil
 	}

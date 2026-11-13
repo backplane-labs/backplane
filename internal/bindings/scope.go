@@ -25,19 +25,35 @@ type frame struct {
 	env   *cel.Env
 }
 
+// Fields of the step states (steps.<name>.*).
+const (
+	fieldSkipped = "skipped"
+	fieldFailed  = "failed"
+	fieldErrors  = "errors"
+)
+
+// Fields of the event's meta (bp.meta).
+const (
+	metaID      = "id"
+	metaSource  = "source"
+	metaSubject = "subject"
+	metaType    = "type"
+	metaTime    = "time"
+)
+
 // States of steps: skipped by when; a for-each step also counts failed
 // items and lists their errors.
 //
 //nolint:gochecknoglobals // immutable shapes
 var (
 	stateShape = &shape{
-		kind: kindObject, name: "bp.step_state", fields: map[string]*shape{"skipped": {kind: kindBool}},
+		kind: kindObject, name: "bp.step_state", fields: map[string]*shape{fieldSkipped: {kind: kindBool}},
 	}
 	errorShape = &shape{kind: kindObject, name: "bp.item_error", fields: map[string]*shape{
 		"index": {kind: kindInt}, "message": {kind: kindString},
 	}}
 	forEachStateShape = &shape{kind: kindObject, name: "bp.for_each_state", fields: map[string]*shape{
-		"skipped": {kind: kindBool}, "failed": {kind: kindInt}, "errors": {kind: kindList, elem: errorShape},
+		fieldSkipped: {kind: kindBool}, fieldFailed: {kind: kindInt}, fieldErrors: {kind: kindList, elem: errorShape},
 	}}
 )
 
@@ -56,7 +72,7 @@ func (c *compiler) topFrame() *frame {
 	} else {
 		str := &shape{kind: kindString}
 		meta := &shape{kind: kindObject, name: "bp.meta", fields: map[string]*shape{
-			"id": str, "source": str, "subject": str, "type": str, "time": str,
+			metaID: str, metaSource: str, metaSubject: str, metaType: str, metaTime: str,
 		}}
 		c.shapes.objects[meta.name] = meta
 		f.vars[VarEvent] = c.input.celType()

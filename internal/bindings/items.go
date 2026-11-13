@@ -127,7 +127,7 @@ func (p *Program) BindItems(s Scope, step string, outputs [][]byte, failed []Ite
 	vars[step] = list
 	steps, _ := vars[VarSteps].(map[string]any)
 	steps = maps.Clone(steps)
-	steps[step] = map[string]any{"skipped": false, "failed": int64(len(failed)), "errors": errs}
+	steps[step] = map[string]any{fieldSkipped: false, fieldFailed: int64(len(failed)), fieldErrors: errs}
 	vars[VarSteps] = steps
 
 	return Scope{vars: vars}, nil

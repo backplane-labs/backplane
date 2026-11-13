@@ -76,12 +76,19 @@ type Wiring struct {
 	Poll time.Duration `json:"poll" schemapb:"default=5s;gt=0"`
 }
 
+// The runtimes Wiring.Runtime names.
+const (
+	runtimeAuto     = "auto"
+	runtimeTemporal = "temporal"
+	runtimeDirect   = "direct"
+)
+
 // Resolve is the runtime "auto" stands for.
 func (w Wiring) Resolve(temporal bool) consolev1.Runtime {
 	switch w.Runtime {
-	case "temporal":
+	case runtimeTemporal:
 		return consolev1.Runtime_RUNTIME_TEMPORAL
-	case "direct":
+	case runtimeDirect:
 		return consolev1.Runtime_RUNTIME_DIRECT
 	}
 
@@ -163,8 +170,8 @@ func (c Config) Validate() error {
 	}
 
 	switch c.Wiring.Runtime {
-	case "", "auto", "direct":
-	case "temporal":
+	case "", runtimeAuto, runtimeDirect:
+	case runtimeTemporal:
 		if !c.Temporal.Enabled() {
 			errs = append(errs, ErrWiringTemporal)
 		}

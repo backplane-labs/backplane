@@ -93,7 +93,7 @@ func (g *Gate) enter(ctx context.Context, method string) (context.Context, func(
 		return ctx, nil, false
 	}
 
-	ctx, cancel := context.WithCancel(ctx) //nolint:gosec // leave (or a Close out of budget) cancels it
+	ctx, cancel := context.WithCancel(ctx) // leave (or a Close out of budget) cancels it
 	c := &call{cancel: cancel}
 	g.calls[c] = struct{}{}
 

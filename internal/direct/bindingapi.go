@@ -260,7 +260,7 @@ func (a BindingAPI) testBinding(
 		return bindings.Binding{}, 0, invalid("hook must be <service>.<Hook>, got %q", hook)
 	}
 
-	v, err := a.versions.Version(ctx, hook, int64(min(req.GetVersion(), maxVersion))) //nolint:gosec // bounded
+	v, err := a.versions.Version(ctx, hook, int64(min(req.GetVersion(), maxVersion))) // bounded
 	if err != nil {
 		return bindings.Binding{}, 0, err //nolint:wrapcheck // mapped by status
 	}

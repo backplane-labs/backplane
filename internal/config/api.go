@@ -76,7 +76,7 @@ func (a API) ListRevisions(
 
 	size = min(size, maxPage)
 
-	before := int64(min(req.GetBefore(), math.MaxInt64)) //nolint:gosec // bounded
+	before := int64(min(req.GetBefore(), math.MaxInt64)) // bounded
 
 	revs, err := a.m.List(ctx, req.GetService(), before, size+1)
 	if err != nil {
@@ -144,7 +144,7 @@ func (a API) Rollback(ctx context.Context, req *consolev1.RollbackRequest) (*con
 		return nil, invalid("service and revision are required")
 	}
 
-	revision := int64(min(req.GetRevision(), math.MaxInt64)) //nolint:gosec // bounded
+	revision := int64(min(req.GetRevision(), math.MaxInt64)) // bounded
 
 	saved, err := a.m.Rollback(ctx, req.GetService(), revision, req.GetComment())
 	if err != nil {

@@ -28,7 +28,7 @@ func readable(err error) (string, string) {
 		case *temporal.TimeoutError:
 			other = "timed out (" + link.TimeoutType().String() + ")"
 		case *temporal.CanceledError:
-			other = "canceled"
+			other = outcomeCanceled
 		case *nexus.HandlerError:
 			if link.Message != "" {
 				other = link.Message

@@ -2,7 +2,6 @@ package direct
 
 import (
 	"context"
-	"math/rand/v2"
 	"net"
 	"strconv"
 	"sync"
@@ -18,6 +17,7 @@ import (
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/internal/bindings"
 	"github.com/backplane-labs/backplane/internal/registry"
+	"github.com/backplane-labs/backplane/internal/shuffle"
 	"github.com/backplane-labs/backplane/pkg/backplane/meshdial"
 )
 
@@ -149,8 +149,8 @@ func (a *Activities) targets(service, activity string) []string {
 		}
 	}
 
-	rand.Shuffle(len(preferred), func(i, j int) { preferred[i], preferred[j] = preferred[j], preferred[i] })
-	rand.Shuffle(len(fallback), func(i, j int) { fallback[i], fallback[j] = fallback[j], fallback[i] })
+	shuffle.Strings(preferred)
+	shuffle.Strings(fallback)
 
 	return append(preferred, fallback...)
 }
