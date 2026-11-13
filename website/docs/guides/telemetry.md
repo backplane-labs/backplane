@@ -39,6 +39,12 @@ a refusal to the client (`NotFound`, `InvalidArgument`, `PermissionDenied`,
 Return an expected refusal as such a status, not as a plain error, which
 counts as `Unknown`.
 
+A caller's address never leaves the service: the SDK's telemetry drops
+`client.address`, `client.port`, `network.peer.address`, `network.peer.port`
+and their older names (`http.client_ip`, `net.sock.peer.*`, `net.peer.*`) from
+every exported span and log record, whichever instrumentation set them. It
+is not configurable: an IP address is personal data.
+
 Every call a service makes is a client span that carries its trace on:
 gRPC through `meshdial` (`DialService`, `DialPlatform`, the hook transport)
 in the call's metadata, outbound HTTP through `netguard.Client` (and the

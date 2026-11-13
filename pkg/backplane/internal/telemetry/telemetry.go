@@ -70,6 +70,17 @@ func Sampler(t config.Traces) (sdktrace.Sampler, error) {
 	return nil, fmt.Errorf("%w %q", ErrSampler, t.Sampler)
 }
 
+// peerAttributes are the keys naming a caller's address (current and older
+// semantic conventions) that never leave the service: otelhttp sets
+// client.address and network.peer.* on server spans, otelgrpc
+// network.peer.* after the span started.
+func peerAttributes() []attribute.Key {
+	return []attribute.Key{
+		"client.address", "client.port", "network.peer.address", "network.peer.port",
+		"http.client_ip", "net.sock.peer.addr", "net.sock.peer.port", "net.peer.ip", "net.peer.port",
+	}
+}
+
 // Start installs global providers and the propagator.
 func (t *Telemetry) Start(ctx context.Context) error {
 	histograms, err := HistogramView(t.metrics.Histograms)
@@ -89,6 +100,10 @@ func (t *Telemetry) Start(ctx context.Context) error {
 		xsdk.WithMetricReaderTiming(t.metrics.Interval, t.metrics.Timeout),
 		xsdk.WithViews(histograms),
 		xsdk.WithSampler(sampler),
+		// A caller's address is personal data: no span or log of the
+		// service carries it, whatever instrumentation set it.
+		xsdk.WithoutSpanAttributes(peerAttributes()...),
+		xsdk.WithoutLogAttributes(peerAttributes()...),
 	}
 	if t.id.Environment != "" {
 		opts = append(opts, xsdk.WithAttributes(attribute.String("deployment.environment.name", t.id.Environment)))

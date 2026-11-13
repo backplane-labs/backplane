@@ -125,8 +125,6 @@ github.com/google/go-tpm v0.9.8/go.mod h1:h9jEsEECg7gtLis0upRBQU+GhYVH6jMjrFxI8u
 github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/gopherex/pgtx v1.1.2 h1:9CwRLUi/iw9R+8eILsxr3/fd05oGgn8n13k/VkajPGs=
-github.com/gopherex/pgtx v1.1.2/go.mod h1:+i92NLuwKhT7DglyLxEJvh4slSv+Mgfq89alugrXBP4=
 github.com/gopherex/pgtx v1.1.5 h1:iBQhzATech5F/eYSIB/Fb3cS4uSGdgGg5wVYzBetXic=
 github.com/gopherex/pgtx v1.1.5/go.mod h1:+i92NLuwKhT7DglyLxEJvh4slSv+Mgfq89alugrXBP4=
 github.com/gopherex/schemapb/go v1.10.1 h1:FD4J8TrQulbJ6aqI+Ae/J+XOp/Ek74fFN4se3BzzZ4g=
@@ -163,8 +161,8 @@ github.com/gopherex/xtrace v1.1.6 h1:GZabHeKf8rvXfJmk+SoiE+IMqOxGWblKdtfEgPpViAU
 github.com/gopherex/xtrace v1.1.6/go.mod h1:7ExXH5jPz3FAbpZiAxfwPoJ7GluvOoDjJCmAOchXiZQ=
 github.com/gopherex/xtrace/contrib/libs/xlog v1.1.6 h1:0XKrldDb7zd5hSRaK7xPixnKypo2l4pF/ySDUcwIeSI=
 github.com/gopherex/xtrace/contrib/libs/xlog v1.1.6/go.mod h1:yDKdeVStR9zUAZhX9JhsBQl3HrO0asmDCemC5ETpkjs=
-github.com/gopherex/xtrace/contrib/sdk v1.1.6 h1:e/usG2XfWy18aiYwzPDtUa85QhnufCXrK2zebMiU76c=
-github.com/gopherex/xtrace/contrib/sdk v1.1.6/go.mod h1:fYj76suOeYYfxS4yBqxju3ECcv3R8s4krKsbsD1616s=
+github.com/gopherex/xtrace/contrib/sdk v1.2.0 h1:KTRIL4hLyMdtCglT6aukGosbznnsSTbv2ZYsOi8V3Zo=
+github.com/gopherex/xtrace/contrib/sdk v1.2.0/go.mod h1:fYj76suOeYYfxS4yBqxju3ECcv3R8s4krKsbsD1616s=
 github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2 h1:sGm2vDRFUrQJO/Veii4h4zG2vvqG6uWNkBHSTqXOZk0=
 github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2/go.mod h1:wd1YpapPLivG6nQgbf7ZkG1hhSOXDhhn4MLTknx2aAc=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 h1:5VipnvEpbqr2gA2VbM+nYVbkIF28c5ZQfqCBQ5g2xfk=

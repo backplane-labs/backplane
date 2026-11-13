@@ -24,7 +24,7 @@ require (
 	github.com/gopherex/xshutdown v1.1.0
 	github.com/gopherex/xtrace v1.1.6
 	github.com/gopherex/xtrace/contrib/libs/xlog v1.1.6
-	github.com/gopherex/xtrace/contrib/sdk v1.1.6
+	github.com/gopherex/xtrace/contrib/sdk v1.2.0
 	github.com/hashicorp/consul/api v1.33.4
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/nats-io/nats-server/v2 v2.15.3
