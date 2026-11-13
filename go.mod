@@ -17,12 +17,12 @@ require (
 	github.com/gopherex/xconf/contrib/sources/consul v1.4.2
 	github.com/gopherex/xconf/contrib/sources/env v1.4.2
 	github.com/gopherex/xconf/contrib/sources/file v1.4.2
-	github.com/gopherex/xlog v1.2.1
-	github.com/gopherex/xlog/contrib/libs/pgx v1.2.1
+	github.com/gopherex/xlog v1.3.0
+	github.com/gopherex/xlog/contrib/libs/pgx v1.3.0
 	github.com/gopherex/xprobe v1.2.0
 	github.com/gopherex/xprobe/pkg/transport/grpc v1.2.0
 	github.com/gopherex/xshutdown v1.1.0
-	github.com/gopherex/xtrace v1.1.6
+	github.com/gopherex/xtrace v1.3.0
 	github.com/gopherex/xtrace/contrib/libs/xlog v1.1.6
 	github.com/gopherex/xtrace/contrib/sdk v1.2.0
 	github.com/hashicorp/consul/api v1.33.4

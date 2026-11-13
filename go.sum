@@ -147,10 +147,14 @@ github.com/gopherex/xconf/contrib/sources/file v1.4.2 h1:QyeIPZ1hAQyVVHLrWDCSfM0
 github.com/gopherex/xconf/contrib/sources/file v1.4.2/go.mod h1:i0FRCm6p3oz2cOtdmm7KpfheO6xITzqx4/2mHh9Bcls=
 github.com/gopherex/xlog v1.2.1 h1:0vH+msXzXF/isFXVNlKNq58QBkQxEmzNsQkR+R9hLeY=
 github.com/gopherex/xlog v1.2.1/go.mod h1:gEMTFKZe5HRXeQHsg1+P6Zsdd5P5b0lWDPdCqmlpjG4=
+github.com/gopherex/xlog v1.3.0 h1:CK3iOygQxNBCHFsae/w24YTW5qY1K4KxdVDgeT2ipGg=
+github.com/gopherex/xlog v1.3.0/go.mod h1:gEMTFKZe5HRXeQHsg1+P6Zsdd5P5b0lWDPdCqmlpjG4=
 github.com/gopherex/xlog/contrib/libs/otel v1.2.1 h1:8v8QV24LtEEZq7HrUGUrJtHw9pbG7BLyyz7DgQsI+K4=
 github.com/gopherex/xlog/contrib/libs/otel v1.2.1/go.mod h1:5yjY1ASNQnyW5Nb1UAHCe1DLLk5L0fu5NeDIQzmekoc=
 github.com/gopherex/xlog/contrib/libs/pgx v1.2.1 h1:425LQiljYocUH1CUhw7Q9Hmqyd2ecG5JvlNUks0OPk0=
 github.com/gopherex/xlog/contrib/libs/pgx v1.2.1/go.mod h1:fsHzX4LkeSHg4zP/R5SaJbP/tPQZHwwWCKt/4zPxIXU=
+github.com/gopherex/xlog/contrib/libs/pgx v1.3.0 h1:BI2ZhyoX0zEOxuSXVYv5+p8gLwWMGKwDwY9Wxb+S+vU=
+github.com/gopherex/xlog/contrib/libs/pgx v1.3.0/go.mod h1:x35XZ825kUhL3atAQZT/rb0JMY3UBMLunfJJbyg/W0o=
 github.com/gopherex/xprobe v1.2.0 h1:XbmsrEse6ODOqL/jdZCCjrq+oj7GTj3pQQjZewUqsJk=
 github.com/gopherex/xprobe v1.2.0/go.mod h1:kTfmLC7H7+daCv9D8bBnR89CEiJMIXbxR309PATp/80=
 github.com/gopherex/xprobe/pkg/transport/grpc v1.2.0 h1:C68HIzToGdTCwDBdsxb1NUSJMkw0XftW+Ps43I8e6Uw=
@@ -159,6 +163,8 @@ github.com/gopherex/xshutdown v1.1.0 h1:nBAvPzO/fUKYWQiFMjn0Db0dY2L8t7yBpY5Ti+Ec
 github.com/gopherex/xshutdown v1.1.0/go.mod h1:VP9PHNALDhbpRtqDS67qP+M1PQKjj2MgokukD01KQUA=
 github.com/gopherex/xtrace v1.1.6 h1:GZabHeKf8rvXfJmk+SoiE+IMqOxGWblKdtfEgPpViAU=
 github.com/gopherex/xtrace v1.1.6/go.mod h1:7ExXH5jPz3FAbpZiAxfwPoJ7GluvOoDjJCmAOchXiZQ=
+github.com/gopherex/xtrace v1.3.0 h1:GLrGXn+ODpuO825Uulk5PVDtfX22X9fMGTX2jHtNwnc=
+github.com/gopherex/xtrace v1.3.0/go.mod h1:7ExXH5jPz3FAbpZiAxfwPoJ7GluvOoDjJCmAOchXiZQ=
 github.com/gopherex/xtrace/contrib/libs/xlog v1.1.6 h1:0XKrldDb7zd5hSRaK7xPixnKypo2l4pF/ySDUcwIeSI=
 github.com/gopherex/xtrace/contrib/libs/xlog v1.1.6/go.mod h1:yDKdeVStR9zUAZhX9JhsBQl3HrO0asmDCemC5ETpkjs=
 github.com/gopherex/xtrace/contrib/sdk v1.2.0 h1:KTRIL4hLyMdtCglT6aukGosbznnsSTbv2ZYsOi8V3Zo=

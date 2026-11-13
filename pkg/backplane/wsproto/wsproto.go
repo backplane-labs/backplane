@@ -7,6 +7,7 @@ package wsproto
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -22,6 +23,7 @@ import (
 
 	"github.com/backplane-labs/backplane/pkg/backplane"
 	"github.com/backplane-labs/backplane/pkg/backplane/api"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/errtext"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/recovery"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/routes"
@@ -124,8 +126,11 @@ func traced(next wsrpc.Handler) wsrpc.Handler {
 		span.SetAttributes(attribute.String("rpc.ws_proto.status_code", st.Code.String()))
 
 		if serverFault(st.Code) {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
+			// The text only: a ws-proto status keeps its code above.
+			text := errtext.Render(err)
+			span.AddEvent("exception", trace.WithAttributes(
+				attribute.String("exception.type", fmt.Sprintf("%T", err)), attribute.String("exception.message", text)))
+			span.SetStatus(codes.Error, text)
 		}
 
 		return err

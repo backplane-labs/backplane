@@ -22,6 +22,7 @@ import (
 	"github.com/backplane-labs/backplane/internal/wire"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/backoff"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/errtext"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/metrics"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 )
@@ -596,7 +597,7 @@ func (b *Broker) invoke(
 	//nolint:wrapcheck // the handler's error as it is
 	return xtrace.Run(hctx, otel.Tracer(instrumentation), "process "+re.event,
 		func(ctx context.Context, _ trace.Span) error { return call(ctx, re.handler, data) },
-		xtrace.WithSpanOptions(spanOpts...), xtrace.WithAttrs(
+		xtrace.WithSpanErrorRenderer(errtext.Render), xtrace.WithSpanOptions(spanOpts...), xtrace.WithAttrs(
 			attribute.String("messaging.system", "nats"),
 			attribute.String("messaging.destination.name", subject),
 			attribute.String("messaging.consumer.group.name", re.durable),

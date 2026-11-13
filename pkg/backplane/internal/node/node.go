@@ -24,6 +24,8 @@ import (
 	"github.com/gopherex/xprobe/pkg/probe"
 	"github.com/gopherex/xshutdown/lifecycle"
 	"github.com/gopherex/xtrace"
+
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/errtext"
 )
 
 // Lifecycle errors are shared with xshutdown.
@@ -91,7 +93,7 @@ func New(service string, log *xlog.Logger, env any) *Node {
 
 	return &Node{
 		tree: t, ns: &namespace{paths: map[string]bool{}}, name: service, kind: System,
-		log: log, scope: xtrace.New(service), life: lifecycle.New(service),
+		log: log, scope: xtrace.New(service, xtrace.WithErrorRenderer(errtext.Render)), life: lifecycle.New(service),
 	}
 }
 
@@ -122,7 +124,7 @@ func (n *Node) Child(name string, kind Kind, optional bool) *Node {
 
 	child := &Node{
 		tree: t, parent: n, ns: ns, name: name, path: path, kind: kind, optional: optional,
-		scope: xtrace.New(scope),
+		scope: xtrace.New(scope, xtrace.WithErrorRenderer(errtext.Render)),
 	}
 
 	switch kind {

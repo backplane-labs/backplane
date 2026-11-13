@@ -11,6 +11,7 @@ import (
 	xlogtrace "github.com/gopherex/xtrace/contrib/libs/xlog"
 
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/errtext"
 )
 
 const loopback = "127.0.0.1"
@@ -61,7 +62,8 @@ func (id Identity) logger(given *xlog.Logger, cfg config.Backplane) *xlog.Logger
 		stdout := xlog.NewJSON(xlog.WithLevel(xlog.TraceLevel)).Core()
 		otlp := xlogtrace.Core(global.GetLoggerProvider().Logger(id.Service))
 		log = xlog.NewJSON(append(xlogtrace.Options(),
-			xlog.WithAtomicLevel(atomic), xlog.WithCore(xlog.NewTeeCore(stdout, otlp)))...)
+			xlog.WithAtomicLevel(atomic), xlog.WithCore(xlog.NewTeeCore(stdout, otlp)),
+			xlog.WithErrorRenderer(errtext.Render))...)
 
 		if err != nil {
 			log.Warn("log level", xlog.Err(err), xlog.String("using", level.String()))

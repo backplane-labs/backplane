@@ -45,6 +45,7 @@ import (
 	infranats "github.com/backplane-labs/backplane/pkg/backplane/infra/nats"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/backoff"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/errtext"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/metrics"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 )
@@ -343,6 +344,7 @@ func (b *Broker) Publish(ctx context.Context, m env.Message) error {
 
 	//nolint:wrapcheck // publish wraps
 	return xtrace.Run(ctx, otel.Tracer(instrumentation), "publish "+m.Event, send,
+		xtrace.WithSpanErrorRenderer(errtext.Render),
 		xtrace.WithSpanOptions(trace.WithSpanKind(trace.SpanKindProducer)), attrs)
 }
 
