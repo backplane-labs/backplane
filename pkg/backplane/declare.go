@@ -424,13 +424,20 @@ func (p *publicPort) mux() *http.ServeMux {
 	return p.http
 }
 
-// handle serves h for host and prefix; false when they are taken.
+// handle serves h for host and prefix; false when they are taken. The
+// prefix's own path (/x for /x/) is served too, as it is: a ServeMux
+// subtree alone would answer it with a redirect to /x/, which a client
+// behind a path-rewriting proxy cannot follow.
 func (p *publicPort) handle(host, prefix string, h http.Handler) bool {
 	hosts, ok := p.prefixes[prefix]
 	if !ok {
 		hosts = routes.NewHosts()
 		p.prefixes[prefix] = hosts
 		p.mux().Handle(prefix, hosts)
+
+		if bare := strings.TrimSuffix(prefix, "/"); bare != "" {
+			p.mux().Handle(bare, hosts)
+		}
 	}
 
 	return hosts.Add(host, h)

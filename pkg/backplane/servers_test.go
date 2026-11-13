@@ -301,6 +301,26 @@ func checkHTTP(t *testing.T, p ports) {
 		h.Get("X-Middleware") != "on" {
 		t.Fatalf("middleware: %d %q %v", code, body, h)
 	}
+
+	// A prefix serves its own path as it is, not by a redirect a client
+	// behind a path-rewriting proxy could not follow; a longer name is
+	// another path.
+	direct := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+
+	for path, want := range map[string]int{"/mw": http.StatusOK, "/mw?token=t": http.StatusOK, "/mwx": http.StatusNotFound} {
+		req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, p.publicURL()+path, http.NoBody)
+
+		res, err := direct.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_ = res.Body.Close()
+
+		if res.StatusCode != want {
+			t.Fatalf("%s: %d, want %d", path, res.StatusCode, want)
+		}
+	}
 }
 
 func checkPlatform(t *testing.T, p ports) {
