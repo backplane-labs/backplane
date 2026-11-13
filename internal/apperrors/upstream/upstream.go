@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v5"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
@@ -33,6 +32,7 @@ import (
 
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
+	"github.com/backplane-labs/backplane/pkg/backplane/tracehttp"
 )
 
 // Settings of the forwarding: BACKPLANE_ERRORS_UPSTREAM_*.
@@ -148,7 +148,7 @@ func New(parent deps.Scope, settings Settings, opts ...Option) *Forwarder {
 	}
 
 	// Each export is a client span carrying its trace context.
-	f.client.Transport = otelhttp.NewTransport(f.client.Transport)
+	f.client.Transport = tracehttp.NewTransport(f.client.Transport)
 
 	f.records, _ = f.Meter().Int64Counter("backplane.errors.upstream.records",
 		metric.WithDescription("Error records forwarded upstream, by outcome (sent, dropped) and drop reason"))

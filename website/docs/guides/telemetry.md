@@ -42,7 +42,11 @@ counts as `Unknown`.
 Every call a service makes is a client span that carries its trace on:
 gRPC through `meshdial` (`DialService`, `DialPlatform`, the hook transport)
 in the call's metadata, outbound HTTP through `netguard.Client` (and the
-errors forwarding) in `traceparent`. A synchronous continuation stays in the
+errors forwarding) in `traceparent`. An HTTP client span records the method,
+the server's host and port and the status, never the URL's path or query,
+where device tokens, webhook secrets and signed links travel: use
+`tracehttp.NewTransport(base)` (`pkg/backplane/tracehttp`) for a client of
+your own rather than otelhttp, which records the full URL. A synchronous continuation stays in the
 caller's trace: a hook call, its binding run and the activities it calls
 (either runtime), a workflow started by a call and its activities. An
 asynchronous continuation starts a new trace linked to its origin, as

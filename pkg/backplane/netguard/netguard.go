@@ -24,7 +24,7 @@ import (
 	"syscall"
 	"time"
 
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"github.com/backplane-labs/backplane/pkg/backplane/tracehttp"
 )
 
 // Errors.
@@ -185,8 +185,9 @@ func client(base http.RoundTripper, opts []Option) *http.Client {
 
 	return &http.Client{
 		// Every allowed request is a client span carrying the caller's
-		// trace context (traceparent); a refused one never leaves.
-		Transport: checked{base: otelhttp.NewTransport(base), hosts: s.hosts},
+		// trace context (traceparent), its URL never recorded; a refused
+		// one never leaves.
+		Transport: checked{base: tracehttp.NewTransport(base), hosts: s.hosts},
 		CheckRedirect: func(_ *http.Request, via []*http.Request) error {
 			if s.redirects <= 0 {
 				return http.ErrUseLastResponse
