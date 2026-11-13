@@ -42,9 +42,9 @@ counts as `Unknown`.
 An error's text never carries what it may hide out of the service: the
 SDK's root logger and its components' spans render every error (log
 fields, `exception.message`, the status description) through one renderer
-that cuts a `*url.Error`'s path and query (signed links, tokens) and a
-PostgreSQL error's message, detail and context (row values), keeping the
-SQLSTATE, the constraint and the table. The error itself is untouched:
+that cuts a `*url.Error`'s path and query (signed links, tokens) and renders
+a database error (PostgreSQL's, any error with a `SQLState()` method) as its
+SQLSTATE code alone, its message, detail and context dropped (row values). The error itself is untouched:
 `errors.Is` and `errors.As` work as before. A logger the author passes with
 `backplane.Logger` is the author's: build it with
 `xlog.WithErrorRenderer` to the same effect.
