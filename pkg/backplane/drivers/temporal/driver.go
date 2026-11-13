@@ -20,7 +20,7 @@ func Driver() backplane.Option {
 			Conn: inftemporal.Config{
 				Addr: cfg.Temporal.Addr, Namespace: cfg.Temporal.Namespace, TLS: cfg.Temporal.TLS,
 				APIKey: cfg.Temporal.APIKey, DialTimeout: cfg.Temporal.DialTimeout, Encryption: cfg.Temporal.Encryption,
-				RequireEncryption: cfg.Temporal.RequireEncryption,
+				RequireEncryption: cfg.Temporal.RequireEncryption, TemporalConnection: cfg.Temporal.TemporalConnection,
 			},
 			Service: id.Service, Instance: id.Instance, Log: scope.Log(), Env: e,
 			Worker: tuning(cfg.Temporal.Worker), HookTimeout: cfg.Temporal.HookTimeout,

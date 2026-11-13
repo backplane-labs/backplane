@@ -1,6 +1,9 @@
 package config
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // Backplane is the SDK's own block, part of the service configuration:
 //
@@ -138,6 +141,7 @@ type NATS struct {
 	InboxPrefix string `desc:"Prefix of reply subjects instead of _INBOX, e.g. _INBOX_billing; no wildcards, no trailing dot." json:"inbox_prefix,omitempty"`
 	// Bound of a Publish whose context has no deadline.
 	PublishTimeout time.Duration `desc:"Bound of a publish whose context has no deadline." json:"publish_timeout" schemapb:"default=5s"`
+	NATSConnection
 
 	// Retention of the service's events.
 	MaxAge time.Duration `desc:"Retention of the service's events; 0: unlimited." json:"max_age" schemapb:"default=168h"`
@@ -156,6 +160,59 @@ type NATS struct {
 // Enabled reports whether NATS is configured.
 func (n NATS) Enabled() bool { return n.URL != "" }
 
+// NATSConnection is how a NATS connection behaves, the same for the SDK's
+// bus and infra/nats: explicit values, never derived from the node. A zero
+// field of a section built by hand reads its default (Default*).
+type NATSConnection struct {
+	ConnectTimeout  time.Duration `desc:"Bound of establishing the connection."                           json:"connect_timeout"  schemapb:"default=2s;gt=0"`
+	ReconnectWait   time.Duration `desc:"Pause between reconnection attempts."                            json:"reconnect_wait"   schemapb:"default=2s;gt=0"`
+	ReconnectJitter time.Duration `desc:"Random extra pause, so clients do not reconnect all at once."    json:"reconnect_jitter" schemapb:"default=1s;gte=0"`
+	PingInterval    time.Duration `desc:"How often the client pings the server."                          json:"ping_interval"    schemapb:"default=2m;gt=0"`
+	MaxPingsOut     int64         `desc:"Unanswered pings after which the connection is considered lost." json:"max_pings_out"    schemapb:"default=2;gt=0"`
+	// ReconnectBuffer is what a publish may buffer while reconnecting;
+	// 0: nothing, a publish fails while disconnected.
+	ReconnectBuffer  int64         `desc:"Bytes a publish may buffer while reconnecting; 0: none, a publish fails while disconnected." json:"reconnect_buffer"  schemapb:"default=0;gte=0"`
+	JetStreamTimeout time.Duration `desc:"Deadline of a JetStream API call whose context has none."                                    json:"jetstream_timeout" schemapb:"default=5s;gt=0"`
+}
+
+// Defaults of NATSConnection.
+const (
+	DefaultNATSConnectTimeout   = 2 * time.Second
+	DefaultNATSReconnectWait    = 2 * time.Second
+	DefaultNATSReconnectJitter  = time.Second
+	DefaultNATSPingInterval     = 2 * time.Minute
+	DefaultNATSMaxPingsOut      = 2
+	DefaultNATSJetStreamTimeout = 5 * time.Second
+)
+
+// Resolved is the connection with every zero field at its default; the
+// jitter keeps an explicit zero only when the wait was set too.
+func (c NATSConnection) Resolved() NATSConnection {
+	out := c
+
+	if out.ConnectTimeout <= 0 {
+		out.ConnectTimeout = DefaultNATSConnectTimeout
+	}
+
+	if out.ReconnectWait <= 0 {
+		out.ReconnectWait, out.ReconnectJitter = DefaultNATSReconnectWait, DefaultNATSReconnectJitter
+	}
+
+	if out.PingInterval <= 0 {
+		out.PingInterval = DefaultNATSPingInterval
+	}
+
+	if out.MaxPingsOut <= 0 {
+		out.MaxPingsOut = DefaultNATSMaxPingsOut
+	}
+
+	if out.JetStreamTimeout <= 0 {
+		out.JetStreamTimeout = DefaultNATSJetStreamTimeout
+	}
+
+	return out
+}
+
 // Temporal connection. Field is `ns`: `namespace` is a CEL reserved word.
 type Temporal struct {
 	Addr      string `desc:"Frontend host:port; empty: without Temporal." json:"addr,omitempty"`
@@ -165,6 +222,7 @@ type Temporal struct {
 	APIKey Secret `desc:"Temporal Cloud API key." json:"api_key,omitempty"`
 	// First dial attempt; later attempts run in the background.
 	DialTimeout time.Duration `desc:"Bound of the first dial; later attempts run in the background." json:"dial_timeout" schemapb:"default=2s"`
+	TemporalConnection
 	// Deadline of a hook call whose context and declaration set none.
 	HookTimeout time.Duration `desc:"Deadline of a hook call whose context and declaration set none." json:"hook_timeout" schemapb:"default=30s"`
 	Worker      Worker        `desc:"Worker on the service's task queue."                             json:"worker"`
@@ -246,4 +304,60 @@ type Shutdown struct {
 	// Kept for the author's tree, dependencies and telemetry after the
 	// listeners: drain + listeners + reserve <= timeout.
 	Reserve time.Duration `desc:"Kept for the service's components, dependencies and telemetry after the listeners." json:"reserve" schemapb:"default=5s"`
+}
+
+// TemporalConnection is the gRPC connection to Temporal's frontend, the
+// same for the SDK's client and infra/temporal: explicit values. A zero
+// field of a section built by hand reads its default (Resolved).
+type TemporalConnection struct {
+	KeepAliveTime        time.Duration `desc:"Idle time after which the client pings the frontend."          json:"keepalive_time"          schemapb:"default=30s;gt=0"`
+	KeepAliveTimeout     time.Duration `desc:"Wait for the ping's answer before the connection is closed."   json:"keepalive_timeout"       schemapb:"default=15s;gt=0"`
+	GetSystemInfoTimeout time.Duration `desc:"Bound of the capabilities call made when the client connects." json:"get_system_info_timeout" schemapb:"default=5s;gt=0"`
+	// MaxPayloadSize bounds a gRPC message in bytes; 0: Temporal's own.
+	MaxPayloadSize int64 `desc:"Largest gRPC message in bytes; 0: Temporal's own." json:"max_payload_size" schemapb:"default=0;gte=0"`
+	// GRPCCompression is gzip (the Temporal SDK's default) or none.
+	GRPCCompression string `desc:"Compression of the gRPC requests: gzip or none." json:"grpc_compression" schemapb:"default=gzip"`
+}
+
+// Defaults of TemporalConnection.
+const (
+	DefaultTemporalKeepAliveTime        = 30 * time.Second
+	DefaultTemporalKeepAliveTimeout     = 15 * time.Second
+	DefaultTemporalGetSystemInfoTimeout = 5 * time.Second
+	TemporalCompressionNone             = "none"
+	TemporalCompressionGzip             = "gzip"
+)
+
+// ErrTemporalCompression: grpc_compression is neither none nor gzip.
+var ErrTemporalCompression = errors.New("temporal: grpc_compression: want none or gzip")
+
+// Resolved is the connection with every zero field at its default.
+func (c TemporalConnection) Resolved() TemporalConnection {
+	if c.KeepAliveTime <= 0 {
+		c.KeepAliveTime = DefaultTemporalKeepAliveTime
+	}
+
+	if c.KeepAliveTimeout <= 0 {
+		c.KeepAliveTimeout = DefaultTemporalKeepAliveTimeout
+	}
+
+	if c.GetSystemInfoTimeout <= 0 {
+		c.GetSystemInfoTimeout = DefaultTemporalGetSystemInfoTimeout
+	}
+
+	if c.GRPCCompression == "" {
+		c.GRPCCompression = TemporalCompressionGzip
+	}
+
+	return c
+}
+
+// Validate checks the compression name.
+func (c TemporalConnection) Validate() error {
+	switch c.Resolved().GRPCCompression {
+	case TemporalCompressionNone, TemporalCompressionGzip:
+		return nil
+	default:
+		return ErrTemporalCompression
+	}
 }

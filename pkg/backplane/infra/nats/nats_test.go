@@ -213,9 +213,9 @@ func TestAuthErrorsKeepRetrying(t *testing.T) {
 
 	url, accepted := refusing(t)
 
-	conn, err := nats.Connect(nats.Config{URL: config.Secret(url)}, nats.Options{
+	conn, err := nats.Connect(nats.Config{URL: config.Secret(url), NATSConnection: config.NATSConnection{
 		ReconnectWait: 5 * time.Millisecond, ReconnectJitter: time.Millisecond,
-	})
+	}}, nats.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,4 +336,128 @@ func TestJetStreamReadiness(t *testing.T) {
 	cluster.Restart(t, 2)
 
 	waitFor("meta leader back", func(err error) bool { return err == nil })
+}
+
+// The loaded section's knobs are explicit values; the SDK's bus section
+// takes the same ones.
+func TestConfigDefaults(t *testing.T) {
+	t.Parallel()
+
+	type cfg struct {
+		config.Backplane `json:"backplane"`
+
+		Realtime nats.Config `json:"realtime"`
+	}
+
+	got := backplanetest.Config[cfg](t, map[string]string{
+		"REALTIME_URL": "nats://n:4222", "REALTIME_PING_INTERVAL": "30s", "BACKPLANE_NATS_MAX_PINGS_OUT": "5",
+	})
+
+	want := config.NATSConnection{
+		ConnectTimeout: 2 * time.Second, ReconnectWait: 2 * time.Second, ReconnectJitter: time.Second,
+		PingInterval: 30 * time.Second, MaxPingsOut: 2, JetStreamTimeout: 5 * time.Second,
+	}
+	if got.Realtime.NATSConnection != want {
+		t.Fatalf("realtime = %+v", got.Realtime.NATSConnection)
+	}
+
+	if bus := got.NATS.NATSConnection; bus.MaxPingsOut != 5 || bus.PingInterval != 2*time.Minute {
+		t.Fatalf("bus = %+v", bus)
+	}
+}
+
+// The connection runs with the section's values (a hand-built zero reads
+// the default).
+func TestConnectionOptions(t *testing.T) {
+	t.Parallel()
+
+	srv := natstest.Start(t)
+
+	tests := []struct {
+		name   string
+		conn   config.NATSConnection
+		want   config.NATSConnection
+		buffer int
+	}{
+		{name: "defaults", want: config.NATSConnection{}.Resolved(), buffer: -1},
+		{
+			name: "explicit",
+			conn: config.NATSConnection{
+				ConnectTimeout: time.Second, ReconnectWait: 300 * time.Millisecond, ReconnectJitter: 100 * time.Millisecond,
+				PingInterval: 10 * time.Second, MaxPingsOut: 4, ReconnectBuffer: 4096, JetStreamTimeout: time.Second,
+			},
+			buffer: 4096,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			want := tc.want
+			if want == (config.NATSConnection{}) {
+				want = tc.conn
+			}
+
+			conn, err := nats.Connect(nats.Config{URL: config.Secret(srv.ClientURL()), NATSConnection: tc.conn}, nats.Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			t.Cleanup(conn.Close)
+
+			o := conn.Opts
+			if o.Timeout != want.ConnectTimeout || o.ReconnectWait != want.ReconnectWait ||
+				o.ReconnectJitter != want.ReconnectJitter || o.PingInterval != want.PingInterval ||
+				int64(o.MaxPingsOut) != want.MaxPingsOut || o.ReconnectBufSize != tc.buffer {
+				t.Fatalf("options = timeout %v wait %v jitter %v ping %v pings %d buffer %d",
+					o.Timeout, o.ReconnectWait, o.ReconnectJitter, o.PingInterval, o.MaxPingsOut, o.ReconnectBufSize)
+			}
+		})
+	}
+}
+
+// Chaos: the server goes away. Without a reconnect buffer a publish fails
+// at once; with one it is buffered for the reconnection.
+func TestReconnectBuffer(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		buffer int64
+		fails  bool
+	}{
+		{name: "no buffer", fails: true},
+		{name: "buffered", buffer: 1 << 16},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			srv := natstest.Start(t)
+
+			conn, err := nats.Connect(nats.Config{
+				URL:            config.Secret(srv.ClientURL()),
+				NATSConnection: config.NATSConnection{ReconnectBuffer: tc.buffer},
+			}, nats.Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			t.Cleanup(conn.Close)
+
+			for !conn.IsConnected() {
+				time.Sleep(10 * time.Millisecond)
+			}
+
+			srv.Shutdown()
+
+			for conn.IsConnected() {
+				time.Sleep(10 * time.Millisecond)
+			}
+
+			if err := conn.Publish("infra.test", []byte("x")); (err != nil) != tc.fails {
+				t.Fatalf("publish while disconnected: %v", err)
+			}
+		})
+	}
 }

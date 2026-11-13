@@ -17,6 +17,7 @@ package temporal
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -60,6 +61,7 @@ type Config struct {
 	APIKey config.Secret `desc:"Temporal Cloud API key; turns TLS on." json:"api_key,omitempty"`
 	// DialTimeout bounds one connection attempt.
 	DialTimeout time.Duration `desc:"Bound of one connection attempt." json:"dial_timeout" schemapb:"default=2s"`
+	config.TemporalConnection
 	// Encryption of the payloads in workflow history; empty: off.
 	Encryption config.Seal `desc:"Encrypts payloads in workflow history; empty: off." json:"encryption"`
 	// RequireEncryption refuses payloads that are not sealed.
@@ -90,6 +92,10 @@ func (c Config) Validate() error {
 	}
 
 	if _, err := c.TLS.ClientConfig(); err != nil {
+		return fmt.Errorf("temporal: %w", err)
+	}
+
+	if err := c.TemporalConnection.Validate(); err != nil {
 		return fmt.Errorf("temporal: %w", err)
 	}
 
@@ -126,7 +132,7 @@ func Options(cfg Config, identity string, log *xlog.Logger) (client.Options, err
 			OnError:              func(err error) { log.Debug("temporal metric", xlog.Err(err)) },
 			UseMonotonicCounters: true,
 		}),
-		ConnectionOptions: client.ConnectionOptions{TLS: tlsCfg},
+		ConnectionOptions: connectionOptions(cfg.TemporalConnection, tlsCfg),
 	}
 
 	if key := cfg.APIKey.Reveal(); key != "" {
@@ -145,6 +151,24 @@ func Options(cfg Config, identity string, log *xlog.Logger) (client.Options, err
 	}
 
 	return opts, nil
+}
+
+// connectionOptions are the gRPC connection's settings.
+func connectionOptions(c config.TemporalConnection, tlsCfg *tls.Config) client.ConnectionOptions {
+	c = c.Resolved()
+
+	opts := client.ConnectionOptions{
+		TLS: tlsCfg, KeepAliveTime: c.KeepAliveTime, KeepAliveTimeout: c.KeepAliveTimeout,
+		GetSystemInfoTimeout: c.GetSystemInfoTimeout, MaxPayloadSize: int(min(c.MaxPayloadSize, 1<<31-1)),
+	}
+
+	if c.GRPCCompression == config.TemporalCompressionNone {
+		opts.GrpcCompression = &client.GrpcCompressionNone{}
+	} else {
+		opts.GrpcCompression = &client.GrpcCompressionGzip{}
+	}
+
+	return opts
 }
 
 // Dial makes one connection attempt bounded by the dial timeout.

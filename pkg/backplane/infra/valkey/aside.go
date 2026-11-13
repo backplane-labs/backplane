@@ -56,7 +56,7 @@ func (p asideProvider) Provide(ctx context.Context, s deps.Scope) (AsideClient, 
 
 	option := valkeyaside.ClientOption{
 		ClientOption:  p.cfg.clientOption(),
-		ClientBuilder: newClient,
+		ClientBuilder: clientBuilder(s.Name()),
 	}
 	for _, opt := range p.opts {
 		opt(&option)

@@ -24,11 +24,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	natsgo "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/nats-io/nkeys"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 
 	"github.com/gopherex/xlog"
 
@@ -48,13 +52,8 @@ var (
 	ErrJetStream = errors.New("nats: jetstream unavailable")
 )
 
-// Defaults of Options.
-const (
-	DefaultReconnectWait   = 2 * time.Second
-	DefaultReconnectJitter = time.Second
-	// connectPoll is how often Provide checks for the first connection.
-	connectPoll = 50 * time.Millisecond
-)
+// connectPoll is how often Provide checks for the first connection.
+const connectPoll = 50 * time.Millisecond
 
 // Config is the connection's section.
 type Config struct {
@@ -68,6 +67,21 @@ type Config struct {
 	// that grants each identity its own prefix keeps other identities from
 	// reading its replies.
 	InboxPrefix string `desc:"Prefix of reply subjects instead of _INBOX, e.g. _INBOX_billing; no wildcards, no trailing dot." json:"inbox_prefix,omitempty"`
+	// How the connection behaves: timeouts, pings, reconnection, buffer.
+	config.NATSConnection
+}
+
+// JetStream is a JetStream handle on conn whose API calls without a
+// deadline take jetstream_timeout; opts come after (a domain, a prefix).
+func (c Config) JetStream(conn *natsgo.Conn, opts ...jetstream.JetStreamOpt) (jetstream.JetStream, error) {
+	all := append([]jetstream.JetStreamOpt{jetstream.WithDefaultTimeout(c.Resolved().JetStreamTimeout)}, opts...)
+
+	js, err := jetstream.New(conn, all...)
+	if err != nil {
+		return nil, fmt.Errorf("nats: jetstream: %w", err)
+	}
+
+	return js, nil
 }
 
 // Enabled reports whether a URL is set.
@@ -148,13 +162,11 @@ type Options struct {
 	OnStatus func(connected bool)
 	// OnClosed runs once the connection is closed for good.
 	OnClosed func()
-	// Pause between reconnection attempts; zero is the default.
-	ReconnectWait, ReconnectJitter time.Duration
 }
 
 // Connect connects without blocking on an unreachable server: the
 // connection keeps trying in the background, for ever. While disconnected
-// a publish fails instead of buffering.
+// a publish buffers at most reconnect_buffer bytes (0: it fails).
 func Connect(cfg Config, o Options) (*natsgo.Conn, error) {
 	if !cfg.Enabled() {
 		return nil, ErrNoURL
@@ -170,13 +182,11 @@ func Connect(cfg Config, o Options) (*natsgo.Conn, error) {
 		log = xlog.New(xlog.NopCore{})
 	}
 
-	wait, jitter := o.ReconnectWait, o.ReconnectJitter
-	if wait <= 0 {
-		wait = DefaultReconnectWait
-	}
+	c := cfg.Resolved()
 
-	if jitter <= 0 {
-		jitter = DefaultReconnectJitter
+	buffer := -1 // nats.go: -1 buffers nothing
+	if c.ReconnectBuffer > 0 {
+		buffer = int(min(c.ReconnectBuffer, 1<<31-1))
 	}
 
 	status := func(connected bool) {
@@ -192,9 +202,12 @@ func Connect(cfg Config, o Options) (*natsgo.Conn, error) {
 		// The same authorization error twice (accounts not loaded yet after
 		// a server restart) would close the connection for good.
 		natsgo.IgnoreAuthErrorAbort(),
-		natsgo.ReconnectWait(wait),
-		natsgo.ReconnectJitter(jitter, jitter),
-		natsgo.ReconnectBufSize(-1),
+		natsgo.Timeout(c.ConnectTimeout),
+		natsgo.ReconnectWait(c.ReconnectWait),
+		natsgo.ReconnectJitter(c.ReconnectJitter, c.ReconnectJitter),
+		natsgo.PingInterval(c.PingInterval),
+		natsgo.MaxPingsOutstanding(int(min(c.MaxPingsOut, 1<<31-1))),
+		natsgo.ReconnectBufSize(buffer),
 		natsgo.ConnectHandler(func(conn *natsgo.Conn) {
 			status(true)
 			log.Info("nats connected", xlog.String("url", conn.ConnectedUrlRedacted()))
@@ -268,10 +281,14 @@ type provider struct {
 func (provider) Name() string { return "nats" }
 
 func (p provider) Provide(ctx context.Context, s deps.Scope) (*natsgo.Conn, error) {
-	conn, err := Connect(p.cfg, Options{Name: s.Path(), Log: s.Log()})
+	var stats connStats
+
+	conn, err := Connect(p.cfg, Options{Name: s.Path(), Log: s.Log(), OnClosed: stats.stop})
 	if err != nil {
 		return nil, err
 	}
+
+	stats.start(conn, s)
 
 	tick := time.NewTicker(connectPoll)
 	defer tick.Stop()
@@ -300,7 +317,11 @@ func (p provider) Probe(ctx context.Context, conn *natsgo.Conn) error {
 	case !conn.IsConnected():
 		return ErrDisconnected
 	case p.jetstream:
-		return JetStreamReady(ctx, conn, p.jetOpts...)
+		bounded := append([]jetstream.JetStreamOpt{
+			jetstream.WithDefaultTimeout(p.cfg.Resolved().JetStreamTimeout),
+		}, p.jetOpts...)
+
+		return JetStreamReady(ctx, conn, bounded...)
 	}
 
 	return nil
@@ -325,4 +346,67 @@ func (provider) Close(_ context.Context, conn *natsgo.Conn) error {
 	conn.Close()
 
 	return nil
+}
+
+// meterName is the instrumentation scope of the connection metrics.
+const meterName = "github.com/backplane-labs/backplane/pkg/backplane/infra/nats"
+
+// connStats reports a connection's state and reconnections, attribute conn
+// (the dependency's name), until it closes.
+type connStats struct {
+	mu  sync.Mutex
+	reg metric.Registration
+}
+
+func (c *connStats) start(conn *natsgo.Conn, s deps.Scope) {
+	meter := otel.Meter(meterName)
+	attrs := metric.WithAttributes(attribute.String("conn", s.Name()))
+
+	connected, err1 := meter.Int64ObservableGauge("backplane.nats.connected",
+		metric.WithDescription("1 while the NATS connection is up"))
+	reconnects, err2 := meter.Int64ObservableCounter("backplane.nats.reconnects",
+		metric.WithDescription("Reconnections of the NATS connection"))
+
+	if err := errors.Join(err1, err2); err != nil {
+		s.Log().Warn("nats: connection metrics unavailable", xlog.Err(err))
+
+		return
+	}
+
+	reg, err := meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
+		up := int64(0)
+		if conn.IsConnected() {
+			up = 1
+		}
+
+		o.ObserveInt64(connected, up, attrs)
+		o.ObserveInt64(reconnects, int64(min(conn.Stats().Reconnects, 1<<63-1)), attrs)
+
+		return nil
+	}, connected, reconnects)
+	if err != nil {
+		s.Log().Warn("nats: connection metrics unavailable", xlog.Err(err))
+
+		return
+	}
+
+	c.mu.Lock()
+	c.reg = reg
+	c.mu.Unlock()
+
+	// Closed before the registration landed: stop ran with nothing to undo.
+	if conn.IsClosed() {
+		c.stop()
+	}
+}
+
+// stop unregisters the metrics once the connection is closed.
+func (c *connStats) stop() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.reg != nil {
+		_ = c.reg.Unregister() // the meter outlives no closed connection
+		c.reg = nil
+	}
 }

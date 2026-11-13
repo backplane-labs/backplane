@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	valkeygo "github.com/valkey-io/valkey-go"
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
@@ -288,4 +290,82 @@ func children(rec *tracetest.SpanRecorder, id trace.SpanID) int {
 	}
 
 	return n
+}
+
+// The loaded section's defaults are explicit values, not the node's.
+func TestConfigDefaults(t *testing.T) {
+	t.Parallel()
+
+	type cfg struct {
+		Valkey valkey.Config `json:"valkey"`
+	}
+
+	got := backplanetest.Config[cfg](t, map[string]string{"VALKEY_ADDR": "v:6379", "VALKEY_BLOCKING_POOL_SIZE": "16"}).Valkey
+	if got.DialTimeout != 5*time.Second || got.ConnWriteTimeout != 10*time.Second || got.BlockingPoolSize != 16 ||
+		got.PipelineMultiplex != 2 || got.BlockingPipeline != 2000 || got.ReadBufferEachConn != 1<<19 ||
+		got.WriteBufferEachConn != 1<<19 || got.DisableAutoPipelining {
+		t.Fatalf("defaults = %+v", got)
+	}
+}
+
+// One dedicated connection: a second blocking command waits for it, past
+// its own deadline, while the first one holds it.
+func TestBlockingPoolSize(t *testing.T) {
+	t.Parallel()
+
+	addr := os.Getenv("BACKPLANE_TEST_VALKEY")
+	if addr == "" {
+		t.Skip("BACKPLANE_TEST_VALKEY not set")
+	}
+
+	h := backplanetest.New(t)
+	h.Start()
+
+	client, err := valkey.New(valkey.Config{Addr: addr, BlockingPoolSize: 1}).Provide(t.Context(), h.Root())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(client.Close)
+
+	key := "infra-test-blocking-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+	held := make(chan struct{})
+
+	go func() {
+		defer close(held)
+
+		_ = client.Do(t.Context(), client.B().Blpop().Key(key+"-a").Timeout(1).Build()).Error()
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 300*time.Millisecond)
+	defer cancel()
+
+	if err := client.Do(ctx, client.B().Blpop().Key(key+"-b").Timeout(0.05).Build()).Error(); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("second blocking command with the pool taken: %v", err)
+	}
+
+	<-held
+
+	if err := client.Do(t.Context(), client.B().Blpop().Key(key+"-b").Timeout(0.05).Build()).Error(); !valkeygo.IsValkeyNil(err) {
+		t.Fatalf("after the first returned: %v", err)
+	}
+}
+
+// Chaos: an unreachable server fails the connection within dial_timeout.
+func TestDialTimeout(t *testing.T) {
+	t.Parallel()
+
+	h := backplanetest.New(t)
+	h.Start()
+
+	began := time.Now()
+
+	// 10.255.255.1 is unroutable: the dial hangs until its timeout.
+	_, err := valkey.New(valkey.Config{Addr: "10.255.255.1:6379", DialTimeout: 300 * time.Millisecond}).
+		Provide(t.Context(), h.Root())
+	if err == nil || time.Since(began) > 3*time.Second {
+		t.Fatalf("unreachable: %v after %v", err, time.Since(began))
+	}
 }

@@ -13,8 +13,8 @@ import (
 
 // Fast shortens the timings for tests; maxDeliver bounds deliveries.
 func (b *Broker) Fast(maxDeliver int) {
-	b.t.reconnectWait = 100 * time.Millisecond
-	b.t.reconnectJitter = 50 * time.Millisecond
+	b.p.Conn.ReconnectWait = 100 * time.Millisecond
+	b.p.Conn.ReconnectJitter = 50 * time.Millisecond
 	b.t.publishTimeout = 2 * time.Second
 	b.t.retry = backoff.Policy{Min: 50 * time.Millisecond, Max: 250 * time.Millisecond}
 	b.t.maxDeliver = maxDeliver

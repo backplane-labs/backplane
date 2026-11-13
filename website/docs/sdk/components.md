@@ -53,9 +53,11 @@ The `pkg/backplane/infra` providers reconnect for ever, so only a closed NATS co
 | Provider | Reconnect | Terminal |
 | --- | --- | --- |
 | `infra/nats` | for ever, `ReconnectWait` with jitter, also after repeated authorization errors; with `nats.WithJetStream()` readiness also needs JetStream to answer (an account info request within the probe's deadline) | the connection is closed |
-| `infra/postgres` | the pgx pool dials per acquire | none |
+| `infra/postgres` | the pgx pool dials per acquire; a wait for a free connection gives up after `pool.acquire_timeout` (`ErrAcquireTimeout`) | none |
 | `infra/valkey` | the client reconnects by itself | none |
 | `infra/temporal` | the gRPC connection reconnects with capped backoff | none |
+
+Every connector's knobs are explicit, CPU-independent defaults in its section (a zero field of a section built by hand reads the same default): `infra/postgres` pool sizes, lifetimes, health checks, `acquire_timeout`, connect and server timeouts, `exec_mode` for transaction-mode poolers, and a separate small `listen` pool (`DB.ListenPool()`, on `listen.dsn` or the main one) so LISTEN sessions never take query connections; `infra/valkey` dial and write timeouts, the blocking pool and pipelining; `infra/nats` (and the SDK's bus) connect timeout, reconnection, pings, reconnect buffer and the JetStream timeout (`cfg.JetStream(conn)`); `infra/temporal` (and the SDK's client) keepalive, payload size and compression. Pool metrics carry a bounded attribute, the dependency's name: `pgxpool.*` and `backplane.postgres.acquire.timeouts` with `pool` (`<name>.listen` for the LISTEN pool), valkey's command and dial metrics with `pool`, `backplane.nats.connected` and `backplane.nats.reconnects` with `conn`.
 
 `infra/nats/natstest` runs real NATS servers with JetStream inside a test's process: `natstest.Start(t)` one server, `natstest.StartCluster(t, 3)` a cluster whose nodes `Stop` and `Restart`, which takes the meta leader away from a client that stays connected.
 

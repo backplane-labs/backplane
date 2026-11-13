@@ -296,6 +296,11 @@ linters:
       - legacy
       - std-error-handling
     rules:
+      # The bounded pool stands in for *pgxpool.Pool: it answers pgx's own
+      # interfaces (Rows, Row, BatchResults, Tx) as the pool does.
+      - linters:
+          - ireturn
+        path: pkg/backplane/infra/postgres/bounded\.go
       # Transport adapters hand errors back to the transport unchanged:
       # handlers compare io.EOF directly and gRPC statuses must survive.
       - linters:

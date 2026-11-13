@@ -53,12 +53,21 @@ the instance state.
 | `BACKPLANE_NATS_REPLICAS` | `1` | replicas of the streams the process creates: its events, its dead letters and a missing stream it subscribes to (1..5) |
 | `BACKPLANE_NATS_DEDUP_WINDOW` | `2m` | dedup window of the event stream, at most `max_age` |
 | `BACKPLANE_NATS_DLQ_MAX_AGE` | `720h` | retention of dead letters `bp_dlq_<service>`; `0`: unlimited |
+| `BACKPLANE_NATS_CONNECT_TIMEOUT` | `2s` | bound of establishing the connection |
+| `BACKPLANE_NATS_RECONNECT_WAIT`, `_RECONNECT_JITTER` | `2s`, `1s` | pause between reconnection attempts and its random extra |
+| `BACKPLANE_NATS_PING_INTERVAL`, `_MAX_PINGS_OUT` | `2m`, `2` | client pings; that many unanswered close the connection for a reconnect |
+| `BACKPLANE_NATS_RECONNECT_BUFFER` | `0` | bytes a publish may buffer while reconnecting; `0`: none, a publish fails while disconnected |
+| `BACKPLANE_NATS_JETSTREAM_TIMEOUT` | `5s` | deadline of a JetStream API call whose context has none |
 | `BACKPLANE_TEMPORAL_ADDR` | — | Temporal frontend; empty: no hooks, activities, workflows |
 | `BACKPLANE_TEMPORAL_NS` | `default` | namespace |
 | `BACKPLANE_TEMPORAL_TLS_ENABLED`, `_TLS_CA`, `_TLS_CERT`, `_TLS_KEY`, `_TLS_SERVER_NAME`, `_TLS_INSECURE_SKIP_VERIFY` | `false`, … | TLS (mTLS) to Temporal, as for Consul |
 | `BACKPLANE_TEMPORAL_API_KEY` | — | Temporal Cloud API key (secret); turns TLS on by itself |
 | `BACKPLANE_TEMPORAL_DIAL_TIMEOUT` | `2s` | one connection attempt; later ones run in the background |
 | `BACKPLANE_TEMPORAL_HOOK_TIMEOUT` | `30s` | deadline of a hook call nothing else bounds |
+| `BACKPLANE_TEMPORAL_KEEPALIVE_TIME`, `_KEEPALIVE_TIMEOUT` | `30s`, `15s` | gRPC keepalive pings of the frontend connection |
+| `BACKPLANE_TEMPORAL_GET_SYSTEM_INFO_TIMEOUT` | `5s` | bound of the capabilities call when the client connects |
+| `BACKPLANE_TEMPORAL_MAX_PAYLOAD_SIZE` | `0` | largest gRPC message in bytes; `0`: Temporal's own |
+| `BACKPLANE_TEMPORAL_GRPC_COMPRESSION` | `gzip` | `gzip` (Temporal's default) or `none` |
 | `BACKPLANE_TEMPORAL_WORKER_ENABLED` | `true` | `false`: this replica runs no activity/workflow worker (hook calls still work) |
 | `BACKPLANE_TEMPORAL_WORKER_MAX_CONCURRENT_ACTIVITIES`, `_MAX_CONCURRENT_WORKFLOW_TASKS`, `_ACTIVITY_POLLERS`, `_WORKFLOW_POLLERS` | `0` | worker tuning; `0`: Temporal's default |
 | `BACKPLANE_SHUTDOWN_TIMEOUT` | `25s` | whole stop budget |
@@ -120,7 +129,15 @@ control-plane listener. Production exposure and upstream discovery belong to the
 |---|---|---|
 | `BACKPLANE_PG_DSN` | — | **required**: PostgreSQL (secret); everything lives in schema `backplane`, created and migrated at start (the role needs `CREATE` on the database) |
 | `BACKPLANE_PG_QUERY_LOG` | `warn` | lowest level of the per-query log (`trace`…`error`, `none`); arguments are never logged |
-| `BACKPLANE_PG_POOL_MAX_CONNS`, `_MIN_CONNS`, `_MAX_CONN_LIFETIME`, `_MAX_CONN_IDLE_TIME` | `0` (pgx's default) | pool bounds; set `MAX_CONNS` explicitly in production — pgx's default follows the node's CPUs |
+| `BACKPLANE_PG_CONNECT_TIMEOUT` | `5s` | bound of establishing one connection |
+| `BACKPLANE_PG_STATEMENT_TIMEOUT`, `_IDLE_IN_TRANSACTION_SESSION_TIMEOUT` | `0s` | server settings every connection starts with; `0s`: the server's |
+| `BACKPLANE_PG_EXEC_MODE` | `cache_statement` | `cache_statement`, `cache_describe`, `describe_exec`, `exec` or `simple_protocol`; behind a transaction-mode pooler use `cache_describe`, `exec` or `simple_protocol` |
+| `BACKPLANE_PG_STATEMENT_CACHE_CAPACITY`, `_DESCRIPTION_CACHE_CAPACITY` | `512` | statements / descriptions cached per connection |
+| `BACKPLANE_PG_POOL_MAX_CONNS`, `_MIN_CONNS`, `_MIN_IDLE_CONNS` | `10`, `0`, `0` | pool bounds: explicit, never derived from the node's CPUs |
+| `BACKPLANE_PG_POOL_MAX_CONN_LIFETIME`, `_MAX_CONN_LIFETIME_JITTER`, `_MAX_CONN_IDLE_TIME`, `_HEALTH_CHECK_PERIOD` | `1h`, `5m`, `30m`, `1m` | connection lifetime and idle checks |
+| `BACKPLANE_PG_POOL_ACQUIRE_TIMEOUT` | `5s` | longest wait for a free connection, then `ErrAcquireTimeout`; `0s`: the caller's deadline |
+| `BACKPLANE_PG_LISTEN_DSN` | — | direct connection of the separate LISTEN pool, bypassing a pooler; empty: the main DSN |
+| `BACKPLANE_PG_LISTEN_MAX_CONNS`, `_MAX_CONN_LIFETIME`, `_MAX_CONN_LIFETIME_JITTER`, `_MAX_CONN_IDLE_TIME`, `_HEALTH_CHECK_PERIOD` | `2`, `1h`, `5m`, `30m`, `1m` | the LISTEN pool's bounds |
 | `BACKPLANE_CONSUL_ADDR` | — | **required** for backplane (optional for services): the registry follows the catalog and `backplane/services/` |
 | `BACKPLANE_CONSOLE_LISTEN` | `:8081` | console HTTP (`/`, `/ws`, `/auth`, `/plugins`), directly or behind a deployment-owned proxy |
 | `BACKPLANE_CONSOLE_ORIGINS` | the request's own host | origins (`scheme://host[:port]`, exact) allowed to open `/ws` and to log in, JSON list |

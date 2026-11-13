@@ -383,6 +383,9 @@ func TestRedrive(t *testing.T) {
 	got := slices.Clone(seen)
 	lock.Unlock()
 
+	// Redriven messages are handled concurrently: their order is free.
+	slices.Sort(got)
+
 	if !slices.Equal(got, []string{`"a"@2`, `"b"@2`}) {
 		t.Fatalf("handled %v", got)
 	}

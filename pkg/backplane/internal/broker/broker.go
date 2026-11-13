@@ -96,9 +96,7 @@ func DefaultStreams() Streams {
 // tuning holds the timings; tests shorten them.
 type tuning struct {
 	// Connection.
-	reconnectWait   time.Duration
-	reconnectJitter time.Duration
-	publishTimeout  time.Duration // when the caller's ctx has no deadline
+	publishTimeout time.Duration // when the caller's ctx has no deadline
 	// Background ensure of streams and consumers.
 	retry backoff.Policy
 	// Reactors, unless the reactor sets its own (env.Delivery).
@@ -112,30 +110,26 @@ type tuning struct {
 
 // Defaults of tuning.
 const (
-	defReconnectWait   = 2 * time.Second
-	defReconnectJitter = time.Second
-	defPublishTimeout  = 5 * time.Second
-	defRetryFloor      = 500 * time.Millisecond
-	defRetryCeil       = 15 * time.Second
-	defMaxDeliver      = 5
-	defHandlerTimeout  = 30 * time.Second
-	defNakFloor        = time.Second
-	defNakCeil         = time.Minute
-	defConcurrency     = 4
-	defDiscover        = 30 * time.Second
+	defPublishTimeout = 5 * time.Second
+	defRetryFloor     = 500 * time.Millisecond
+	defRetryCeil      = 15 * time.Second
+	defMaxDeliver     = 5
+	defHandlerTimeout = 30 * time.Second
+	defNakFloor       = time.Second
+	defNakCeil        = time.Minute
+	defConcurrency    = 4
+	defDiscover       = 30 * time.Second
 )
 
 func defaults() tuning {
 	return tuning{
-		reconnectWait:   defReconnectWait,
-		reconnectJitter: defReconnectJitter,
-		publishTimeout:  defPublishTimeout,
-		retry:           backoff.Policy{Min: defRetryFloor, Max: defRetryCeil},
-		maxDeliver:      defMaxDeliver,
-		handlerTimeout:  defHandlerTimeout,
-		nak:             backoff.Policy{Min: defNakFloor, Max: defNakCeil},
-		concurrency:     defConcurrency,
-		discover:        defDiscover,
+		publishTimeout: defPublishTimeout,
+		retry:          backoff.Policy{Min: defRetryFloor, Max: defRetryCeil},
+		maxDeliver:     defMaxDeliver,
+		handlerTimeout: defHandlerTimeout,
+		nak:            backoff.Policy{Min: defNakFloor, Max: defNakCeil},
+		concurrency:    defConcurrency,
+		discover:       defDiscover,
 	}
 }
 
@@ -190,11 +184,11 @@ func (b *Broker) Connect(ctx context.Context, g node.Group) error {
 		return fmt.Errorf("broker: %w", err)
 	}
 
-	jet, err := jetstream.New(conn)
+	jet, err := b.p.Conn.JetStream(conn)
 	if err != nil {
 		conn.Close()
 
-		return fmt.Errorf("broker: jetstream: %w", err)
+		return fmt.Errorf("broker: %w", err)
 	}
 
 	b.mu.Lock()
@@ -251,9 +245,8 @@ func (b *Broker) dial() (*nats.Conn, error) {
 	//nolint:wrapcheck // Connect names nats
 	return infranats.Connect(b.p.Conn, infranats.Options{
 		Name: name, Log: b.log,
-		OnStatus:      func(connected bool) { metrics.TransportConnected(context.Background(), transport, connected) },
-		OnClosed:      func() { once.Do(func() { close(b.closed) }) },
-		ReconnectWait: b.t.reconnectWait, ReconnectJitter: b.t.reconnectJitter,
+		OnStatus: func(connected bool) { metrics.TransportConnected(context.Background(), transport, connected) },
+		OnClosed: func() { once.Do(func() { close(b.closed) }) },
 	})
 }
 
