@@ -1,6 +1,7 @@
 import { createTheme } from '@grafana/data';
-import { tokens, typography, type ThemeMode } from './tokens.js';
-export { tokens, palette, typography, cssVariables, type ThemeMode } from './tokens.js';
+import { type ThemeMode, tokens, typography } from './tokens.js';
+
+export { cssVariables, palette, type ThemeMode, tokens, typography } from './tokens.js';
 
 // Grafana's exported factory is marked internal upstream. Keep its use isolated,
 // pin the dependency, and verify both modes before upgrading.

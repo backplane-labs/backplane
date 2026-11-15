@@ -7,12 +7,14 @@ export function decimal(value: string): { coefficient: bigint; scale: number } |
 }
 
 export function stepDecimal(value: string, step: string, direction: 1 | -1, min?: string, max?: string): string {
-  const base = decimal(value || '0'), delta = decimal(step);
+  const base = decimal(value || '0'),
+    delta = decimal(step);
   const lower = min === undefined ? undefined : decimal(min);
   const upper = max === undefined ? undefined : decimal(max);
-  if (!base || !delta || min !== undefined && !lower || max !== undefined && !upper) return value;
+  if (!base || !delta || (min !== undefined && !lower) || (max !== undefined && !upper)) return value;
   const scale = Math.max(base.scale, delta.scale, lower?.scale ?? 0, upper?.scale ?? 0);
-  const expand = (number: { coefficient: bigint; scale: number }) => number.coefficient * 10n ** BigInt(scale - number.scale);
+  const expand = (number: { coefficient: bigint; scale: number }) =>
+    number.coefficient * 10n ** BigInt(scale - number.scale);
   let result = expand(base) + expand(delta) * BigInt(direction);
   if (lower && result < expand(lower)) result = expand(lower);
   if (upper && result > expand(upper)) result = expand(upper);

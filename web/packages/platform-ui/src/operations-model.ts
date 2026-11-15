@@ -1,7 +1,16 @@
-import { parse, isLosslessNumber, type LosslessNumber } from 'lossless-json';
-import { Schema_Field_Severity, refDefKey, resultBlocking, type Engine, type Native, type NativeStruct, type Schema, type Schema_Field } from '@gopherex/schemapb';
 import type { EditorCompletion, EditorCompletionResult, EditorDiagnostic } from '@backplane-labs/backplane-editors';
 import { evaluateForm, scaffoldForm } from '@backplane-labs/backplane-schema-forms';
+import {
+  type Engine,
+  type Native,
+  type NativeStruct,
+  refDefKey,
+  resultBlocking,
+  type Schema,
+  type Schema_Field,
+  Schema_Field_Severity,
+} from '@gopherex/schemapb';
+import { isLosslessNumber, type LosslessNumber, parse } from 'lossless-json';
 import { nativeJSON } from './serialization.js';
 
 /** The JSON a payload editor opens with: the schema's defaults and its required fields. */
@@ -17,21 +26,43 @@ function kindLabel(field: Schema_Field): string {
 /** The object the cursor is in: the names of the keys on the way from the root, innermost last. */
 function keyPath(text: string, position: number): string[] | undefined {
   const stack: { key?: string; list: boolean }[] = [];
-  let i = 0, inString = false, token = '', lastKey: string | undefined, expectKey = false;
+  let i = 0,
+    inString = false,
+    token = '',
+    lastKey: string | undefined,
+    expectKey = false;
   while (i < position) {
     const ch = text[i]!;
     if (inString) {
-      if (ch === '\\') { token += text[i + 1] ?? ''; i += 2; continue; }
-      if (ch === '"') { inString = false; if (expectKey) lastKey = token; } else token += ch;
-    } else if (ch === '"') { inString = true; token = ''; }
-    else if (ch === '{') { stack.push({ key: lastKey, list: false }); expectKey = true; lastKey = undefined; }
-    else if (ch === '[') { stack.push({ key: lastKey, list: true }); expectKey = false; lastKey = undefined; }
-    else if (ch === '}' || ch === ']') { stack.pop(); expectKey = false; lastKey = stack.at(-1)?.key; }
-    else if (ch === ':') expectKey = false;
+      if (ch === '\\') {
+        token += text[i + 1] ?? '';
+        i += 2;
+        continue;
+      }
+      if (ch === '"') {
+        inString = false;
+        if (expectKey) lastKey = token;
+      } else token += ch;
+    } else if (ch === '"') {
+      inString = true;
+      token = '';
+    } else if (ch === '{') {
+      stack.push({ key: lastKey, list: false });
+      expectKey = true;
+      lastKey = undefined;
+    } else if (ch === '[') {
+      stack.push({ key: lastKey, list: true });
+      expectKey = false;
+      lastKey = undefined;
+    } else if (ch === '}' || ch === ']') {
+      stack.pop();
+      expectKey = false;
+      lastKey = stack.at(-1)?.key;
+    } else if (ch === ':') expectKey = false;
     else if (ch === ',') expectKey = !stack.at(-1)?.list;
     i++;
   }
-  if (!stack.length || !expectKey && !inString) return undefined;
+  if (!stack.length || (!expectKey && !inString)) return undefined;
   if (inString && !expectKey) return undefined;
   return stack.map((frame) => frame.key).filter((key): key is string => key !== undefined);
 }
@@ -41,21 +72,34 @@ function schemaAt(root: Schema, path: string[]): Schema | undefined {
   for (const name of path) {
     const field: Schema_Field | undefined = schema?.fields.find((candidate) => candidate.name === name);
     if (!field) return undefined;
-    schema = field.kind.case === 'object' ? field.kind.value.schema : field.kind.case === 'ref' ? root.defs[refDefKey(field.kind.value)] : undefined;
+    schema =
+      field.kind.case === 'object'
+        ? field.kind.value.schema
+        : field.kind.case === 'ref'
+          ? root.defs[refDefKey(field.kind.value)]
+          : undefined;
   }
   return schema;
 }
 
 /** Key completions of a JSON payload against its schema: the fields of the object the cursor is in. */
 export function payloadCompletions(root: Schema, text: string, position: number): EditorCompletionResult | null {
-  const path = keyPath(text, position); if (!path) return null;
-  const schema = schemaAt(root, path); if (!schema) return null;
-  let from = position; while (from > 0 && /[\w"]/.test(text[from - 1]!)) from--;
-  const quoted = text[from] === '"', closing = text[position] === '"';
-  const options: EditorCompletion[] = schema.fields.filter((field) => field.kind.case !== 'computed').map((field) => ({
-    label: field.name, detail: kindLabel(field), type: 'property',
-    apply: `${quoted || closing ? '' : '"'}${field.name}${closing ? '' : '": '}`,
-  }));
+  const path = keyPath(text, position);
+  if (!path) return null;
+  const schema = schemaAt(root, path);
+  if (!schema) return null;
+  let from = position;
+  while (from > 0 && /[\w"]/.test(text[from - 1]!)) from--;
+  const quoted = text[from] === '"',
+    closing = text[position] === '"';
+  const options: EditorCompletion[] = schema.fields
+    .filter((field) => field.kind.case !== 'computed')
+    .map((field) => ({
+      label: field.name,
+      detail: kindLabel(field),
+      type: 'property',
+      apply: `${quoted || closing ? '' : '"'}${field.name}${closing ? '' : '": '}`,
+    }));
   return { from: quoted ? from + 1 : from, options };
 }
 
@@ -66,7 +110,10 @@ function toNativeJSON(value: unknown): Native {
     return /^-?\d+$/.test(text) ? BigInt(text) : Number(text);
   }
   if (Array.isArray(value)) return value.map(toNativeJSON);
-  if (typeof value === 'object') return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, toNativeJSON(item)]));
+  if (typeof value === 'object')
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, toNativeJSON(item)]),
+    );
   return value as Native;
 }
 
@@ -74,8 +121,12 @@ function toNativeJSON(value: unknown): Native {
 export function parsePayload(text: string): NativeStruct | undefined {
   try {
     const value = toNativeJSON(parse(text));
-    return value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Uint8Array) ? value as NativeStruct : undefined;
-  } catch { return undefined; }
+    return value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Uint8Array)
+      ? (value as NativeStruct)
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function keyOffset(text: string, path: string): { from: number; to: number } {
@@ -85,14 +136,33 @@ function keyOffset(text: string, path: string): { from: number; to: number } {
 }
 
 /** Schema diagnostics of a JSON payload; syntax errors are the editor's own. Empty when the text does not parse. */
-export function payloadDiagnostics(engine: Engine, text: string): { diagnostics: EditorDiagnostic[]; blocking: boolean } {
+export function payloadDiagnostics(
+  engine: Engine,
+  text: string,
+): { diagnostics: EditorDiagnostic[]; blocking: boolean } {
   const values = parsePayload(text);
-  if (!values) return { diagnostics: text.trim() && text.trim() !== 'null' && (() => { try { parse(text); return true; } catch { return false; } })()
-    ? [{ from: 0, to: 0, severity: 'error', message: 'The payload must be a JSON object.' }] : [], blocking: false };
+  if (!values)
+    return {
+      diagnostics:
+        text.trim() &&
+        text.trim() !== 'null' &&
+        (() => {
+          try {
+            parse(text);
+            return true;
+          } catch {
+            return false;
+          }
+        })()
+          ? [{ from: 0, to: 0, severity: 'error', message: 'The payload must be a JSON object.' }]
+          : [],
+      blocking: false,
+    };
   const outcome = evaluateForm(engine, values);
   return {
     diagnostics: outcome.result.errors.map((error) => ({
-      ...keyOffset(text, error.path), severity: error.severity === Schema_Field_Severity.WARNING ? 'warning' : 'error',
+      ...keyOffset(text, error.path),
+      severity: error.severity === Schema_Field_Severity.WARNING ? 'warning' : 'error',
       message: error.path ? `${error.path}: ${error.message}` : error.message,
     })),
     blocking: resultBlocking(outcome.result),

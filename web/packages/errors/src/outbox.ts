@@ -1,23 +1,13 @@
-import { deliveryOutcome, type DeliveryOutcome, type DeliveryStats } from './delivery.js'
-import type {
-  LogRecordExporter,
-  LogRecordProcessor,
-  ReadableLogRecord,
-} from '@opentelemetry/sdk-logs'
-import { decodeRecord, encodeRecord } from './outbox-record.js'
-import type {
-  DeliveryTriggers,
-  OutboxLimits,
-  OutboxStorage,
-  Runtime,
-  StoredExport,
-} from './ports.js'
+import type { LogRecordExporter, LogRecordProcessor, ReadableLogRecord } from '@opentelemetry/sdk-logs';
+import { type DeliveryOutcome, type DeliveryStats, deliveryOutcome } from './delivery.js';
+import { decodeRecord, encodeRecord } from './outbox-record.js';
+import type { DeliveryTriggers, OutboxLimits, OutboxStorage, Runtime, StoredExport } from './ports.js';
 
 /** Where an outbox keeps exports and what tells it to retry. */
 export interface OutboxPorts {
-  storage: OutboxStorage
+  storage: OutboxStorage;
   /** Without triggers the outbox retries on its 1 s timer only. */
-  triggers?: DeliveryTriggers
+  triggers?: DeliveryTriggers;
 }
 
 /** Persists every export before sending it, and replays what is pending. */
@@ -34,63 +24,63 @@ export class PersistentLogProcessor implements LogRecordProcessor {
     bypassed: 0,
     unpersistedLost: 0,
     storageFailures: 0,
-  }
-  private readonly owner: string
-  private readonly limits: OutboxLimits
-  private readonly store: OutboxStorage
-  private readonly writes = new Set<Promise<void>>()
-  private pendingBytes = 0
-  private inFlight = 0
-  private running?: Promise<void>
-  private stopped = false
-  private storageFailed = false
-  private diagnosing = false
-  private timer: ReturnType<typeof setInterval>
-  private shutdownPromise?: Promise<void>
-  private readonly untrigger: () => void
+  };
+  private readonly owner: string;
+  private readonly limits: OutboxLimits;
+  private readonly store: OutboxStorage;
+  private readonly writes = new Set<Promise<void>>();
+  private pendingBytes = 0;
+  private inFlight = 0;
+  private running?: Promise<void>;
+  private stopped = false;
+  private storageFailed = false;
+  private diagnosing = false;
+  private timer: ReturnType<typeof setInterval>;
+  private shutdownPromise?: Promise<void>;
+  private readonly untrigger: () => void;
 
   constructor(
     private readonly exporter: LogRecordExporter,
     ports: OutboxPorts,
     private readonly runtime: Runtime,
-    private readonly onDiagnostic: (code: string) => void
+    private readonly onDiagnostic: (code: string) => void,
   ) {
-    this.store = ports.storage
-    this.limits = ports.storage.limits
-    this.owner = runtime.randomId()
-    this.untrigger = ports.triggers?.subscribe((urgent) => this.kick(urgent)) ?? (() => {})
-    this.timer = setInterval(() => this.kick(), 1000)
-    this.kick()
+    this.store = ports.storage;
+    this.limits = ports.storage.limits;
+    this.owner = runtime.randomId();
+    this.untrigger = ports.triggers?.subscribe((urgent) => this.kick(urgent)) ?? (() => {});
+    this.timer = setInterval(() => this.kick(), 1000);
+    this.kick();
   }
 
   private report(code: string) {
-    if (this.diagnosing) return
-    this.diagnosing = true
+    if (this.diagnosing) return;
+    this.diagnosing = true;
     try {
-      this.onDiagnostic(code)
+      this.onDiagnostic(code);
     } catch {
       /* Diagnostic code cannot cause another capture. */
     } finally {
-      this.diagnosing = false
+      this.diagnosing = false;
     }
   }
 
   onEmit(record: ReadableLogRecord): void {
-    if (this.stopped || this.diagnosing) return
+    if (this.stopped || this.diagnosing) return;
     try {
-      const payload = encodeRecord(record)
-      const bytes = new TextEncoder().encode(payload).byteLength
+      const payload = encodeRecord(record);
+      const bytes = new TextEncoder().encode(payload).byteLength;
       if (
         bytes > this.limits.maxBytes ||
         this.pendingBytes + bytes > this.limits.maxBytes ||
         this.writes.size >= this.limits.maxEntries
       ) {
-        this.counters.bypassed++
-        this.report('outbox_capacity_bypass')
-        this.fallback(record)
-        return
+        this.counters.bypassed++;
+        this.report('outbox_capacity_bypass');
+        this.fallback(record);
+        return;
       }
-      const created = this.runtime.now()
+      const created = this.runtime.now();
       const entry: StoredExport = {
         id: this.runtime.randomId(),
         payload,
@@ -99,171 +89,171 @@ export class PersistentLogProcessor implements LogRecordProcessor {
         expires: created + this.limits.maxAgeMs,
         next: 0,
         attempts: 0,
-      }
-      this.pendingBytes += bytes
+      };
+      this.pendingBytes += bytes;
       const write = this.persist(entry, record).finally(() => {
-        this.pendingBytes -= bytes
-        this.writes.delete(write)
-      })
-      this.writes.add(write)
+        this.pendingBytes -= bytes;
+        this.writes.delete(write);
+      });
+      this.writes.add(write);
     } catch {
-      this.report('outbox_encode_failed')
-      this.fallback(record)
+      this.report('outbox_encode_failed');
+      this.fallback(record);
     }
   }
 
   private async persist(entry: StoredExport, record: ReadableLogRecord) {
     try {
-      const result = await this.store.put(entry)
+      const result = await this.store.put(entry);
       if (result.evicted) {
-        this.counters.evicted += result.evicted
-        this.report('outbox_evicted')
+        this.counters.evicted += result.evicted;
+        this.report('outbox_evicted');
       }
       if (!result.stored) {
-        this.counters.bypassed++
-        this.report('outbox_capacity_bypass')
-        this.fallback(record)
+        this.counters.bypassed++;
+        this.report('outbox_capacity_bypass');
+        this.fallback(record);
       } else {
-        this.counters.persisted++
-        this.kick()
+        this.counters.persisted++;
+        this.kick();
       }
     } catch {
-      this.counters.storageFailures++
-      this.storageFailed = true
-      this.report('outbox_storage_failed')
-      this.fallback(record)
+      this.counters.storageFailures++;
+      this.storageFailed = true;
+      this.report('outbox_storage_failed');
+      this.fallback(record);
     }
   }
 
   private fallback(record: ReadableLogRecord) {
     void this.send([record]).then((success) => {
       if (success !== 'accepted') {
-        this.counters.unpersistedLost++
-        this.report('outbox_unpersisted_export_failed')
+        this.counters.unpersistedLost++;
+        this.report('outbox_unpersisted_export_failed');
       }
-    })
+    });
   }
 
   private send(records: ReadableLogRecord[]): Promise<DeliveryOutcome> {
     if (this.inFlight >= 4) {
-      this.report('outbox_export_busy')
-      return Promise.resolve('retry')
+      this.report('outbox_export_busy');
+      return Promise.resolve('retry');
     }
-    this.inFlight++
-    this.counters.exportAttempts++
+    this.inFlight++;
+    this.counters.exportAttempts++;
     return new Promise((resolve) => {
-      let finished = false
+      let finished = false;
       const done = (outcome: DeliveryOutcome) => {
-        if (finished) return
-        finished = true
-        clearTimeout(timer)
-        this.inFlight--
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        this.inFlight--;
         if (outcome === 'accepted') {
-          this.counters.accepted += records.length
-          this.counters.lastAcceptedAt = this.runtime.now()
-        } else if (outcome === 'rejected') this.counters.rejected += records.length
-        else this.counters.retried += records.length
-        resolve(outcome)
-      }
+          this.counters.accepted += records.length;
+          this.counters.lastAcceptedAt = this.runtime.now();
+        } else if (outcome === 'rejected') this.counters.rejected += records.length;
+        else this.counters.retried += records.length;
+        resolve(outcome);
+      };
       // Owned exporter has a shorter timeout; the extra guard also isolates exporter bugs.
-      const timer = setTimeout(() => done('retry'), 12_000)
+      const timer = setTimeout(() => done('retry'), 12_000);
       try {
-        this.exporter.export(records, (result) => done(deliveryOutcome(result)))
+        this.exporter.export(records, (result) => done(deliveryOutcome(result)));
       } catch {
-        done('retry')
+        done('retry');
       }
-    })
+    });
   }
 
   private kick(force = false) {
-    if (!this.stopped) void this.drain(force)
+    if (!this.stopped) void this.drain(force);
   }
 
   private drain(force: boolean): Promise<void> {
     this.running ??= this.run(force)
       .catch(() => this.report('outbox_retry_failed'))
       .finally(() => {
-        this.running = undefined
-      })
-    return this.running
+        this.running = undefined;
+      });
+    return this.running;
   }
 
   private async run(force: boolean) {
-    const store = this.store
-    let remaining = force ? this.limits.maxEntries : 32
+    const store = this.store;
+    let remaining = force ? this.limits.maxEntries : 32;
     while (remaining > 0) {
-      const claimed = await store.claim(this.owner, force)
+      const claimed = await store.claim(this.owner, force);
       if (claimed.expired) {
-        this.counters.expired += claimed.expired
-        this.report('outbox_expired')
+        this.counters.expired += claimed.expired;
+        this.report('outbox_expired');
       }
-      if (!claimed.entries.length) return
+      if (!claimed.entries.length) return;
       const entries: StoredExport[] = [],
-        records: ReadableLogRecord[] = []
+        records: ReadableLogRecord[] = [];
       for (const entry of claimed.entries) {
         try {
-          records.push(decodeRecord(entry.payload))
-          entries.push(entry)
+          records.push(decodeRecord(entry.payload));
+          entries.push(entry);
         } catch {
-          await store.finish([entry], this.owner, true)
-          this.counters.invalid++
-          this.report('outbox_invalid_record')
+          await store.finish([entry], this.owner, true);
+          this.counters.invalid++;
+          this.report('outbox_invalid_record');
         }
       }
-      remaining -= claimed.entries.length
-      if (!entries.length) continue
-      const success = await this.send(records)
-      await store.finish(entries, this.owner, success !== 'retry')
-      if (success === 'rejected') this.report('outbox_export_rejected')
+      remaining -= claimed.entries.length;
+      if (!entries.length) continue;
+      const success = await this.send(records);
+      await store.finish(entries, this.owner, success !== 'retry');
+      if (success === 'rejected') this.report('outbox_export_rejected');
       if (success === 'retry') {
-        this.report('outbox_export_failed')
-        return
+        this.report('outbox_export_failed');
+        return;
       }
     }
   }
 
   /** Waits for storage writes, not OTLP delivery. Rejects after storage failure. */
   async flushStorage(): Promise<void> {
-    await Promise.all([...this.writes])
-    if (this.storageFailed) throw new Error('outbox_storage_failed')
+    await Promise.all([...this.writes]);
+    if (this.storageFailed) throw new Error('outbox_storage_failed');
   }
 
   async stats() {
-    await this.flushStorage()
-    return { ...(await this.store.stats()), ...this.counters }
+    await this.flushStorage();
+    return { ...(await this.store.stats()), ...this.counters };
   }
 
   async clear() {
-    await Promise.all([...this.writes])
-    await this.store.clear()
+    await Promise.all([...this.writes]);
+    await this.store.clear();
   }
 
   async forceFlush(): Promise<void> {
-    await this.flushStorage()
-    if (this.running) await this.running
-    await this.drain(true)
-    await this.exporter.forceFlush()
+    await this.flushStorage();
+    if (this.running) await this.running;
+    await this.drain(true);
+    await this.exporter.forceFlush();
   }
 
   stop() {
-    this.stopped = true
-    clearInterval(this.timer)
-    this.untrigger()
+    this.stopped = true;
+    clearInterval(this.timer);
+    this.untrigger();
   }
 
   shutdown(): Promise<void> {
-    this.stop()
+    this.stop();
     this.shutdownPromise ??= (async () => {
       try {
-        await this.forceFlush()
+        await this.forceFlush();
       } finally {
         try {
-          await this.exporter.shutdown()
+          await this.exporter.shutdown();
         } finally {
-          this.store.close()
+          this.store.close();
         }
       }
-    })()
-    return this.shutdownPromise
+    })();
+    return this.shutdownPromise;
   }
 }

@@ -1,12 +1,18 @@
-import { createContext, useContext, type ReactNode } from 'react';
-import { useRoutes, useNavigate, type RouteObject } from 'react-router-dom';
-import type { i18n } from 'i18next';
 import type { ThemeMode } from '@backplane-labs/backplane-theme';
+import type { i18n } from 'i18next';
+import { createContext, type ReactNode, useContext } from 'react';
+import { type RouteObject, useNavigate, useRoutes } from 'react-router-dom';
 
 export const SDK_MAJOR = 0;
 
-export interface NavEntry { path: string; labelKey: string; }
-export interface PluginMetadata { service: string; nav: readonly NavEntry[]; }
+export interface NavEntry {
+  path: string;
+  labelKey: string;
+}
+export interface PluginMetadata {
+  service: string;
+  nav: readonly NavEntry[];
+}
 export interface PluginDefinition extends PluginMetadata {
   routes: RouteObject[];
   english: Record<string, unknown>;
@@ -21,12 +27,23 @@ export interface PluginContext {
   reportError?: ErrorReporter;
 }
 /** Reports an exception to the installation's Errors, with attributes that filter it there. */
-export type ErrorReporter = (error: unknown, options?: { handled?: boolean; attributes?: Readonly<Record<string, string>> }) => void;
+export type ErrorReporter = (
+  error: unknown,
+  options?: { handled?: boolean; attributes?: Readonly<Record<string, string>> },
+) => void;
 
 export function assertRelativePath(path: string) {
   let decoded: string;
-  try { decoded = decodeURIComponent(path); } catch { throw new Error(`Invalid module path: ${path}`); }
-  if (decoded.startsWith('/') || /[\\?#\u0000-\u001f]/.test(decoded) || decoded.split('/').some((part) => part === '.' || part === '..')) {
+  try {
+    decoded = decodeURIComponent(path);
+  } catch {
+    throw new Error(`Invalid module path: ${path}`);
+  }
+  if (
+    decoded.startsWith('/') ||
+    /[\\?#\u0000-\u001f]/.test(decoded) ||
+    decoded.split('/').some((part) => part === '.' || part === '..')
+  ) {
     throw new Error(`Module path must remain relative: ${path}`);
   }
 }
@@ -43,7 +60,8 @@ export function definePlugin(definition: PluginDefinition): PluginDefinition {
   const paths = new Set<string>();
   for (const entry of definition.nav) {
     assertRelativePath(entry.path);
-    if (!entry.labelKey || paths.has(entry.path)) throw new Error('Navigation entries need unique paths and translation keys');
+    if (!entry.labelKey || paths.has(entry.path))
+      throw new Error('Navigation entries need unique paths and translation keys');
     paths.add(entry.path);
   }
   return definition;
@@ -87,7 +105,14 @@ export function usePluginNavigate() {
 export function usePluginErrorReporter(): ErrorReporter {
   const { service, reportError } = usePluginContext();
   return (error, options) => {
-    if (!reportError) { console.error(error); return; }
-    reportError(error, { handled: true, ...options, attributes: { ...options?.attributes, 'backplane.module': service } });
+    if (!reportError) {
+      console.error(error);
+      return;
+    }
+    reportError(error, {
+      handled: true,
+      ...options,
+      attributes: { ...options?.attributes, 'backplane.module': service },
+    });
   };
 }

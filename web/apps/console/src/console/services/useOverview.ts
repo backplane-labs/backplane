@@ -1,8 +1,16 @@
-import { useMemo } from 'react';
-import { create } from '@bufbuild/protobuf';
-import { BindingServiceClient, CatalogServiceClient, GetServiceRequestSchema, ListBindingsRequestSchema, ListRulesRequestSchema, RuleServiceClient, type ServiceSummary } from '@backplane-labs/backplane-api';
-import { useClient } from '@backplane-labs/backplane-react';
+import {
+  BindingServiceClient,
+  CatalogServiceClient,
+  GetServiceRequestSchema,
+  ListBindingsRequestSchema,
+  ListRulesRequestSchema,
+  RuleServiceClient,
+  type ServiceSummary,
+} from '@backplane-labs/backplane-api';
 import { usePlatformQuery } from '@backplane-labs/backplane-platform-ui';
+import { useClient } from '@backplane-labs/backplane-react';
+import { create } from '@bufbuild/protobuf';
+import { useMemo } from 'react';
 import { overview, type ServiceOverview } from './model';
 
 /**
@@ -11,18 +19,44 @@ import { overview, type ServiceOverview } from './model';
  * service does not hide the others.
  */
 export function useServicesOverview(services: ServiceSummary[], index: bigint | undefined) {
-  const catalog = useClient(CatalogServiceClient), bindings = useClient(BindingServiceClient), rules = useClient(RuleServiceClient);
+  const catalog = useClient(CatalogServiceClient),
+    bindings = useClient(BindingServiceClient),
+    rules = useClient(RuleServiceClient);
   const names = services.map((service) => service.name).join(',');
-  const details = usePlatformQuery(`overview:${index}:${names}`, (signal) => Promise.allSettled(
-    names ? names.split(',').map((name) => catalog.getService(create(GetServiceRequestSchema, { name }), { signal })) : []));
-  const automation = usePlatformQuery(`automation:${index}`, (signal) => Promise.all([
-    bindings.listBindings(create(ListBindingsRequestSchema), { signal }),
-    rules.listRules(create(ListRulesRequestSchema), { signal }),
-  ]));
-  const items = useMemo<ServiceOverview[]>(() => services.map((summary, position) => {
-    const result = details.value?.[position];
-    return overview(summary, result?.status === 'fulfilled' ? result.value : undefined, result?.status === 'rejected',
-      automation.value?.[0].bindings ?? [], automation.value?.[1].rules ?? []);
-  }), [services, details.value, automation.value]);
-  return { items, loading: details.loading && !details.value, automationLoaded: !!automation.value, refresh: () => { details.refresh(); automation.refresh(); } };
+  const details = usePlatformQuery(`overview:${index}:${names}`, (signal) =>
+    Promise.allSettled(
+      names
+        ? names.split(',').map((name) => catalog.getService(create(GetServiceRequestSchema, { name }), { signal }))
+        : [],
+    ),
+  );
+  const automation = usePlatformQuery(`automation:${index}`, (signal) =>
+    Promise.all([
+      bindings.listBindings(create(ListBindingsRequestSchema), { signal }),
+      rules.listRules(create(ListRulesRequestSchema), { signal }),
+    ]),
+  );
+  const items = useMemo<ServiceOverview[]>(
+    () =>
+      services.map((summary, position) => {
+        const result = details.value?.[position];
+        return overview(
+          summary,
+          result?.status === 'fulfilled' ? result.value : undefined,
+          result?.status === 'rejected',
+          automation.value?.[0].bindings ?? [],
+          automation.value?.[1].rules ?? [],
+        );
+      }),
+    [services, details.value, automation.value],
+  );
+  return {
+    items,
+    loading: details.loading && !details.value,
+    automationLoaded: !!automation.value,
+    refresh: () => {
+      details.refresh();
+      automation.refresh();
+    },
+  };
 }

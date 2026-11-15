@@ -1,5 +1,10 @@
-import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { watchWithRetry, type ClientRuntime, type ClientConstructor, type ClientState } from '@backplane-labs/backplane-client';
+import {
+  type ClientConstructor,
+  type ClientRuntime,
+  type ClientState,
+  watchWithRetry,
+} from '@backplane-labs/backplane-client';
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 const Context = createContext<ClientRuntime | null>(null);
 
@@ -37,8 +42,16 @@ export interface WatchState<T> {
 export function useSnapshotWatch<T>(open: (signal: AbortSignal) => AsyncIterable<T>): WatchState<T> {
   const client = useBackplane();
   const connection = useConnection();
-  const [stored, setStored] = useState<{ owner: ClientRuntime; session: string | null; source: typeof open; state: WatchState<T> }>({
-    owner: client, session: connection.session?.id ?? null, source: open, state: { status: 'loading' },
+  const [stored, setStored] = useState<{
+    owner: ClientRuntime;
+    session: string | null;
+    source: typeof open;
+    state: WatchState<T>;
+  }>({
+    owner: client,
+    session: connection.session?.id ?? null,
+    source: open,
+    state: { status: 'loading' },
   });
   const session = connection.session?.id ?? null;
   useEffect(() => {
@@ -47,19 +60,29 @@ export function useSnapshotWatch<T>(open: (signal: AbortSignal) => AsyncIterable
     setStored((previous) => {
       const sameSession = previous.owner === client && previous.session === session && previous.source === open;
       const value = sameSession ? previous.state.value : undefined;
-      return { owner: client, session, source: open, state: { value, status: value === undefined ? 'loading' : 'stale' } };
+      return {
+        owner: client,
+        session,
+        source: open,
+        state: { value, status: value === undefined ? 'loading' : 'stale' },
+      };
     });
     if (active) {
       void (async () => {
         try {
-          for await (const value of watchWithRetry(open, { signal: controller.signal,
-            onRetry: (error) => { if (!controller.signal.aborted) setStored((previous) => ({ ...previous, state: { ...previous.state, status: 'stale', error } })); },
+          for await (const value of watchWithRetry(open, {
+            signal: controller.signal,
+            onRetry: (error) => {
+              if (!controller.signal.aborted)
+                setStored((previous) => ({ ...previous, state: { ...previous.state, status: 'stale', error } }));
+            },
           })) {
             if (controller.signal.aborted) return;
             setStored({ owner: client, session, source: open, state: { value, status: 'ready' } });
           }
         } catch (error) {
-          if (!controller.signal.aborted) setStored((previous) => ({ ...previous, state: { ...previous.state, status: 'error', error } }));
+          if (!controller.signal.aborted)
+            setStored((previous) => ({ ...previous, state: { ...previous.state, status: 'error', error } }));
         }
       })();
     }

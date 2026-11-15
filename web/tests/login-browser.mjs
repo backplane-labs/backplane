@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
-import { chromium, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { chromium, expect } from '@playwright/test';
 
 const base = `${process.env.BACKPLANE_DEV_URL ?? 'http://127.0.0.1:8081'}/backplane`;
 const browser = await chromium.launch();
 try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 950 } });
-  const page = await context.newPage(), failures = [];
+  const page = await context.newPage(),
+    failures = [];
   page.on('pageerror', (error) => failures.push(error.message));
   await page.goto(`${base}/s/hello/settings`);
   const token = page.getByLabel('Operator token', { exact: true });
@@ -34,9 +35,16 @@ try {
   await expect(token).toBeFocused();
   assert.deepEqual((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations, []);
   // A delayed failure shows pending state and cannot submit twice.
-  let release, requests = 0;
-  const gate = new Promise((resolve) => { release = resolve; });
-  await page.route('**/auth/login', async (route) => { requests++; await gate; await route.fulfill({ status: 503, body: 'Unavailable' }); });
+  let release,
+    requests = 0;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/auth/login', async (route) => {
+    requests++;
+    await gate;
+    await route.fulfill({ status: 503, body: 'Unavailable' });
+  });
   await token.fill('another-token');
   await page.getByRole('button', { name: 'Log in', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Logging in…' })).toBeDisabled();
@@ -45,11 +53,17 @@ try {
   await expect(page.getByRole('alert')).toHaveText('Cannot reach Backplane right now. Please try again.');
   assert.equal(requests, 1);
   await page.unroute('**/auth/login');
-  await page.evaluate(() => { window.__backplaneLoginDocument = 'same-document'; });
+  await page.evaluate(() => {
+    window.__backplaneLoginDocument = 'same-document';
+  });
   await token.fill(process.env.DEV_ADMIN_TOKEN ?? 'dev-admin-token-change-me');
   await page.getByRole('button', { name: 'Log in', exact: true }).click();
   await expect(page.getByLabel('Display name')).toBeVisible();
-  assert.equal(await page.evaluate(() => window.__backplaneLoginDocument), 'same-document', 'Loading the authenticated shell must not reload the page');
+  assert.equal(
+    await page.evaluate(() => window.__backplaneLoginDocument),
+    'same-document',
+    'Loading the authenticated shell must not reload the page',
+  );
   await expect(page).toHaveURL(`${base}/s/hello/settings`);
   await page.getByRole('button', { name: 'Session', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
@@ -63,5 +77,9 @@ try {
   await page.getByRole('button', { name: 'Try again' }).click();
   await expect(token).toBeVisible();
   assert.deepEqual(failures, []);
-  console.log('Login acceptance passed: centered layout, themes, mobile, accessibility, rejection, pending/duplicate prevention, deep-link login, logout and outage recovery');
-} finally { await browser.close(); }
+  console.log(
+    'Login acceptance passed: centered layout, themes, mobile, accessibility, rejection, pending/duplicate prevention, deep-link login, logout and outage recovery',
+  );
+} finally {
+  await browser.close();
+}

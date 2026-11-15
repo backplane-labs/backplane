@@ -1,7 +1,7 @@
-export type * from './types.js';
+export { AttributeTable, attributeText, CorrelationLinks, HighlightText } from './attributes.js';
+export { ErrorDetails, SourceContext, StackTrace } from './errors.js';
 export { observabilityEnglish } from './locales.js';
-export { AttributeTable, CorrelationLinks, HighlightText, attributeText } from './attributes.js';
 export { LogViewer } from './logs.js';
-export { TraceList, TraceWaterfall, SpanDetails } from './traces.js';
-export { SourceContext, StackTrace, ErrorDetails } from './errors.js';
-export { nanoDate, duration, humanDuration, spanForest, spanPosition, type SpanNode } from './model.js';
+export { duration, humanDuration, nanoDate, type SpanNode, spanForest, spanPosition } from './model.js';
+export { SpanDetails, TraceList, TraceWaterfall } from './traces.js';
+export type * from './types.js';

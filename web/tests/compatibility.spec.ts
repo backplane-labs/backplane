@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { expect, test } from '@playwright/test';
 
 for (const mode of ['dark', 'light'] as const) {
   test(`${mode}: common tokens, form overlays, table and editor`, async ({ page }) => {
@@ -7,13 +7,16 @@ for (const mode of ['dark', 'light'] as const) {
     page.on('pageerror', (error) => failures.push(error.message));
     page.on('response', (response) => {
       if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`);
-      if (response.url().endsWith('.svg') && !response.headers()['content-type']?.includes('image/svg+xml')) failures.push(`Invalid SVG response: ${response.url()}`);
+      if (response.url().endsWith('.svg') && !response.headers()['content-type']?.includes('image/svg+xml'))
+        failures.push(`Invalid SVG response: ${response.url()}`);
     });
     await page.goto('/');
     await expect(page.getByRole('heading', { name: 'Component compatibility' })).toBeVisible();
     if (mode === 'light') await page.getByRole('button', { name: 'Light theme' }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', mode);
-    await expect(page.locator('[data-testid="icon-clock-nine"] path, [data-testid="icon-clock-nine"] circle').first()).toBeVisible();
+    await expect(
+      page.locator('[data-testid="icon-clock-nine"] path, [data-testid="icon-clock-nine"] circle').first(),
+    ).toBeVisible();
     await page.getByText('Last 15 minutes', { exact: true }).click();
     await page.getByText('Last 5 minutes', { exact: true }).click();
     await expect(page.getByText('Last 5 minutes', { exact: true })).toBeVisible();

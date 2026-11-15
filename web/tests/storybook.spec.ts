@@ -1,6 +1,6 @@
-import { chooseOption } from './choose-option';
-import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { expect, test } from '@playwright/test';
+import { chooseOption } from './choose-option';
 
 for (const theme of ['dark', 'light']) {
   for (const story of ['controls', 'large-table', 'paginated-table', 'tree', 'upload', 'time', 'forms', 'states']) {
@@ -24,7 +24,9 @@ for (const theme of ['dark', 'light']) {
       }
       if (story === 'large-table') {
         await expect(page.getByRole('cell', { name: '9007199254740993', exact: true })).toBeVisible();
-        expect(await page.getByRole('table', { name: 'Services', exact: true }).locator('tbody tr').count()).toBeLessThan(50);
+        expect(
+          await page.getByRole('table', { name: 'Services', exact: true }).locator('tbody tr').count(),
+        ).toBeLessThan(50);
         await page.getByRole('checkbox', { name: 'Select row row-0', exact: true }).check();
         await page.getByRole('button', { name: 'Reverse data' }).click();
         await expect(page.getByLabel('Selected IDs')).toHaveText('row-0');
@@ -58,9 +60,13 @@ for (const theme of ['dark', 'light']) {
         await expect(page.getByLabel('Selected resource')).toHaveText('row-9999');
       }
       if (story === 'upload') {
-        await page.locator('input[type=file]').setInputFiles({ name: 'config.json', mimeType: 'application/json', buffer: Buffer.from('{}') });
+        await page
+          .locator('input[type=file]')
+          .setInputFiles({ name: 'config.json', mimeType: 'application/json', buffer: Buffer.from('{}') });
         await expect(page.getByText('Uploaded', { exact: true })).toBeVisible();
-        await page.locator('input[type=file]').setInputFiles({ name: 'invalid.txt', mimeType: 'text/plain', buffer: Buffer.from('x') });
+        await page
+          .locator('input[type=file]')
+          .setInputFiles({ name: 'invalid.txt', mimeType: 'text/plain', buffer: Buffer.from('x') });
         await expect(page.getByText('File type or size is not allowed')).toBeVisible();
       }
       if (story === 'time') {
@@ -91,7 +97,10 @@ for (const theme of ['dark', 'light']) {
         await expect(page.getByText('No matching options')).toBeVisible();
         await page.keyboard.press('Escape');
       }
-      const result = await new AxeBuilder({ page }).include('main').withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+      const result = await new AxeBuilder({ page })
+        .include('main')
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+        .analyze();
       expect(result.violations).toEqual([]);
       expect(failures).toEqual([]);
     });
@@ -156,7 +165,10 @@ for (const theme of ['dark', 'light']) {
     await submit.click();
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText('This cannot be undone.');
-    await expect(dialog.getByRole('button', { name: 'Delete', exact: true })).toHaveAttribute('data-variant', 'destructive');
+    await expect(dialog.getByRole('button', { name: 'Delete', exact: true })).toHaveAttribute(
+      'data-variant',
+      'destructive',
+    );
     await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(dialog).toHaveCount(0);
     await expect(sent).toHaveText('Requests sent: 0');
@@ -207,7 +219,10 @@ for (const theme of ['dark', 'light']) {
         await page.keyboard.press('Escape');
         await expect(trigger).toBeFocused();
       }
-      const result = await new AxeBuilder({ page }).include('main').withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+      const result = await new AxeBuilder({ page })
+        .include('main')
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+        .analyze();
       expect(result.violations).toEqual([]);
       expect(failures).toEqual([]);
       if (story === 'inputs') await page.screenshot({ path: `test-results/kit-inputs-${theme}.png`, fullPage: true });

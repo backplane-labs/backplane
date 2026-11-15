@@ -1,11 +1,26 @@
-import { describe, expect, it } from 'vitest';
-import { create, fromJson, toJson } from '@bufbuild/protobuf';
-import { isScalar } from 'yaml';
 import * as api from '@backplane-labs/backplane-api';
 import { SchemaSchema } from '@backplane-labs/backplane-api/schemapb/schema_pb';
-import { addStep, editAll, stepAt, stepPathOf, exprRange, locate, nodeAt, parseDraft, pathAt, protoDuration, removeStep, stepNameFor, templateYAML, toYAML } from '../packages/platform-ui/src/wiring/document';
-import { completeCEL, completeYAML, parentKeys } from '../packages/platform-ui/src/wiring/complete';
+import { create, fromJson, toJson } from '@bufbuild/protobuf';
+import { describe, expect, it } from 'vitest';
+import { isScalar } from 'yaml';
 import { framesOf, indexCatalog, outputShape, scopeAt, scopeOf } from '../packages/platform-ui/src/wiring/catalog';
+import { completeCEL, completeYAML, parentKeys } from '../packages/platform-ui/src/wiring/complete';
+import {
+  addStep,
+  editAll,
+  exprRange,
+  locate,
+  nodeAt,
+  parseDraft,
+  pathAt,
+  protoDuration,
+  removeStep,
+  stepAt,
+  stepNameFor,
+  stepPathOf,
+  templateYAML,
+  toYAML,
+} from '../packages/platform-ui/src/wiring/document';
 import { shapeAt, shapeOf } from '../packages/platform-ui/src/wiring/shape';
 
 const binding = `hook: hello.Greet
@@ -19,11 +34,34 @@ steps:
 result: {text: format.text}
 `;
 
-const text = (...names: string[]) => create(SchemaSchema, { fields: names.map((name) => ({ name, required: true, kind: { case: 'string' as const, value: {} } })) });
-const people = create(SchemaSchema, { fields: [{ name: 'people', kind: { case: 'list', value: { items: [{ kind: { case: 'object', value: { schema: text('name') } } }] } } }] });
+const text = (...names: string[]) =>
+  create(SchemaSchema, {
+    fields: names.map((name) => ({ name, required: true, kind: { case: 'string' as const, value: {} } })),
+  });
+const people = create(SchemaSchema, {
+  fields: [
+    {
+      name: 'people',
+      kind: { case: 'list', value: { items: [{ kind: { case: 'object', value: { schema: text('name') } } }] } },
+    },
+  ],
+});
 const index = indexCatalog([
-  create(api.WiringContractSchema, { service: 'formatter', activities: [{ name: 'Format', input: text('name'), output: text('text') }, { name: 'Record', input: text('name', 'text') }] }),
-  create(api.WiringContractSchema, { service: 'hello', hooks: [{ name: 'Greet', input: text('name'), output: text('text') }, { name: 'Batch', input: people }], events: [{ name: 'Greeted', schema: text('name') }] }),
+  create(api.WiringContractSchema, {
+    service: 'formatter',
+    activities: [
+      { name: 'Format', input: text('name'), output: text('text') },
+      { name: 'Record', input: text('name', 'text') },
+    ],
+  }),
+  create(api.WiringContractSchema, {
+    service: 'hello',
+    hooks: [
+      { name: 'Greet', input: text('name'), output: text('text') },
+      { name: 'Batch', input: people },
+    ],
+    events: [{ name: 'Greeted', schema: text('name') }],
+  }),
 ]);
 
 describe('wiring YAML', () => {
@@ -34,7 +72,9 @@ describe('wiring YAML', () => {
     expect(Object.keys(definition.steps).sort()).toEqual(['audit', 'format']);
     expect(definition.steps.audit!.after).toEqual(['format']);
     const again = parseDraft('binding', toYAML('binding', definition));
-    expect(toJson(api.BindingDefinitionSchema, again.definition as api.BindingDefinition)).toEqual(toJson(api.BindingDefinitionSchema, definition));
+    expect(toJson(api.BindingDefinitionSchema, again.definition as api.BindingDefinition)).toEqual(
+      toJson(api.BindingDefinitionSchema, definition),
+    );
     expect(toYAML('binding', definition).indexOf('hook:')).toBe(0);
     expect(toYAML('binding', definition)).toContain('after: [ format ]');
   });
@@ -55,7 +95,10 @@ describe('wiring YAML', () => {
     expect(protoDuration('1m30s')).toBe('90s');
     expect(protoDuration('500ms')).toBe('0.5s');
     expect(protoDuration('30s')).toBe('30s');
-    const draft = parseDraft('binding', 'hook: hello.Greet\nsteps:\n  a: {activity: x.Y, startToClose: 1m, retry: {initialInterval: 250ms}}\n');
+    const draft = parseDraft(
+      'binding',
+      'hook: hello.Greet\nsteps:\n  a: {activity: x.Y, startToClose: 1m, retry: {initialInterval: 250ms}}\n',
+    );
     const step = (draft.definition as api.BindingDefinition).steps.a!;
     expect(step.startToClose?.seconds).toBe(60n);
     expect(step.retry?.initialInterval?.nanos).toBe(250_000_000);
@@ -77,16 +120,21 @@ describe('wiring YAML', () => {
 
   it('maps expression offsets through single quotes and escapes', () => {
     const quoted = parseDraft('binding', `hook: a.B\nresult: {x: 'a ''b'' + c', y: "q\\"r + d"}\n`);
-    const single = nodeAt(quoted.doc, '/result/x').node, double = nodeAt(quoted.doc, '/result/y').node;
+    const single = nodeAt(quoted.doc, '/result/x').node,
+      double = nodeAt(quoted.doc, '/result/y').node;
     if (!isScalar(single) || !isScalar(double)) throw new Error('scalars expected');
-    const c = exprRange(quoted.text, single, 8, 9)!, d = exprRange(quoted.text, double, 6, 7)!;
+    const c = exprRange(quoted.text, single, 8, 9)!,
+      d = exprRange(quoted.text, double, 6, 7)!;
     expect(quoted.text.slice(c.from, c.to)).toBe('c');
     expect(quoted.text.slice(d.from, d.to)).toBe('d');
   });
 
   it('knows the path at an offset', () => {
     const draft = parseDraft('binding', binding);
-    expect(pathAt(draft.doc, binding.indexOf('req.name') + 2)).toEqual({ path: '/steps/format/input/name', onKey: false });
+    expect(pathAt(draft.doc, binding.indexOf('req.name') + 2)).toEqual({
+      path: '/steps/format/input/name',
+      onKey: false,
+    });
     expect(pathAt(draft.doc, binding.indexOf('description') + 1).onKey).toBe(true);
   });
 
@@ -103,11 +151,19 @@ describe('wiring YAML', () => {
     // A template's empty steps and an input given as one expression both become mappings when a field is set.
     const template = parseDraft('rule', templateYAML('rule', 'hello.Greeted'));
     expect(template.problems).toEqual([]);
-    const withStep = parseDraft('rule', editAll(template, [{ path: ['steps', 'r', 'activity'], value: 'formatter.Record' }]));
+    const withStep = parseDraft(
+      'rule',
+      editAll(template, [{ path: ['steps', 'r', 'activity'], value: 'formatter.Record' }]),
+    );
     expect((withStep.definition as api.RuleDefinition).steps.r!.activity).toBe('formatter.Record');
     const whole = parseDraft('binding', 'hook: a.B\nsteps:\n  s: {activity: x.Y, input: req}\n');
-    const fields = parseDraft('binding', editAll(whole, [{ path: ['steps', 's', 'input', 'name'], value: 'req.name' }]));
-    expect(toJson(api.BindingDefinitionSchema, fields.definition as api.BindingDefinition)).toMatchObject({ steps: { s: { input: { name: 'req.name' } } } });
+    const fields = parseDraft(
+      'binding',
+      editAll(whole, [{ path: ['steps', 's', 'input', 'name'], value: 'req.name' }]),
+    );
+    expect(toJson(api.BindingDefinitionSchema, fields.definition as api.BindingDefinition)).toMatchObject({
+      steps: { s: { input: { name: 'req.name' } } },
+    });
   });
 
   it('names new steps freely', () => {
@@ -118,7 +174,10 @@ describe('wiring YAML', () => {
 });
 
 describe('wiring completion', () => {
-  const definition = fromJson(api.BindingDefinitionSchema, { hook: 'hello.Greet', steps: { format: { activity: 'formatter.Format' }, audit: { activity: 'formatter.Record' } } });
+  const definition = fromJson(api.BindingDefinitionSchema, {
+    hook: 'hello.Greet',
+    steps: { format: { activity: 'formatter.Format' }, audit: { activity: 'formatter.Record' } },
+  });
 
   it('finds the keys above a line by indentation', () => {
     const source = 'steps:\n  format:\n    input:\n      na';
@@ -126,12 +185,18 @@ describe('wiring completion', () => {
   });
 
   it('suggests keys, contract names and schema fields', () => {
-    const at = (source: string) => completeYAML({ kind: 'binding', index, definition, text: source, position: source.length });
+    const at = (source: string) =>
+      completeYAML({ kind: 'binding', index, definition, text: source, position: source.length });
     expect(at('ho')!.options.map((option) => option.label)).toContain('hook');
     expect(at('steps:\n  format:\n    act')!.options.map((option) => option.label)).toContain('activity');
-    expect(at('steps:\n  format:\n    activity: form')!.options.map((option) => option.label)).toEqual(['formatter.Format', 'formatter.Record']);
+    expect(at('steps:\n  format:\n    activity: form')!.options.map((option) => option.label)).toEqual([
+      'formatter.Format',
+      'formatter.Record',
+    ]);
     expect(at('steps:\n  audit:\n    input:\n      ')!.options.map((option) => option.label)).toEqual(['name', 'text']);
-    expect(at('steps:\n  audit:\n    input:\n      text: format.')!.options.map((option) => option.label)).toEqual(['text']);
+    expect(at('steps:\n  audit:\n    input:\n      text: format.')!.options.map((option) => option.label)).toEqual([
+      'text',
+    ]);
     expect(at('result:\n  text: req.')!.options.map((option) => option.label)).toEqual(['name']);
   });
 
@@ -139,7 +204,9 @@ describe('wiring completion', () => {
     const scope = scopeOf(index, { hook: 'hello.Greet' }, definition.steps);
     expect(completeCEL('st', 2, scope)!.options.map((option) => option.label)).toContain('steps');
     expect(completeCEL('steps.format.', 13, scope)!.options.map((option) => option.label)).toEqual(['skipped']);
-    expect(shapeAt(shapeOf(index.activities.get('formatter.Record')!.value.input), ['text'])).toEqual({ kind: 'string' });
+    expect(shapeAt(shapeOf(index.activities.get('formatter.Record')!.value.input), ['text'])).toEqual({
+      kind: 'string',
+    });
   });
 });
 
@@ -155,7 +222,8 @@ steps:
     result: fmt.text
   greet: {activity: formatter.Format, forEach: req.people, input: {name: item.name}}
 `;
-  const draft = parseDraft('binding', batch), definition = draft.definition as api.BindingDefinition;
+  const draft = parseDraft('binding', batch),
+    definition = draft.definition as api.BindingDefinition;
   const labels = (result: ReturnType<typeof completeCEL>) => result?.options.map((option) => option.label);
 
   it('reads bodies and finds steps by id', () => {
@@ -163,8 +231,13 @@ steps:
     expect(stepAt(definition, 'each/rec').step?.after).toEqual(['fmt']);
     expect(Object.keys(stepAt(definition, 'each/rec').siblings).sort()).toEqual(['fmt', 'rec']);
     expect(stepPathOf('each/rec')).toEqual(['steps', 'each', 'steps', 'rec']);
-    expect(framesOf(['steps', 'each', 'steps', 'fmt', 'input', 'name'], definition.steps)).toMatchObject({ chain: [{ name: 'each' }, { name: 'fmt' }], rest: ['input', 'name'] });
-    expect(toYAML('binding', definition).indexOf('forEach:')).toBeLessThan(toYAML('binding', definition).indexOf('steps:\n      fmt'));
+    expect(framesOf(['steps', 'each', 'steps', 'fmt', 'input', 'name'], definition.steps)).toMatchObject({
+      chain: [{ name: 'each' }, { name: 'fmt' }],
+      rest: ['input', 'name'],
+    });
+    expect(toYAML('binding', definition).indexOf('forEach:')).toBeLessThan(
+      toYAML('binding', definition).indexOf('steps:\n      fmt'),
+    );
   });
 
   it('scopes the item and the body by place', () => {
@@ -184,8 +257,15 @@ steps:
   });
 
   it('completes keys and fields inside a body', () => {
-    const at = (source: string) => completeYAML({ kind: 'binding', index, definition, text: source, position: source.length })?.options.map((option) => option.label);
-    expect(at('steps:\n  each:\n    forEach: req.people\n    as: person\n    steps:\n      fmt:\n        input:\n          name: person.')).toEqual(['name']);
+    const at = (source: string) =>
+      completeYAML({ kind: 'binding', index, definition, text: source, position: source.length })?.options.map(
+        (option) => option.label,
+      );
+    expect(
+      at(
+        'steps:\n  each:\n    forEach: req.people\n    as: person\n    steps:\n      fmt:\n        input:\n          name: person.',
+      ),
+    ).toEqual(['name']);
     expect(at('steps:\n  each:\n    forEach: req.people\n    con')).toContain('concurrency');
     expect(at('steps:\n  greet:\n    onError: ')).toEqual(['fail', 'continue']);
   });
@@ -193,7 +273,8 @@ steps:
   it('adds and removes steps of a body', () => {
     const added = addStep(definition, 'formatter.Format', { x: 1, y: 2 }, 'each');
     expect(added).toMatchObject({ name: 'format', id: 'each/format' });
-    const next = parseDraft('binding', editAll(draft, [...added.changes, ...removeStep(definition, 'each/fmt')])).definition as api.BindingDefinition;
+    const next = parseDraft('binding', editAll(draft, [...added.changes, ...removeStep(definition, 'each/fmt')]))
+      .definition as api.BindingDefinition;
     expect(Object.keys(next.steps.each!.steps).sort()).toEqual(['format', 'rec']);
     expect(next.steps.each!.steps.rec!.after).toEqual([]);
     expect(next.editor?.nodes['each/format']).toMatchObject({ x: 1, y: 2 });

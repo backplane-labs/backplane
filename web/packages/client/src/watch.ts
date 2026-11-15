@@ -1,4 +1,9 @@
-import { WsStatusError, CODE_UNAVAILABLE, CODE_DEADLINE_EXCEEDED, CODE_RESOURCE_EXHAUSTED } from '@gopherex/ws-proto-transport';
+import {
+  CODE_DEADLINE_EXCEEDED,
+  CODE_RESOURCE_EXHAUSTED,
+  CODE_UNAVAILABLE,
+  WsStatusError,
+} from '@gopherex/ws-proto-transport';
 
 export interface WatchRetryOptions {
   signal: AbortSignal;
@@ -10,7 +15,8 @@ export interface WatchRetryOptions {
 
 /** Only long-lived read watches. Never wrap a mutation or a finite stream. */
 export async function* watchWithRetry<T>(
-  open: (signal: AbortSignal) => AsyncIterable<T>, options: WatchRetryOptions,
+  open: (signal: AbortSignal) => AsyncIterable<T>,
+  options: WatchRetryOptions,
 ): AsyncIterable<T> {
   let attempt = 0;
   while (!options.signal.aborted) {
@@ -24,10 +30,14 @@ export async function* watchWithRetry<T>(
       throw new WsStatusError(CODE_UNAVAILABLE, 'Watch ended before cancellation');
     } catch (error) {
       if (options.signal.aborted) return;
-      if (!(error instanceof WsStatusError) ||
-        ![CODE_UNAVAILABLE, CODE_DEADLINE_EXCEEDED, CODE_RESOURCE_EXHAUSTED].includes(error.code)) throw error;
+      if (
+        !(error instanceof WsStatusError) ||
+        ![CODE_UNAVAILABLE, CODE_DEADLINE_EXCEEDED, CODE_RESOURCE_EXHAUSTED].includes(error.code)
+      )
+        throw error;
       options.onRetry?.(error);
-      const delay = options.retryDelay?.(attempt) ?? 250 + Math.random() * Math.min(30_000, 500 * 2 ** Math.min(attempt, 8));
+      const delay =
+        options.retryDelay?.(attempt) ?? 250 + Math.random() * Math.min(30_000, 500 * 2 ** Math.min(attempt, 8));
       attempt++;
       await pause(Math.max(0, Math.min(30_000, delay)), options.signal);
     }
@@ -36,8 +46,15 @@ export async function* watchWithRetry<T>(
 
 function pause(milliseconds: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
-    if (signal.aborted) { resolve(); return; }
-    const finish = () => { clearTimeout(timer); signal.removeEventListener('abort', finish); resolve(); };
+    if (signal.aborted) {
+      resolve();
+      return;
+    }
+    const finish = () => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', finish);
+      resolve();
+    };
     const timer = setTimeout(finish, milliseconds);
     signal.addEventListener('abort', finish, { once: true });
   });

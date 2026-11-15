@@ -33,14 +33,18 @@ test('remote uses host providers under a prefix, survives deep links and obeys c
 
 test('incompatible SDK metadata is rejected before remote JavaScript loads', async ({ page }) => {
   const scripts: string[] = [];
-  page.on('request', (request) => { if (request.url().includes('/plugins/') && request.resourceType() === 'script') scripts.push(request.url()); });
-  await page.route('**/plugins/hello/*/plugin.json', (route) => route.fulfill({ json: { name: 'hello', sdk_major: 999, nav: [] } }));
+  page.on('request', (request) => {
+    if (request.url().includes('/plugins/') && request.resourceType() === 'script') scripts.push(request.url());
+  });
+  await page.route('**/plugins/hello/*/plugin.json', (route) =>
+    route.fulfill({ json: { name: 'hello', sdk_major: 999, nav: [] } }),
+  );
   await page.goto(`${base}/s/hello/`);
   await expect(page.getByRole('alert')).toContainText('Plugin metadata does not match the catalog');
   expect(scripts).toEqual([]);
 });
 
- test('advanced kit packages share providers and load lazy assets', async ({ page }) => {
+test('advanced kit packages share providers and load lazy assets', async ({ page }) => {
   const failures: string[] = [];
   page.on('pageerror', (error) => failures.push(error.message));
   await page.goto(`${base}/s/hello/workbench`);
@@ -56,4 +60,4 @@ test('incompatible SDK metadata is rejected before remote JavaScript loads', asy
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Kit workbench' })).toBeVisible();
   expect(failures).toEqual([]);
- });
+});

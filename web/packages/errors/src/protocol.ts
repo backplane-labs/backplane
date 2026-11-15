@@ -3,10 +3,7 @@
  * Declarations only: this file is not an SDK or server implementation.
  * Runtime validation is required for values read from VM.
  */
-export type JsonValue =
-  | null | boolean | number | string
-  | readonly JsonValue[]
-  | { readonly [key: string]: JsonValue };
+export type JsonValue = null | boolean | number | string | readonly JsonValue[] | { readonly [key: string]: JsonValue };
 
 /** Decimal UNIX nanoseconds. Browser captures can have millisecond precision. */
 export type UnixNano = string;
@@ -44,17 +41,18 @@ export interface HistoryBase {
   readonly trace?: TraceRef;
 }
 
-export type HistoryEntry = HistoryBase & (
-  | {
-      readonly kind: 'breadcrumb';
-      readonly name: string;
-      readonly data?: CapturedValue;
-    }
-  | {
-      readonly kind: 'state';
-      readonly snapshot: SourceSnapshot;
-    }
-);
+export type HistoryEntry = HistoryBase &
+  (
+    | {
+        readonly kind: 'breadcrumb';
+        readonly name: string;
+        readonly data?: CapturedValue;
+      }
+    | {
+        readonly kind: 'state';
+        readonly snapshot: SourceSnapshot;
+      }
+  );
 
 export interface ExceptionInfo {
   readonly cause?: ExceptionInfo;
@@ -189,11 +187,13 @@ export interface OccurrenceSummary {
 
 export interface OccurrenceDetail {
   readonly summary: OccurrenceSummary;
-  readonly exception: ExceptionData | {
-    readonly type?: string;
-    readonly message?: string;
-    readonly stacktrace?: string;
-  };
+  readonly exception:
+    | ExceptionData
+    | {
+        readonly type?: string;
+        readonly message?: string;
+        readonly stacktrace?: string;
+      };
   readonly payload:
     | { readonly status: 'available'; readonly value: DebugEnvelopeV1 }
     | { readonly status: 'absent' | 'invalid' | 'unsupported_version'; readonly raw?: string };

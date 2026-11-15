@@ -1,6 +1,11 @@
-import { useSearchParams } from 'react-router-dom';
-import { WiringWorkspace, type WiringState, type WiringTarget, type WiringView } from '@backplane-labs/backplane-platform-ui';
+import {
+  type WiringState,
+  type WiringTarget,
+  type WiringView,
+  WiringWorkspace,
+} from '@backplane-labs/backplane-platform-ui';
 import type { ThemeMode } from '@backplane-labs/backplane-theme';
+import { useSearchParams } from 'react-router-dom';
 
 const views: WiringView[] = ['graph', 'yaml', 'versions', 'test', 'runs'];
 
@@ -18,15 +23,26 @@ export function wiringLink(target?: WiringTarget, view?: WiringView): string {
 /** Wiring with the open binding or rule and the editor view kept in the URL. */
 export function WiringRoute({ mode }: { mode: ThemeMode }) {
   const [params, setParams] = useSearchParams();
-  const binding = params.get('binding'), rule = params.get('rule'), event = params.get('event'), view = params.get('view');
+  const binding = params.get('binding'),
+    rule = params.get('rule'),
+    event = params.get('event'),
+    view = params.get('view');
   const state: WiringState = {
-    target: binding ? { kind: 'binding', hook: binding } : rule ? { kind: 'rule', id: rule } : event ? { kind: 'rule', id: '', event } : undefined,
-    view: views.includes(view as WiringView) ? view as WiringView : 'graph',
+    target: binding
+      ? { kind: 'binding', hook: binding }
+      : rule
+        ? { kind: 'rule', id: rule }
+        : event
+          ? { kind: 'rule', id: '', event }
+          : undefined,
+    view: views.includes(view as WiringView) ? (view as WiringView) : 'graph',
   };
   // Opening another item is a navigation (back returns to it); switching the view replaces the entry.
   const change = (next: WiringState) => {
     const url = new URL(wiringLink(next.target, next.view), location.origin);
-    setParams(url.searchParams, { replace: next.target === state.target || JSON.stringify(next.target) === JSON.stringify(state.target) });
+    setParams(url.searchParams, {
+      replace: next.target === state.target || JSON.stringify(next.target) === JSON.stringify(state.target),
+    });
   };
   return <WiringWorkspace mode={mode} state={state} onStateChange={change} />;
 }

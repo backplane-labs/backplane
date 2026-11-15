@@ -1,6 +1,13 @@
-import { WsTransport, SUBPROTOCOL, WsStatusError, CODE_UNAVAILABLE, type WebSocketLike } from '@gopherex/ws-proto-transport';
-export { watchWithRetry, type WatchRetryOptions } from './watch.js';
+import {
+  CODE_UNAVAILABLE,
+  SUBPROTOCOL,
+  type WebSocketLike,
+  WsStatusError,
+  WsTransport,
+} from '@gopherex/ws-proto-transport';
+
 export { WsStatusError } from '@gopherex/ws-proto-transport';
+export { type WatchRetryOptions, watchWithRetry } from './watch.js';
 
 export interface Session {
   id: string;
@@ -9,7 +16,15 @@ export interface Session {
   idle_timeout_seconds: number;
 }
 
-export type ConnectionState = 'idle' | 'checking' | 'anonymous' | 'connecting' | 'connected' | 'reconnecting' | 'offline' | 'disposed';
+export type ConnectionState =
+  | 'idle'
+  | 'checking'
+  | 'anonymous'
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'offline'
+  | 'disposed';
 export interface ClientState {
   readonly connection: ConnectionState;
   readonly session: Session | null;
@@ -19,7 +34,10 @@ export interface ClientState {
 }
 
 export class SessionHttpError extends Error {
-  constructor(public readonly status: number, public readonly retryAfterMs: number | undefined) {
+  constructor(
+    public readonly status: number,
+    public readonly retryAfterMs: number | undefined,
+  ) {
     super(`Session request failed (${status})`);
     this.name = 'SessionHttpError';
   }
@@ -49,9 +67,15 @@ export interface ClientRuntime {
 export class BackplaneClient {
   /** Fetch through the authenticated console base, including its deployment prefix. */
   async readSchemaFile(service: string, hash: string, file: string, signal?: AbortSignal): Promise<Uint8Array> {
-    if (!/^[a-f0-9]{64}$/.test(hash) || !file || file.split('/').some((part) => !part || part === '.' || part === '..')) throw new Error('Invalid API bundle path');
+    if (!/^[a-f0-9]{64}$/.test(hash) || !file || file.split('/').some((part) => !part || part === '.' || part === '..'))
+      throw new Error('Invalid API bundle path');
     const path = ['schemas', service, hash, ...file.split('/')].map(encodeURIComponent).join('/');
-    const response = await this.fetcher(new URL(path, this.base), { credentials: 'include', redirect: 'error', cache: 'no-store', signal });
+    const response = await this.fetcher(new URL(path, this.base), {
+      credentials: 'include',
+      redirect: 'error',
+      cache: 'no-store',
+      signal,
+    });
     if (!response.ok) throw new SessionHttpError(response.status, undefined);
     const bytes = new Uint8Array(await response.arrayBuffer());
     if (bytes.length > 32 * 1024 * 1024) throw new Error('API document is too large');
@@ -74,17 +98,26 @@ export class BackplaneClient {
     const base = options.baseURL ?? (typeof location !== 'undefined' ? location.origin : undefined);
     if (!base) throw new Error('baseURL is required outside a browser');
     this.base = new URL(base.endsWith('/') ? base : `${base}/`);
-    if (!['http:', 'https:'].includes(this.base.protocol) || this.base.username || this.base.password || this.base.search || this.base.hash) {
+    if (
+      !['http:', 'https:'].includes(this.base.protocol) ||
+      this.base.username ||
+      this.base.password ||
+      this.base.search ||
+      this.base.hash
+    ) {
       throw new Error('baseURL must be an HTTP(S) console URL without credentials, query or fragment');
     }
     this.fetcher = options.fetch ?? globalThis.fetch.bind(globalThis);
-    this.socketFactory = options.createSocket ?? ((url, protocol) => new WebSocket(url, protocol) as unknown as ObservableSocket);
+    this.socketFactory =
+      options.createSocket ?? ((url, protocol) => new WebSocket(url, protocol) as unknown as ObservableSocket);
   }
 
   getSnapshot = (): ClientState => this.state;
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
-    return () => { this.listeners.delete(listener); };
+    return () => {
+      this.listeners.delete(listener);
+    };
   };
 
   private update(patch: Partial<ClientState>) {
@@ -98,7 +131,10 @@ export class BackplaneClient {
 
   private async request(path: string, init: RequestInit = {}) {
     const response = await this.fetcher(new URL(path, this.base), {
-      ...init, credentials: 'same-origin', cache: 'no-store', signal: this.controller.signal,
+      ...init,
+      credentials: 'same-origin',
+      cache: 'no-store',
+      signal: this.controller.signal,
     });
     if (!response.ok) {
       const retry = response.headers.get('retry-after');
@@ -111,8 +147,14 @@ export class BackplaneClient {
 
   private parseSession(value: unknown): Session {
     const session = value as Partial<Session> | null;
-    if (!session || typeof session.id !== 'string' || !session.id || typeof session.created_at !== 'string' ||
-      typeof session.expires_at !== 'string' || typeof session.idle_timeout_seconds !== 'number') {
+    if (
+      !session ||
+      typeof session.id !== 'string' ||
+      !session.id ||
+      typeof session.created_at !== 'string' ||
+      typeof session.expires_at !== 'string' ||
+      typeof session.idle_timeout_seconds !== 'number'
+    ) {
       throw new Error('Invalid session response');
     }
     return session as Session;
@@ -126,7 +168,9 @@ export class BackplaneClient {
     if (!this.state.session) this.update({ connection: 'checking', error: undefined });
     const work = this.refresh(epoch);
     this.refreshInFlight = work;
-    void work.finally(() => { if (this.refreshInFlight === work) this.refreshInFlight = undefined; });
+    void work.finally(() => {
+      if (this.refreshInFlight === work) this.refreshInFlight = undefined;
+    });
     return work;
   }
 
@@ -135,7 +179,10 @@ export class BackplaneClient {
       const session = this.parseSession(await (await this.request('auth/session')).json());
       if (this.epoch !== epoch || this.disposed) return;
       this.attempt = 0;
-      if (this.retry) { clearTimeout(this.retry); this.retry = undefined; }
+      if (this.retry) {
+        clearTimeout(this.retry);
+        this.retry = undefined;
+      }
       // Cookie replacement in another tab must terminate old in-flight work.
       if (this.state.session && this.state.session.id !== session.id) this.closeTransport();
       this.update({ session, error: undefined });
@@ -157,15 +204,23 @@ export class BackplaneClient {
   private scheduleRefresh(error: unknown) {
     if (this.retry) clearTimeout(this.retry);
     const jitter = 250 + Math.random() * Math.min(30_000, 500 * 2 ** Math.min(this.attempt++, 8));
-    const retryAfter = error instanceof SessionHttpError ? error.retryAfterMs ?? 0 : 0;
-    this.retry = setTimeout(() => { this.retry = undefined; void this.start(); }, Math.min(2_147_483_647, Math.max(jitter, retryAfter)));
+    const retryAfter = error instanceof SessionHttpError ? (error.retryAfterMs ?? 0) : 0;
+    this.retry = setTimeout(
+      () => {
+        this.retry = undefined;
+        void this.start();
+      },
+      Math.min(2_147_483_647, Math.max(jitter, retryAfter)),
+    );
   }
 
   async login(token: string): Promise<void> {
     this.assertActive();
     const epoch = this.epoch;
     const response = await this.request('auth/login', {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token }),
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token }),
     });
     const session = this.parseSession(await response.json());
     if (this.epoch !== epoch || this.disposed) return;
@@ -177,8 +232,11 @@ export class BackplaneClient {
   async logout(): Promise<void> {
     this.assertActive();
     const epoch = this.epoch;
-    try { await this.request('auth/logout', { method: 'POST' }); }
-    catch (error) { if (!(error instanceof SessionHttpError && error.status === 401)) throw error; }
+    try {
+      await this.request('auth/logout', { method: 'POST' });
+    } catch (error) {
+      if (!(error instanceof SessionHttpError && error.status === 401)) throw error;
+    }
     if (this.epoch !== epoch || this.disposed) return;
     this.resetSession();
     this.update({ session: null, connection: 'anonymous', error: undefined });
@@ -191,11 +249,13 @@ export class BackplaneClient {
     url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
     this.update({ connection: 'connecting' });
     this.transport = new WsTransport(url.href, {
-      reconnect: true, maxFrameBytes: 16 * 1024 * 1024,
+      reconnect: true,
+      maxFrameBytes: 16 * 1024 * 1024,
       createSocket: (address) => {
         const socket = this.socketFactory(address, SUBPROTOCOL);
         socket.addEventListener('open', () => {
-          if (this.epoch === epoch && !this.disposed) this.update({ connection: 'connected', connectionId: this.state.connectionId + 1, error: undefined });
+          if (this.epoch === epoch && !this.disposed)
+            this.update({ connection: 'connected', connectionId: this.state.connectionId + 1, error: undefined });
         });
         let dropped = false;
         const drop = () => {
@@ -220,8 +280,12 @@ export class BackplaneClient {
         if (key === 'then') return undefined;
         return (...args: unknown[]) => {
           this.assertActive();
-          if (!this.transport || this.state.connection !== 'connected') throw new WsStatusError(CODE_UNAVAILABLE, 'Console is not connected');
-          if (transport !== this.transport) { transport = this.transport; instance = new constructor(transport); }
+          if (!this.transport || this.state.connection !== 'connected')
+            throw new WsStatusError(CODE_UNAVAILABLE, 'Console is not connected');
+          if (transport !== this.transport) {
+            transport = this.transport;
+            instance = new constructor(transport);
+          }
           const method = Reflect.get(instance!, key);
           if (typeof method !== 'function') throw new TypeError(`Unknown client method ${String(key)}`);
           return Reflect.apply(method, instance, args);

@@ -1,5 +1,5 @@
-import { createContext, useContext, type ReactNode } from 'react';
 import { EmptyState } from '@backplane-labs/backplane-ui';
+import { createContext, type ReactNode, useContext } from 'react';
 import { usePlatformText } from './locales.js';
 
 /** The host supplies deployment capabilities. Standalone fixtures may omit this provider. */
@@ -10,6 +10,11 @@ export function useExecutionEnabled(kind: 'binding' | 'rule') {
   return capabilities === undefined || capabilities[kind === 'binding' ? 'bindings' : 'rules'];
 }
 export function ExecutionGate({ kind, children }: { kind: 'binding' | 'rule'; children: ReactNode }) {
-  const enabled = useExecutionEnabled(kind), text = usePlatformText();
-  return enabled ? children : <EmptyState title={text('executionDisabled')} description={text('executionDisabledHelp')} />;
+  const enabled = useExecutionEnabled(kind),
+    text = usePlatformText();
+  return enabled ? (
+    children
+  ) : (
+    <EmptyState title={text('executionDisabled')} description={text('executionDisabledHelp')} />
+  );
 }

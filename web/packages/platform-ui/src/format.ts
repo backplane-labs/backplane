@@ -1,12 +1,14 @@
-import { timestampDate, type Duration, type Timestamp } from '@bufbuild/protobuf/wkt';
 import { formatDuration, prettyJson, type StatusTone } from '@backplane-labs/backplane-ui';
+import { type Duration, type Timestamp, timestampDate } from '@bufbuild/protobuf/wkt';
 
 /** "WS_PROTO" → "ws-proto"; numeric enums keep their reverse mapping. */
 export function enumLabel(values: Record<number, string>, value: number): string {
   const name = values[value];
   return name && name !== 'UNSPECIFIED' ? name.toLowerCase().replaceAll('_', '-') : '—';
 }
-export function date(value?: Timestamp): Date | undefined { return value ? timestampDate(value) : undefined; }
+export function date(value?: Timestamp): Date | undefined {
+  return value ? timestampDate(value) : undefined;
+}
 export function durationText(value?: Duration): string | undefined {
   return value ? formatDuration(Number(value.seconds) * 1000 + value.nanos / 1e6) : undefined;
 }

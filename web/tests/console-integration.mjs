@@ -8,11 +8,16 @@ assert.ok(origin && token, 'Usage: console-integration.mjs <test-server-origin> 
 const base = new URL('/backplane/', origin).href;
 const browser = await chromium.launch();
 try {
-  const context = await browser.newContext(), page = await context.newPage();
-  const errors = [], sockets = [], bundles = [];
+  const context = await browser.newContext(),
+    page = await context.newPage();
+  const errors = [],
+    sockets = [],
+    bundles = [];
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('websocket', (socket) => sockets.push(socket.url()));
-  page.on('request', (req) => { if (new URL(req.url()).pathname.includes('/plugins/')) bundles.push(req.url()); });
+  page.on('request', (req) => {
+    if (new URL(req.url()).pathname.includes('/plugins/')) bundles.push(req.url());
+  });
   await page.goto(new URL('s/hello/settings', base).href);
   const input = page.getByLabel('Operator token', { exact: true });
   await input.fill('invalid-token');
@@ -31,16 +36,30 @@ try {
   assert.deepEqual(sockets, [new URL('ws', base).href.replace(/^http/, 'ws')]);
   // The Go server enables public ingest keys. The console reports through
   // its authenticated log endpoint, without embedding a key in the bundle.
-  const delivered = page.waitForResponse((response) => response.url() === new URL('auth/telemetry/v1/logs', base).href, { timeout: 15_000 });
-  await page.evaluate(() => window.dispatchEvent(new ErrorEvent('error', {
-    message: 'console-ingest-regression', error: new Error('console-ingest-regression'),
-  })));
+  const delivered = page.waitForResponse(
+    (response) => response.url() === new URL('auth/telemetry/v1/logs', base).href,
+    { timeout: 15_000 },
+  );
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new ErrorEvent('error', {
+        message: 'console-ingest-regression',
+        error: new Error('console-ingest-regression'),
+      }),
+    ),
+  );
   assert.equal((await delivered).status(), 200);
   // This service only exists in the Go test's registry, proving the browser
   // consumed the real CatalogService stream rather than the dev installation.
-  await page.getByRole('navigation', { name: 'Platform', exact: true }).getByRole('link', { name: 'Services', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Platform', exact: true })
+    .getByRole('link', { name: 'Services', exact: true })
+    .click();
   await expect(page.getByRole('main').getByRole('link', { name: 'browser-live-data', exact: true })).toBeVisible();
-  await page.getByRole('navigation', { name: 'Platform', exact: true }).getByRole('link', { name: 'Infrastructure', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Platform', exact: true })
+    .getByRole('link', { name: 'Infrastructure', exact: true })
+    .click();
   await expect(page.getByRole('heading', { name: 'Infrastructure', exact: true })).toBeVisible();
   await expect(page.getByText('PostgreSQL', { exact: true })).toBeVisible();
   await expect(page.getByText('OK', { exact: true })).toBeVisible();
@@ -56,9 +75,16 @@ try {
   await page.getByRole('button', { name: 'Session', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
   await expect(input).toHaveValue('');
-  assert.equal((await context.cookies()).some((item) => item.name === 'bp_session'), false);
+  assert.equal(
+    (await context.cookies()).some((item) => item.name === 'bp_session'),
+    false,
+  );
   await page.reload();
   await expect(input).toBeVisible();
   assert.deepEqual(errors, []);
-  console.log('Go console integration passed: cookie login, catalog stream, bundle proxy, shared socket, deep-link session restore and logout');
-} finally { await browser.close(); }
+  console.log(
+    'Go console integration passed: cookie login, catalog stream, bundle proxy, shared socket, deep-link session restore and logout',
+  );
+} finally {
+  await browser.close();
+}

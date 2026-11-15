@@ -1,17 +1,78 @@
-body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans); font-size: 14px; }
-main { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
-header, .range-row, .section-title { display: flex; gap: 16px; align-items: center; }
-header { justify-content: space-between; }
-h1 { font-size: 22px; font-weight: 500; margin: 0 0 4px; }
-h2 { font-size: 15px; font-weight: 500; margin: 0 0 12px; }
-p, .fixture-note { color: var(--muted-foreground); }
-.fixture-note { padding: 16px 0; border-bottom: 1px solid var(--border); }
-section { padding: 24px 0; border-bottom: 1px solid var(--border); }
-.section-title { margin-bottom: 16px; }
-.section-title h2 { flex: 1; margin: 0; }
-.section-title input { width: 240px; }
-.bottom-row { display: grid; grid-template-columns: 1fr 240px; gap: 32px; }
-.field { display: grid; gap: 8px; margin-bottom: 20px; }
-code { font-family: var(--font-mono); }
-[data-slot="dialog-overlay"] { background: rgb(0 0 0 / 50%); }
-@media (max-width: 700px) { .bottom-row { grid-template-columns: 1fr; } .section-title { flex-wrap: wrap; } }
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+header,
+.range-row,
+.section-title {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+header {
+  justify-content: space-between;
+}
+h1 {
+  font-size: 22px;
+  font-weight: 500;
+  margin: 0 0 4px;
+}
+h2 {
+  font-size: 15px;
+  font-weight: 500;
+  margin: 0 0 12px;
+}
+p,
+.fixture-note {
+  color: var(--muted-foreground);
+}
+.fixture-note {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+section {
+  padding: 24px 0;
+  border-bottom: 1px solid var(--border);
+}
+.section-title {
+  margin-bottom: 16px;
+}
+.section-title h2 {
+  flex: 1;
+  margin: 0;
+}
+.section-title input {
+  width: 240px;
+}
+.bottom-row {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  gap: 32px;
+}
+.field {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+code {
+  font-family: var(--font-mono);
+}
+[data-slot="dialog-overlay"] {
+  background: rgb(0 0 0 / 50%);
+}
+@media (max-width: 700px) {
+  .bottom-row {
+    grid-template-columns: 1fr;
+  }
+  .section-title {
+    flex-wrap: wrap;
+  }
+}

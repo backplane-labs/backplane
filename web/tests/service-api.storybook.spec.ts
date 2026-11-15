@@ -1,41 +1,49 @@
-import { chooseOption } from './choose-option';
-import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { expect, test } from '@playwright/test';
+import { chooseOption } from './choose-option';
 
-for (const theme of ['dark', 'light']) test(`${theme}: external API documents`, async ({ page }) => {
-  const errors: string[] = []; page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto(`/iframe.html?id=kit-platform--external-api&viewMode=story&globals=theme:${theme}`);
-  await expect(page.getByRole('heading', { name: 'Visitor API' })).toBeVisible();
-  await expect(page.getByRole('table', { name: 'Parameters', exact: true })).toContainText('id (path)');
-  await page.getByRole('button', { name: /DELETE/ }).click();
-  await expect(page.getByRole('heading', { name: 'Response 204' })).toBeVisible();
-  await expect(page.getByRole('table', { name: 'Visitor', exact: true })).toContainText('Display name');
-  await expect(page.getByRole('table', { name: 'Visitor', exact: true })).toContainText('preferences.timezone');
-  await expect(page.getByRole('table', { name: 'Visitor', exact: true })).toContainText('reader');
-  await page.getByRole('button', { name: 'Collapse all', exact: true }).click();
-  await expect(page.getByRole('table', { name: 'Visitor', exact: true })).not.toBeVisible();
-  await page.getByRole('button', { name: /GET/ }).click();
-  await page.getByRole('table', { name: 'Response 200', exact: true }).getByRole('link', { name: 'Visitor', exact: true }).first().click();
-  await expect(page.getByRole('table', { name: 'Visitor', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Example request', exact: true })).toBeVisible();
-  await page.getByRole('textbox', { name: 'Find a method or path' }).fill('does-not-exist');
-  await expect(page.getByText('No matching operations.')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'GET /api/visitors/{id}' })).not.toBeVisible();
-  await chooseOption(page, 'API','1');
-  await expect(page.getByRole('heading', { name: 'RPC /public.v1.Greeter/Watch' })).toBeVisible();
-  await expect(page.getByRole('table', { name: 'Response', exact: true })).toContainText('stream');
-  await chooseOption(page, 'API','2');
-  await expect(page.getByRole('heading', { name: 'RPC /public.v1.Greeter/Watch' })).toBeVisible();
-  await chooseOption(page, 'API','3');
-  await expect(page.getByRole('heading', { name: 'QUERY greeting' })).toBeVisible();
-  await expect(page.getByRole('table', { name: 'Parameters', exact: true })).toContainText('String!');
-  expect((await new AxeBuilder({ page }).include('main').withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
-  await chooseOption(page, 'API','4');
-  await expect(page.getByText('No API document published', { exact: true })).toBeVisible();
-  await chooseOption(page, 'API','5');
-  await expect(page.getByText('Could not read the API document', { exact: true })).toBeVisible();
-  await chooseOption(page, 'API','6');
-  await expect(page.getByRole('heading', { name: 'Multi-file visitor API' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'GET /bundle/visitor' })).toBeVisible();
-  expect(errors).toEqual([]);
-});
+for (const theme of ['dark', 'light'])
+  test(`${theme}: external API documents`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto(`/iframe.html?id=kit-platform--external-api&viewMode=story&globals=theme:${theme}`);
+    await expect(page.getByRole('heading', { name: 'Visitor API' })).toBeVisible();
+    await expect(page.getByRole('table', { name: 'Parameters', exact: true })).toContainText('id (path)');
+    await page.getByRole('button', { name: /DELETE/ }).click();
+    await expect(page.getByRole('heading', { name: 'Response 204' })).toBeVisible();
+    await expect(page.getByRole('table', { name: 'Visitor', exact: true })).toContainText('Display name');
+    await expect(page.getByRole('table', { name: 'Visitor', exact: true })).toContainText('preferences.timezone');
+    await expect(page.getByRole('table', { name: 'Visitor', exact: true })).toContainText('reader');
+    await page.getByRole('button', { name: 'Collapse all', exact: true }).click();
+    await expect(page.getByRole('table', { name: 'Visitor', exact: true })).not.toBeVisible();
+    await page.getByRole('button', { name: /GET/ }).click();
+    await page
+      .getByRole('table', { name: 'Response 200', exact: true })
+      .getByRole('link', { name: 'Visitor', exact: true })
+      .first()
+      .click();
+    await expect(page.getByRole('table', { name: 'Visitor', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Example request', exact: true })).toBeVisible();
+    await page.getByRole('textbox', { name: 'Find a method or path' }).fill('does-not-exist');
+    await expect(page.getByText('No matching operations.')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'GET /api/visitors/{id}' })).not.toBeVisible();
+    await chooseOption(page, 'API', '1');
+    await expect(page.getByRole('heading', { name: 'RPC /public.v1.Greeter/Watch' })).toBeVisible();
+    await expect(page.getByRole('table', { name: 'Response', exact: true })).toContainText('stream');
+    await chooseOption(page, 'API', '2');
+    await expect(page.getByRole('heading', { name: 'RPC /public.v1.Greeter/Watch' })).toBeVisible();
+    await chooseOption(page, 'API', '3');
+    await expect(page.getByRole('heading', { name: 'QUERY greeting' })).toBeVisible();
+    await expect(page.getByRole('table', { name: 'Parameters', exact: true })).toContainText('String!');
+    expect(
+      (await new AxeBuilder({ page }).include('main').withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations,
+    ).toEqual([]);
+    await chooseOption(page, 'API', '4');
+    await expect(page.getByText('No API document published', { exact: true })).toBeVisible();
+    await chooseOption(page, 'API', '5');
+    await expect(page.getByText('Could not read the API document', { exact: true })).toBeVisible();
+    await chooseOption(page, 'API', '6');
+    await expect(page.getByRole('heading', { name: 'Multi-file visitor API' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'GET /bundle/visitor' })).toBeVisible();
+    expect(errors).toEqual([]);
+  });

@@ -1,7 +1,7 @@
 // A dedicated worker running the SDK as an application's worker does: no window, no document.
-import { createBrowserClient } from '../../packages/errors/src/browser'
+import { createBrowserClient } from '../../packages/errors/src/browser';
 
-const diagnostics: string[] = []
+const diagnostics: string[] = [];
 
 try {
   const client = createBrowserClient({
@@ -10,13 +10,13 @@ try {
     outbox: { name: `worker-${crypto.randomUUID()}` },
     captureUnhandled: true,
     onDiagnostic: (diagnostic) => diagnostics.push(diagnostic.code),
-  })
-  const captured = client.captureException(new Error('worker error')).status
-  void Promise.reject(new Error('unhandled in worker'))
+  });
+  const captured = client.captureException(new Error('worker error')).status;
+  void Promise.reject(new Error('unhandled in worker'));
   setTimeout(() => {
-    postMessage({ captured, emitted: client.stats().emitted, diagnostics })
-    client.dispose()
-  }, 100)
+    postMessage({ captured, emitted: client.stats().emitted, diagnostics });
+    client.dispose();
+  }, 100);
 } catch (error) {
-  postMessage({ failed: String(error) })
+  postMessage({ failed: String(error) });
 }

@@ -25,10 +25,13 @@
     "build:storybook": "storybook build -c apps/catalog/.storybook -o apps/catalog/storybook-static",
     "test:storybook": "playwright test -c playwright.storybook.config.ts",
     "test:packed": "node scripts/check-packed.mjs",
-    "test:errors-browser": "playwright test -c tests/errors-browser/playwright.config.ts"
+    "test:errors-browser": "playwright test -c tests/errors-browser/playwright.config.ts",
+    "lint": "biome check .",
+    "fmt": "biome check --write ."
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
+    "@biomejs/biome": "2.6.7",
     "@bufbuild/protoc-gen-es": "2.16.0",
     "@gopherex/protoc-gen-ws-es": "1.9.1",
     "@playwright/test": "1.58.2",

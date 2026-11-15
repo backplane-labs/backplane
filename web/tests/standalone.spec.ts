@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { expect, test } from '@playwright/test';
 
 const origin = process.env.MODULE_TEST_URL ?? 'http://127.0.0.1:4179';
 
@@ -27,7 +27,7 @@ test('module runs without a platform, owns multiple relative pages and supports 
   expect(failures).toEqual([]);
 });
 
- test('advanced kit packages share providers and load lazy assets', async ({ page }) => {
+test('advanced kit packages share providers and load lazy assets', async ({ page }) => {
   const failures: string[] = [];
   page.on('pageerror', (error) => failures.push(error.message));
   await page.goto(`${origin}/workbench`);
@@ -43,4 +43,4 @@ test('module runs without a platform, owns multiple relative pages and supports 
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Kit workbench' })).toBeVisible();
   expect(failures).toEqual([]);
- });
+});

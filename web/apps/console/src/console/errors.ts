@@ -17,13 +17,18 @@ export function consoleErrors(base: string) {
   });
   // Fetches, XHRs and navigations become breadcrumbs; URLs lose query and credentials.
   instrumentBrowser(client, { fetch: true, xhr: true, navigation: true, excludeUrls: [url] });
-  const reporter = { client, onReactError: createReactErrorHandler(client),
+  const reporter = {
+    client,
+    onReactError: createReactErrorHandler(client),
     report: (error: unknown, options?: { handled?: boolean; attributes?: Readonly<Record<string, string>> }) =>
-      client.captureException(error, { handled: options?.handled ?? true, attributes: options?.attributes }) };
+      client.captureException(error, { handled: options?.handled ?? true, attributes: options?.attributes }),
+  };
   current = reporter.report;
   return reporter;
 }
 
-let current: ((error: unknown, options?: { handled?: boolean; attributes?: Readonly<Record<string, string>> }) => void) | undefined;
+let current:
+  | ((error: unknown, options?: { handled?: boolean; attributes?: Readonly<Record<string, string>> }) => void)
+  | undefined;
 /** The live console's reporter for module contexts; undefined in the fixture. */
 export const consoleErrorReporter = () => current;
