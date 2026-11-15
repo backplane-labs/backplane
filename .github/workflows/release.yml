@@ -26,15 +26,6 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: Validate release version
-        id: version
-        env:
-          RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
-        run: |
-          version="${RELEASE_VERSION#v}"
-          node scripts/stamp-release.mjs "$version"
-          node web/scripts/release-packages.mjs "$version" bin/release --check
-          echo "version=$version" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -54,6 +45,17 @@ jobs:
           path: ~/.yarn/berry/cache
           key: ${{ runner.os }}-yarn-${{ hashFiles('web/yarn.lock') }}
       - run: make configure-web
+      # Stamping rewrites the workspace packages' versions and their mutual
+      # dependencies, which Yarn records in the lockfile: install first.
+      - name: Validate release version
+        id: version
+        env:
+          RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
+        run: |
+          version="${RELEASE_VERSION#v}"
+          node scripts/stamp-release.mjs "$version"
+          node web/scripts/release-packages.mjs "$version" bin/release --check
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Build Linux archives, console and frontend packages
         env:
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
