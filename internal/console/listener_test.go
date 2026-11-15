@@ -11,6 +11,7 @@ import (
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	"github.com/backplane-labs/backplane/internal/console"
 	"github.com/backplane-labs/backplane/internal/registry"
+	"github.com/backplane-labs/backplane/internal/testhttp"
 	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
 )
 
@@ -38,7 +39,7 @@ func TestListener(t *testing.T) {
 		req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, base+"/backplane/auth/login",
 			strings.NewReader(`{"token":"`+adminToken+`"}`))
 
-		res, err := http.DefaultClient.Do(req)
+		res, err := testhttp.Client().Do(req)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -70,7 +71,7 @@ func TestListener(t *testing.T) {
 	closed(t, cc)
 
 	req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, base+"/backplane/auth/session", http.NoBody)
-	if res, err := http.DefaultClient.Do(req); err == nil {
+	if res, err := testhttp.Client().Do(req); err == nil {
 		_ = res.Body.Close()
 		t.Fatalf("listener open after stop: %s", res.Status)
 	}

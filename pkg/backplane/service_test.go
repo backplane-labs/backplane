@@ -28,6 +28,7 @@ import (
 
 	helloconsolev1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1"
 	hellov1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/v1"
+	"github.com/backplane-labs/backplane/internal/testhttp"
 	"github.com/backplane-labs/backplane/pkg/backplane"
 	bpapi "github.com/backplane-labs/backplane/pkg/backplane/api"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
@@ -106,7 +107,7 @@ func get(url string, header ...string) (int, string) {
 		req.Header.Set(header[0], header[1])
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := testhttp.Client().Do(req)
 	if err != nil {
 		return 0, err.Error()
 	}

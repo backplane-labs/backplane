@@ -26,6 +26,7 @@ import (
 	"github.com/backplane-labs/backplane/internal/console"
 	"github.com/backplane-labs/backplane/internal/registry"
 	"github.com/backplane-labs/backplane/internal/store"
+	"github.com/backplane-labs/backplane/internal/testhttp"
 	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
@@ -321,7 +322,7 @@ func get(t *testing.T, u, secret string) (int, string) {
 		req.Header.Set(console.SecretHTTPHeader, secret)
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := testhttp.Client().Do(req)
 	if err != nil {
 		return 0, ""
 	}

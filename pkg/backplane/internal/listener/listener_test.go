@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/health"
 	hv1 "google.golang.org/grpc/health/grpc_health_v1"
 
+	"github.com/backplane-labs/backplane/internal/testhttp"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/listener"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
 )
@@ -90,7 +91,7 @@ func get(ctx context.Context, url string) (string, error) {
 		return "", err
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := testhttp.Client().Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -247,7 +248,7 @@ func TestLimits(t *testing.T) {
 	req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+l.Addr()+"/", http.NoBody)
 	req.Header.Set("X-Big", strings.Repeat("x", 8<<10))
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := testhttp.Client().Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}

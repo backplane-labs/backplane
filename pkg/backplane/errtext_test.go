@@ -22,6 +22,7 @@ import (
 
 	"github.com/gopherex/xlog"
 
+	"github.com/backplane-labs/backplane/internal/testhttp"
 	"github.com/backplane-labs/backplane/pkg/backplane"
 	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
@@ -67,7 +68,7 @@ func secretErrors(t *testing.T) map[string]error {
 		t.Fatal(err)
 	}
 
-	_, urlErr := http.DefaultClient.Do(req)
+	_, urlErr := testhttp.Client().Do(req)
 
 	var ue *url.Error
 	if !errors.As(urlErr, &ue) {

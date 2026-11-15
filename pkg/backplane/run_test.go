@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 
 	helloconsolev1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1"
+	"github.com/backplane-labs/backplane/internal/testhttp"
 	"github.com/backplane-labs/backplane/pkg/backplane"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/guard"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
@@ -53,7 +54,7 @@ func TestDescriptorsServed(t *testing.T) {
 			p.platformURL()+"/_backplane/api/"+want.Hash()+"/"+manifest.DescriptorFile, http.NoBody)
 		req.Header.Set(guard.HTTPHeader, secretValue)
 
-		res, err := http.DefaultClient.Do(req)
+		res, err := testhttp.Client().Do(req)
 		if err != nil {
 			t.Fatal(err)
 		}

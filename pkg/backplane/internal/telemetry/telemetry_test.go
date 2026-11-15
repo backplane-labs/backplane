@@ -16,6 +16,7 @@ import (
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/backplane-labs/backplane/internal/testhttp"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/telemetry"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
@@ -98,7 +99,7 @@ func TestCallerAddressNeverExported(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := testhttp.Client().Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}

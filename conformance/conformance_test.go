@@ -35,6 +35,7 @@ import (
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	helloconsolev1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1"
 	hellov1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/v1"
+	"github.com/backplane-labs/backplane/internal/testhttp"
 )
 
 // The service is named hello: its internal API lives in hello.console.v1,
@@ -197,7 +198,7 @@ func httpGet(url string, header ...string) (int, string) {
 		req.Header.Set(header[0], header[1])
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := testhttp.Client().Do(req)
 	if err != nil {
 		return 0, err.Error()
 	}
@@ -458,7 +459,7 @@ func uiRequest(t *testing.T, url, ifNoneMatch string) *http.Response {
 		req.Header.Set("If-None-Match", ifNoneMatch)
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := testhttp.Client().Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}

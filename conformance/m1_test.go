@@ -30,6 +30,7 @@ import (
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	helloconsolev1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1"
 	hellov1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/v1"
+	"github.com/backplane-labs/backplane/internal/testhttp"
 )
 
 // M1 exercises configuration, relay and bundles using direct process listeners.
@@ -386,7 +387,7 @@ func (w *m1) login(t *testing.T, base string) (string, error) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Origin", base)
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := testhttp.Client().Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -749,7 +750,7 @@ func (w *m1) bundle(t *testing.T, hash string) {
 	req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, bundleURL, http.NoBody)
 	req.Header.Set("Cookie", cookie)
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := testhttp.Client().Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -778,7 +779,7 @@ func (w *m1) bundle(t *testing.T, hash string) {
 }
 
 func m1Do(req *http.Request) (int, string) {
-	res, err := http.DefaultClient.Do(req)
+	res, err := testhttp.Client().Do(req)
 	if err != nil {
 		return 0, err.Error()
 	}

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/backplane-labs/backplane/internal/testhttp"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/seal"
 )
@@ -41,7 +42,7 @@ func vaultPost(t *testing.T, v seal.Vault, path string) {
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, v.Addr+path, strings.NewReader("{}"))
 	req.Header.Set("X-Vault-Token", v.Token.Reveal())
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := testhttp.Client().Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}

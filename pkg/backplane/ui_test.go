@@ -7,6 +7,7 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"github.com/backplane-labs/backplane/internal/testhttp"
 	"github.com/backplane-labs/backplane/pkg/backplane"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/guard"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
@@ -24,7 +25,7 @@ func uiGet(t *testing.T, p ports, path, ifNoneMatch string) (*http.Response, str
 		req.Header.Set("If-None-Match", ifNoneMatch)
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := testhttp.Client().Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}

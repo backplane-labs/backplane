@@ -28,6 +28,7 @@ import (
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	helloconsolev1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1"
 	hellov1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/v1"
+	"github.com/backplane-labs/backplane/internal/testhttp"
 	"github.com/backplane-labs/backplane/pkg/backplane"
 	"github.com/backplane-labs/backplane/pkg/backplane/api"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
@@ -103,7 +104,7 @@ func getHost(url, host string) (int, string, http.Header) {
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
 	req.Host = host
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := testhttp.Client().Do(req)
 	if err != nil {
 		return 0, err.Error(), nil
 	}

@@ -26,6 +26,7 @@ import (
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/internal/bindings"
+	"github.com/backplane-labs/backplane/internal/testhttp"
 )
 
 // M2 execution conformance: the real backplane binary and
@@ -321,7 +322,7 @@ func m2Get(ctx context.Context, url string, headers map[string]string) (int, str
 		req.Header.Set(k, v)
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := testhttp.Client().Do(req)
 	if err != nil {
 		return 0, err.Error()
 	}

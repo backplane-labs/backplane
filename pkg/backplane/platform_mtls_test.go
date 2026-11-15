@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	"github.com/backplane-labs/backplane/internal/testhttp"
 	"github.com/backplane-labs/backplane/pkg/backplane"
 	"github.com/backplane-labs/backplane/pkg/backplane/activity"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/guard"
@@ -111,11 +112,11 @@ func TestPlatformMutualTLS(t *testing.T) {
 		return res.StatusCode
 	}
 
-	if code := get(http.DefaultClient, "http://"+platform+"/healthz/liveness"); code != http.StatusOK {
+	if code := get(testhttp.Client(), "http://"+platform+"/healthz/liveness"); code != http.StatusOK {
 		t.Fatalf("plain probe: %d", code)
 	}
 
-	if code := get(http.DefaultClient, "http://"+platform+"/_backplane/info"); code != http.StatusUnauthorized {
+	if code := get(testhttp.Client(), "http://"+platform+"/_backplane/info"); code != http.StatusUnauthorized {
 		t.Fatalf("plain info: %d", code)
 	}
 
