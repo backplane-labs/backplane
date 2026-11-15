@@ -10,8 +10,9 @@ import type { ChartProps, ChartSeries, HeatmapProps, ValueProps, VisualizationCo
 export { chartsEnglish } from './locales.js';
 export type * from './types.js';
 
-const Plot = lazy(() => import('./plot.js')),
-  Heat = lazy(() => import('./heatmap.js'));
+// Named exports behind React.lazy keep the code-split chunks default-free.
+const Plot = lazy(() => import('./plot.js').then((module) => ({ default: module.PlotSurface }))),
+  Heat = lazy(() => import('./heatmap.js').then((module) => ({ default: module.HeatmapSurface })));
 const Value = lazy(() => import('./grafana.js').then((module) => ({ default: module.ValueVisualization })));
 const Controls = lazy(() => import('./grafana.js').then((module) => ({ default: module.Controls })));
 function Deferred({ children }: { children: ReactNode }) {

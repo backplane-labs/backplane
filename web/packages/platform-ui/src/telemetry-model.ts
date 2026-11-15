@@ -1,12 +1,40 @@
 import type { ObsRows, ObsTimeSeries, ObsTraceSearch } from '@backplane-labs/backplane-api';
 import type { ChartSeries } from '@backplane-labs/backplane-charts';
-import type { Attributes, LogRecord, SpanRecord, TraceSummary } from '@backplane-labs/backplane-observability-ui';
+import type { LogRecord, SpanRecord, TraceSummary } from '@backplane-labs/backplane-observability-ui';
 import { isLosslessNumber, parse, stringify } from 'lossless-json';
 
-export const object = (value: unknown): Record<string, unknown> =>
-  value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
-const scalar = (value: unknown): string =>
+/** A parsed telemetry JSON tree; a JSON number keeps its digits as a string (lossless). */
+export type TelemetryJSON =
+  | null
+  | boolean
+  | number
+  | bigint
+  | string
+  | Uint8Array
+  | readonly TelemetryJSON[]
+  | { readonly [key: string]: TelemetryJSON };
+/** The unvalidated result of lossless-json `parse`, read once at this boundary. */
+type Parsed = ReturnType<typeof parse>;
+
+const toTree = (value: Parsed): TelemetryJSON =>
+  value === null || typeof value === 'boolean' || typeof value === 'string' || typeof value === 'bigint'
+    ? value
+    : typeof value === 'number'
+      ? value
+      : isLosslessNumber(value)
+        ? value.value
+        : Array.isArray(value)
+          ? value.map(toTree)
+          : value && typeof value === 'object'
+            ? Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, toTree(entry)]))
+            : null;
+
+const isTreeObject = (value: TelemetryJSON | Parsed | undefined): value is { [key: string]: TelemetryJSON } =>
+  !!value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Uint8Array);
+export const object = (value: TelemetryJSON | Parsed | undefined): Record<string, TelemetryJSON> =>
+  isTreeObject(value) ? value : {};
+const list = (value: TelemetryJSON | Parsed | undefined): TelemetryJSON[] => (Array.isArray(value) ? value : []);
+const scalar = (value: TelemetryJSON | Parsed | undefined): string =>
   typeof value === 'string'
     ? value
     : isLosslessNumber(value)
@@ -14,10 +42,10 @@ const scalar = (value: unknown): string =>
       : typeof value === 'number' || typeof value === 'bigint'
         ? String(value)
         : '';
-export function parseTelemetryJSON(raw: string): unknown {
-  return parse(raw);
+export function parseTelemetryJSON(raw: string): TelemetryJSON {
+  return toTree(parse(raw));
 }
-export function telemetryJSON(value: unknown): string {
+export function telemetryJSON(value: TelemetryJSON): string {
   return stringify(value, null, 2) ?? 'null';
 }
 export function rowsToLogs(rows: ObsRows, responseId: string): LogRecord[] {
@@ -64,7 +92,7 @@ export function decimalMillisToNanos(value: string): string {
   // Sub-nanosecond fractions are truncated; never relabel raw milliseconds as ns.
   return String(power >= 0 ? digits * 10n ** BigInt(power) : digits / 10n ** BigInt(-power));
 }
-export function otlpId(value: unknown, bytes: 8 | 16): string {
+export function otlpId(value: TelemetryJSON | Parsed | undefined, bytes: 8 | 16): string {
   const source = scalar(value);
   if (new RegExp(`^[0-9a-fA-F]{${bytes * 2}}$`).test(source)) return source.toLowerCase();
   try {
@@ -76,7 +104,7 @@ export function otlpId(value: unknown, bytes: 8 | 16): string {
   }
   return source;
 }
-function anyValue(input: unknown, depth = 0): unknown {
+function anyValue(input: TelemetryJSON, depth = 0): TelemetryJSON {
   if (depth > 32) return telemetryJSON(input);
   const value = object(input);
   if ('stringValue' in value) return value.stringValue;
@@ -91,7 +119,7 @@ function anyValue(input: unknown, depth = 0): unknown {
   if ('kvlistValue' in value) return attributes(object(value.kvlistValue).values, depth + 1);
   return input;
 }
-function attributes(input: unknown, depth = 0): Attributes {
+function attributes(input: TelemetryJSON | undefined, depth = 0): { [key: string]: TelemetryJSON } {
   return Object.fromEntries(
     list(input).map((item) => {
       const value = object(item);

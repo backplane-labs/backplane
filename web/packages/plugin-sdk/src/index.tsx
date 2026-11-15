@@ -13,9 +13,11 @@ export interface PluginMetadata {
   service: string;
   nav: readonly NavEntry[];
 }
+/** Every value a `catch` can hold, as the host's Errors pipeline accepts it. */
+export type ThrownValue = null | undefined | boolean | number | string | bigint | symbol | object;
 export interface PluginDefinition extends PluginMetadata {
   routes: RouteObject[];
-  english: Record<string, unknown>;
+  english: Record<string, string>;
 }
 export interface PluginContext {
   service: string;
@@ -28,7 +30,7 @@ export interface PluginContext {
 }
 /** Reports an exception to the installation's Errors, with attributes that filter it there. */
 export type ErrorReporter = (
-  error: unknown,
+  error: ThrownValue,
   options?: { handled?: boolean; attributes?: Readonly<Record<string, string>> },
 ) => void;
 
@@ -41,7 +43,7 @@ export function assertRelativePath(path: string) {
   }
   if (
     decoded.startsWith('/') ||
-    /[\\?#\u0000-\u001f]/.test(decoded) ||
+    [...decoded].some((char) => char.charCodeAt(0) <= 0x1f || char === '\\' || char === '?' || char === '#') ||
     decoded.split('/').some((part) => part === '.' || part === '..')
   ) {
     throw new Error(`Module path must remain relative: ${path}`);
@@ -92,7 +94,7 @@ export function usePluginNavigate() {
   const { basePath } = usePluginContext();
   return (path: string) => {
     assertRelativePath(path);
-    navigate(`${basePath.replace(/\/$/, '')}/${path}`);
+    void navigate(`${basePath.replace(/\/$/, '')}/${path}`);
   };
 }
 
@@ -106,7 +108,8 @@ export function usePluginErrorReporter(): ErrorReporter {
   const { service, reportError } = usePluginContext();
   return (error, options) => {
     if (!reportError) {
-      console.error(error);
+      // Standalone has no Errors pipeline: the platform's reportError puts it in the browser console.
+      globalThis.reportError(error);
       return;
     }
     reportError(error, {

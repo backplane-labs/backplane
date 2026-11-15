@@ -23,7 +23,8 @@ describe('trace data boundaries', () => {
     const ids = new Set<string>(),
       queue = [...forest.roots];
     while (queue.length) {
-      const node = queue.pop()!;
+      const node = queue.pop();
+      if (!node) throw new Error('Empty queue');
       expect(ids.has(node.id)).toBe(false);
       ids.add(node.id);
       queue.push(...node.children);
@@ -37,7 +38,8 @@ describe('trace data boundaries', () => {
     const queue = [...forest.roots];
     let count = 0;
     while (queue.length) {
-      const node = queue.pop()!;
+      const node = queue.pop();
+      if (!node) throw new Error('Empty queue');
       expect(node.depth).toBeLessThanOrEqual(64);
       count++;
       queue.push(...node.children);

@@ -23,6 +23,26 @@ import {
 } from '../packages/platform-ui/src/wiring/document';
 import { shapeAt, shapeOf } from '../packages/platform-ui/src/wiring/shape';
 
+/** A parsed draft that must be a valid binding definition. */
+function bindingOf(draft: ReturnType<typeof parseDraft>): api.BindingDefinition {
+  const definition = draft.definition;
+  if (definition?.$typeName !== api.BindingDefinitionSchema.typeName)
+    throw new Error(`Expected a binding definition: ${JSON.stringify(draft.problems)}`);
+  return definition;
+}
+/** A parsed draft that must be a valid rule definition. */
+function ruleOf(draft: ReturnType<typeof parseDraft>): api.RuleDefinition {
+  const definition = draft.definition;
+  if (definition?.$typeName !== api.RuleDefinitionSchema.typeName)
+    throw new Error(`Expected a rule definition: ${JSON.stringify(draft.problems)}`);
+  return definition;
+}
+/** The completion options of a result that must exist. */
+function optionsOf(result: ReturnType<typeof completeYAML> | ReturnType<typeof completeCEL>) {
+  if (!result) throw new Error('Expected completions');
+  return result.options.map((option) => option.label);
+}
+
 const binding = `hook: hello.Greet
 description: Greets
 steps:
@@ -68,11 +88,11 @@ describe('wiring YAML', () => {
   it('reads a binding and writes it back in canonical order', () => {
     const draft = parseDraft('binding', binding);
     expect(draft.problems).toEqual([]);
-    const definition = draft.definition as api.BindingDefinition;
+    const definition = bindingOf(draft);
     expect(Object.keys(definition.steps).sort()).toEqual(['audit', 'format']);
-    expect(definition.steps.audit!.after).toEqual(['format']);
+    expect(definition.steps.audit?.after).toEqual(['format']);
     const again = parseDraft('binding', toYAML('binding', definition));
-    expect(toJson(api.BindingDefinitionSchema, again.definition as api.BindingDefinition)).toEqual(
+    expect(toJson(api.BindingDefinitionSchema, bindingOf(again))).toEqual(
       toJson(api.BindingDefinitionSchema, definition),
     );
     expect(toYAML('binding', definition).indexOf('hook:')).toBe(0);
@@ -82,13 +102,13 @@ describe('wiring YAML', () => {
   it('reports YAML and shape problems at their place', () => {
     const syntax = parseDraft('binding', 'hook: [\n');
     expect(syntax.definition).toBeUndefined();
-    expect(syntax.problems[0]!.source).toBe('yaml');
+    expect(syntax.problems[0]?.source).toBe('yaml');
     const unknown = parseDraft('binding', 'hook: hello.Greet\nsteps:\n  a: {activty: x.Y}\n');
     expect(unknown.problems).toHaveLength(1);
     expect(unknown.problems[0]).toMatchObject({ source: 'shape', path: '/steps/a/activty' });
-    expect(unknown.text.slice(unknown.problems[0]!.from, unknown.problems[0]!.to)).toBe('activty');
+    expect(unknown.text.slice(unknown.problems[0]?.from, unknown.problems[0]?.to)).toBe('activty');
     const duration = parseDraft('binding', 'hook: hello.Greet\nsteps:\n  a: {activity: x.Y, startToClose: soon}\n');
-    expect(duration.problems[0]!.message).toContain('duration');
+    expect(duration.problems[0]?.message).toContain('duration');
   });
 
   it('takes Go durations', () => {
@@ -99,7 +119,7 @@ describe('wiring YAML', () => {
       'binding',
       'hook: hello.Greet\nsteps:\n  a: {activity: x.Y, startToClose: 1m, retry: {initialInterval: 250ms}}\n',
     );
-    const step = (draft.definition as api.BindingDefinition).steps.a!;
+    const step = bindingOf(draft).steps.a;
     expect(step.startToClose?.seconds).toBe(60n);
     expect(step.retry?.initialInterval?.nanos).toBe(250_000_000);
   });
@@ -123,8 +143,9 @@ describe('wiring YAML', () => {
     const single = nodeAt(quoted.doc, '/result/x').node,
       double = nodeAt(quoted.doc, '/result/y').node;
     if (!isScalar(single) || !isScalar(double)) throw new Error('scalars expected');
-    const c = exprRange(quoted.text, single, 8, 9)!,
-      d = exprRange(quoted.text, double, 6, 7)!;
+    const c = exprRange(quoted.text, single, 8, 9),
+      d = exprRange(quoted.text, double, 6, 7);
+    if (!c || !d) throw new Error('Expected expression ranges');
     expect(quoted.text.slice(c.from, c.to)).toBe('c');
     expect(quoted.text.slice(d.from, d.to)).toBe('d');
   });
@@ -144,9 +165,9 @@ describe('wiring YAML', () => {
     expect(added.name).toBe('format2');
     const next = editAll(draft, [...added.changes, ...removeStep(draft.definition, 'format')]);
     expect(next).toContain('# the formatter does the work');
-    const again = parseDraft('binding', next).definition as api.BindingDefinition;
+    const again = bindingOf(parseDraft('binding', next));
     expect(Object.keys(again.steps).sort()).toEqual(['audit', 'format2']);
-    expect(again.steps.audit!.after).toEqual([]);
+    expect(again.steps.audit?.after).toEqual([]);
     expect(again.editor?.nodes.format2).toMatchObject({ x: 10, y: 21 });
     // A template's empty steps and an input given as one expression both become mappings when a field is set.
     const template = parseDraft('rule', templateYAML('rule', 'hello.Greeted'));
@@ -155,13 +176,13 @@ describe('wiring YAML', () => {
       'rule',
       editAll(template, [{ path: ['steps', 'r', 'activity'], value: 'formatter.Record' }]),
     );
-    expect((withStep.definition as api.RuleDefinition).steps.r!.activity).toBe('formatter.Record');
+    expect(ruleOf(withStep).steps.r?.activity).toBe('formatter.Record');
     const whole = parseDraft('binding', 'hook: a.B\nsteps:\n  s: {activity: x.Y, input: req}\n');
     const fields = parseDraft(
       'binding',
       editAll(whole, [{ path: ['steps', 's', 'input', 'name'], value: 'req.name' }]),
     );
-    expect(toJson(api.BindingDefinitionSchema, fields.definition as api.BindingDefinition)).toMatchObject({
+    expect(toJson(api.BindingDefinitionSchema, bindingOf(fields))).toMatchObject({
       steps: { s: { input: { name: 'req.name' } } },
     });
   });
@@ -186,27 +207,22 @@ describe('wiring completion', () => {
 
   it('suggests keys, contract names and schema fields', () => {
     const at = (source: string) =>
-      completeYAML({ kind: 'binding', index, definition, text: source, position: source.length });
-    expect(at('ho')!.options.map((option) => option.label)).toContain('hook');
-    expect(at('steps:\n  format:\n    act')!.options.map((option) => option.label)).toContain('activity');
-    expect(at('steps:\n  format:\n    activity: form')!.options.map((option) => option.label)).toEqual([
-      'formatter.Format',
-      'formatter.Record',
-    ]);
-    expect(at('steps:\n  audit:\n    input:\n      ')!.options.map((option) => option.label)).toEqual(['name', 'text']);
-    expect(at('steps:\n  audit:\n    input:\n      text: format.')!.options.map((option) => option.label)).toEqual([
-      'text',
-    ]);
-    expect(at('result:\n  text: req.')!.options.map((option) => option.label)).toEqual(['name']);
+      optionsOf(completeYAML({ kind: 'binding', index, definition, text: source, position: source.length }));
+    expect(at('ho')).toContain('hook');
+    expect(at('steps:\n  format:\n    act')).toContain('activity');
+    expect(at('steps:\n  format:\n    activity: form')).toEqual(['formatter.Format', 'formatter.Record']);
+    expect(at('steps:\n  audit:\n    input:\n      ')).toEqual(['name', 'text']);
+    expect(at('steps:\n  audit:\n    input:\n      text: format.')).toEqual(['text']);
+    expect(at('result:\n  text: req.')).toEqual(['name']);
   });
 
   it('completes CEL variables and fields from the scope', () => {
     const scope = scopeOf(index, { hook: 'hello.Greet' }, definition.steps);
-    expect(completeCEL('st', 2, scope)!.options.map((option) => option.label)).toContain('steps');
-    expect(completeCEL('steps.format.', 13, scope)!.options.map((option) => option.label)).toEqual(['skipped']);
-    expect(shapeAt(shapeOf(index.activities.get('formatter.Record')!.value.input), ['text'])).toEqual({
-      kind: 'string',
-    });
+    expect(optionsOf(completeCEL('st', 2, scope))).toContain('steps');
+    expect(optionsOf(completeCEL('steps.format.', 13, scope))).toEqual(['skipped']);
+    const record = index.activities.get('formatter.Record');
+    if (!record) throw new Error('Expected the Record activity in the catalog');
+    expect(shapeAt(shapeOf(record.value.input), ['text'])).toEqual({ kind: 'string' });
   });
 });
 
@@ -223,7 +239,7 @@ steps:
   greet: {activity: formatter.Format, forEach: req.people, input: {name: item.name}}
 `;
   const draft = parseDraft('binding', batch),
-    definition = draft.definition as api.BindingDefinition;
+    definition = bindingOf(draft);
   const labels = (result: ReturnType<typeof completeCEL>) => result?.options.map((option) => option.label);
 
   it('reads bodies and finds steps by id', () => {
@@ -273,10 +289,11 @@ steps:
   it('adds and removes steps of a body', () => {
     const added = addStep(definition, 'formatter.Format', { x: 1, y: 2 }, 'each');
     expect(added).toMatchObject({ name: 'format', id: 'each/format' });
-    const next = parseDraft('binding', editAll(draft, [...added.changes, ...removeStep(definition, 'each/fmt')]))
-      .definition as api.BindingDefinition;
-    expect(Object.keys(next.steps.each!.steps).sort()).toEqual(['format', 'rec']);
-    expect(next.steps.each!.steps.rec!.after).toEqual([]);
+    const next = bindingOf(
+      parseDraft('binding', editAll(draft, [...added.changes, ...removeStep(definition, 'each/fmt')])),
+    );
+    expect(Object.keys(next.steps.each?.steps ?? {}).sort()).toEqual(['format', 'rec']);
+    expect(next.steps.each?.steps.rec?.after).toEqual([]);
     expect(next.editor?.nodes['each/format']).toMatchObject({ x: 1, y: 2 });
   });
 });

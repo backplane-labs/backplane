@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './button.js';
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from './command.js';
@@ -33,8 +33,7 @@ export function Combobox({
 }: ComboboxProps) {
   const { t } = useTranslation('backplane.ui');
   const [open, setOpen] = useState(false),
-    [query, setQuery] = useState(''),
-    [retry, setRetry] = useState(0);
+    [query, setQuery] = useState('');
   const [remote, setRemote] = useState<{ options: readonly ChoiceOption[]; loading: boolean; error: boolean }>({
     options: [],
     loading: false,
@@ -43,8 +42,12 @@ export function Combobox({
   const labels = useRef(new Map<string, string>());
   const choices = loadOptions ? remote.options : options;
   for (const option of [...options, ...choices]) labels.current.set(option.value, option.label);
-  useEffect(() => {
-    if (!open || !loadOptions) return;
+  // A fresh run always aborts the previous one: query changes go through the
+  // effect, the retry button calls reload directly.
+  const run = useRef<(() => void) | null>(null);
+  const reload = useCallback(() => {
+    run.current?.();
+    if (!loadOptions) return;
     const controller = new AbortController();
     setRemote({ options: [], loading: true, error: false });
     const timer = setTimeout(() => {
@@ -57,11 +60,17 @@ export function Combobox({
           if (!controller.signal.aborted) setRemote({ options: [], loading: false, error: true });
         });
     }, 150);
-    return () => {
+    const stop = () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, loadOptions, open, retry]);
+    run.current = stop;
+  }, [loadOptions, query]);
+  useEffect(() => {
+    if (!open) return;
+    reload();
+    return () => run.current?.();
+  }, [open, reload]);
   const id = useId();
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -98,7 +107,7 @@ export function Combobox({
             {remote.error && loadOptions && (
               <div className="p-3">
                 <p role="alert">{t('optionsFailed')}</p>
-                <Button type="button" variant="outline" onClick={() => setRetry((old) => old + 1)}>
+                <Button type="button" variant="outline" onClick={reload}>
                   {t('retry')}
                 </Button>
               </div>
@@ -155,7 +164,7 @@ export function TagsInput({
     setDraft('');
   };
   return (
-    <div className="flex flex-wrap items-center gap-2" role="group" aria-label={label}>
+    <fieldset className="flex flex-wrap items-center gap-2" aria-label={label}>
       {values.map((value) => (
         <span key={value} className="inline-flex items-center gap-1 rounded-md border px-2 py-1">
           {value}
@@ -192,7 +201,7 @@ export function TagsInput({
           </Button>
         </>
       )}
-    </div>
+    </fieldset>
   );
 }
 

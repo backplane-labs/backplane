@@ -1,4 +1,4 @@
-export default {
+export const english = {
   stats: 'Service statistics',
   refresh: 'Refresh statistics',
   greetings: 'Greetings',

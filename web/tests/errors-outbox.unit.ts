@@ -76,31 +76,36 @@ function memoryStorage(now: () => number): OutboxStorage {
   const rows = new Map<string, StoredExport>();
   return {
     limits: { maxBytes: 1 << 20, maxEntries: 100, maxAgeMs: 60_000 },
-    put: async (entry) => {
+    put: (entry) => {
       rows.set(entry.id, { ...entry });
-      return { stored: true, evicted: 0 };
+      return Promise.resolve({ stored: true, evicted: 0 });
     },
-    claim: async (owner, force) => {
+    claim: (owner, force) => {
       const entries = [...rows.values()].filter(
         (row) => (!row.lease || row.lease <= now()) && (force || row.next <= now()),
       );
       for (const row of entries) Object.assign(row, { owner, lease: now() + 30_000 });
-      return { entries: entries.map((row) => ({ ...row })), expired: 0 };
+      return Promise.resolve({ entries: entries.map((row) => ({ ...row })), expired: 0 });
     },
-    finish: async (entries, owner, success) => {
+    finish: (entries, owner, success) => {
       for (const entry of entries) {
         const row = rows.get(entry.id);
         if (row?.owner !== owner) continue;
         if (success) rows.delete(entry.id);
         else Object.assign(row, { attempts: row.attempts + 1, owner: undefined, lease: undefined });
       }
+      return Promise.resolve();
     },
-    stats: async () => ({
-      entries: rows.size,
-      bytes: [...rows.values()].reduce((sum, row) => sum + row.bytes, 0),
-      oldestAgeMs: 0,
-    }),
-    clear: async () => rows.clear(),
+    stats: () =>
+      Promise.resolve({
+        entries: rows.size,
+        bytes: [...rows.values()].reduce((sum, row) => sum + row.bytes, 0),
+        oldestAgeMs: 0,
+      }),
+    clear: () => {
+      rows.clear();
+      return Promise.resolve();
+    },
     close: () => {},
   };
 }

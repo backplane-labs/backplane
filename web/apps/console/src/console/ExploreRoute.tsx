@@ -10,6 +10,10 @@ import { FeatureGate } from './Platform';
 
 const signals: ExploreSignal[] = ['logs', 'metrics', 'traces'];
 const ranges: ExploreRange[] = ['5m', '15m', '1h', '3h', '6h', '12h', '24h', '7d'];
+const isExploreSignal = (value: string | null): value is ExploreSignal =>
+  value !== null && new Set<string>(signals).has(value);
+const isExploreRange = (value: string | null): value is ExploreRange =>
+  value !== null && new Set<string>(ranges).has(value);
 
 /** Explore with its query, signal, time range and open trace kept in the URL. */
 export function ExploreRoute({
@@ -25,8 +29,8 @@ export function ExploreRoute({
   const signal = params.get('signal'),
     range = params.get('range');
   const state: ExploreState = {
-    signal: signals.includes(signal as ExploreSignal) ? (signal as ExploreSignal) : defaultSignal,
-    range: ranges.includes(range as ExploreRange) ? (range as ExploreRange) : '15m',
+    signal: isExploreSignal(signal) ? signal : defaultSignal,
+    range: isExploreRange(range) ? range : '15m',
     query: params.get('q') ?? undefined,
     language: params.get('lang') ?? undefined,
     trace: params.get('trace') ?? undefined,

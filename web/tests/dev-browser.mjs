@@ -20,14 +20,14 @@ try {
   await page.getByRole('button', { name: 'Log in', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Hello module' })).toBeVisible();
   await expect(page.getByTestId('greetings')).toHaveText(/^\d+$/);
-  const before = BigInt(await page.getByTestId('greetings').innerText());
+  const before = BigInt(await page.getByTestId('greetings').textContent());
   const greeting = await fetch(`${serviceOrigin}/hello/?name=BrowserAcceptance`);
   assert.equal(greeting.status, 200);
   assert.match(await greeting.text(), /Welcome, BrowserAcceptance!/);
   await expect(async () => {
     await page.getByRole('button', { name: 'Refresh statistics' }).click();
-    assert.ok(BigInt(await page.getByTestId('greetings').innerText()) > before);
-    assert.ok(BigInt(await page.getByTestId('audited').innerText()) > 0n);
+    assert.ok(BigInt(await page.getByTestId('greetings').textContent()) > before);
+    assert.ok(BigInt(await page.getByTestId('audited').textContent()) > 0n);
   }).toPass({ timeout: 15000 });
   assert.equal(sockets.length, 1, 'platform and module clients must use one host socket');
   await page.goto(`${base}/dev`);
@@ -53,7 +53,7 @@ try {
     .filter({ hasText: `acceptance ${suffix}` })
     .first();
   await expect(revisionItem).toBeVisible();
-  const revision = /#(\d+)/.exec(await revisionItem.innerText())[1];
+  const revision = /#(\d+)/.exec(await revisionItem.textContent())[1];
   await expect(page.getByText(`rev ${revision} applied`).first()).toBeVisible({ timeout: 20000 });
   // Leave the development installation's prior override intact.
   if (hadOverride) await field.fill(previousSuffix);
@@ -112,7 +112,7 @@ try {
   await start.getByRole('button', { name: 'Start', exact: true }).click();
   const started = start.getByRole('status').filter({ hasText: 'console/hello/GreetMany/' });
   await expect(started).toBeVisible({ timeout: 20000 });
-  const workflowId = (await started.locator('.font-mono').innerText()).trim();
+  const workflowId = (await started.locator('.font-mono').textContent()).trim();
   await started.getByRole('button', { name: 'Open run', exact: true }).click();
   await expect(page.getByRole('dialog').last().getByRole('textbox', { name: 'Output', exact: true })).toContainText(
     'BrowserWorkflow',
@@ -174,11 +174,11 @@ try {
   await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
   await expect(page.getByLabel('Operator token')).toBeVisible();
   assert.deepEqual(failures, []);
-  console.log(
-    'Live dev acceptance passed: service relay, config, binding, hook, audit (platform and application), stored logs/metrics, workflow start and schedule trigger, both themes and logout',
+  process.stdout.write(
+    'Live dev acceptance passed: service relay, config, binding, hook, audit (platform and application), stored logs/metrics, workflow start and schedule trigger, both themes and logout\n',
   );
 } catch (error) {
-  console.error(error);
+  process.stderr.write(`${error}\n`);
   process.exitCode = 1;
 } finally {
   await browser.close();

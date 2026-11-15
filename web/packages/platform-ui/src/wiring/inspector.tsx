@@ -2,18 +2,19 @@ import * as api from '@backplane-labs/backplane-api';
 import { InlineCodeEditor, JSONViewer } from '@backplane-labs/backplane-editors';
 import { useClient } from '@backplane-labs/backplane-react';
 import { Badge, Button, Combobox, Input, SectionLabel, StatusBadge, Textarea } from '@backplane-labs/backplane-ui';
-import { create, toJson } from '@bufbuild/protobuf';
+import { create, type JsonValue, toJson } from '@bufbuild/protobuf';
 import { ValueSchema } from '@bufbuild/protobuf/wkt';
 import { Repeat, Trash2 } from 'lucide-react';
-import { type ReactNode, useEffect, useState } from 'react';
+import { cloneElement, type ReactElement, type ReactNode, useEffect, useId, useState } from 'react';
 import { enumLabel } from '../format.js';
 import { usePlatformText } from '../locales.js';
 import { usePlatformAction } from '../runtime.js';
 import { type Scope, scopeAt, scopeOf, type WiringIndex } from './catalog.js';
-import { completeCEL, definitionSource } from './complete.js';
+import { completeCEL } from './complete.js';
 import {
   type Change,
   type Definition,
+  isBindingDefinition,
   removeStep,
   stepAt,
   stepPathOf,
@@ -32,7 +33,7 @@ export interface StepInspectorProps {
   analysis?: api.Analysis;
   run?: api.StepRun[];
   mode?: 'dark' | 'light';
-  onEdit: (path: readonly (string | number)[], value: unknown) => void;
+  onEdit: (path: readonly (string | number)[], value: JsonValue | undefined) => void;
   onChanges: (changes: Change[]) => void;
   onText: (text: string) => void;
   onSelect: (step: string | undefined) => void;
@@ -44,32 +45,43 @@ export function StepInspector(props: StepInspectorProps) {
     text = usePlatformText();
   if (!definition) return <p className="m-0 text-xs text-muted-foreground">{text('graphNeedsYaml')}</p>;
   if (step === '$trigger') return <TriggerForm {...props} definition={definition} />;
-  if (step === '$result' && kind === 'binding')
+  if (step === '$result' && isBindingDefinition(definition))
     return (
       <ValueFields
         {...props}
         definition={definition}
         base={['result']}
         title={text('resultValue')}
-        scope={scopeAt(props.index, definitionSource(kind, definition)!, definition.steps, ['result'], kind)}
-        schema={props.index.hooks.get((definition as api.BindingDefinition).hook)?.value.output}
-        value={json((definition as api.BindingDefinition).result)}
+        scope={scopeAt(props.index, { hook: definition.hook }, definition.steps, ['result'], kind)}
+        schema={props.index.hooks.get(definition.hook)?.value.output}
+        value={json(definition.result)}
       />
     );
   if (!step || !stepAt(definition, step).step) return <Overview {...props} definition={definition} />;
   return <StepForm key={step} {...props} definition={definition} id={step} />;
 }
 
-const json = (value?: api.BindingDefinition['result']): unknown => (value ? toJson(ValueSchema, value) : undefined);
+const json = (value?: api.BindingDefinition['result']): JsonValue | undefined =>
+  value ? toJson(ValueSchema, value) : undefined;
 
-function Field({ label, hint, children }: { label: ReactNode; hint?: ReactNode; children: ReactNode }) {
+/** A labeled control: the label is associated with the control by id. */
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: ReactNode;
+  hint?: ReactNode;
+  children: ReactElement<{ id?: string }>;
+}) {
+  const id = useId();
   return (
-    <label className="grid grid-cols-[minmax(0,1fr)] gap-1 text-xs">
+    <label htmlFor={id} className="grid grid-cols-[minmax(0,1fr)] gap-1 text-xs">
       <span className="flex items-baseline gap-2 text-muted-foreground">
         {label}
         {hint && <span className="ml-auto truncate text-2xs text-muted-foreground">{hint}</span>}
       </span>
-      {children}
+      {cloneElement(children, { id })}
     </label>
   );
 }
@@ -107,19 +119,27 @@ function CelInput({
   onCommit,
   scope,
   mode,
+  id,
 }: {
   label: string;
   value: string;
   onCommit: (value: string) => void;
   scope: Scope;
   mode?: 'dark' | 'light';
+  id?: string;
 }) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
   return (
-    <div
+    <section
+      role="region"
+      id={id}
       onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null) && draft !== value) onCommit(draft);
+        if (
+          !(event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) &&
+          draft !== value
+        )
+          onCommit(draft);
       }}
     >
       <InlineCodeEditor
@@ -134,13 +154,14 @@ function CelInput({
         }}
         complete={async ({ value: current, position }) => completeCEL(current.slice(0, position), position, scope)}
       />
-    </div>
+    </section>
   );
 }
 
 function Overview({ kind, definition, index, mode, onEdit }: StepInspectorProps & { definition: Definition }) {
   const text = usePlatformText(),
-    source = definitionSource(kind, definition)!;
+    binding = isBindingDefinition(definition),
+    source = binding ? { hook: definition.hook } : { event: definition.event };
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
       <p className="m-0 text-xs text-muted-foreground">{text('inspectorHelp')}</p>
@@ -153,11 +174,11 @@ function Overview({ kind, definition, index, mode, onEdit }: StepInspectorProps 
           }}
         />
       </Field>
-      {kind === 'rule' && (
+      {kind === 'rule' && !binding && (
         <Field label={text('when')} hint={text('ruleWhenHelp')}>
           <CelInput
             label={text('when')}
-            value={(definition as api.RuleDefinition).when}
+            value={definition.when}
             scope={scopeOf(index, source, {}, true)}
             mode={mode}
             onCommit={(value) => onEdit(['when'], value || undefined)}
@@ -176,22 +197,22 @@ function Overview({ kind, definition, index, mode, onEdit }: StepInspectorProps 
 
 function TriggerForm({ kind, definition, index, mode, onEdit }: StepInspectorProps & { definition: Definition }) {
   const text = usePlatformText(),
-    source = definitionSource(kind, definition)!;
-  const schema =
-    kind === 'binding'
-      ? index.hooks.get((source as { hook: string }).hook)?.value.input
-      : index.events.get((source as { event: string }).event)?.value.schema;
+    binding = isBindingDefinition(definition);
+  const schema = binding
+    ? index.hooks.get(definition.hook)?.value.input
+    : index.events.get(definition.event)?.value.schema;
+  const source = binding ? { hook: definition.hook } : { event: definition.event };
   const fields = shapeOf(schema).fields ?? [];
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
       <Field label={text(kind === 'binding' ? 'hook' : 'event')}>
         <span className="font-mono text-sm">{'hook' in source ? source.hook : source.event}</span>
       </Field>
-      {kind === 'rule' && (
+      {kind === 'rule' && !binding && (
         <Field label={text('when')} hint={text('ruleWhenHelp')}>
           <CelInput
             label={text('when')}
-            value={(definition as api.RuleDefinition).when}
+            value={definition.when}
             scope={scopeOf(index, source, {}, true)}
             mode={mode}
             onCommit={(value) => onEdit(['when'], value || undefined)}
@@ -237,13 +258,12 @@ function ValueFields({
   base: (string | number)[];
   title: string;
   schema?: Parameters<typeof shapeOf>[0];
-  value: unknown;
+  value: JsonValue | undefined;
   scope: Scope;
 }) {
   const text = usePlatformText();
   const fields = shapeOf(schema).fields ?? [],
-    object =
-      value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
+    object = value && typeof value === 'object' && !Array.isArray(value) ? value : undefined;
   const extra = object ? Object.keys(object).filter((name) => !fields.some((field) => field.name === name)) : [];
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
@@ -499,12 +519,13 @@ function StepForm(props: StepInspectorProps & { definition: Definition; id: stri
   const wiring = useClient(api.WiringServiceClient),
     text = usePlatformText(),
     rename = usePlatformAction<api.RenameStepResponse>();
-  const { step: found, siblings } = stepAt(definition, id),
-    step = found!,
-    source = definitionSource(kind, definition)!;
-  const name = id.split('/').at(-1)!,
+  const { step: found, siblings } = stepAt(definition, id);
+  if (!found) return null;
+  const step = found;
+  const name = id.split('/').at(-1) ?? id,
     parent = id.includes('/') ? id.slice(0, id.lastIndexOf('/')) : '',
     base = stepPathOf(id);
+  const source = isBindingDefinition(definition) ? { hook: definition.hook } : { event: definition.event };
   const at = (...rest: string[]) => [...base, ...rest];
   const scopeFor = (place: string) => without(scopeAt(index, source, definition.steps, at(place), kind), name);
   const activity = index.activities.get(step.activity)?.value,
@@ -522,10 +543,9 @@ function StepForm(props: StepInspectorProps & { definition: Definition; id: stri
         create(api.RenameStepRequestSchema, {
           from: id,
           to,
-          definition:
-            kind === 'binding'
-              ? { case: 'binding', value: definition as api.BindingDefinition }
-              : { case: 'rule', value: definition as api.RuleDefinition },
+          definition: isBindingDefinition(definition)
+            ? { case: 'binding', value: definition }
+            : { case: 'rule', value: definition },
         }),
         { signal },
       );
@@ -562,9 +582,9 @@ function StepForm(props: StepInspectorProps & { definition: Definition; id: stri
           }}
         />
       </Field>
-      {!!rename.value?.violations.length && (
+      {rename.value?.violations[0] && (
         <p className="m-0 text-xs text-destructive" role="alert">
-          {rename.value.violations[0]!.message}
+          {rename.value.violations[0].message}
         </p>
       )}
       {!hasBody && (
@@ -719,8 +739,11 @@ function StepForm(props: StepInspectorProps & { definition: Definition; id: stri
       {!!calls.length && (
         <div className="grid gap-2">
           <SectionLabel>{text('lastRun')}</SectionLabel>
-          {calls.map((call, position) => (
-            <div key={position} className="grid gap-1 rounded-md border border-border p-2 text-xs">
+          {calls.map((call) => (
+            <div
+              key={`${call.item ?? '-'}:${call.attempt}:${call.startedTime?.seconds ?? ''}`}
+              className="grid gap-1 rounded-md border border-border p-2 text-xs"
+            >
               <div className="flex items-center gap-2">
                 <StatusBadge tone={stepTone[call.status]}>{enumLabel(api.StepRunStatus, call.status)}</StatusBadge>
                 {call.undo && <Badge variant="outline">undo</Badge>}

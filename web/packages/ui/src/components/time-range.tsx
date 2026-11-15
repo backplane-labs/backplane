@@ -18,7 +18,7 @@ export interface TimeRangeControlProps {
   /** Also pick the week's first day (calendar views); off by default. */
   weekStartPicker?: boolean;
 }
-const Picker = lazy(() => import('./time-range.grafana.js'));
+const Picker = lazy(() => import('./time-range.grafana.js').then((module) => ({ default: module.GrafanaTimeRange })));
 export function TimeRangeControl(props: TimeRangeControlProps) {
   const { t } = useTranslation('backplane.ui');
   return (
@@ -115,19 +115,19 @@ export function dateMath(text: string, now: number, roundUp = false, utc = false
     const step = /^([+-])(\d+)([smhdwMy])/.exec(rest);
     if (step) {
       const n = Number(step[2]) * (step[1] === '-' ? -1 : 1),
-        unit = step[3]!;
+        unit = step[3];
       if (unit === 'M' || unit === 'y') {
         const d = new Date(at);
         if (utc) d.setUTCMonth(d.getUTCMonth() + n * (unit === 'y' ? 12 : 1));
         else d.setMonth(d.getMonth() + n * (unit === 'y' ? 12 : 1));
         at = d;
-      } else at = new Date(at.getTime() + n * units[unit]!);
+      } else at = new Date(at.getTime() + n * units[unit]);
       rest = rest.slice(step[0].length);
       continue;
     }
     const round = /^\/([smhdwMy])/.exec(rest);
     if (!round) return undefined;
-    at = roundTo(at, round[1]!, roundUp, utc);
+    at = roundTo(at, round[1], roundUp, utc);
     rest = rest.slice(round[0].length);
   }
   return at.getTime();
@@ -161,7 +161,8 @@ function roundTo(at: Date, unit: string, up: boolean, utc: boolean): Date {
   if (level <= 5) set('Seconds', 0);
   set('Milliseconds', 0);
   if (!up) return d;
-  const field = unitField[unit]!;
+  // unit comes from the same character class as unitField's keys.
+  const field = unitField[unit];
   set(field, get(field) + (unit === 'w' ? 7 : 1));
   return new Date(d.getTime() - 1);
 }

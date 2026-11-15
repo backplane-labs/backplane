@@ -1,7 +1,7 @@
-import type { DebugSnapshotV1, SourceSnapshot } from './protocol.js';
+import type { CapturedInput, DebugSnapshotV1, SourceSnapshot } from './protocol.js';
 
 const encoder = new TextEncoder();
-const bytes = (value: unknown) => encoder.encode(JSON.stringify(value)).byteLength;
+const bytes = (value: CapturedInput) => encoder.encode(JSON.stringify(value)).byteLength;
 
 /** Budget a detached DTO only; never modify retained history or source snapshots. */
 export function budgetSnapshot(
@@ -10,7 +10,7 @@ export function budgetSnapshot(
 ): DebugSnapshotV1 {
   // SDK-owned optional fields (e.g. history trace) can be undefined. JSON removes
   // those fields exactly as capture's Body does; user data was already materialized.
-  const copy = JSON.parse(JSON.stringify(input)) as DebugSnapshotV1;
+  const copy: DebugSnapshotV1 = JSON.parse(JSON.stringify(input));
   const value = {
     ...copy,
     state: { sources: [...copy.state.sources] },

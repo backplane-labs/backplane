@@ -111,7 +111,7 @@ function ControlsFixture() {
       <Stack direction="row">
         <ClipboardButton value={number} />
         <ConfirmAction
-          trigger="Remove source"
+          trigger={<Button variant="outline">Remove source</Button>}
           title="Remove source?"
           description="This action affects the local fixture."
           onConfirm={() => setConfirmed(true)}
@@ -217,7 +217,9 @@ function TimeFixture({ mode }: { mode: 'dark' | 'light' }) {
         onRefresh={() => setRefreshes((value) => value + 1)}
       />
       <output aria-label="Refresh count">{refreshes}</output>
-      <pre aria-label="Selected time range">{JSON.stringify(value, null, 2)}</pre>
+      <figure aria-label="Selected time range" style={{ margin: 0 }}>
+        <pre>{JSON.stringify(value, null, 2)}</pre>
+      </figure>
     </Stack>
   );
 }
@@ -245,10 +247,11 @@ function FormsFixture() {
       <AutoSaveInput
         label="Automatic save"
         defaultValue="hello"
-        onSave={async (value) => {
+        onSave={(value) => {
           setAttempt((old) => old + 1);
-          if (attempt === 0) throw new Error('fixture');
+          if (attempt === 0) return Promise.reject(new Error('fixture'));
           setSaved(value);
+          return Promise.resolve();
         }}
       />
       <AutoSizeInput aria-label="Compact name" value={saved} onChange={(event) => setSaved(event.target.value)} />

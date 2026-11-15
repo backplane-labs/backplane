@@ -8,6 +8,7 @@ import type { ThemeMode } from '@backplane-labs/backplane-theme';
 import { useSearchParams } from 'react-router-dom';
 
 const views: WiringView[] = ['graph', 'yaml', 'versions', 'test', 'runs'];
+const isWiringView = (value: string | null): value is WiringView => value !== null && new Set<string>(views).has(value);
 
 /** The URL of Wiring opened on a binding or rule. */
 export function wiringLink(target?: WiringTarget, view?: WiringView): string {
@@ -35,7 +36,7 @@ export function WiringRoute({ mode }: { mode: ThemeMode }) {
         : event
           ? { kind: 'rule', id: '', event }
           : undefined,
-    view: views.includes(view as WiringView) ? (view as WiringView) : 'graph',
+    view: isWiringView(view) ? view : 'graph',
   };
   // Opening another item is a navigation (back returns to it); switching the view replaces the entry.
   const change = (next: WiringState) => {

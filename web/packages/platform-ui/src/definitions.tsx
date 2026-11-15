@@ -108,8 +108,8 @@ export function DefinitionEditor<S extends DescMessage>({
       )}
       {!!violations.length && (
         <ul role="alert">
-          {violations.map((item, index) => (
-            <li key={index}>
+          {violations.map((item) => (
+            <li key={`${item.path}:${item.message}`}>
               {item.path}: {item.message}
             </li>
           ))}

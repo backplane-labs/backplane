@@ -80,7 +80,7 @@ export class IndexedDbOutbox implements OutboxStorage {
       }
     });
   }
-  async put(entry: StoredExport) {
+  put(entry: StoredExport) {
     return this.transaction<{ stored: boolean; evicted: number }>((store, done) => {
       let bytes = entry.bytes,
         count = 1,
@@ -91,7 +91,7 @@ export class IndexedDbOutbox implements OutboxStorage {
       request.onsuccess = () => {
         const cursor = request.result;
         if (cursor) {
-          const row = cursor.value as StoredExport;
+          const row: StoredExport = cursor.value;
           if (row.expires <= now || !Number.isSafeInteger(row.bytes) || row.bytes < 0) {
             cursor.delete();
             evicted++;
@@ -119,7 +119,7 @@ export class IndexedDbOutbox implements OutboxStorage {
       };
     });
   }
-  async claim(owner: string, force: boolean) {
+  claim(owner: string, force: boolean) {
     return this.transaction<{ entries: StoredExport[]; expired: number }>((store, done) => {
       const now = this.now(),
         entries: StoredExport[] = [];
@@ -131,7 +131,7 @@ export class IndexedDbOutbox implements OutboxStorage {
           done({ entries, expired });
           return;
         }
-        const row = cursor.value as StoredExport;
+        const row: StoredExport = cursor.value;
         if (row.expires <= now) {
           cursor.delete();
           expired++;
@@ -145,13 +145,13 @@ export class IndexedDbOutbox implements OutboxStorage {
       };
     });
   }
-  async finish(entries: StoredExport[], owner: string, success: boolean) {
+  finish(entries: StoredExport[], owner: string, success: boolean) {
     return this.transaction<void>((store, done) => {
       const now = this.now();
       for (const entry of entries) {
         const request = store.get(entry.id);
         request.onsuccess = () => {
-          const row = request.result as StoredExport | undefined;
+          const row: StoredExport | undefined = request.result;
           if (!row || row.owner !== owner) return;
           if (success) store.delete(row.id);
           else {
@@ -166,7 +166,7 @@ export class IndexedDbOutbox implements OutboxStorage {
       done(undefined);
     });
   }
-  async stats() {
+  stats() {
     return this.transaction<{ entries: number; bytes: number; oldestAgeMs: number }>((store, done) => {
       const now = this.now();
       let entries = 0,
@@ -179,7 +179,7 @@ export class IndexedDbOutbox implements OutboxStorage {
           done({ entries, bytes, oldestAgeMs });
           return;
         }
-        const row = cursor.value as StoredExport;
+        const row: StoredExport = cursor.value;
         // Expiry is deleted by claim/put, which also report the diagnostic count.
         if (row.expires > now) {
           entries++;
@@ -190,7 +190,7 @@ export class IndexedDbOutbox implements OutboxStorage {
       };
     });
   }
-  async clear() {
+  clear() {
     return this.transaction<void>((store, done) => {
       store.clear();
       done(undefined);

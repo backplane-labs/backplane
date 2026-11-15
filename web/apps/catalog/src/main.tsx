@@ -206,7 +206,9 @@ function Fixture() {
   );
 }
 
-createRoot(document.getElementById('root')!).render(
+const host = document.getElementById('root');
+if (host === null) throw new Error('Catalog mount point #root is missing');
+createRoot(host).render(
   <StrictMode>
     <I18nextProvider i18n={i18n}>
       <Fixture />

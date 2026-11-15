@@ -15,6 +15,7 @@ async function edit(relative, transform) {
   edits.push({ path, original, modified });
   await writeFile(path, modified);
 }
+let conflict;
 try {
   const context = await browser.newContext(),
     page = await context.newPage(),
@@ -101,14 +102,18 @@ try {
   await page.getByRole('menuitem', { name: 'Log out', exact: true }).click();
   await expect(page.getByLabel('Operator token', { exact: true })).toHaveValue('');
   assert.deepEqual(errors, []);
-  console.log(
-    'Console dev acceptance passed: cookie login, same-origin bundles, service RPC, deep links, CSS/React HMR without draft/session loss, foreign-origin rejection and logout',
+  process.stdout.write(
+    'Console dev acceptance passed: cookie login, same-origin bundles, service RPC, deep links, CSS/React HMR without draft/session loss, foreign-origin rejection and logout\n',
   );
 } finally {
   await browser.close();
+  // The conflict is deferred: throwing inside finally would mask the test's own failure.
   for (const { path, original, modified } of edits.reverse()) {
-    if ((await readFile(path, 'utf8')) !== modified)
-      throw new Error(`Concurrent edit detected; refusing to overwrite ${path.pathname}`);
+    if ((await readFile(path, 'utf8')) !== modified) {
+      conflict = `Concurrent edit detected; refusing to overwrite ${path.pathname}`;
+      continue;
+    }
     await writeFile(path, original);
   }
 }
+if (conflict) throw new Error(conflict);

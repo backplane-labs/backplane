@@ -58,7 +58,7 @@ function Host() {
         installPluginTranslations(i18n, loaded.navigation);
         setPlugin(loaded);
       },
-      (reason: unknown) => {
+      (reason) => {
         if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : String(reason));
       },
     );
@@ -106,7 +106,9 @@ function Host() {
     </ThemeContext.Provider>
   );
 }
-createRoot(document.getElementById('root')!).render(
+const host = document.getElementById('root');
+if (!host) throw new Error('#root is missing');
+createRoot(host).render(
   <BackplaneProvider client={fixtureClient}>
     <I18nextProvider i18n={i18n}>
       <BrowserRouter basename={import.meta.env.BASE_URL}>

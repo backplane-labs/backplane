@@ -1,4 +1,6 @@
 import {
+  type AnyRequest,
+  type AnyResponse,
   CODE_UNAVAILABLE,
   SUBPROTOCOL,
   type WebSocketLike,
@@ -16,6 +18,14 @@ export interface Session {
   idle_timeout_seconds: number;
 }
 
+/** Shape the session endpoints return before validation. */
+interface SessionPayload {
+  id?: string;
+  created_at?: string;
+  expires_at?: string;
+  idle_timeout_seconds?: number;
+}
+
 export type ConnectionState =
   | 'idle'
   | 'checking'
@@ -30,7 +40,7 @@ export interface ClientState {
   readonly session: Session | null;
   /** Increments whenever a fresh WebSocket opens. Snapshot watches refetch. */
   readonly connectionId: number;
-  readonly error?: unknown;
+  readonly error?: Error;
 }
 
 export class SessionHttpError extends Error {
@@ -46,6 +56,60 @@ export class SessionHttpError extends Error {
 export interface ObservableSocket extends WebSocketLike {
   addEventListener(type: 'open' | 'close' | 'error', listener: () => void): void;
 }
+
+/**
+ * Adapts the browser WebSocket to ObservableSocket. The DOM handler property
+ * types (MessageEvent etc.) are not assignable to the minimal WebSocketLike
+ * handler types, so the events are rewrapped at this boundary.
+ */
+class BrowserSocket implements ObservableSocket {
+  private readonly socket: WebSocket;
+  onmessage: WebSocketLike['onmessage'] = null;
+  onopen: WebSocketLike['onopen'] = null;
+  onclose: WebSocketLike['onclose'] = null;
+  onerror: WebSocketLike['onerror'] = null;
+
+  constructor(url: string, protocol: string) {
+    this.socket = new WebSocket(url, protocol);
+    this.socket.onmessage = (event) => {
+      this.onmessage?.({ data: event.data });
+    };
+    this.socket.onopen = () => {
+      this.onopen?.(undefined);
+    };
+    this.socket.onclose = () => {
+      this.onclose?.(undefined);
+    };
+    this.socket.onerror = () => {
+      this.onerror?.(undefined);
+    };
+  }
+
+  get binaryType(): string {
+    return this.socket.binaryType;
+  }
+
+  set binaryType(value: string) {
+    if (value !== 'blob' && value !== 'arraybuffer') throw new Error(`Unsupported binaryType ${value}`);
+    this.socket.binaryType = value;
+  }
+
+  send(data: ArrayBufferView | ArrayBuffer): void {
+    this.socket.send(data);
+  }
+
+  close(code?: number, reason?: string): void {
+    this.socket.close(code, reason);
+  }
+
+  get protocol(): string {
+    return this.socket.protocol;
+  }
+
+  addEventListener(type: 'open' | 'close' | 'error', listener: () => void): void {
+    this.socket.addEventListener(type, () => listener());
+  }
+}
 export interface ClientOptions {
   /** Console base URL including any prefix. Defaults to the current origin. */
   baseURL?: string;
@@ -58,7 +122,7 @@ export type ClientConstructor<T extends object> = new (transport: WsTransport) =
 export interface ClientRuntime {
   getSnapshot(): ClientState;
   subscribe(listener: () => void): () => void;
-  client<T extends object>(constructor: ClientConstructor<T>): T;
+  client<T extends object>(clientConstructor: ClientConstructor<T>): T;
   /** Optional for standalone fixtures that do not provide API file bundles. */
   readSchemaFile?(service: string, hash: string, file: string, signal?: AbortSignal): Promise<Uint8Array>;
 }
@@ -87,6 +151,11 @@ export class BackplaneClient {
   private readonly fetcher: typeof globalThis.fetch;
   private readonly socketFactory: NonNullable<ClientOptions['createSocket']>;
   private transport?: WsTransport;
+  /** Generated clients run over this paused transport; its interceptor sends every call over the current session's one. */
+  private readonly forwarding = new WsTransport('wss://forwarding.invalid/', {
+    paused: true,
+    interceptors: [() => (request) => this.forward(request)],
+  });
   private epoch = 0;
   private controller = new AbortController();
   private refreshInFlight?: Promise<void>;
@@ -108,8 +177,7 @@ export class BackplaneClient {
       throw new Error('baseURL must be an HTTP(S) console URL without credentials, query or fragment');
     }
     this.fetcher = options.fetch ?? globalThis.fetch.bind(globalThis);
-    this.socketFactory =
-      options.createSocket ?? ((url, protocol) => new WebSocket(url, protocol) as unknown as ObservableSocket);
+    this.socketFactory = options.createSocket ?? ((url, protocol) => new BrowserSocket(url, protocol));
   }
 
   getSnapshot = (): ClientState => this.state;
@@ -145,25 +213,29 @@ export class BackplaneClient {
     return response;
   }
 
-  private parseSession(value: unknown): Session {
-    const session = value as Partial<Session> | null;
+  private parseSession(value: SessionPayload | null): Session {
     if (
-      !session ||
-      typeof session.id !== 'string' ||
-      !session.id ||
-      typeof session.created_at !== 'string' ||
-      typeof session.expires_at !== 'string' ||
-      typeof session.idle_timeout_seconds !== 'number'
+      !value ||
+      typeof value.id !== 'string' ||
+      !value.id ||
+      typeof value.created_at !== 'string' ||
+      typeof value.expires_at !== 'string' ||
+      typeof value.idle_timeout_seconds !== 'number'
     ) {
       throw new Error('Invalid session response');
     }
-    return session as Session;
+    return {
+      id: value.id,
+      created_at: value.created_at,
+      expires_at: value.expires_at,
+      idle_timeout_seconds: value.idle_timeout_seconds,
+    };
   }
 
   /** Rechecks cookies; an outage preserves the previous session and retries. */
   start(): Promise<void> {
     this.assertActive();
-    if (this.refreshInFlight) return this.refreshInFlight;
+    if (this.refreshInFlight !== undefined) return this.refreshInFlight;
     const epoch = this.epoch;
     if (!this.state.session) this.update({ connection: 'checking', error: undefined });
     const work = this.refresh(epoch);
@@ -174,8 +246,9 @@ export class BackplaneClient {
     return work;
   }
 
-  private async refresh(epoch: number) {
-    try {
+  private refresh(epoch: number): Promise<void> {
+    // The rejection handler types the caught value; a try/catch would leave it untyped.
+    return (async () => {
       const session = this.parseSession(await (await this.request('auth/session')).json());
       if (this.epoch !== epoch || this.disposed) return;
       this.attempt = 0;
@@ -187,21 +260,22 @@ export class BackplaneClient {
       if (this.state.session && this.state.session.id !== session.id) this.closeTransport();
       this.update({ session, error: undefined });
       this.connect();
-    } catch (error) {
+    })().catch((cause) => {
       if (this.epoch !== epoch || this.disposed) return;
+      const error = cause instanceof Error ? cause : new Error(String(cause));
       if (error instanceof SessionHttpError && error.status === 401) {
         this.resetSession();
         this.update({ connection: 'anonymous', session: null, error: undefined });
       } else {
         this.update({ connection: this.state.connection === 'connected' ? 'connected' : 'offline', error });
         if (!(error instanceof SessionHttpError) || error.status === 429 || error.status >= 500) {
-          this.scheduleRefresh(error);
+          this.scheduleRefresh(error instanceof SessionHttpError ? error : undefined);
         }
       }
-    }
+    });
   }
 
-  private scheduleRefresh(error: unknown) {
+  private scheduleRefresh(error: SessionHttpError | undefined) {
     if (this.retry) clearTimeout(this.retry);
     const jitter = 250 + Math.random() * Math.min(30_000, 500 * 2 ** Math.min(this.attempt++, 8));
     const retryAfter = error instanceof SessionHttpError ? (error.retryAfterMs ?? 0) : 0;
@@ -271,27 +345,20 @@ export class BackplaneClient {
     });
   }
 
-  /** Stable generated-client facade; each new call uses the current session. */
-  client<T extends object>(constructor: ClientConstructor<T>): T {
-    let transport: WsTransport | undefined;
-    let instance: T | undefined;
-    return new Proxy({} as T, {
-      get: (_target, key) => {
-        if (key === 'then') return undefined;
-        return (...args: unknown[]) => {
-          this.assertActive();
-          if (!this.transport || this.state.connection !== 'connected')
-            throw new WsStatusError(CODE_UNAVAILABLE, 'Console is not connected');
-          if (transport !== this.transport) {
-            transport = this.transport;
-            instance = new constructor(transport);
-          }
-          const method = Reflect.get(instance!, key);
-          if (typeof method !== 'function') throw new TypeError(`Unknown client method ${String(key)}`);
-          return Reflect.apply(method, instance, args);
-        };
-      },
-    });
+  /** Stable generated client; each new call uses the current session. */
+  client<T extends object>(clientConstructor: ClientConstructor<T>): T {
+    return new clientConstructor(this.forwarding);
+  }
+
+  private forward(request: AnyRequest): Promise<AnyResponse> {
+    this.assertActive();
+    const current = this.transport;
+    if (!current || this.state.connection !== 'connected')
+      return Promise.reject(new WsStatusError(CODE_UNAVAILABLE, 'Console is not connected'));
+    const call = { headers: request.header, signal: request.signal, timeoutMs: request.timeoutMs };
+    return request.stream
+      ? current.stream(request.method, request.message, call)
+      : current.unary(request.method, request.message, call);
   }
 
   private closeTransport() {
@@ -317,5 +384,6 @@ export class BackplaneClient {
     this.resetSession();
     this.update({ connection: 'disposed', session: null, error: undefined });
     this.listeners.clear();
+    this.forwarding.close();
   }
 }

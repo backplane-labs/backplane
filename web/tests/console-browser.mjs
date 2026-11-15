@@ -156,8 +156,8 @@ try {
   await logout();
   await expect(page.getByLabel('Operator token')).toBeVisible();
   assert.deepEqual(errors, []);
-  console.log(
-    'Console acceptance passed: live registry, service views and map, palette, wiring graph and YAML, service tabs, module pages, resize, collapse, persistence, themes and accessibility',
+  process.stdout.write(
+    'Console acceptance passed: live registry, service views and map, palette, wiring graph and YAML, service tabs, module pages, resize, collapse, persistence, themes and accessibility\n',
   );
 } finally {
   await browser.close();

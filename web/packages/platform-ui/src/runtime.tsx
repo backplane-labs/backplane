@@ -26,10 +26,12 @@ export function usePlatformQuery<T>(
       key: string;
       connectionId?: typeof connection.connectionId;
       value?: T;
-      error?: unknown;
+      error?: Error;
       loading: boolean;
     }>();
   useEffect(() => {
+    // `refresh` re-runs the read on demand.
+    void refresh;
     const controller = new AbortController();
     setStored((old) =>
       old?.owner === owner && old.session === session && (old.key === key || keep)
@@ -45,12 +47,14 @@ export function usePlatformQuery<T>(
               setStored({ owner, session, key, connectionId: connection.connectionId, value, loading: false });
           },
           (error) => {
+            // A non-Error throw becomes one: the state carries a typed failure.
+            const failure = error instanceof Error ? error : new Error(String(error));
             if (!controller.signal.aborted)
-              setStored((old) => ({ ...old, owner, session, key, error, loading: false }));
+              setStored((old) => ({ ...old, owner, session, key, error: failure, loading: false }));
           },
         );
     return () => controller.abort();
-  }, [owner, session, key, connection.connection, connection.connectionId, refresh]);
+  }, [owner, session, key, keep, connection.connection, connection.connectionId, refresh]);
   // With keep, the render that changes the key still shows the last value: the effect re-keys it before the new read lands.
   const visible =
     stored?.owner === owner && stored.session === session && (stored.key === key || keep) ? stored : undefined;
@@ -83,11 +87,14 @@ export function usePlatformAction<T>() {
     pending: boolean;
     startedAt?: number;
     value?: T;
-    error?: unknown;
+    error?: Error;
     cancelled?: boolean;
   }>();
   useEffect(
     () => () => {
+      // Abort the run of the owner or session that is going away (and on unmount).
+      void owner;
+      void session;
       active.current?.abort();
       active.current = null;
     },
@@ -104,7 +111,9 @@ export function usePlatformAction<T>() {
       setState({ owner, session, pending: false, value });
       return value;
     } catch (error) {
-      if (!controller.signal.aborted) setState({ owner, session, pending: false, error });
+      // A non-Error throw becomes one: the state carries a typed failure.
+      const failure = error instanceof Error ? error : new Error(String(error));
+      if (!controller.signal.aborted) setState({ owner, session, pending: false, error: failure });
       return undefined;
     } finally {
       if (active.current === controller) active.current = null;
@@ -145,7 +154,7 @@ export function QueryState({
   state,
   children,
 }: {
-  state: { loading: boolean; stale?: boolean; error?: unknown; refresh: () => void };
+  state: { loading: boolean; stale?: boolean; error?: Error; refresh: () => void };
   children?: ReactNode;
 }) {
   const text = usePlatformText();
@@ -165,7 +174,7 @@ export function QueryState({
     </>
   );
 }
-export function MutationState({ action }: { action: { pending: boolean; error?: unknown } }) {
+export function MutationState({ action }: { action: { pending: boolean; error?: Error } }) {
   const text = usePlatformText();
   return (
     <>

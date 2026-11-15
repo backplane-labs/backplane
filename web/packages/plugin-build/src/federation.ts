@@ -11,7 +11,7 @@ export interface ModuleBuildOptions {
 }
 
 // Release CI stamps this manifest together with every shared platform package.
-const sdkVersion = createRequire(import.meta.url)('../package.json').version as string;
+const sdkVersion = String(createRequire(import.meta.url)('../package.json').version);
 const platformVersion = `^${sdkVersion}`;
 
 const versions: Record<string, string> = {
@@ -60,8 +60,8 @@ function privateGrafanaRouters(): PluginOption {
   const resolvePrivate = (source: string, importer?: string) => {
     if (!importer?.includes('/node_modules/') || !['react-router', 'react-router-dom'].includes(source)) return;
     const request = createRequire(importer.split('?')[0]);
-    const installed = request(`${source}/package.json`) as { version: string };
-    if (installed.version.startsWith('7.')) return;
+    const installed: { version?: string } = request(`${source}/package.json`);
+    if (installed.version?.startsWith('7.')) return;
     return request.resolve(source);
   };
   return {
@@ -107,16 +107,15 @@ export function moduleBuild(options: ModuleBuildOptions): UserConfig {
           this.emitFile({
             type: 'asset',
             fileName: 'plugin.json',
-            source:
-              JSON.stringify(
-                {
-                  name: options.service,
-                  sdk_major: 0,
-                  nav: options.nav,
-                },
-                null,
-                2,
-              ) + '\n',
+            source: `${JSON.stringify(
+              {
+                name: options.service,
+                sdk_major: 0,
+                nav: options.nav,
+              },
+              null,
+              2,
+            )}\n`,
           });
         },
       },

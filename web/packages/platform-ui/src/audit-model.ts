@@ -7,7 +7,7 @@ import {
   AuditOperator,
   type AuditRecord,
 } from '@backplane-labs/backplane-api';
-import { create, type JsonValue } from '@bufbuild/protobuf';
+import { create, type JsonObject, type JsonValue } from '@bufbuild/protobuf';
 import { timestampFromMs, ValueSchema } from '@bufbuild/protobuf/wkt';
 import { allOps, type FeedChip, type FeedOp } from './feed.js';
 
@@ -63,12 +63,10 @@ const opEnum: Record<FeedOp, AuditOperator> = {
 
 export const fieldKey = (field: AuditFieldName) => `field:${field}`;
 export const attributeKey = (attribute: string) => `attr:${attribute}`;
-const fieldOf = (key: string): AuditFieldName | undefined =>
-  key.startsWith('field:') && auditFields.includes(key.slice(6) as AuditFieldName)
-    ? (key.slice(6) as AuditFieldName)
-    : undefined;
+export const fieldOf = (key: string): AuditFieldName | undefined =>
+  auditFields.find((field) => `field:${field}` === key);
 
-const valueOf = (value: JsonValue) =>
+const protoValue = (value: JsonValue) =>
   create(
     ValueSchema,
     value === null
@@ -91,9 +89,9 @@ export function conditionOf(key: string): AuditCondition {
 /** The chip key of a facet's target. */
 export function keyOf(condition?: AuditCondition): string {
   const target = condition?.target;
-  return target?.case === 'attribute'
-    ? attributeKey(target.value)
-    : fieldKey(auditFields[((target?.value as number) ?? 1) - 1]!);
+  if (target?.case === 'attribute') return attributeKey(target.value);
+  const field = target?.case === 'field' ? target.value : 1;
+  return fieldKey(auditFields[field - 1] ?? '');
 }
 
 /** The request filter of the page's chips, text and resolved range. */
@@ -105,7 +103,7 @@ export function filterOf(chips: readonly AuditChip[], text: string, range?: { fr
     conditions: chips.map((chip) => ({
       ...conditionOf(chip.key),
       op: opEnum[chip.op],
-      values: chip.values.map(valueOf),
+      values: chip.values.map(protoValue),
     })),
   });
 }
@@ -120,16 +118,16 @@ export function decodeChips(
 ): FeedChip[] {
   if (!raw) return [];
   try {
-    const parsed: unknown = JSON.parse(raw);
+    const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
       (chip): chip is FeedChip =>
         !!chip &&
         typeof chip === 'object' &&
-        typeof (chip as FeedChip).key === 'string' &&
-        validKey((chip as FeedChip).key) &&
-        allOps.includes((chip as FeedChip).op) &&
-        Array.isArray((chip as FeedChip).values),
+        typeof chip.key === 'string' &&
+        validKey(chip.key) &&
+        allOps.includes(chip.op) &&
+        Array.isArray(chip.values),
     );
   } catch {
     return [];
@@ -170,7 +168,7 @@ const logContext = new Set([
 
 /** The facts worth a glance in the table's details column. */
 export function detailFacts(record: AuditRecord): string[] {
-  const attributes = (record.attributes ?? {}) as Record<string, JsonValue>,
+  const attributes: JsonObject = record.attributes ?? {},
     facts: string[] = [];
   if (record.message) facts.push(record.message);
   const show = (

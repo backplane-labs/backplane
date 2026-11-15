@@ -82,8 +82,8 @@ try {
   await page.reload();
   await expect(input).toBeVisible();
   assert.deepEqual(errors, []);
-  console.log(
-    'Go console integration passed: cookie login, catalog stream, bundle proxy, shared socket, deep-link session restore and logout',
+  process.stdout.write(
+    'Go console integration passed: cookie login, catalog stream, bundle proxy, shared socket, deep-link session restore and logout\n',
   );
 } finally {
   await browser.close();

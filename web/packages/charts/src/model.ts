@@ -68,8 +68,10 @@ export function samplePoints(points: readonly ChartPoint[], limit: number): Char
         gap = index;
         continue;
       }
-      if (numeric(points[min].value) === null || value < numeric(points[min].value)!) min = index;
-      if (numeric(points[max].value) === null || value > numeric(points[max].value)!) max = index;
+      const smallest = numeric(points[min].value);
+      if (smallest === null || value < smallest) min = index;
+      const largest = numeric(points[max].value);
+      if (largest === null || value > largest) max = index;
     }
     chosen.add(min);
     chosen.add(max);
@@ -115,11 +117,16 @@ export function prepareSeries(input: readonly ChartSeries[], maxPoints = 2000) {
   });
   const x = [...new Set(series.flatMap((series) => series.points.map((point) => point.x)))].sort((a, b) => a - b);
   const values = series.map((series) => new Map(series.points.map((point) => [point.x, point.value])));
+  // uPlot's AlignedData is a tuple: the x scale, then one row per series.
+  const data: [number[], ...(number | null)[][]] = [
+    x,
+    ...values.map((values) => x.map((x) => (values.has(x) ? numeric(values.get(x) ?? null) : null))),
+  ];
   return {
     series,
     x,
     values,
-    data: [x, ...values.map((values) => x.map((x) => (values.has(x) ? numeric(values.get(x)!) : undefined)))],
+    data,
     invalid,
     approximate,
     sampled,

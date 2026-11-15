@@ -11,6 +11,11 @@
 @source "../../charts/src";
 
 @layer base {
-  * { border-color: var(--border); }
-  * { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted-foreground) 30%, transparent) transparent; }
+  * {
+    border-color: var(--border);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--muted-foreground) 30%, transparent) transparent;
+  }
 }

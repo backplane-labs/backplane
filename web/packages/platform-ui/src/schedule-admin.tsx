@@ -5,10 +5,10 @@ import { SchemaForm } from '@backplane-labs/backplane-schema-forms';
 import { Button, Input, SelectControl } from '@backplane-labs/backplane-ui';
 import { create } from '@bufbuild/protobuf';
 import { DurationSchema } from '@bufbuild/protobuf/wkt';
-import { type NativeStruct, structToNative } from '@gopherex/schemapb';
-import { parse, parseNumberAndBigInt } from 'lossless-json';
-import { useState } from 'react';
+import { structToNative } from '@gopherex/schemapb';
+import { useId, useState } from 'react';
 import { usePlatformText } from './locales.js';
+import { parsePayload } from './operations-model.js';
 import { MutationState, QueryState, usePlatformAction, usePlatformQuery } from './runtime.js';
 import { nativeJSON } from './serialization.js';
 
@@ -59,7 +59,7 @@ function Editor({
     [timezone, setTimezone] = useState('UTC'),
     [paused, setPaused] = useState(false);
   const [input, setInput] = useState(existing?.definition?.input || '{}');
-  const action = usePlatformAction<unknown>();
+  const action = usePlatformAction<api.UpdateScheduleResponse | api.CreateScheduleResponse>();
   const selected = definitions.value?.workflows.find((entry) => entry.name === workflow);
   const interval = Number(seconds),
     validTiming = timing !== 'interval' || (Number.isSafeInteger(interval) && interval > 0);
@@ -99,15 +99,22 @@ function Editor({
     if (result === undefined) throw new Error('Schedule outcome is unavailable');
     onSaved();
   };
+  const nameField = useId(),
+    workflowField = useId(),
+    timingField = useId(),
+    cronField = useId(),
+    secondsField = useId(),
+    timezoneField = useId();
   return (
     <div className="grid gap-4">
-      <label className="grid gap-1 text-sm">
+      <label htmlFor={nameField} className="grid gap-1 text-sm">
         {text('scheduleName')}
-        <Input value={name} onChange={(event) => setName(event.target.value)} disabled={!!existing} />
+        <Input id={nameField} value={name} onChange={(event) => setName(event.target.value)} disabled={!!existing} />
       </label>
-      <label className="grid gap-1 text-sm">
+      <label htmlFor={workflowField} className="grid gap-1 text-sm">
         {text('workflow')}
         <SelectControl
+          id={workflowField}
           aria-label={text('workflow')}
           value={workflow}
           onValueChange={(value) => {
@@ -121,9 +128,10 @@ function Editor({
         />
       </label>
       <QueryState state={definitions} />
-      <label className="grid gap-1 text-sm">
+      <label htmlFor={timingField} className="grid gap-1 text-sm">
         {text('scheduleTiming')}
         <SelectControl
+          id={timingField}
           aria-label={text('scheduleTiming')}
           value={timing}
           onValueChange={setTiming}
@@ -135,15 +143,16 @@ function Editor({
         />
       </label>
       {timing === 'cron' && (
-        <label className="grid gap-1 text-sm">
+        <label htmlFor={cronField} className="grid gap-1 text-sm">
           {text('cronExpression')}
-          <Input value={cron} onChange={(event) => setCron(event.target.value)} />
+          <Input id={cronField} value={cron} onChange={(event) => setCron(event.target.value)} />
         </label>
       )}
       {timing === 'interval' && (
-        <label className="grid gap-1 text-sm">
+        <label htmlFor={secondsField} className="grid gap-1 text-sm">
           {text('intervalSeconds')}
           <Input
+            id={secondsField}
             type="number"
             min={1}
             value={seconds}
@@ -153,9 +162,9 @@ function Editor({
         </label>
       )}
       {timing !== 'keep' && (
-        <label className="grid gap-1 text-sm">
+        <label htmlFor={timezoneField} className="grid gap-1 text-sm">
           {text('timezone')}
-          <Input value={timezone} onChange={(event) => setTimezone(event.target.value)} />
+          <Input id={timezoneField} value={timezone} onChange={(event) => setTimezone(event.target.value)} />
         </label>
       )}
       {existing?.timingJson && (
@@ -176,7 +185,7 @@ function Editor({
           key={workflow}
           schema={selected.input}
           label={text('input')}
-          initialValues={parse(input, null, parseNumberAndBigInt) as NativeStruct}
+          initialValues={parsePayload(input) ?? {}}
           disabled={disabled}
           submitLabel={text('saveSchedule')}
           onSubmit={(baked, signal) => save(nativeJSON(structToNative(baked.values)), signal)}

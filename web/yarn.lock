@@ -356,7 +356,7 @@ __metadata:
   resolution: "@backplane-labs/backplane-api@workspace:packages/api"
   dependencies:
     "@bufbuild/protobuf": "npm:2.16.0"
-    "@gopherex/ws-proto-transport": "npm:1.9.1"
+    "@gopherex/ws-proto-transport": "npm:1.11.0"
   languageName: unknown
   linkType: soft
 
@@ -387,7 +387,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@backplane-labs/backplane-client@workspace:packages/client"
   dependencies:
-    "@gopherex/ws-proto-transport": "npm:1.9.1"
+    "@gopherex/ws-proto-transport": "npm:1.11.0"
   languageName: unknown
   linkType: soft
 
@@ -618,6 +618,7 @@ __metadata:
     "@fontsource/ibm-plex-mono": "npm:5.2.6"
     "@fontsource/ibm-plex-sans": "npm:5.2.6"
     "@gopherex/schemapb": "npm:1.10.1"
+    "@gopherex/ws-proto-transport": "npm:1.11.0"
     "@grafana/data": "npm:13.2.3"
     "@grafana/ui": "npm:13.2.3"
     "@types/react": "npm:19.2.14"
@@ -727,7 +728,7 @@ __metadata:
     "@fontsource/ibm-plex-mono": "npm:5.2.6"
     "@fontsource/ibm-plex-sans": "npm:5.2.6"
     "@gopherex/schemapb": "npm:1.10.1"
-    "@gopherex/ws-proto-transport": "npm:1.9.1"
+    "@gopherex/ws-proto-transport": "npm:1.11.0"
     "@grafana/data": "npm:13.2.3"
     "@grafana/ui": "npm:13.2.3"
     "@types/node": "npm:22.19.15"
@@ -1711,15 +1712,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@gopherex/protoc-gen-ws-es@npm:1.9.1":
-  version: 1.9.1
-  resolution: "@gopherex/protoc-gen-ws-es@npm:1.9.1::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40gopherex%2Fprotoc-gen-ws-es%2F1.9.1%2F9f55c26ace53ec4d069be9c565c16c3b72efb7c3"
+"@gopherex/protoc-gen-ws-es@npm:1.11.0":
+  version: 1.11.0
+  resolution: "@gopherex/protoc-gen-ws-es@npm:1.11.0::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40gopherex%2Fprotoc-gen-ws-es%2F1.11.0%2F387af78e3db991d33b3a294b874a13ca127a6648"
   dependencies:
     "@bufbuild/protobuf": "npm:^2.2.0"
     "@bufbuild/protoplugin": "npm:^2.2.0"
   bin:
     protoc-gen-ws-es: bin/protoc-gen-ws-es.js
-  checksum: 10c0/5cd81f88c4013527e48da7706e41ec98756bcdb11f31489f6c94e21e717b9807db3ffdac767bdcf96f18a92a0d2d59abc7dec07aa188de8a9a222ed07b3ebbe7
+  checksum: 10c0/f210a333d386b5ce7bc992140e2fd848bbfbbfe801591b1741d51ee3b3b3264daf35e75eef8c48ce51d5354cd11b8988136a668c7e55b14da780761d034d4d6d
   languageName: node
   linkType: hard
 
@@ -1735,12 +1736,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@gopherex/ws-proto-transport@npm:1.9.1":
-  version: 1.9.1
-  resolution: "@gopherex/ws-proto-transport@npm:1.9.1::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40gopherex%2Fws-proto-transport%2F1.9.1%2F97f2a6945fb98c411dddde5f53812a83cdc734a6"
+"@gopherex/ws-proto-transport@npm:1.11.0":
+  version: 1.11.0
+  resolution: "@gopherex/ws-proto-transport@npm:1.11.0::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40gopherex%2Fws-proto-transport%2F1.11.0%2Ff2c5c81fe822b3c5d2cc41d03f886f1b23e0fb4f"
   dependencies:
     "@bufbuild/protobuf": "npm:^2.2.0"
-  checksum: 10c0/be23c99ffe8cfb5c8f0f5a9411f23f5695cd587b5a446c59b1f033bd2f155e36ae93d5769827e8c2abf568b9e2727d853b5328b44905395573d0729ced6385d5
+  checksum: 10c0/3eca025310857c1fca9b508e9bb25a36adc159613de9a19baf5468464e7c604768f1463e0d78d498c24542e0e9cda77a79e2da41960cf52dbbed3cd3f6b1c9ae
   languageName: node
   linkType: hard
 
@@ -5694,7 +5695,7 @@ __metadata:
     "@axe-core/playwright": "npm:4.13.0"
     "@biomejs/biome": "npm:2.6.7"
     "@bufbuild/protoc-gen-es": "npm:2.16.0"
-    "@gopherex/protoc-gen-ws-es": "npm:1.9.1"
+    "@gopherex/protoc-gen-ws-es": "npm:1.11.0"
     "@playwright/test": "npm:1.58.2"
     "@storybook/addon-a11y": "npm:10.6.1"
     "@storybook/addon-docs": "npm:10.6.1"

@@ -35,6 +35,7 @@ export { redactKeys } from './policy.js';
 
 import type {
   CaptureDiagnostic,
+  CapturedInput,
   CapturedValue,
   CaptureResult,
   DebugEnvelopeV1,
@@ -66,7 +67,7 @@ export interface ClientOptions {
 }
 export interface CaptureOptions {
   state?: JsonValue;
-  serializeState?: (value: unknown) => JsonValue;
+  serializeState?: (value: CapturedInput) => JsonValue;
   context?: Context;
   includeRegisteredState?: boolean;
   includeHistory?: boolean;
@@ -90,6 +91,10 @@ export type SnapshotResult =
   | { status: 'ok'; value: DebugSnapshotV1 }
   | { status: 'unavailable'; reason: 'closed' | 'reentrant' };
 export type HistoryResult = { status: 'recorded'; id: string } | { status: 'not_recorded'; reason: string };
+
+/** JsonValue's object branch; Array.isArray cannot narrow a readonly array. */
+const jsonObject = (value: JsonValue): value is { readonly [key: string]: JsonValue } =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 function correlation(explicit?: Context): { context: Context; trace?: TraceRef } {
   for (const [ctx, origin] of [
@@ -152,7 +157,7 @@ export function createClient(options: ClientOptions) {
   const reading = new Set<string>();
   const sources = new Map<
     string,
-    { registrationId: string; source: { read(): unknown; serialize?(value: unknown): JsonValue } }
+    { registrationId: string; source: { read(): CapturedInput; serialize?(value: CapturedInput): JsonValue } }
   >();
   function diagnostic(code: string, stage: CaptureDiagnostic['stage'] = 'capture'): CaptureDiagnostic {
     const d = { code, stage };
@@ -177,7 +182,7 @@ export function createClient(options: ClientOptions) {
     }
     return d;
   }
-  function clean(value: unknown, area: DataArea, name?: string): JsonValue {
+  function clean(value: CapturedInput, area: DataArea, name?: string): JsonValue {
     const copy = materialize(value);
     if (!options.sanitize) return copy;
     policyRunning = true;
@@ -253,20 +258,21 @@ export function createClient(options: ClientOptions) {
     }
   }
   function captured(
-    value: unknown,
-    serializer?: (value: unknown) => JsonValue,
+    value: CapturedInput,
+    serializer?: (value: CapturedInput) => JsonValue,
     area: DataArea = 'inline',
     name?: string,
   ): CapturedValue {
+    let input = value;
     if (serializer) {
       try {
-        value = serializer(value);
+        input = serializer(value);
       } catch {
         return { status: 'error', error: diagnostic('serializer_failed', 'serialize') };
       }
     }
     try {
-      return { status: 'ok', value: clean(value, area, name) };
+      return { status: 'ok', value: clean(input, area, name) };
     } catch {
       return {
         status: 'error',
@@ -285,7 +291,7 @@ export function createClient(options: ClientOptions) {
       return { ...base, status: 'error', error: diagnostic('reentrant_read', 'read') };
     reading.add(registration.registrationId);
     try {
-      let value: unknown;
+      let value: CapturedInput;
       try {
         value = registration.source.read();
       } catch {
@@ -298,7 +304,7 @@ export function createClient(options: ClientOptions) {
   }
   function registerState(name: string, source: JsonStateSource): () => void;
   function registerState<T>(name: string, source: StateSource<T>): () => void;
-  function registerState(name: string, source: { read(): unknown; serialize?(value: unknown): JsonValue }) {
+  function registerState(name: string, source: { read(): CapturedInput; serialize?(value: CapturedInput): JsonValue }) {
     if (
       closed ||
       !name ||
@@ -319,9 +325,15 @@ export function createClient(options: ClientOptions) {
       return { status: 'not_recorded', reason: 'closed_disabled_or_invalid' };
     }
     const registration = sources.get(name);
-    if (kind === 'state' && (!registration || reading.has(registration.registrationId))) {
-      diagnostic('source_unavailable');
-      return { status: 'not_recorded', reason: 'source_unavailable' };
+    // A state entry needs its registration; a narrowed local keeps the check
+    // below cast-free without re-testing kind.
+    let stateRegistration: NonNullable<typeof registration> | undefined;
+    if (kind === 'state') {
+      if (!registration || reading.has(registration.registrationId)) {
+        diagnostic('source_unavailable');
+        return { status: 'not_recorded', reason: 'source_unavailable' };
+      }
+      stateRegistration = registration;
     }
     const base = {
       id: id(),
@@ -331,15 +343,15 @@ export function createClient(options: ClientOptions) {
       trace: correlation(ctx).trace,
     };
     const item: HistoryEntry =
-      kind === 'state'
+      stateRegistration !== undefined
         ? {
             ...base,
-            kind,
-            snapshot: snapshot(name, registration as NonNullable<typeof registration>),
+            kind: 'state',
+            snapshot: snapshot(name, stateRegistration),
           }
         : {
             ...base,
-            kind,
+            kind: 'breadcrumb',
             name: label(name),
             ...(data === undefined ? {} : { data: captured(data, undefined, 'breadcrumb', name) }),
           };
@@ -396,7 +408,7 @@ export function createClient(options: ClientOptions) {
     }
   }
   function capture(
-    value: unknown,
+    value: CapturedInput,
     opts: CaptureOptions = {},
     mechanism: ExceptionData['mechanism'] = 'manual',
     location?: ExceptionData['location'],
@@ -440,7 +452,14 @@ export function createClient(options: ClientOptions) {
         let accepted = false;
         policyRunning = true;
         try {
-          accepted = options.filter(materialize(exception) as unknown as ExceptionData) === true;
+          const plain = materialize(exception);
+          // materialize returns JsonValue; our own exception always carries mechanism.
+          const isExceptionData = (value: CapturedInput): value is ExceptionData =>
+            typeof value === 'object' &&
+            value !== null &&
+            !Array.isArray(value) &&
+            typeof Reflect.get(value, 'mechanism') === 'string';
+          accepted = isExceptionData(plain) && options.filter(plain) === true;
         } catch {
           diagnostic('filter_failed');
         } finally {
@@ -455,8 +474,8 @@ export function createClient(options: ClientOptions) {
       if (opts.extensions !== undefined) {
         try {
           const data = clean(opts.extensions, 'extensions');
-          if (!data || typeof data !== 'object' || Array.isArray(data)) throw new TypeError('invalid_extensions');
-          extensions = data as Record<string, JsonValue>;
+          if (!jsonObject(data)) throw new TypeError('invalid_extensions');
+          extensions = data;
         } catch {
           diagnostic('extensions_omitted');
         }
@@ -488,12 +507,22 @@ export function createClient(options: ClientOptions) {
       )
         throw new TypeError('invalid_severity');
       const attrs: LogAttributes = Object.create(null);
+      // OTel attribute values are primitives or homogeneous primitive arrays; a
+      // JsonValue outside that set was already invalid input, so it is dropped.
+      const attribute = (value: JsonValue): LogAttributes[string] => {
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value;
+        if (!Array.isArray(value)) return undefined;
+        if (value.every((item): item is string => typeof item === 'string')) return value.slice();
+        if (value.every((item): item is number => typeof item === 'number')) return value.slice();
+        if (value.every((item): item is boolean => typeof item === 'boolean')) return value.slice();
+        return undefined;
+      };
       if (opts.attributes) {
         let user: Record<string, JsonValue> = Object.create(null);
         try {
           const data = clean(opts.attributes, 'attributes');
-          if (!data || typeof data !== 'object' || Array.isArray(data)) throw new TypeError('invalid_attributes');
-          user = data as Record<string, JsonValue>;
+          if (!jsonObject(data)) throw new TypeError('invalid_attributes');
+          user = data;
         } catch {
           diagnostic('attributes_omitted');
         }
@@ -506,7 +535,7 @@ export function createClient(options: ClientOptions) {
             diagnostic('reserved_attribute');
             continue;
           }
-          attrs[key] = val as LogAttributes[string];
+          attrs[key] = attribute(val);
         }
       }
       Object.assign(attrs, {
@@ -573,7 +602,7 @@ export function createClient(options: ClientOptions) {
     },
     registerState,
     snapshot: localSnapshot,
-    captureException: (value: unknown, opts?: CaptureOptions) => capture(value, opts),
+    captureException: (value: CapturedInput, opts?: CaptureOptions) => capture(value, opts),
     addBreadcrumb: (name: string, data?: JsonValue, opts?: { context?: Context }) =>
       add('breadcrumb', name, data, opts?.context),
     recordState: (name: string, opts?: { context?: Context }) => add('state', name, undefined, opts?.context),
@@ -611,7 +640,7 @@ export function createReactErrorHandler(
   client: Pick<ReturnType<typeof createClient>, 'captureException'>,
   options: CaptureOptions = {},
 ) {
-  return (error: unknown, info: { componentStack?: string | null }) => {
+  return (error: CapturedInput, info: { componentStack?: string | null }) => {
     client.captureException(error, {
       ...options,
       handled: true,

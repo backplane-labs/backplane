@@ -1,6 +1,25 @@
 import * as api from '@backplane-labs/backplane-api';
-import { type DescField, type DescMessage, fromJson, type JsonValue, ScalarType, toJson } from '@bufbuild/protobuf';
-import { Document, isMap, isPair, isScalar, isSeq, type Node, type Pair, parseDocument, type Scalar } from 'yaml';
+import {
+  type DescField,
+  type DescMessage,
+  fromJson,
+  type JsonObject,
+  type JsonValue,
+  ScalarType,
+  toJson,
+} from '@bufbuild/protobuf';
+import {
+  Document,
+  isMap,
+  isNode,
+  isPair,
+  isScalar,
+  isSeq,
+  type Node,
+  type Pair,
+  parseDocument,
+  type Scalar,
+} from 'yaml';
 
 /**
  * A binding or rule as the wiring editor holds it: YAML text whose data is the
@@ -10,8 +29,11 @@ import { Document, isMap, isPair, isScalar, isSeq, type Node, type Pair, parseDo
  */
 export type WiringKind = 'binding' | 'rule';
 export type Definition = api.BindingDefinition | api.RuleDefinition;
+/** `kind` and a draft's definition always agree; the type name is the check the compiler needs. */
+export const isBindingDefinition = (definition: Definition): definition is api.BindingDefinition =>
+  definition.$typeName === api.BindingDefinitionSchema.typeName;
 
-export const definitionSchema = (kind: WiringKind): DescMessage =>
+export const definitionSchema = (kind: WiringKind) =>
   kind === 'binding' ? api.BindingDefinitionSchema : api.RuleDefinitionSchema;
 
 /** A problem of a draft at a range of its text (UTF-16 offsets). */
@@ -59,16 +81,22 @@ const stepOrder = [
   'heartbeat',
 ];
 
+const isJsonObject = (value: JsonValue): value is JsonObject =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
 /** Steps by name, each with its keys in reading order and its body's steps likewise. */
 function orderSteps(steps: JsonValue | undefined): JsonValue | undefined {
-  if (!steps || typeof steps !== 'object' || Array.isArray(steps)) return steps;
-  const map = steps as Record<string, Record<string, JsonValue>>;
+  if (!steps || !isJsonObject(steps)) return steps;
+  const map = steps;
   return Object.fromEntries(
     Object.keys(map)
       .sort()
       .map((name) => {
-        const step = ordered(map[name]!, stepOrder);
-        if (step.steps) step.steps = orderSteps(step.steps)!;
+        const raw = map[name];
+        if (!isJsonObject(raw)) throw new Error('a step serializes to a JSON object');
+        const step = ordered(raw, stepOrder);
+        const nested = orderSteps(step.steps);
+        if (nested !== undefined) step.steps = nested;
         return [name, step];
       }),
   );
@@ -76,15 +104,18 @@ function orderSteps(steps: JsonValue | undefined): JsonValue | undefined {
 
 function ordered(json: Record<string, JsonValue>, order: readonly string[]): Record<string, JsonValue> {
   const out: Record<string, JsonValue> = {};
-  for (const key of order) if (key in json) out[key] = json[key]!;
-  for (const key of Object.keys(json)) if (!(key in out)) out[key] = json[key]!;
+  for (const key of order) if (key in json) out[key] = json[key];
+  for (const key of Object.keys(json)) if (!(key in out)) out[key] = json[key];
   return out;
 }
 
 /** The YAML text of a definition: keys in reading order, steps by name, the editor's layout compact. */
 export function toYAML(kind: WiringKind, definition: Definition): string {
-  const json = toJson(definitionSchema(kind), definition) as Record<string, JsonValue>;
-  if (json.steps) json.steps = orderSteps(json.steps)!;
+  const value = toJson(definitionSchema(kind), definition);
+  if (!isJsonObject(value)) throw new Error('a definition serializes to a JSON object');
+  const json = value;
+  const nested = orderSteps(json.steps);
+  if (nested !== undefined) json.steps = nested;
   const doc = new Document(ordered(json, rootOrder[kind]));
   compact(doc);
   return doc.toString({ lineWidth: 0 });
@@ -92,25 +123,26 @@ export function toYAML(kind: WiringKind, definition: Definition): string {
 
 /** Layout points, `after` lists and retry policies read best on one line. */
 function compact(doc: Document) {
-  const flow = (node: unknown) => {
+  const flow = (node: Node | Pair | null | undefined) => {
     if (isMap(node) || isSeq(node)) node.flow = true;
   };
-  const stepsOf = (steps: unknown) => {
-    if (!isMap(steps)) return;
+  const stepsOf = (steps: Node | Pair | null | undefined) => {
+    if (!isMap<Node, Node>(steps)) return;
     for (const pair of steps.items)
-      if (isMap(pair.value)) {
+      if (isMap<Node, Node>(pair.value)) {
         flow(pair.value.get('after'));
         flow(pair.value.get('retry'));
         stepsOf(pair.value.get('steps'));
       }
   };
-  stepsOf(doc.get('steps'));
+  const root = doc.get('steps');
+  if (isMap<Node, Node>(root)) stepsOf(root);
   const editor = doc.get('editor');
-  if (isMap(editor)) {
+  if (isMap<Node, Node>(editor)) {
     const nodes = editor.get('nodes');
-    if (isMap(nodes)) for (const pair of nodes.items) flow(pair.value);
+    if (isMap<Node, Node>(nodes)) for (const pair of nodes.items) flow(pair.value);
     const notes = editor.get('notes');
-    if (isSeq(notes)) for (const note of notes.items) if (isMap(note)) flow(note.get('at'));
+    if (isSeq<Node>(notes)) for (const note of notes.items) if (isMap<Node, Node>(note)) flow(note.get('at'));
   }
 }
 
@@ -128,7 +160,7 @@ export function protoDuration(text: string): string {
   if (!goDuration.test(text)) return text;
   let seconds = 0;
   for (const [, value, unit] of text.matchAll(/(\d+(?:\.\d+)?)(ns|us|µs|ms|s|m|h)/g))
-    seconds += Number(value) * units[unit!]!;
+    if (unit !== undefined) seconds += Number(value) * units[unit];
   return `${Number(seconds.toFixed(9))}s`;
 }
 
@@ -144,7 +176,7 @@ export function parseDraft(kind: WiringKind, text: string): Draft {
     problems.push({
       from: error.pos[0],
       to: Math.max(error.pos[1], error.pos[0] + 1),
-      message: error.message.split('\n')[0]!,
+      message: error.message.split('\n')[0] ?? error.message,
       severity: 'error',
       source: 'yaml',
     });
@@ -152,7 +184,7 @@ export function parseDraft(kind: WiringKind, text: string): Draft {
     problems.push({
       from: warning.pos[0],
       to: Math.max(warning.pos[1], warning.pos[0] + 1),
-      message: warning.message.split('\n')[0]!,
+      message: warning.message.split('\n')[0] ?? warning.message,
       severity: 'warning',
       source: 'yaml',
     });
@@ -161,7 +193,8 @@ export function parseDraft(kind: WiringKind, text: string): Draft {
   if (problems.some((problem) => problem.severity === 'error')) return { kind, text, doc, problems };
   try {
     const json = normalize(doc.toJS({ maxAliasCount: 50 }) ?? {});
-    return { kind, text, doc, problems, definition: fromJson(definitionSchema(kind), json as JsonValue) as Definition };
+    const definition = fromJson(definitionSchema(kind), json);
+    return { kind, text, doc, problems, definition };
   } catch (error) {
     problems.push({
       from: 0,
@@ -175,17 +208,17 @@ export function parseDraft(kind: WiringKind, text: string): Draft {
 }
 
 /** Durations to protojson; everything else as it reads. */
-function normalize(value: unknown): unknown {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
-  const out = value as Record<string, unknown>;
-  const steps = (map: unknown) => {
+function normalize(value: JsonValue): JsonValue {
+  if (!value || !isJsonObject(value)) return value;
+  const out = value;
+  const steps = (map: JsonValue | null | undefined) => {
     if (!map || typeof map !== 'object') return;
-    for (const step of Object.values(map as Record<string, Record<string, unknown> | null>)) {
-      if (!step || typeof step !== 'object') continue;
+    for (const step of Object.values(map)) {
+      if (!step || !isJsonObject(step)) continue;
       for (const key of ['startToClose', 'start_to_close', 'heartbeat'])
         if (typeof step[key] === 'string') step[key] = protoDuration(step[key]);
-      const retry = step.retry as Record<string, unknown> | undefined;
-      if (retry && typeof retry === 'object')
+      const retry = step.retry;
+      if (isJsonObject(retry))
         for (const key of ['initialInterval', 'initial_interval', 'maxInterval', 'max_interval'])
           if (typeof retry[key] === 'string') retry[key] = protoDuration(retry[key]);
       steps(step.steps);
@@ -195,9 +228,9 @@ function normalize(value: unknown): unknown {
   return out;
 }
 
-function checkShape(node: unknown, desc: DescMessage, path: string, problems: DraftProblem[]) {
+function checkShape(node: Node | Pair | null, desc: DescMessage, path: string, problems: DraftProblem[]) {
   if (node == null || (isScalar(node) && node.value == null)) return;
-  if (!isMap(node)) {
+  if (!isMap<Node, Node>(node)) {
     problems.push({
       ...nodeRange(node),
       message: `expected a mapping (${desc.name})`,
@@ -217,7 +250,7 @@ function checkShape(node: unknown, desc: DescMessage, path: string, problems: Dr
         message: `unknown key "${key}" (${desc.name} has ${known})`,
         severity: 'error',
         source: 'shape',
-        path: `${path}/${escape(key)}`,
+        path: `${path}/${escapeKey(key)}`,
       });
       continue;
     }
@@ -225,7 +258,7 @@ function checkShape(node: unknown, desc: DescMessage, path: string, problems: Dr
   }
 }
 
-function checkField(value: unknown, field: DescField, path: string, problems: DraftProblem[]) {
+function checkField(value: Node | Pair | null, field: DescField, path: string, problems: DraftProblem[]) {
   if (value == null || (isScalar(value) && value.value == null)) return;
   switch (field.fieldKind) {
     case 'message':
@@ -244,7 +277,7 @@ function checkField(value: unknown, field: DescField, path: string, problems: Dr
         });
       return;
     case 'map':
-      if (!isMap(value)) {
+      if (!isMap<Node, Node>(value)) {
         problems.push({ ...nodeRange(value), message: 'expected a mapping', severity: 'error', source: 'shape', path });
         return;
       }
@@ -253,7 +286,7 @@ function checkField(value: unknown, field: DescField, path: string, problems: Dr
           checkShape(
             pair.value,
             field.message,
-            `${path}/${escape(isScalar(pair.key) ? String(pair.key.value) : '')}`,
+            `${path}/${escapeKey(isScalar(pair.key) ? String(pair.key.value) : '')}`,
             problems,
           );
       return;
@@ -279,22 +312,22 @@ function checkField(value: unknown, field: DescField, path: string, problems: Dr
   }
 }
 
-function nodeRange(node: unknown): { from: number; to: number } {
-  const range = (node as Node | undefined)?.range;
+function nodeRange(node: Node | Pair | null | undefined): { from: number; to: number } {
+  const range = isNode(node) ? node.range : undefined;
   return range ? { from: range[0], to: Math.max(range[1], range[0] + 1) } : { from: 0, to: 1 };
 }
 
-export const escape = (key: string) => key.replaceAll('~', '~0').replaceAll('/', '~1');
-export const unescape = (segment: string) => segment.replaceAll('~1', '/').replaceAll('~0', '~');
-export const pointer = (...keys: string[]) => keys.map((key) => `/${escape(key)}`).join('');
+export const escapeKey = (key: string) => key.replaceAll('~', '~0').replaceAll('/', '~1');
+export const unescapeKey = (segment: string) => segment.replaceAll('~1', '/').replaceAll('~0', '~');
+export const pointer = (...keys: string[]) => keys.map((key) => `/${escapeKey(key)}`).join('');
 const snake = (key: string) => key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
 /** The node at a JSON Pointer: its pair (for a mapping entry) and value; missing: the deepest parent found. */
-export function nodeAt(doc: Document, path: string): { pair?: Pair; node?: unknown; found: boolean } {
-  let current: unknown = doc.contents,
-    pair: Pair | undefined;
-  for (const segment of path.split('/').slice(1).map(unescape)) {
-    if (isMap(current)) {
+export function nodeAt(doc: Document, path: string): { pair?: Pair<Node, Node>; node?: Node | null; found: boolean } {
+  let current: Node | null = doc.contents,
+    pair: Pair<Node, Node> | undefined;
+  for (const segment of path.split('/').slice(1).map(unescapeKey)) {
+    if (isMap<Node, Node>(current)) {
       const next = current.items.find(
         (item) =>
           isScalar(item.key) && (String(item.key.value) === segment || String(item.key.value) === snake(segment)),
@@ -302,8 +335,8 @@ export function nodeAt(doc: Document, path: string): { pair?: Pair; node?: unkno
       if (!next) return { pair, node: current, found: false };
       pair = next;
       current = next.value;
-    } else if (isSeq(current) && /^\d+$/.test(segment)) {
-      const item = current.items[Number(segment)];
+    } else if (isSeq<Node>(current) && /^\d+$/.test(segment)) {
+      const item = current.items.at(Number(segment));
       if (item === undefined) return { pair, node: current, found: false };
       pair = undefined;
       current = item;
@@ -324,7 +357,7 @@ export function locate(
     if (mapped) return mapped;
   }
   const target = found && node != null && !(isScalar(node) && node.value == null) ? node : (pair?.key ?? node);
-  const range = (target as Node | undefined)?.range;
+  const range = isNode(target) ? target.range : undefined;
   if (!range) {
     const end = draft.text.indexOf('\n');
     return { from: 0, to: end > 0 ? end : Math.min(1, draft.text.length) };
@@ -398,46 +431,46 @@ function valueOffsets(source: string, value: string, type: Scalar['type']): numb
 /** The JSON Pointer of the deepest node at a text offset, and whether the offset is on a key. */
 export function pathAt(doc: Document, offset: number): { path: string; onKey: boolean } {
   let path = '',
-    current: unknown = doc.contents,
+    current: Node | null = doc.contents,
     onKey = false;
   for (;;) {
-    if (isMap(current)) {
+    if (isMap<Node, Node>(current)) {
       const pair = current.items.find((item) => within(item, offset));
       if (!pair || !isScalar(pair.key)) break;
-      path += `/${escape(String(pair.key.value))}`;
+      path += `/${escapeKey(String(pair.key.value))}`;
       if (pair.key.range && offset <= pair.key.range[1]) {
         onKey = true;
         break;
       }
       current = pair.value;
-    } else if (isSeq(current)) {
+    } else if (isSeq<Node>(current)) {
       const index = current.items.findIndex((item) => {
-        const range = (item as Node | undefined)?.range;
+        const range = item.range;
         return !!range && offset >= range[0] && offset <= range[1];
       });
       if (index < 0) break;
       path += `/${index}`;
-      current = current.items[index];
+      current = current.items.at(index) ?? null;
     } else break;
   }
   return { path, onKey };
 }
 
-function within(pair: Pair, offset: number): boolean {
+function within(pair: Pair<Node, Node> | Node, offset: number): boolean {
   if (!isPair(pair)) return false;
-  const start = (pair.key as Node | undefined)?.range?.[0],
-    end = (pair.value as Node | undefined)?.range?.[2] ?? (pair.key as Node | undefined)?.range?.[2];
+  const start = pair.key.range?.[0],
+    end = pair.value?.range?.[2] ?? pair.key.range?.[2];
   return start !== undefined && end !== undefined && offset >= start && offset <= end;
 }
 
 /** One change of a draft: the value at path (keys and indexes), undefined to remove it. */
 export interface Change {
   path: readonly (string | number)[];
-  value: unknown;
+  value: JsonValue | undefined;
 }
 
 /** The draft text with the value at path set; undefined: removed. Keeps the rest of the text as written. */
-export function edit(draft: Draft, path: readonly (string | number)[], value: unknown): string {
+export function edit(draft: Draft, path: readonly (string | number)[], value: JsonValue | undefined): string {
   return editAll(draft, [{ path, value }]);
 }
 
@@ -519,7 +552,7 @@ export const validStepName = (name: string) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(n
 /** A free step name for an activity: its name in lowerCamelCase, numbered when taken. */
 export function stepNameFor(activity: string, taken: readonly string[]): string {
   const bare = (activity.split('.').pop() ?? 'step').replace(/[^A-Za-z0-9_]/g, '');
-  let base = bare ? bare[0]!.toLowerCase() + bare.slice(1) : 'step';
+  let base = bare ? bare[0].toLowerCase() + bare.slice(1) : 'step';
   if (!validStepName(base)) base = `${base}Step`;
   let name = base;
   for (let n = 2; taken.includes(name) || !validStepName(name); n++) name = `${base}${n}`;
@@ -570,7 +603,7 @@ export function addStep(
 /** Changes that remove a step: the step, its position, and its name from its siblings' `after`. */
 export function removeStep(definition: Definition | undefined, id: string): Change[] {
   const { siblings } = stepAt(definition, id),
-    name = id.split('/').at(-1)!,
+    name = id.split('/').at(-1) ?? '',
     base = stepPathOf(id).slice(0, -2);
   const changes: Change[] = [
     { path: stepPathOf(id), value: undefined },

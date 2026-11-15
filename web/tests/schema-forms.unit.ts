@@ -103,7 +103,8 @@ describe('schema form engine boundary', () => {
     const value = setValue({}, ['a.b', 'items', 0, '__proto__'], 'literal');
     expect(valueAt(value, ['a.b', 'items', 0, '__proto__'])).toBe('literal');
     expect(valueAt(value, ['a', 'b'])).toBeUndefined();
-    expect(({} as Record<string, unknown>).literal).toBeUndefined();
+    const untouched: Record<string, string> = {};
+    expect(untouched.literal).toBeUndefined();
     expect(valueAt(setValue(value, ['a.b', 'items', 0], undefined), ['a.b', 'items'])).toEqual([]);
   });
   it('masks declared secrets without changing the editable values', () => {
@@ -119,7 +120,8 @@ describe('schema form engine boundary', () => {
       name: 'demo',
       unknown: 'public-extra',
     });
-    const safe = structToNative(masked(result.baked!));
+    if (!result.baked) throw new Error('Expected a baked result');
+    const safe = structToNative(masked(result.baked));
     expect(safe).toEqual({ password: '***', name: 'demo', unknown: 'public-extra' });
     expect(result.resolved.password).toBe('hidden-value');
   });

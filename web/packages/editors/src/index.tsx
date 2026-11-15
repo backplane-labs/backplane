@@ -1,15 +1,16 @@
 import { Button, ClipboardButton, SelectControl } from '@backplane-labs/backplane-ui';
 import { lazy, Suspense } from 'react';
 import { useEditorText } from './locales.js';
-import { displayJSON } from './model.js';
+import { type DisplayValue, displayJSON } from './model.js';
 import type { CodeEditorProps, DiffViewerProps, QueryLanguage } from './types.js';
 
 export { editorsEnglish } from './locales.js';
 export { displayJSON } from './model.js';
 export type * from './types.js';
 
-const Editor = lazy(() => import('./editor.js')),
-  Diff = lazy(() => import('./diff.js'));
+// Named exports behind React.lazy keep the code-split chunks default-free.
+const Editor = lazy(() => import('./editor.js').then((m) => ({ default: m.CodeEditorSurface }))),
+  Diff = lazy(() => import('./diff.js').then((m) => ({ default: m.DiffSurface })));
 
 export function CodeEditor(props: CodeEditorProps) {
   const text = useEditorText();
@@ -49,7 +50,10 @@ export function QueryEditor({
           aria-label={text('language')}
           value={language}
           disabled={props.disabled || props.readOnly}
-          onValueChange={(value) => onLanguageChange(value as QueryLanguage)}
+          onValueChange={(next) => {
+            const selected = languages.find((item) => item === next);
+            if (selected) onLanguageChange(selected);
+          }}
           options={languages.map((item) => ({
             value: item,
             label:
@@ -78,7 +82,7 @@ export function QueryEditor({
 export function JSONViewer({
   value,
   ...props
-}: Omit<CodeEditorProps, 'value' | 'language' | 'readOnly' | 'onChange'> & { value: unknown }) {
+}: Omit<CodeEditorProps, 'value' | 'language' | 'readOnly' | 'onChange'> & { value: DisplayValue }) {
   const content = typeof value === 'string' ? value : displayJSON(value);
   return <CodeEditor {...props} value={content} language="json" readOnly />;
 }

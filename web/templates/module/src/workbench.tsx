@@ -35,7 +35,7 @@ const records = [
     traceId: '0123456789abcdef0123456789abcdef',
   },
 ];
-export default function Workbench() {
+export function Workbench() {
   const { mode } = usePluginContext(),
     { t } = useTranslation('module.hello');
   const [query, setQuery] = useState('{ resource.service.name = "hello" }'),
@@ -63,8 +63,8 @@ export default function Workbench() {
           <SchemaForm
             label={t('configuration')}
             schema={schema}
-            onSubmit={async (baked) => {
-              setSaved(nativeJSON(structToNative(baked.values!)));
+            onSubmit={(baked) => {
+              setSaved(nativeJSON(structToNative(baked.values)));
             }}
           />
         </Panel>

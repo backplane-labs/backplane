@@ -27,6 +27,8 @@ export function useRegistry() {
   const available = descriptors.value?.plugins.filter((plugin) => plugin.available) ?? [];
   const signature = JSON.stringify(available);
   useEffect(() => {
+    // Retry bumps attempt so plugins reload even when the descriptor signature is unchanged.
+    void attempt;
     const controller = new AbortController();
     const descriptors: typeof available = JSON.parse(signature);
     setEntries(
@@ -50,7 +52,7 @@ export function useRegistry() {
           cache.current.set(key, plugin);
           setEntries((old) => ({ ...old, [key]: { plugin } }));
         },
-        (reason: unknown) => {
+        (reason) => {
           if (!controller.signal.aborted)
             setEntries((old) => ({
               ...old,

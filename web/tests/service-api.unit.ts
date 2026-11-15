@@ -8,12 +8,17 @@ import { bundleOpenAPI } from '../packages/platform-ui/src/api-bundle';
 import { type APIDocument, describedByDescriptors, readAPIDocument } from '../packages/platform-ui/src/api-document';
 
 const manifest = externalAPIManifest();
+function api(index: number) {
+  const entry = manifest.apis[index];
+  if (!entry) throw new Error(`No manifest API at index ${index}`);
+  return entry;
+}
 function document(index: number): APIDocument {
-  const result = readAPIDocument(manifest.apis[index]!, publicDescriptors);
+  const result = readAPIDocument(api(index), publicDescriptors);
   if (!('document' in result)) throw new Error(result.detail ?? result.problem);
   return result.document;
 }
-function openAPI(value: unknown) {
+function openAPI(value: string | object) {
   const route = create(APISchema, {
     kind: ApiKind.HTTP,
     schema: {
@@ -26,7 +31,7 @@ function openAPI(value: unknown) {
 
 describe('external service API documents', () => {
   it('resolves relative files and cyclic cross-file references once each', async () => {
-    const files: Record<string, unknown> = {
+    const files: Record<string, object> = {
       'api/root.yaml': {
         openapi: '3.0.3',
         paths: { '/x': { $ref: '../paths/x.yaml' } },
@@ -40,9 +45,9 @@ describe('external service API documents', () => {
       'types/visitor.yaml': { type: 'object', properties: { child: { $ref: './visitor.yaml' } } },
     };
     const calls: string[] = [];
-    const source = await bundleOpenAPI('api/root.yaml', async (file) => {
+    const source = await bundleOpenAPI('api/root.yaml', (file) => {
       calls.push(file);
-      return new TextEncoder().encode(JSON.stringify(files[file]));
+      return Promise.resolve(new TextEncoder().encode(JSON.stringify(files[file])));
     });
     const result = openAPI(source);
     expect(calls).toEqual(['api/root.yaml', 'paths/x.yaml', 'types/visitor.yaml']);
@@ -54,9 +59,11 @@ describe('external service API documents', () => {
     async (ref) => {
       const calls: string[] = [];
       await expect(
-        bundleOpenAPI('api.yaml', async (file) => {
+        bundleOpenAPI('api.yaml', (file) => {
           calls.push(file);
-          return new TextEncoder().encode(JSON.stringify({ openapi: '3.0.3', paths: { '/x': { $ref: ref } } }));
+          return Promise.resolve(
+            new TextEncoder().encode(JSON.stringify({ openapi: '3.0.3', paths: { '/x': { $ref: ref } } })),
+          );
         }),
       ).rejects.toThrow();
       expect(calls).toEqual(['api.yaml']);
@@ -108,7 +115,8 @@ describe('external service API documents', () => {
     ).toContain('name=Developer');
   });
   it('exposes nested properties, constraints, array enums and examples without unrolling recursive references', () => {
-    const visitor = document(0).schemas[0]!;
+    const visitor = document(0).schemas[0];
+    if (!visitor) throw new Error('No schema in the document');
     expect(visitor.fields).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: 'preferences.timezone', description: 'default: "UTC"' }),
@@ -234,7 +242,7 @@ describe('external service API documents', () => {
     expect(document(2).operations).toEqual(document(1).operations);
   });
   it('needs the descriptor set for gRPC and ws-proto routes only', () => {
-    expect(readAPIDocument(manifest.apis[1]!)).toEqual({ problem: 'missing' });
+    expect(readAPIDocument(api(1))).toEqual({ problem: 'missing' });
     expect(manifest.apis.map(describedByDescriptors)).toEqual([false, true, true, false, false, false, false]);
   });
   it('renders GraphQL root operations and required argument types', () => {
@@ -250,8 +258,8 @@ describe('external service API documents', () => {
     expect(readAPIDocument(route)).toMatchObject({ document: { operations: doc.operations } });
   });
   it('distinguishes missing documents from malformed documents', () => {
-    expect(readAPIDocument(manifest.apis[4]!)).toEqual({ problem: 'missing' });
-    expect(readAPIDocument(manifest.apis[5]!)).toMatchObject({ problem: 'invalid' });
+    expect(readAPIDocument(api(4))).toEqual({ problem: 'missing' });
+    expect(readAPIDocument(api(5))).toMatchObject({ problem: 'invalid' });
     expect(openAPI('openapi: 3.0.3\npaths: [')).toMatchObject({ problem: 'invalid' });
     expect(openAPI('openapi: 3.0.3\npaths: &paths { self: *paths }')).toMatchObject({ problem: 'invalid' });
   });

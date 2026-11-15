@@ -207,7 +207,7 @@ export function Cell({
     case 'timestamp': {
       const text = scalarText(value);
       const date = new Date(text);
-      return Number.isNaN(date.getTime()) ? <>{text}</> : <Timestamp value={date} absolute />;
+      return Number.isNaN(date.getTime()) ? text : <Timestamp value={date} absolute />;
     }
     case 'object':
     case 'ref':
@@ -255,7 +255,7 @@ export interface CursorPage<T> {
  */
 export function useCursorPages<T>(
   load: (cursor: string | undefined, signal: AbortSignal) => Promise<CursorPage<T>>,
-  deps: readonly unknown[],
+  deps: readonly (string | number | boolean | bigint | symbol | object | null | undefined)[],
 ) {
   const [rows, setRows] = useState<T[]>([]);
   const [cursor, setCursor] = useState<string>();
@@ -289,7 +289,7 @@ export function useCursorPages<T>(
     setRows([]);
     void fetchPage(undefined, false);
     return () => current.current?.abort();
-  }, deps);
+  }, [fetchPage, ...deps]);
 
   return {
     rows,

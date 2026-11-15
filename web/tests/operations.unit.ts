@@ -40,14 +40,17 @@ describe('operation payloads', () => {
   });
   it('completes keys of the object at the cursor', () => {
     const text = '{\n  "sequence": 1,\n  "na';
-    const top = payloadCompletions(schema, text, text.length)!;
+    const top = payloadCompletions(schema, text, text.length);
+    if (!top) throw new Error('Expected top-level completions');
     expect(top.options.map((option) => option.label)).toEqual(['name', 'sequence', 'count', 'home', 'tags']);
     expect(top.from).toBe(text.indexOf('"na') + 1);
-    expect(top.options[0]!.apply).toBe('name": ');
-    const nested = payloadCompletions(schema, '{"tags": [], "home": {"ci', 25)!;
+    expect(top.options[0]?.apply).toBe('name": ');
+    const nested = payloadCompletions(schema, '{"tags": [], "home": {"ci', 25);
+    if (!nested) throw new Error('Expected nested completions');
     expect(nested.options.map((option) => option.label)).toEqual(['city']);
-    const bare = payloadCompletions(schema, '{"home": {}, ', 13)!;
-    expect(bare.options[0]!.apply).toBe('"name": ');
+    const bare = payloadCompletions(schema, '{"home": {}, ', 13);
+    if (!bare) throw new Error('Expected bare-key completions');
+    expect(bare.options[0]?.apply).toBe('"name": ');
     expect(payloadCompletions(schema, '{"name": "x', 11)).toBeNull();
     expect(payloadCompletions(schema, '{"tags": [1, 2', 14)).toBeNull();
   });

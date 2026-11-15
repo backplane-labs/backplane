@@ -1,10 +1,24 @@
+import type { LogRecord } from '@opentelemetry/api-logs';
 import { Component, createElement, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { browserRuntime } from '../../packages/errors/src/browser';
 import { createClient, createReactErrorHandler } from '../../packages/errors/src/index';
 
+class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? 'Fallback visible' : this.props.children;
+  }
+}
+function Broken(): ReactNode {
+  throw new Error('Real React render failure');
+}
+
 export async function reactFixture() {
-  const records: unknown[] = [];
+  const records: LogRecord[] = [];
   const client = createClient({
     runtime: browserRuntime,
     loggerProvider: {
@@ -19,31 +33,19 @@ export async function reactFixture() {
   const report = createReactErrorHandler(client);
   const element = document.createElement('div');
   document.body.append(element);
-  class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-    state = { failed: false };
-    static getDerivedStateFromError() {
-      return { failed: true };
-    }
-    render() {
-      return this.state.failed ? 'Fallback visible' : this.props.children;
-    }
-  }
-  function Broken(): ReactNode {
-    throw new Error('Real React render failure');
-  }
   let finish = () => {};
   const caught = new Promise<void>((resolve) => {
     finish = resolve;
   });
   const root = createRoot(element, {
     onCaughtError: (error, info) => {
-      report(error, info);
+      if (error instanceof Error) report(error, info);
       finish();
     },
   });
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    root.render(createElement(Boundary, { children: createElement(Broken) }));
+    root.render(createElement(Boundary, null, createElement(Broken)));
     await Promise.race([
       caught,
       new Promise((_, reject) => {

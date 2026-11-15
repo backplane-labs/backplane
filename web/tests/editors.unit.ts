@@ -1,11 +1,11 @@
 import { StringStream } from '@codemirror/language';
 import { describe, expect, it } from 'vitest';
 import { queryParser } from '../packages/editors/src/language';
-import { boundDiagnostics, displayJSON } from '../packages/editors/src/model';
+import { boundDiagnostics, type DisplayValue, displayJSON } from '../packages/editors/src/model';
 
 describe('editor data boundaries', () => {
   it('preserves uint64 and handles cyclic display values', () => {
-    const object: Record<string, unknown> = { sequence: 18446744073709551615n };
+    const object: Record<string, DisplayValue> = { sequence: 18446744073709551615n };
     object.self = object;
     expect(displayJSON(object)).toContain('18446744073709551615');
     expect(displayJSON(object)).toContain('[Circular');
@@ -27,7 +27,7 @@ describe('editor data boundaries', () => {
   it('tokenizes supported query families without treating string contents as keywords', () => {
     for (const language of ['cel', 'promql', 'metricsql', 'logsql', 'traceql'] as const) {
       const parser = queryParser(language),
-        state = { quote: null as string | null },
+        state: { quote: string | null } = { quote: null },
         stream = new StringStream('"name \\"test\\"" 123ms', 4, 2);
       expect(parser.token(stream, state)).toBe('string');
       expect(state.quote).toBe(null);

@@ -393,6 +393,9 @@
   bottom: 0;
   right: -3px;
   width: 6px;
+  /* <hr> defaults would draw a rule through the drag surface. */
+  margin: 0;
+  border: none;
   cursor: col-resize;
   touch-action: none;
 }

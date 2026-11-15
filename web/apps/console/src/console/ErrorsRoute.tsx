@@ -12,6 +12,11 @@ import {
 import type { ThemeMode } from '@backplane-labs/backplane-theme';
 import { useSearchParams } from 'react-router-dom';
 
+const sorts = new Set<string>(errorsSorts);
+const states = new Set<string>(errorsStates);
+const isErrorsSort = (value: string | null): value is ErrorsSort => value !== null && sorts.has(value);
+const isErrorsStates = (value: string | null): value is ErrorsStates => value !== null && states.has(value);
+
 const fields = new Set([
   'service',
   'environment',
@@ -39,8 +44,8 @@ export function ErrorsRoute({ mode, service }: { mode: ThemeMode; service?: stri
   const live = params.get('live'),
     fingerprint = params.get('fingerprint'),
     groupService = params.get('group_service'),
-    sort = params.get('sort') as ErrorsSort | null,
-    states = params.get('state') as ErrorsStates | null;
+    sortParam = params.get('sort'),
+    statesParam = params.get('state');
   const state: ErrorsState = {
     range: {
       from: params.get('from') ?? defaultErrorsState.range.from,
@@ -51,8 +56,8 @@ export function ErrorsRoute({ mode, service }: { mode: ThemeMode; service?: stri
     text: params.get('q') ?? '',
     live: live === null ? defaultErrorsState.live : Number(live) || 0,
     view: params.get('view') === 'occurrences' ? 'occurrences' : 'groups',
-    sort: sort && errorsSorts.includes(sort) ? sort : defaultErrorsState.sort,
-    states: states && errorsStates.includes(states) ? states : defaultErrorsState.states,
+    sort: isErrorsSort(sortParam) ? sortParam : defaultErrorsState.sort,
+    states: isErrorsStates(statesParam) ? statesParam : defaultErrorsState.states,
     group: fingerprint && groupService ? { fingerprint, service: groupService } : undefined,
     ref: params.get('ref') ?? undefined,
   };

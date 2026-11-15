@@ -45,7 +45,9 @@ export function useCapabilities() {
   return useContext(Context)?.capabilities.value?.capabilities;
 }
 export function usePlatformStatus() {
-  return useContext(Context)!;
+  const context = useContext(Context);
+  if (!context) throw new Error('usePlatformStatus requires PlatformProvider');
+  return context;
 }
 const dependencies: Record<string, string[]> = {
   events: ['nats'],

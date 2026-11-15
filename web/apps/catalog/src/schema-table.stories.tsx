@@ -74,7 +74,14 @@ function Fixture() {
         columns={[
           'name',
           'status',
-          { id: 'os', label: 'OS', value: (row) => String((row.labels as NativeStruct | undefined)?.os ?? '') },
+          {
+            id: 'os',
+            label: 'OS',
+            value: (row) => {
+              const labels = row.labels;
+              return String(labels !== null && typeof labels === 'object' && 'os' in labels ? (labels.os ?? '') : '');
+            },
+          },
           'sessions',
           'trusted',
           'seen_at',

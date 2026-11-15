@@ -19,11 +19,11 @@ class Socket extends FakeSocket implements ObservableSocket {
   }
   override open() {
     super.open();
-    this.events.get('open')?.forEach((listener) => listener());
+    for (const listener of this.events.get('open') ?? []) listener();
   }
   override drop() {
     super.drop();
-    this.events.get('close')?.forEach((listener) => listener());
+    for (const listener of this.events.get('close') ?? []) listener();
   }
 }
 
@@ -35,7 +35,7 @@ const session = {
 };
 const clients: BackplaneClient[] = [];
 afterEach(() => {
-  clients.forEach((client) => client.dispose());
+  for (const client of clients) client.dispose();
   clients.length = 0;
   vi.useRealTimers();
 });
@@ -96,7 +96,7 @@ test('login uses cookie endpoint under console prefix; logout closes active call
   await client.logout();
   await rejected;
   expect(client.getSnapshot()).toMatchObject({ connection: 'anonymous', session: null });
-  expect(() => api.listServices(create(ListServicesRequestSchema))).toThrow('Console is not connected');
+  await expect(api.listServices(create(ListServicesRequestSchema))).rejects.toThrow('Console is not connected');
 });
 
 test.each([429, 500, 503])('HTTP %i preserves session and honors Retry-After', async (status) => {
@@ -141,7 +141,8 @@ test('dropped calls fail once and are not replayed after reconnect', async () =>
   sockets[1].open();
   expect(sockets[1].sent).toHaveLength(0);
   const next = api.listServices(create(ListServicesRequestSchema));
-  const open = sockets[1].sent.find((frame) => frame.kind === Kind.KIND_OPEN)!;
+  const open = sockets[1].sent.find((frame) => frame.kind === Kind.KIND_OPEN);
+  if (!open) throw new Error('The retried call did not open a stream');
   sockets[1].inject({
     streamId: open.streamId,
     kind: Kind.KIND_MSG,

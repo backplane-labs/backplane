@@ -60,6 +60,11 @@ export function ServiceAPI({
   const query = usePlatformQuery(`external-api:${service}`, (signal) =>
     client.getService(create(GetServiceRequestSchema, { name: service }), { signal }),
   );
+  const readSchemaFile = runtime.readSchemaFile;
+  const schemaReader = (hash: string, file: string, signal: AbortSignal) => {
+    if (!readSchemaFile) throw new Error('The host client does not provide API file delivery.');
+    return readSchemaFile(service, hash, file, signal);
+  };
   return (
     <div className="grid min-h-0 gap-3 overflow-y-auto pr-1">
       <QueryState state={query} />
@@ -76,11 +81,7 @@ export function ServiceAPI({
           mode={mode}
           state={state}
           onStateChange={onStateChange}
-          readFile={
-            runtime.readSchemaFile
-              ? (hash, file, signal) => runtime.readSchemaFile!(service, hash, file, signal)
-              : undefined
-          }
+          readFile={readSchemaFile ? schemaReader : undefined}
         />
       )}
     </div>
@@ -102,6 +103,7 @@ export function ServiceAPIDocument({
   readFile?: APIFileReader;
 }) {
   const text = usePlatformText(),
+    endpointField = useId(),
     [local, setLocal] = useState<ServiceAPIState>({ api: 0 });
   const state = controlled ?? local;
   const update = (next: ServiceAPIState) => {
@@ -119,9 +121,10 @@ export function ServiceAPIDocument({
   };
   return (
     <div className="grid min-w-0 gap-4">
-      <label className="grid gap-1 text-sm">
+      <label htmlFor={endpointField} className="grid gap-1 text-sm">
         {text('externalEndpoint')}
         <SelectControl
+          id={endpointField}
           aria-label={text('externalEndpoint')}
           value={String(index)}
           onValueChange={(value) => update({ api: Number(value) })}
@@ -191,7 +194,7 @@ function DescriptorView({
   operation?: string;
   onOperation: (id: string) => void;
 }) {
-  const state = usePlatformQuery(`api-descriptors:${hash}`, async (signal) => {
+  const state = usePlatformQuery(`api-descriptors:${hash}`, (signal) => {
     if (!readFile) throw new Error('The host client does not provide API file delivery.');
     return readFile(hash, descriptorFile, signal);
   });
@@ -215,7 +218,7 @@ function APIBundleView({
   operation?: string;
   onOperation: (id: string) => void;
 }) {
-  const state = usePlatformQuery(`api-files:${bundle.hash}:${bundle.format}:${bundle.entry}`, async (signal) => {
+  const state = usePlatformQuery(`api-files:${bundle.hash}:${bundle.format}:${bundle.entry}`, (signal) => {
     if (!readFile) throw new Error('The host client does not provide API file delivery.');
     return readAPIBundle(bundle, readFile, signal);
   });
@@ -264,12 +267,16 @@ function APIBrowser({
       element?.querySelector('summary')?.focus();
     });
   };
-  const schemaLink = (field: APIField) =>
-    field.type.split(/(\s*[|&,<>]\s*|\[|\]|!|\(|\))/).map((part, index) => {
+  const schemaLink = (field: APIField) => {
+    // Tokens repeat; a token's key is its text plus its occurrence.
+    const seen = new Map<string, number>();
+    return field.type.split(/(\s*[|&,<>]\s*|\[|\]|!|\(|\))/).map((part) => {
       const name = document.schemas.find((schema) => part.replace(/[![\]]/g, '').trim() === schema.name)?.name;
+      const occurrence = seen.get(part) ?? 0;
+      seen.set(part, occurrence + 1);
       return name ? (
         <a
-          key={index}
+          key={`${part}:${occurrence}`}
           href={`#${schemaId(name)}`}
           className="underline decoration-dotted underline-offset-4"
           style={{ color: 'var(--link)' }}
@@ -284,6 +291,7 @@ function APIBrowser({
         part
       );
     });
+  };
   const sectionTitle = (name: string) =>
     name === 'parameters'
       ? text('apiParameters')
@@ -359,9 +367,9 @@ function APIBrowser({
               {selected.title && <h3 className="m-0 text-base font-medium">{selected.title}</h3>}
               {selected.deprecated && <Badge variant="secondary">{text('apiDeprecated')}</Badge>}
               {selected.description && <p className="m-0 whitespace-pre-wrap text-sm">{selected.description}</p>}
-              {selected.sections.map((section, index) => (
+              {selected.sections.map((section) => (
                 <APISectionView
-                  key={index}
+                  key={section.name}
                   section={{
                     ...section,
                     name: sectionTitle(section.name),
@@ -402,7 +410,7 @@ function APIBrowser({
           )}
           {document.schemas
             .filter((schema) => schema.name.toLowerCase().includes(typeFilter.toLowerCase()))
-            .map((schema, index) => (
+            .map((schema) => (
               <details
                 id={schemaId(schema.name)}
                 open={expanded.has(schema.name)}
@@ -417,7 +425,7 @@ function APIBrowser({
                   });
                 }}
                 className="scroll-mt-4 rounded-md border border-border p-3"
-                key={`${schema.name}:${index}`}
+                key={schema.name}
               >
                 <summary className="cursor-pointer break-all font-mono text-sm">
                   {schema.name}
@@ -480,8 +488,11 @@ function APISectionView({
         <p className="m-0 whitespace-pre-wrap text-sm text-muted-foreground">{section.description}</p>
       )}
       {!!section.fields?.length && <APIFields name={section.name} fields={section.fields} renderType={renderType} />}
-      {section.examples?.map((example, index) => (
-        <div className="grid min-w-0 gap-2 rounded-md border border-border bg-muted p-3" key={index}>
+      {section.examples?.map((example) => (
+        <div
+          className="grid min-w-0 gap-2 rounded-md border border-border bg-muted p-3"
+          key={`${example.name}:${JSON.stringify(example.value)}`}
+        >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h4 className="m-0 text-xs font-medium">
               {text('apiExample')} · {example.name}
@@ -526,8 +537,8 @@ function APIFields({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {fields.map((field, index) => (
-          <TableRow key={index}>
+        {fields.map((field) => (
+          <TableRow key={field.name}>
             <TableCell className="font-mono text-xs">
               {field.name}
               {field.required && <span className="ml-2 font-sans text-muted-foreground">{text('required')}</span>}

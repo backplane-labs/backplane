@@ -342,8 +342,7 @@ export function DataTable<T>({
                         onChange={(event) => header.column.setFilterValue(event.target.value)}
                       />
                     )}
-                    <div
-                      role="separator"
+                    <hr
                       aria-orientation="vertical"
                       aria-label={t('resizeColumn', { name: String(header.column.columnDef.header) })}
                       aria-valuenow={header.getSize()}
@@ -369,7 +368,7 @@ export function DataTable<T>({
                         cursor: 'col-resize',
                         touchAction: 'none',
                       }}
-                      className="hover:bg-primary/40 focus-visible:bg-primary/40"
+                      className="border-0 hover:bg-primary/40 focus-visible:bg-primary/40"
                     />
                   </th>
                 ))}
@@ -392,7 +391,8 @@ export function DataTable<T>({
                   aria-rowindex={item.index + 2}
                   onClick={(event) => {
                     if (
-                      (event.target as HTMLElement).closest(
+                      event.target instanceof Element &&
+                      event.target.closest(
                         'button, a, input, select, textarea, [role="checkbox"], [contenteditable="true"]',
                       )
                     )

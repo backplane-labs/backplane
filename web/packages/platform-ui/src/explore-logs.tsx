@@ -19,7 +19,7 @@ import {
 } from '@backplane-labs/backplane-ui';
 import { create } from '@bufbuild/protobuf';
 import { FileText, History, Radio, Waypoints, WrapText } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ExploreRun } from './explore.js';
 import { nanosNow } from './explore-query.js';
 import { usePlatformText } from './locales.js';
@@ -57,10 +57,14 @@ const toneText: Record<StatusTone, string> = {
 export function isoNanos(value: string): bigint | undefined {
   const match = /^(.*?)(?:\.(\d{1,9}))?(Z|[+-]\d\d:\d\d)$/.exec(value),
     millis = match ? Date.parse(`${match[1]}${match[3]}`) : NaN;
-  return Number.isNaN(millis)
+  return Number.isNaN(millis) || !match
     ? undefined
-    : BigInt(millis) * 1_000_000n + BigInt((match![2] ?? '').padEnd(9, '0') || '0');
+    : BigInt(millis) * 1_000_000n + BigInt((match[2] ?? '').padEnd(9, '0') || '0');
 }
+/** Newest first: records with no readable time keep their relative order at the end. */
+const sortLogs = (records: LogRecord[]) =>
+  [...records].sort((a, b) => ((isoNanos(b.timestamp) ?? 0n) > (isoNanos(a.timestamp) ?? 0n) ? 1 : -1));
+
 export function formatLogTime(value: string): string {
   const time = Date.parse(value);
   if (Number.isNaN(time)) return value;
@@ -102,7 +106,8 @@ function LogVolume({ run }: { run: ExploreRun }) {
           buckets - 1,
           Math.max(0, Math.floor(((Number(sample.timestampSeconds) * 1000 - from) / span) * buckets)),
         );
-        result[index]!.set(tone, (result[index]!.get(tone) ?? 0) + Number(sample.value));
+        const bucket = result[index];
+        if (bucket) bucket.set(tone, (bucket.get(tone) ?? 0) + Number(sample.value));
       }
     }
     return result;
@@ -111,6 +116,8 @@ function LogVolume({ run }: { run: ExploreRun }) {
   const max = Math.max(1, ...bars.map(total)),
     count = bars.reduce((sum, bucket) => sum + total(bucket), 0);
   const order = ['danger', 'warning', 'info', 'neutral'] as const;
+  // Bars are positional: a column's key is its bucket plus its total.
+  const barColumns = bars.map((bucket, index) => ({ id: `${index}:${total(bucket)}`, bucket }));
   return (
     <div className="shrink-0 border-b border-border px-3 pt-2 pb-1">
       <div className="mb-1 flex items-center gap-3 text-2xs text-muted-foreground">
@@ -126,17 +133,14 @@ function LogVolume({ run }: { run: ExploreRun }) {
         </span>
       </div>
       <div className="flex h-14 items-end gap-px" role="img" aria-label={text('logVolume')}>
-        {bars.map((bucket, index) => (
-          <div key={index} className="flex h-full flex-1 flex-col justify-end" title={String(total(bucket))}>
-            {order.map((tone) =>
-              bucket.get(tone) ? (
-                <div
-                  key={tone}
-                  className={`w-full ${toneBar[tone]}`}
-                  style={{ height: `${(bucket.get(tone)! / max) * 100}%` }}
-                />
-              ) : null,
-            )}
+        {barColumns.map((column) => (
+          <div key={column.id} className="flex h-full flex-1 flex-col justify-end" title={String(total(column.bucket))}>
+            {order.map((tone) => {
+              const value = column.bucket.get(tone);
+              return value ? (
+                <div key={tone} className={`w-full ${toneBar[tone]}`} style={{ height: `${(value / max) * 100}%` }} />
+              ) : null;
+            })}
           </div>
         ))}
       </div>
@@ -161,38 +165,41 @@ export function LogResults({
     () => (run.response.result.case === 'rows' ? rowsToLogs(run.response.result.value, crypto.randomUUID()) : []),
     [run],
   );
-  const sort = (records: LogRecord[]) =>
-    [...records].sort((a, b) => ((isoNanos(b.timestamp) ?? 0n) > (isoNanos(a.timestamp) ?? 0n) ? 1 : -1));
-  const [records, setRecords] = useState(() => sort(initial)),
+  const [records, setRecords] = useState(() => sortLogs(initial)),
     [exhausted, setExhausted] = useState(initial.length < limit);
   useEffect(() => {
-    setRecords(sort(initial));
+    setRecords(sortLogs(initial));
     setExhausted(initial.length < limit);
   }, [initial, limit]);
   const [search, setSearch] = useState(''),
     [selected, setSelected] = useState<LogRecord>(),
     [wrap, setWrap] = useState(true),
     [live, setLive] = useState(false),
+    liveSwitch = useId(),
     [loading, setLoading] = useState(false);
-  const fetchRange = async (from: bigint, to: bigint, count: number) => {
-    const response = await client.queryObs(
-      create(QueryObsRequestSchema, {
-        signal: ObsSignal.LOGS,
-        language: ObsLanguage.LOGSQL,
-        expression: run.query,
-        range: { startUnixNano: from, endUnixNano: to },
-        limit: count,
-      }),
-    );
-    return response.result.case === 'rows' ? rowsToLogs(response.result.value, crypto.randomUUID()) : [];
-  };
+  const query = run.query;
+  const fetchRange = useCallback(
+    async (from: bigint, to: bigint, count: number) => {
+      const response = await client.queryObs(
+        create(QueryObsRequestSchema, {
+          signal: ObsSignal.LOGS,
+          language: ObsLanguage.LOGSQL,
+          expression: query,
+          range: { startUnixNano: from, endUnixNano: to },
+          limit: count,
+        }),
+      );
+      return response.result.case === 'rows' ? rowsToLogs(response.result.value, crypto.randomUUID()) : [];
+    },
+    [client, query],
+  );
   const older = async () => {
     const oldest = isoNanos(records.at(-1)?.timestamp ?? '');
     if (!oldest) return;
     setLoading(true);
     try {
       const page = await fetchRange(run.from, oldest, limit);
-      setRecords((old) => [...old, ...sort(page).filter((record) => (isoNanos(record.timestamp) ?? 0n) < oldest)]);
+      setRecords((old) => [...old, ...sortLogs(page).filter((record) => (isoNanos(record.timestamp) ?? 0n) < oldest)]);
       setExhausted(page.length < limit);
     } finally {
       setLoading(false);
@@ -206,13 +213,14 @@ export function LogResults({
       const newest = isoNanos(latest.current ?? '') ?? run.from;
       void fetchRange(newest + 1n, nanosNow(), 500).then(
         (page) => {
-          if (page.length) setRecords((old) => [...sort(page), ...old].slice(0, 5000));
+          if (page.length) setRecords((old) => [...sortLogs(page), ...old].slice(0, 5000));
         },
         () => undefined,
       );
     }, 5000);
     return () => clearInterval(timer);
-  }, [live, run]); // eslint-disable-line react-hooks/exhaustive-deps -- the tail follows the current run
+    // The tail follows the current run.
+  }, [live, run.from, fetchRange]);
   const visible = search
     ? records.filter((record) => attributeText(record.body).toLowerCase().includes(search.toLowerCase()))
     : records;
@@ -246,8 +254,8 @@ export function LogResults({
           >
             <WrapText />
           </Button>
-          <label className="ml-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Switch size="sm" checked={live} onCheckedChange={setLive} aria-label={text('liveTail')} />
+          <label htmlFor={liveSwitch} className="ml-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Switch id={liveSwitch} size="sm" checked={live} onCheckedChange={setLive} aria-label={text('liveTail')} />
             <Radio className={`size-3.5 ${live ? 'text-success' : ''}`} />
             {text('liveTail')}
           </label>
@@ -345,8 +353,8 @@ export function LogResults({
   );
 }
 
-export function AttributeList({ title, attributes }: { title: string; attributes: Readonly<Record<string, unknown>> }) {
-  const entries = Object.entries(attributes)
+export function AttributeList({ title, attributes }: { title: string; attributes: LogRecord['attributes'] }) {
+  const entries = Object.entries(attributes ?? {})
     .filter(([key]) => !key.startsWith('_stream'))
     .sort(([a], [b]) => a.localeCompare(b));
   return (

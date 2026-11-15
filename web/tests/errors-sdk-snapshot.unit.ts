@@ -27,7 +27,8 @@ function setup(options: Partial<ClientOptions> = {}) {
     records,
     capture: () => {
       expect(client.captureException('original')).toMatchObject({ status: 'emitted' });
-      return JSON.parse(String(records.at(-1)?.body)) as DebugEnvelopeV1;
+      const captured: DebugEnvelopeV1 = JSON.parse(String(records.at(-1)?.body));
+      return captured;
     },
     snapshot: (opts?: SnapshotOptions): DebugSnapshotV1 => {
       const result = client.snapshot(opts);
@@ -36,7 +37,7 @@ function setup(options: Partial<ClientOptions> = {}) {
     },
   };
 }
-const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).byteLength;
+const bytes = (value: object) => new TextEncoder().encode(JSON.stringify(value)).byteLength;
 function freezeTime() {
   vi.spyOn(Date, 'now').mockReturnValue(1_750_000_000_000);
   return vi.spyOn(performance, 'now').mockReturnValue(100);
@@ -219,7 +220,9 @@ it('rejects unsafe source values without calling getters or toJSON and recovers 
   const unregister = client.registerState('getters', {
     read: () => Object.defineProperty({}, 'secret', { get: getter, enumerable: true }),
   });
-  client.registerState('toJSON', { read: () => ({ toJSON }) as never });
+  client.registerState('toJSON', {
+    read: () => Object.defineProperty({}, 'toJSON', { value: toJSON, enumerable: true }),
+  });
   expect(snapshot().state.sources.map((s) => s.status)).toEqual(['error', 'error']);
   expect(getter).not.toHaveBeenCalled();
   expect(toJSON).not.toHaveBeenCalled();

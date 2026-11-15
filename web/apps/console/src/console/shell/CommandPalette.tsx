@@ -45,7 +45,7 @@ export function CommandPalette({
   }, []);
   const go = (path: string) => {
     setOpen(false);
-    navigate(path);
+    void navigate(path);
   };
   const item = (key: string, path: string, Icon: LucideIcon, label: string, hint?: string) => (
     <CommandItem key={key} value={`${label} ${hint ?? ''} ${key}`} onSelect={() => go(path)}>

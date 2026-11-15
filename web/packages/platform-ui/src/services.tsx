@@ -430,8 +430,8 @@ function Contract({ manifest, hooks }: { manifest: Manifest; hooks?: { hook: str
         maxBodyHeight={260}
       >
         {manifest.apis.length ? (
-          manifest.apis.map((route, index) => (
-            <Row key={index}>
+          manifest.apis.map((route) => (
+            <Row key={`${route.kind}:${route.host ?? ''}:${route.prefix}`}>
               <Badge variant="outline" className="w-20 justify-center font-mono uppercase">
                 {enumLabel(ApiKind, route.kind)}
               </Badge>

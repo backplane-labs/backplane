@@ -8,7 +8,7 @@ import {
   QueryObsRequestSchema,
   type QueryObsResponse,
 } from '@backplane-labs/backplane-api';
-import { CodeEditor, type QueryLanguage } from '@backplane-labs/backplane-editors';
+import { CodeEditor } from '@backplane-labs/backplane-editors';
 import type { CorrelationTarget } from '@backplane-labs/backplane-observability-ui';
 import { useClient } from '@backplane-labs/backplane-react';
 import {
@@ -35,7 +35,7 @@ import {
   Search,
   Waypoints,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { LogResults } from './explore-logs.js';
 import { MetricResults } from './explore-metrics.js';
 import { MetricsOverview } from './explore-overview.js';
@@ -60,6 +60,9 @@ import { usePlatformAction, usePlatformQuery } from './runtime.js';
 
 export type { ExploreRange, ExploreSignal } from './explore-query.js';
 export { TraceLookup } from './explore-traces.js';
+
+/** Whether a value names a range of `ranges`. */
+const isRange = (value: string): value is ExploreRange => Object.hasOwn(ranges, value);
 
 /** Everything a link to an Explore view carries; the console keeps it in the URL. */
 export interface ExploreState {
@@ -102,11 +105,14 @@ export function ExplorePanel({
     text = usePlatformText();
   const [local, setLocal] = useState<ExploreState>(controlled ?? { ...defaultState, signal: defaultSignal });
   const state = controlled ?? local;
-  const update = (patch: Partial<ExploreState>) => {
-    const next = { ...state, ...patch };
-    setLocal(next);
-    onStateChange?.(next);
-  };
+  const update = useCallback(
+    (patch: Partial<ExploreState>) => {
+      const next = { ...state, ...patch };
+      setLocal(next);
+      onStateChange?.(next);
+    },
+    [state, onStateChange],
+  );
   const capabilities = usePlatformQuery('obs:capabilities', (signal) =>
     client.getObsCapabilities(create(GetObsCapabilitiesRequestSchema), { signal }),
   );
@@ -116,14 +122,18 @@ export function ExplorePanel({
       : Promise.resolve(undefined),
   );
   const capability = capabilities.value?.signals.find((item) => item.signal === signalIds[state.signal]);
-  const languages = capability?.languages.flatMap((item) => (languageNames[item] ? [languageNames[item]!] : [])) ?? [];
+  const languages =
+    capability?.languages.flatMap((item) => {
+      const name = languageNames[item];
+      return name ? [name] : [];
+    }) ?? [];
+  const requested = state.language;
   const language =
-    state.language && languages.includes(state.language as QueryLanguage)
-      ? (state.language as QueryLanguage)
-      : languages[0];
+    (requested !== undefined ? languages.find((entry) => entry === requested) : undefined) ?? languages[0];
   const fields = useMemo(() => capability?.sourceFields ?? {}, [capability]);
   const scoped = selectors.value?.sources?.selectors[0]?.resource['service.name'] ?? service;
-  const [builder, setBuilder] = useState<QueryBuilder>({ service: scoped });
+  const [builder, setBuilder] = useState<QueryBuilder>({ service: scoped }),
+    errorsToggle = useId();
   useEffect(() => {
     if (scoped) setBuilder((old) => ({ ...old, service: scoped }));
   }, [scoped]);
@@ -132,14 +142,11 @@ export function ExplorePanel({
   const query = draft ?? state.query ?? built;
   const limit = state.limit ?? (state.signal === 'traces' ? 1000 : 500);
   const action = usePlatformAction<ExploreRun>();
-  const window = () => {
-    const to = nanosNow();
-    return { startUnixNano: to - BigInt(ranges[state.range]) * 1_000_000n, endUnixNano: to };
-  };
   const run = useCallback(
     (expression = query) => {
       if (!language || !expression.trim()) return;
-      const range = window(),
+      const to = nanosNow(),
+        range = { startUnixNano: to - BigInt(ranges[state.range]) * 1_000_000n, endUnixNano: to },
         signal = state.signal;
       setDraft(undefined);
       if (expression !== state.query) update({ query: expression });
@@ -162,8 +169,8 @@ export function ExplorePanel({
         language,
       }));
     },
-    [query, language, state, client, limit],
-  ); // eslint-disable-line react-hooks/exhaustive-deps -- user-triggered
+    [query, language, state, client, limit, update, action.run],
+  );
   const changeBuilder = (patch: Partial<QueryBuilder>) => {
     const next = { ...builder, ...patch };
     setBuilder(next);
@@ -181,7 +188,7 @@ export function ExplorePanel({
       last.current = key;
       run(state.query ?? built);
     }
-  }, [ready, state.signal, state.range, language, limit]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ready, state.signal, state.range, state.query, language, limit, run, built]);
   const options = useFieldValues(state.signal, state.range);
   const openTrace = (id: string) => update({ trace: id });
   const navigate = (target: CorrelationTarget) => {
@@ -201,9 +208,8 @@ export function ExplorePanel({
     <section aria-label={text('explore')} className="flex h-full min-h-0 flex-col gap-3">
       <div className="grid shrink-0 gap-2 rounded-lg border border-border bg-card p-2">
         <div className="flex flex-wrap items-center gap-2">
-          <div
+          <fieldset
             className="inline-flex h-8 items-center gap-0.5 rounded-md border border-border bg-muted p-0.5"
-            role="group"
             aria-label={text('signal')}
           >
             {(['logs', 'metrics', 'traces'] as const).map((signal) => {
@@ -225,7 +231,7 @@ export function ExplorePanel({
                 </button>
               );
             })}
-          </div>
+          </fieldset>
           {languages.length > 1 ? (
             <SelectControl
               className="h-8 w-32"
@@ -298,7 +304,10 @@ export function ExplorePanel({
                 className="h-8 w-28"
                 aria-label={text('aggregation')}
                 value={builder.fn ?? (builder.metric ? defaultFunction(builder.metric) : 'raw')}
-                onValueChange={(value) => changeBuilder({ fn: value as MetricFunction })}
+                onValueChange={(value) => {
+                  const next = metricFunctions.find((entry) => entry === value);
+                  if (next) changeBuilder({ fn: next });
+                }}
                 options={metricFunctions.map((fn) => ({ value: fn, label: text(`fn_${fn}`) }))}
               />
               <FilterCombo
@@ -320,8 +329,16 @@ export function ExplorePanel({
                 onChange={(value) => changeBuilder({ span: value || undefined })}
                 loadOptions={options('name')}
               />
-              <label className="inline-flex h-8 items-center gap-2 rounded-md border border-border px-2 text-xs text-muted-foreground">
-                <Switch size="sm" checked={!!builder.errors} onCheckedChange={(errors) => changeBuilder({ errors })} />
+              <label
+                htmlFor={errorsToggle}
+                className="inline-flex h-8 items-center gap-2 rounded-md border border-border px-2 text-xs text-muted-foreground"
+              >
+                <Switch
+                  id={errorsToggle}
+                  size="sm"
+                  checked={!!builder.errors}
+                  onCheckedChange={(errors) => changeBuilder({ errors })}
+                />
                 {text('errorsOnly')}
               </label>
             </>
@@ -342,7 +359,9 @@ export function ExplorePanel({
               className="h-8 w-32"
               aria-label={text('timeRange')}
               value={state.range}
-              onValueChange={(value) => update({ range: value as ExploreRange })}
+              onValueChange={(value) => {
+                if (isRange(value)) update({ range: value });
+              }}
               options={Object.keys(ranges).map((range) => ({ value: range, label: text('lastRange', { range }) }))}
             />
             <Button size="sm" disabled={!language || action.pending || action.disabled} onClick={() => run()}>
@@ -410,8 +429,8 @@ export function ExplorePanel({
                 role="status"
               >
                 {(result.response.info.partial || result.response.info.truncated) && <div>{text('partial')}</div>}
-                {result.response.info.warnings.map((warning, index) => (
-                  <div key={index}>{warning}</div>
+                {result.response.info.warnings.map((warning) => (
+                  <div key={warning}>{warning}</div>
                 ))}
               </div>
             )}

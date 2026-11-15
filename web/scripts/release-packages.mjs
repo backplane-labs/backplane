@@ -37,7 +37,7 @@ for (const { manifest } of packages) {
   }
 }
 if (mode === '--check') {
-  console.log(`${packages.length} coordinated packages match ${version}`);
+  process.stdout.write(`${packages.length} coordinated packages match ${version}\n`);
 } else if (mode === '--publish') {
   const inventory = JSON.parse(await readFile(resolve(output, 'frontend-packages.json'), 'utf8'));
   if (inventory.version !== version || inventory.packages.length !== packages.length)
@@ -78,7 +78,7 @@ if (mode === '--check') {
     if (existing) {
       if (existing !== entry.integrity)
         throw new Error(`${entry.name}@${version} already exists with different contents; choose a new version`);
-      console.log(`${entry.name}@${version}: identical version already published`);
+      process.stdout.write(`${entry.name}@${version}: identical version already published\n`);
       continue;
     }
     execFileSync('npm', ['publish', resolve(output, entry.filename), '--ignore-scripts', '--registry', registry], {
@@ -102,7 +102,7 @@ if (mode === '--check') {
   }
   await writeFile(
     resolve(output, 'frontend-packages.json'),
-    JSON.stringify({ version, registry, packages: inventory }, null, 2) + '\n',
+    `${JSON.stringify({ version, registry, packages: inventory }, null, 2)}\n`,
   );
-  console.log(`Packed ${inventory.length} packages for ${version}`);
+  process.stdout.write(`Packed ${inventory.length} packages for ${version}\n`);
 }

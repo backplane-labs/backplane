@@ -1,9 +1,9 @@
 import { displayJSON } from '@backplane-labs/backplane-editors';
 import { Button, type DataColumn, DataTable } from '@backplane-labs/backplane-ui';
-import { useMemo } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import { useObsText } from './locales.js';
-import type { Attributes, CorrelationTarget } from './types.js';
-export function attributeText(value: unknown) {
+import type { Attributes, AttributeValue, CorrelationTarget } from './types.js';
+export function attributeText(value: AttributeValue) {
   return typeof value === 'string' ? value : typeof value === 'bigint' ? String(value) : displayJSON(value);
 }
 export function AttributeTable({
@@ -13,7 +13,7 @@ export function AttributeTable({
 }: {
   label: string;
   attributes: Attributes;
-  onFilter?: (name: string, value: unknown) => void;
+  onFilter?: (name: string, value: AttributeValue) => void;
 }) {
   const text = useObsText(),
     rows = useMemo(() => Object.entries(attributes).map(([key, value]) => ({ key, value })), [attributes]);
@@ -66,11 +66,11 @@ export function HighlightText({ value, search }: { value: string; search: string
   if (!search) return <>{value}</>;
   const lower = value.toLowerCase(),
     needle = search.toLowerCase();
-  const parts = [];
+  const parts: ReactNode[] = [];
   let start = 0,
-    at: number,
     count = 0;
-  while ((at = lower.indexOf(needle, start)) >= 0 && count++ < 1000) {
+  // The bound keeps pathological input from making the loop quadratic.
+  for (let at = lower.indexOf(needle, start); at >= 0 && count < 1000; at = lower.indexOf(needle, start)) {
     parts.push(
       value.slice(start, at),
       <mark key={at} style={{ background: 'var(--warning)', color: 'var(--warning-foreground)' }}>
@@ -78,6 +78,7 @@ export function HighlightText({ value, search }: { value: string; search: string
       </mark>,
     );
     start = at + search.length;
+    count++;
   }
   parts.push(value.slice(start));
   return <>{parts}</>;

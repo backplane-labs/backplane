@@ -33,6 +33,7 @@ import {
   conditionOf,
   detailFacts,
   fieldKey,
+  fieldOf,
   filterOf,
   humanActor,
   keyOf,
@@ -105,7 +106,10 @@ export function AuditExplorer({
     [service, state.chips],
   );
   // The range resolves again on every refresh: "now-24h" moves with now.
-  const range = useMemo(() => resolveTimeRange(state.range), [state.range, tick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const range = useMemo(() => {
+    void tick;
+    return resolveTimeRange(state.range);
+  }, [state.range, tick]);
   const filter = useMemo(() => filterOf(chips, state.text, range), [chips, state.text, range]);
   const key = JSON.stringify([chips, state.text, state.range]);
   const setChips = (next: FeedChip[]) => {
@@ -162,7 +166,7 @@ export function AuditExplorer({
     () =>
       (facets.value?.facets ?? []).map((facet) => {
         const facetKey = keyOf(facet.target),
-          field = facetKey.startsWith('field:') ? (facetKey.slice(6) as AuditFieldName) : undefined;
+          field = fieldOf(facetKey);
         return {
           key: facetKey,
           label: field ? text(`auditField_${field}`) : facetKey.slice(5),
@@ -290,7 +294,10 @@ export function AuditExplorer({
                 variant="ghost"
                 className="ml-auto"
                 disabled={!feed.value?.next || feed.loading}
-                onClick={() => setPages([...pages, feed.value!.next])}
+                onClick={() => {
+                  const next = feed.value?.next;
+                  if (next) setPages([...pages, next]);
+                }}
               >
                 {feed.loading && pages.length ? text('loading') : text('more')}
               </Button>
@@ -314,18 +321,20 @@ export function AuditExplorer({
             <table aria-label={text('audit')} className="w-full text-sm">
               <thead className="sticky top-0 z-[1]">
                 <tr className="border-b border-border bg-raised text-left text-xs text-muted-foreground">
-                  {[
-                    text('time'),
-                    '',
-                    text('service'),
-                    text('action'),
-                    text('actor'),
-                    text('subject'),
-                    text('outcome'),
-                    text('detail'),
-                    '',
-                  ].map((heading, at) => (
-                    <th key={at} className="h-8 px-2 font-medium whitespace-nowrap">
+                  {(
+                    [
+                      ['time', text('time')],
+                      ['spacer', ''],
+                      ['service', text('service')],
+                      ['action', text('action')],
+                      ['actor', text('actor')],
+                      ['subject', text('subject')],
+                      ['outcome', text('outcome')],
+                      ['detail', text('detail')],
+                      ['end', ''],
+                    ] satisfies [string, string][]
+                  ).map(([key, heading]) => (
+                    <th key={key} className="h-8 px-2 font-medium whitespace-nowrap">
                       {heading}
                     </th>
                   ))}
@@ -385,9 +394,11 @@ export function AuditExplorer({
                   size="xs"
                   variant="outline"
                   onClick={() => {
+                    const attributes = record.attributes;
+                    if (!attributes) return;
                     setRun({
-                      workflowId: String(record.attributes!.workflow_id),
-                      runId: String(record.attributes!.run_id ?? ''),
+                      workflowId: String(attributes.workflow_id),
+                      runId: String(attributes.run_id ?? ''),
                     });
                     setSelected(undefined);
                   }}
@@ -573,9 +584,7 @@ function RecordDetail({
   )
     .filter(([, value]) => value)
     .map(([field, value]) => [fieldKey(field), text(`auditField_${field}`), value]);
-  const attributes = Object.entries((record.attributes ?? {}) as Record<string, JsonValue>).sort(([a], [b]) =>
-    a.localeCompare(b),
-  );
+  const attributes = Object.entries(record.attributes ?? {}).sort(([a], [b]) => a.localeCompare(b));
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">

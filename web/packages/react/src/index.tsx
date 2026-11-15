@@ -24,15 +24,15 @@ export function useConnection(): ClientState {
   return useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
 }
 
-export function useClient<T extends object>(constructor: ClientConstructor<T>): T {
+export function useClient<T extends object>(clientConstructor: ClientConstructor<T>): T {
   const client = useBackplane();
-  return useMemo(() => client.client(constructor), [client, constructor]);
+  return useMemo(() => client.client(clientConstructor), [client, clientConstructor]);
 }
 
 export interface WatchState<T> {
   readonly value?: T;
   readonly status: 'loading' | 'ready' | 'stale' | 'error';
-  readonly error?: unknown;
+  readonly error?: Error;
 }
 
 /**
@@ -68,26 +68,28 @@ export function useSnapshotWatch<T>(open: (signal: AbortSignal) => AsyncIterable
       };
     });
     if (active) {
+      // The rejection handler types the caught value; a try/catch would leave it untyped.
       void (async () => {
-        try {
-          for await (const value of watchWithRetry(open, {
-            signal: controller.signal,
-            onRetry: (error) => {
-              if (!controller.signal.aborted)
-                setStored((previous) => ({ ...previous, state: { ...previous.state, status: 'stale', error } }));
-            },
-          })) {
-            if (controller.signal.aborted) return;
-            setStored({ owner: client, session, source: open, state: { value, status: 'ready' } });
-          }
-        } catch (error) {
-          if (!controller.signal.aborted)
-            setStored((previous) => ({ ...previous, state: { ...previous.state, status: 'error', error } }));
+        for await (const value of watchWithRetry(open, {
+          signal: controller.signal,
+          onRetry: (error) => {
+            if (!controller.signal.aborted)
+              setStored((previous) => ({ ...previous, state: { ...previous.state, status: 'stale', error } }));
+          },
+        })) {
+          if (controller.signal.aborted) return;
+          setStored({ owner: client, session, source: open, state: { value, status: 'ready' } });
         }
-      })();
+      })().catch((cause) => {
+        const error = cause instanceof Error ? cause : new Error(String(cause));
+        if (!controller.signal.aborted)
+          setStored((previous) => ({ ...previous, state: { ...previous.state, status: 'error', error } }));
+      });
     }
     return () => controller.abort();
-  }, [client, session, connection.connection, connection.connectionId, open]);
+    // A reopen always passes through another connection state, so the state dep
+    // already retriggers the watch on a fresh WebSocket.
+  }, [client, session, connection.connection, open]);
   // Never display another session/provider's data, including the render before
   // the effect cleanup runs.
   if (stored.owner !== client || stored.session !== session || stored.source !== open) return { status: 'loading' };

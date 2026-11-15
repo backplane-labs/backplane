@@ -56,7 +56,7 @@ export function RunStatusFilter({
 }) {
   const text = usePlatformText();
   return (
-    <div className="flex flex-wrap gap-1" role="group" aria-label={text('status')}>
+    <fieldset className="flex flex-wrap gap-1" aria-label={text('status')}>
       {[api.RunStatus.UNSPECIFIED, ...runStatuses].map((status) => (
         <button
           key={status}
@@ -68,7 +68,7 @@ export function RunStatusFilter({
           {status === api.RunStatus.UNSPECIFIED ? text('allStatuses') : enumLabel(api.RunStatus, status)}
         </button>
       ))}
-    </div>
+    </fieldset>
   );
 }
 
@@ -142,15 +142,19 @@ export function RunTable({
               <Timestamp value={date(run.startTime)} />
             </td>
             <td className="px-3 text-xs">
-              {run.startTime ? (
-                run.closeTime ? (
-                  <Duration milliseconds={date(run.closeTime)!.getTime() - date(run.startTime)!.getTime()} />
+              {(() => {
+                const started = date(run.startTime),
+                  closed = date(run.closeTime);
+                return run.startTime && started ? (
+                  run.closeTime && closed ? (
+                    <Duration milliseconds={closed.getTime() - started.getTime()} />
+                  ) : (
+                    <Duration since={started} className="text-info" />
+                  )
                 ) : (
-                  <Duration since={date(run.startTime)} className="text-info" />
-                )
-              ) : (
-                '—'
-              )}
+                  '—'
+                );
+              })()}
             </td>
             <td className="px-3 font-mono text-xs text-muted-foreground">{run.historyLength.toString()}</td>
           </tr>
@@ -164,7 +168,7 @@ export function RunTable({
 export function useRunPages() {
   const [pages, setPages] = useState<Uint8Array[]>([new Uint8Array()]);
   return {
-    page: pages.at(-1)!,
+    page: pages.at(-1) ?? new Uint8Array(),
     number: pages.length,
     first: () => setPages([new Uint8Array()]),
     newer: () => setPages((old) => (old.length > 1 ? old.slice(0, -1) : old)),
@@ -210,9 +214,17 @@ export interface RunRef {
   runId: string;
 }
 /** Hooks for runs owned by another service API (binding and rule runs). */
+/** What a run control RPC answers. */
+type RunControlResult =
+  | api.CancelRunResponse
+  | api.CancelBindingRunResponse
+  | api.CancelRuleRunResponse
+  | api.TerminateRunResponse
+  | api.SignalRunResponse;
+
 export interface RunSource {
   load?: (run: RunRef, signal: AbortSignal) => Promise<api.GetRunResponse>;
-  cancel?: (run: RunRef, signal: AbortSignal) => Promise<unknown>;
+  cancel?: (run: RunRef, signal: AbortSignal) => Promise<RunControlResult>;
 }
 /** How often an open running run is refreshed. */
 const runPoll = 3000;
@@ -299,7 +311,7 @@ function RunLink({ run, onOpen, label }: { run: RunRef; onOpen: (run: RunRef) =>
 function memoText(value: string): string {
   if (!value.startsWith('"')) return value;
   try {
-    const parsed: unknown = JSON.parse(value);
+    const parsed = JSON.parse(value);
     return typeof parsed === 'string' ? parsed : value;
   } catch {
     return value;
@@ -323,7 +335,7 @@ function RunDetail({
 }) {
   const client = useClient(api.WorkflowServiceClient),
     text = usePlatformText(),
-    action = usePlatformAction<unknown>();
+    action = usePlatformAction<RunControlResult>();
   const state = usePlatformQuery(`run:${workflowId}:${runId}`, (signal) =>
     source?.load
       ? source.load({ workflowId, runId }, signal)
@@ -360,7 +372,7 @@ function RunDetail({
         <Skeleton className="h-48" />
       </div>
     );
-  const control = (execute: (signal: AbortSignal) => Promise<unknown>) => async (signal: AbortSignal) => {
+  const control = (execute: (signal: AbortSignal) => Promise<RunControlResult>) => async (signal: AbortSignal) => {
     const result = await action.run((abort) => execute(AbortSignal.any([signal, abort])));
     if (result === undefined) throw new Error('Run control outcome is unavailable');
     state.refresh();
@@ -584,14 +596,13 @@ function RunDetail({
             <div className="flex flex-wrap items-center gap-2">
               <ConfirmAction
                 trigger={
-                  <>
+                  <Button type="button" variant="outline" disabled={action.pending || action.disabled}>
                     <CircleX className="size-3.5" />
                     {text('cancel')}
-                  </>
+                  </Button>
                 }
                 title={text('cancelConfirm')}
                 description={text('cancelHelp')}
-                disabled={action.pending || action.disabled}
                 onConfirm={control((signal) =>
                   source?.cancel
                     ? source.cancel({ workflowId, runId }, signal)
@@ -607,15 +618,14 @@ function RunDetail({
               />
               <ConfirmAction
                 trigger={
-                  <>
+                  <Button type="button" variant="outline" disabled={action.pending || action.disabled}>
                     <OctagonX className="size-3.5" />
                     {text('terminate')}
-                  </>
+                  </Button>
                 }
                 tone="danger"
                 title={text('terminateConfirm')}
                 description={text('terminateHelp')}
-                disabled={action.pending || action.disabled}
                 onConfirm={control((signal) =>
                   client.terminateRun(create(api.TerminateRunRequestSchema, { workflowId, runId, reason }), { signal }),
                 )}
@@ -641,14 +651,13 @@ function RunDetail({
               <div>
                 <ConfirmAction
                   trigger={
-                    <>
+                    <Button type="button" variant="outline" disabled={!signalName || action.pending || action.disabled}>
                       <Send className="size-3.5" />
                       {text('signalRun')}
-                    </>
+                    </Button>
                   }
                   title={text('signalConfirm')}
                   description={signalName}
-                  disabled={!signalName || action.pending || action.disabled}
                   onConfirm={control((signal) =>
                     client.signalRun(
                       create(api.SignalRunRequestSchema, {

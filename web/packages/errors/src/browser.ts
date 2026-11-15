@@ -11,6 +11,7 @@ import {
   type Runtime,
   type UncaughtSource,
 } from './ports.js';
+import type { CapturedInput } from './protocol.js';
 import { globalScope } from './scope.js';
 
 type Client = Pick<ReturnType<typeof createClient>, 'addBreadcrumb' | 'onDispose'>;
@@ -31,10 +32,11 @@ export function globalUncaught(): UncaughtSource {
     subscribe(report) {
       const scope = globalScope();
       if (!scope) throw new Error('uncaught_needs_a_browser_scope');
-      const host = scope as unknown as Record<symbol, unknown>;
-      if (host[uncaughtKey]) throw new Error('auto_handlers_already_owned');
+      // Ownership is a symbol-keyed field on the shared global: visible across
+      // copies of this module, so Reflect keeps the exact same property writes.
+      if (Reflect.get(scope, uncaughtKey)) throw new Error('auto_handlers_already_owned');
       const owner = {};
-      host[uncaughtKey] = owner;
+      Reflect.set(scope, uncaughtKey, owner);
       const onError = (event: ErrorEvent) => {
         if (!(event instanceof ErrorEvent) || event.target !== scope) return;
         report({
@@ -55,7 +57,7 @@ export function globalUncaught(): UncaughtSource {
       return () => {
         scope.removeEventListener('error', onError);
         scope.removeEventListener('unhandledrejection', onRejection);
-        if (host[uncaughtKey] === owner) delete host[uncaughtKey];
+        if (Reflect.get(scope, uncaughtKey) === owner) Reflect.deleteProperty(scope, uncaughtKey);
       };
     },
   };
@@ -129,13 +131,12 @@ const ownerKey = Symbol.for('backplane.errors.browser-breadcrumbs.v1');
 export function instrumentBrowser(client: Client, options: BrowserBreadcrumbOptions) {
   // fetch and XHR breadcrumbs work in a worker too; navigation needs a page.
   if (options.navigation && typeof history === 'undefined') throw new Error('navigation_breadcrumbs_need_a_page');
-  const host = globalThis as unknown as Record<symbol, unknown>;
-  if (host[ownerKey]) throw new Error('browser_instrumentation_already_owned');
+  if (Reflect.get(globalThis, ownerKey)) throw new Error('browser_instrumentation_already_owned');
   const owner = {};
   let closed = false;
   const cleanups: (() => void)[] = [];
   const excluded = new Set((options.excludeUrls ?? []).map(safeUrl));
-  host[ownerKey] = owner;
+  Reflect.set(globalThis, ownerKey, owner);
   const metadata = (input: string, method: string) => {
     const url = safeUrl(input);
     if (excluded.has(url) || /\/v1\/(logs|traces|metrics)\/?$/.test(new URL(url).pathname)) return;
@@ -159,7 +160,7 @@ export function instrumentBrowser(client: Client, options: BrowserBreadcrumbOpti
         cleanup();
       } catch {}
     }
-    if (host[ownerKey] === owner) delete host[ownerKey];
+    if (Reflect.get(globalThis, ownerKey) === owner) Reflect.deleteProperty(globalThis, ownerKey);
   };
   try {
     if (options.fetch) {
@@ -182,16 +183,14 @@ export function instrumentBrowser(client: Client, options: BrowserBreadcrumbOpti
             record('http.fetch', { ...data, status: response.status, durationMs: performance.now() - started }, ctx);
             return response;
           },
-          (error: unknown) => {
+          (error: CapturedInput) => {
             record('http.fetch', { ...data, outcome: 'failed', durationMs: performance.now() - started }, ctx);
             throw error;
           },
         );
       };
       // OTel FetchTransport explicitly bypasses instrumentation via this property.
-      Object.defineProperty(wrapped, '__original', {
-        value: (original as typeof fetch & { __original?: typeof fetch }).__original ?? original,
-      });
+      Object.defineProperty(wrapped, '__original', { value: Reflect.get(original, '__original') ?? original });
       cleanups.push(() => {
         if (globalThis.fetch === wrapped) globalThis.fetch = original;
       });
@@ -207,14 +206,21 @@ export function instrumentBrowser(client: Client, options: BrowserBreadcrumbOpti
       const unlisten = (xhr: XMLHttpRequest, listener: () => void) => {
         for (const event of events) xhr.removeEventListener(event, listener);
       };
-      const open = function (this: XMLHttpRequest, ...args: Parameters<typeof originalOpen>) {
-        originalOpen.apply(this, args);
+      const open: typeof originalOpen = function (
+        this: XMLHttpRequest,
+        method: string,
+        url: string | URL,
+        async?: boolean,
+        username?: string | null,
+        password?: string | null,
+      ) {
+        originalOpen.call(this, method, url, async ?? true, username, password);
         try {
-          requests.set(this, metadata(String(args[1]), args[0]));
+          requests.set(this, metadata(String(url), method));
         } catch {
           requests.delete(this);
         }
-      } as typeof originalOpen;
+      };
       const send: typeof originalSend = function (this: XMLHttpRequest, body) {
         const previous = listeners.get(this);
         if (previous) unlisten(this, previous);

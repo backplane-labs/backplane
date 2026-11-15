@@ -102,5 +102,5 @@ for (const file of (await readdir(directory)).filter((name) => name.endsWith('.p
 }
 markdown.splice(6, 0, `Inventory: **${count} RPCs in ${Object.keys(profiles).length} services**.`);
 await writeFile(new URL('docs/api-reference.md', root), markdown.join('\n'));
-await writeFile(new URL('web/tests/api-examples.generated.ts', root), examples.join('\n') + '\n');
-console.log(`Documented and generated typechecked call examples for ${count} console RPCs`);
+await writeFile(new URL('web/tests/api-examples.generated.ts', root), `${examples.join('\n')}\n`);
+process.stdout.write(`Documented and generated typechecked call examples for ${count} console RPCs\n`);

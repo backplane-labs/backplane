@@ -77,8 +77,8 @@ try {
   await page.getByRole('button', { name: 'Try again' }).click();
   await expect(token).toBeVisible();
   assert.deepEqual(failures, []);
-  console.log(
-    'Login acceptance passed: centered layout, themes, mobile, accessibility, rejection, pending/duplicate prevention, deep-link login, logout and outage recovery',
+  process.stdout.write(
+    'Login acceptance passed: centered layout, themes, mobile, accessibility, rejection, pending/duplicate prevention, deep-link login, logout and outage recovery\n',
   );
 } finally {
   await browser.close();

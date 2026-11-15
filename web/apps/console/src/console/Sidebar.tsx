@@ -35,6 +35,11 @@ function readPreferences() {
   }
 }
 
+/** The sidebar layout consumes the width as a CSS custom property (declared in vite-env.d.ts). */
+function navigationStyle(width: number): CSSProperties {
+  return { '--navigation-width': `${width}px` };
+}
+
 function ServiceIcon({ tone }: { tone: Parameters<typeof StatusDot>[0]['tone'] }) {
   return (
     <span className="console-service-icon">
@@ -44,7 +49,7 @@ function ServiceIcon({ tone }: { tone: Parameters<typeof StatusDot>[0]['tone'] }
   );
 }
 
-export default function Sidebar({
+export function Sidebar({
   services,
   modules,
   mobile,
@@ -64,6 +69,9 @@ export default function Sidebar({
     [closed, setClosed] = useState<Set<string>>(new Set());
   const aside = useRef<HTMLElement>(null),
     drag = useRef<{ x: number; width: number } | null>(null);
+  // Latest-ref: the drawer closes on navigation without re-closing on unrelated parent re-renders.
+  const close = useRef(onClose);
+  close.current = onClose;
   const expanded = preferences.pinned || hover || focus || mobile;
   useEffect(() => {
     try {
@@ -73,13 +81,17 @@ export default function Sidebar({
     }
   }, [preferences]);
   useEffect(() => {
-    onClose();
-  }, [location.pathname]); // Navigation closes the mobile drawer.
+    // The path itself is the trigger: navigation closes the mobile drawer.
+    void location.pathname;
+    close.current();
+  }, [location.pathname]);
   useEffect(() => {
     if (!mobile) return;
-    const previous = document.activeElement as HTMLElement | null;
+    const previous = document.activeElement;
     aside.current?.querySelector<HTMLElement>('a,button')?.focus();
-    return () => previous?.focus();
+    return () => {
+      if (previous instanceof HTMLElement) previous.focus();
+    };
   }, [mobile]);
   useEffect(() => {
     const service = /^\/s\/([^/]+)/.exec(location.pathname)?.[1];
@@ -102,12 +114,12 @@ export default function Sidebar({
   ];
   return (
     <>
-      {mobile && <button className="console-nav-backdrop" aria-label={t('close')} onClick={onClose} />}
+      {mobile && <button type="button" className="console-nav-backdrop" aria-label={t('close')} onClick={onClose} />}
       <div
         className="console-nav-slot"
         data-pinned={preferences.pinned}
         data-mobile={mobile}
-        style={{ '--navigation-width': `${preferences.width}px` } as CSSProperties}
+        style={navigationStyle(preferences.width)}
       >
         <aside
           ref={aside}
@@ -191,6 +203,7 @@ export default function Sidebar({
                     <div className="console-service-row">
                       {service.ui ? (
                         <button
+                          type="button"
                           className="console-nav-item console-branch-button"
                           aria-label={service.name}
                           aria-expanded={expanded && opened}
@@ -278,9 +291,8 @@ export default function Sidebar({
             {expanded && <span className="console-nav-label">{t(preferences.pinned ? 'unpin' : 'pin')}</span>}
           </div>
           {expanded && (
-            <div
+            <hr
               className="console-resize"
-              role="separator"
               aria-label={t('resize')}
               aria-orientation="vertical"
               aria-valuemin={MIN}

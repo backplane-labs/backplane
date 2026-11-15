@@ -90,7 +90,7 @@ const opEnum: Partial<Record<FeedOp, ErrorOperator>> = {
   exists: ErrorOperator.EXISTS,
   not_exists: ErrorOperator.NOT_EXISTS,
 };
-export const isErrorField = (key: string): key is ErrorFieldName => errorFieldNames.includes(key as ErrorFieldName);
+export const isErrorField = (key: string): key is ErrorFieldName => errorFieldNames.some((name) => name === key);
 export const errorFieldOf = (value: ErrorField): ErrorFieldName =>
   errorFieldNames.find((name) => errorFieldEnum[name] === value) ?? 'service';
 
@@ -104,13 +104,16 @@ export function errorFilterOf(
     text,
     start: timestampFromMs(range.from),
     end: timestampFromMs(range.to),
-    conditions: chips
-      .filter((chip) => isErrorField(chip.key) && opEnum[chip.op] !== undefined)
-      .map((chip) => ({
-        field: errorFieldEnum[chip.key as ErrorFieldName],
-        op: opEnum[chip.op],
-        values: chip.values.map((value) => (typeof value === 'string' ? value : JSON.stringify(value))),
-      })),
+    conditions: chips.flatMap((chip) => {
+      if (!isErrorField(chip.key)) return [];
+      return [
+        {
+          field: errorFieldEnum[chip.key],
+          op: opEnum[chip.op],
+          values: chip.values.map((value) => (typeof value === 'string' ? value : JSON.stringify(value))),
+        },
+      ];
+    }),
   });
 }
 
@@ -184,7 +187,7 @@ export function parseStack(stack: string): StackFrame[] {
   const frames: StackFrame[] = [],
     lines = stack.split('\n');
   for (let at = 0; at < lines.length; at++) {
-    const line = lines[at]!;
+    const line = lines[at] ?? '';
     const chrome = v8.exec(line);
     if (chrome) {
       frames.push({
@@ -227,7 +230,7 @@ const record = (value: JsonValue | undefined): Json | undefined =>
 
 /** The cause chain of an error: the SDK envelope's exception (causes, aggregate errors), else the stored exception. */
 export function causesOf(detail: GetErrorResponse): ErrorCause {
-  const exception = record(detail.exception as JsonValue | undefined);
+  const exception = record(detail.exception);
   const fromEnvelope = (value: Json | undefined, id: string, depth: number): ErrorCause | undefined => {
     if (!value || depth > 16) return undefined;
     const stack = typeof value.stacktrace === 'string' ? value.stacktrace : '';

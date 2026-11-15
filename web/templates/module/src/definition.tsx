@@ -34,7 +34,7 @@ import { GetStatsRequestSchema } from './gen/proto/hello/console/v1/admin_pb';
 import { AdminServiceClient } from './gen/proto/hello/console/v1/admin_ws_pb';
 import navigation from './navigation';
 
-const Workbench = lazy(() => import('./workbench'));
+const Workbench = lazy(() => import('./workbench').then((module) => ({ default: module.Workbench })));
 function KitWorkbench() {
   const { t } = useTranslation('module.hello');
   return (

@@ -10,8 +10,10 @@ export function boundDiagnostics(items: readonly EditorDiagnostic[], length: num
     };
   });
 }
+/** Any displayable value: JSON with bigint, or an object such as a protobuf message. */
+export type DisplayValue = object | string | number | bigint | boolean | null | undefined;
 /** Bigints stay decimal strings in JSON; callers needing typed values use protobuf JSON. */
-export function displayJSON(value: unknown): string {
+export function displayJSON(value: DisplayValue): string {
   const seen = new WeakSet<object>();
   return (
     JSON.stringify(

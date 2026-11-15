@@ -95,7 +95,8 @@ export function FileUpload({
   };
   return (
     <section aria-label={label} className="flex flex-col gap-3">
-      <div
+      <section
+        aria-label={label}
         className="rounded-md border border-dashed p-4"
         style={{ background: over ? 'var(--accent)' : undefined }}
         onDragOver={(event) => {
@@ -123,7 +124,7 @@ export function FileUpload({
             event.target.value = '';
           }}
         />
-      </div>
+      </section>
       {limit && <p role="alert">{t('fileLimit', { count: maxFiles })}</p>}
       <ul className="flex flex-col gap-3">
         {entries.map((entry) => (

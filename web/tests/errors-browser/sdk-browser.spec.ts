@@ -5,6 +5,16 @@ import { expect, test } from '@playwright/test';
 const root = resolve(import.meta.dirname, '../..');
 const sdk = `/@fs/${root}/packages/errors/src`;
 
+declare global {
+  interface Window {
+    retryClient?: {
+      flush(): Promise<void>;
+      shutdown(): Promise<void>;
+      outbox: { stats(): Promise<{ entries: number; accepted: number }> };
+    };
+  }
+}
+
 test('local snapshot is detached and matches capture with native browser clocks frozen', async ({ page }) => {
   await page.goto('http://127.0.0.1:4181');
   const result = await page.evaluate(async (base) => {
@@ -200,7 +210,7 @@ test('native IndexedDB stores sanitized data only and enforces whole-record budg
       r.onsuccess = () => resolve(r.result);
       r.onerror = () => reject(r.error);
     });
-    const rows = await new Promise<unknown[]>((resolve, reject) => {
+    const rows = await new Promise<object[]>((resolve, reject) => {
       const tx = database.transaction('records'),
         request = tx.objectStore('records').getAll();
       request.onsuccess = () => resolve(request.result);
@@ -259,7 +269,7 @@ test('real protobuf exporter classifies HTTP rejection and recovers after a netw
       url: `${location.origin}/retry/v1/logs`,
       outbox: { name: crypto.randomUUID() },
     });
-    (window as unknown as { retryClient: typeof client }).retryClient = client;
+    Object.assign(window, { retryClient: client });
     client.captureException('retry later');
     await client.outbox.flushStorage();
     await client.flush();
@@ -269,15 +279,8 @@ test('real protobuf exporter classifies HTTP rejection and recovers after a netw
   expect(before.retried).toBeGreaterThan(0);
   accept = true;
   const after = await page.evaluate(async () => {
-    const client = (
-      window as unknown as {
-        retryClient: {
-          flush(): Promise<void>;
-          shutdown(): Promise<void>;
-          outbox: { stats(): Promise<{ entries: number; accepted: number }> };
-        };
-      }
-    ).retryClient;
+    const client = window.retryClient;
+    if (!client) throw new Error('retry client not set');
     await client.flush();
     const stats = await client.outbox.stats();
     await client.shutdown();
@@ -305,7 +308,7 @@ test('large captures and an error storm: measured latency, intact payload and ea
       }),
     };
     const client = createClient({ loggerProvider: provider, runtime });
-    const measurements = [];
+    const measurements: { bytes: number; p95Ms: number; maxMs: number; retainedBytes: number }[] = [];
     for (const bytes of [10_240, 1_048_576]) {
       const values: number[] = [];
       const unregister = client.registerState('large', {

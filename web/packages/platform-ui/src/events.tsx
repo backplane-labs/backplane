@@ -361,7 +361,11 @@ function EventDetail({
                 size="xs"
                 variant="ghost"
                 disabled={start >= tail}
-                onClick={() => setStart(start + BigInt(PAGE) > tail ? tail : start + BigInt(PAGE))}
+                onClick={() => {
+                  let next = start + BigInt(PAGE);
+                  if (next > tail) next = tail;
+                  setStart(next);
+                }}
               >
                 {text('newerPage')}
               </Button>
@@ -542,7 +546,7 @@ function DeadLetters({
     [pages, setPages] = useState<bigint[]>([0n]),
     [selected, setSelected] = useState<Set<string>>(new Set()),
     [detail, setDetail] = useState<api.DeadLetter>();
-  const start = pages.at(-1)!;
+  const start = pages.at(-1) ?? 0n;
   const state = usePlatformQuery(`dlq:${subscriber}:${consumer}:${start}`, (signal) =>
     client.listDeadLetters(
       create(api.ListDeadLettersRequestSchema, { subscriber, consumer, startSeq: start, limit: 100 }),
@@ -587,7 +591,7 @@ function DeadLetters({
       maxBodyHeight={360}
       actions={
         <>
-          <div className="flex gap-1" role="group" aria-label={text('consumer')}>
+          <fieldset className="flex gap-1" aria-label={text('consumer')}>
             <button
               type="button"
               aria-pressed={!consumer}
@@ -615,30 +619,32 @@ function DeadLetters({
                 {count.consumer} · {count.count.toString()}
               </button>
             ))}
-          </div>
+          </fieldset>
           <ConfirmAction
             trigger={
-              <>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!selected.size || !consumer || action.pending || action.disabled}
+              >
                 <RotateCcw className="size-3.5" />
                 {text('redrive')}
-              </>
+              </Button>
             }
             title={text('redriveConfirm', { count: selected.size })}
             description={text('redriveHelp')}
-            disabled={!selected.size || !consumer || action.pending || action.disabled}
             onConfirm={operate('redrive')}
           />
           <ConfirmAction
             trigger={
-              <>
+              <Button type="button" variant="outline" disabled={!selected.size || action.pending || action.disabled}>
                 <Trash2 className="size-3.5" />
                 {text('purge')}
-              </>
+              </Button>
             }
             tone="danger"
             title={text('purgeConfirm', { count: selected.size })}
             description={text('purgeHelp')}
-            disabled={!selected.size || action.pending || action.disabled}
             onConfirm={operate('purge')}
           />
         </>
@@ -660,7 +666,10 @@ function DeadLetters({
               size="xs"
               variant="ghost"
               disabled={!state.value?.nextSeq}
-              onClick={() => setPages([...pages, state.value!.nextSeq])}
+              onClick={() => {
+                const next = state.value?.nextSeq;
+                if (next !== undefined) setPages([...pages, next]);
+              }}
             >
               {text('next')}
             </Button>
@@ -678,10 +687,15 @@ function DeadLetters({
                 <Checkbox
                   aria-label={text('selectAll')}
                   checked={
-                    letters.length > 0 && letters.every((letter) => selected.has(letter.message!.seq.toString()))
+                    letters.length > 0 &&
+                    letters.every((letter) => letter.message && selected.has(letter.message.seq.toString()))
                   }
                   onCheckedChange={(checked) =>
-                    setSelected(checked ? new Set(letters.map((letter) => letter.message!.seq.toString())) : new Set())
+                    setSelected(
+                      checked
+                        ? new Set(letters.flatMap((letter) => (letter.message ? [letter.message.seq.toString()] : [])))
+                        : new Set(),
+                    )
                   }
                 />
               </th>
@@ -693,19 +707,29 @@ function DeadLetters({
             </tr>
           </thead>
           <tbody>
-            {letters.map((letter) => {
-              const seq = letter.message!.seq.toString();
-              return (
+            {letters.flatMap((letter) => {
+              const message = letter.message;
+              if (!message) return [];
+              const seq = message.seq.toString();
+              return [
                 <tr
                   key={seq}
+                  tabIndex={0}
                   className="cursor-pointer border-b border-border last:border-b-0 hover:bg-raised"
                   onClick={() => setDetail(letter)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setDetail(letter);
+                    }
+                  }}
                 >
-                  <td className="px-3" onClick={(event) => event.stopPropagation()}>
+                  <td className="px-3">
                     <Checkbox
                       aria-label={text('selectRow', { seq })}
                       checked={selected.has(seq)}
                       onCheckedChange={() => toggle(seq)}
+                      onClick={(event) => event.stopPropagation()}
                     />
                   </td>
                   <td className="h-9 px-3 font-mono text-xs">#{seq}</td>
@@ -715,10 +739,10 @@ function DeadLetters({
                   </td>
                   <td className="px-3 font-mono text-xs">{letter.delivered}</td>
                   <td className="px-3 text-xs text-muted-foreground">
-                    <Timestamp value={date(letter.message!.storedAt)} />
+                    <Timestamp value={date(message.storedAt)} />
                   </td>
-                </tr>
-              );
+                </tr>,
+              ];
             })}
           </tbody>
         </table>

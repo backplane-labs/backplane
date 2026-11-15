@@ -61,7 +61,7 @@ const kinds: { kind: OperationKind; icon: typeof Link2 }[] = [
   { kind: 'workflow', icon: Workflow },
 ];
 type Outcome = { ok: boolean; body: string; took: number; error?: string; errorType?: string };
-const failureText = (error: unknown) => (error instanceof Error ? error.message : String(error));
+const failureText = (error: Error) => error.message;
 
 /** Call a hook, run an activity, publish a test event or start a workflow of one service. */
 export function ServiceOperations({ service, mode }: { service: string; mode: 'dark' | 'light' }) {
@@ -97,8 +97,9 @@ export function ServiceOperations({ service, mode }: { service: string; mode: 'd
     }
   }, [selected?.input]);
   const execute = async (payload: string, signal: AbortSignal): Promise<Outcome> => {
+    if (!selected) throw new Error('No operation is selected');
     const started = performance.now(),
-      target = selected!.name;
+      target = selected.name;
     const body =
       kind === 'hook'
         ? toJsonString(
@@ -134,7 +135,7 @@ export function ServiceOperations({ service, mode }: { service: string; mode: 'd
                 ),
                 { prettySpaces: 2 },
               );
-    const parsed = JSON.parse(body) as { result?: { error?: string; errorType?: string } };
+    const parsed: { result?: { error?: string; errorType?: string } } = JSON.parse(body);
     return {
       ok: !parsed.result?.error,
       body,
@@ -166,11 +167,7 @@ export function ServiceOperations({ service, mode }: { service: string; mode: 'd
           }
           flush
         >
-          <div
-            className="grid grid-cols-4 gap-1 border-b border-border p-2"
-            role="group"
-            aria-label={text('selectAction')}
-          >
+          <fieldset className="grid grid-cols-4 gap-1 border-b border-border p-2" aria-label={text('selectAction')}>
             {kinds.map(({ kind: entry, icon: Icon }) => (
               <button
                 key={entry}
@@ -187,7 +184,7 @@ export function ServiceOperations({ service, mode }: { service: string; mode: 'd
                 {text(entry)}
               </button>
             ))}
-          </div>
+          </fieldset>
           {!options.length && <EmptyState className="py-6" title={text('noOperations')} />}
           {options.map((option) => (
             <button
@@ -216,8 +213,7 @@ export function ServiceOperations({ service, mode }: { service: string; mode: 'd
                 <>
                   {pending}
                   {engine && (
-                    <div
-                      role="group"
+                    <fieldset
                       aria-label={text('inputEditor')}
                       className="inline-flex rounded-md border border-border p-0.5"
                     >
@@ -233,15 +229,15 @@ export function ServiceOperations({ service, mode }: { service: string; mode: 'd
                           {text(entry === 'form' ? 'inputForm' : 'inputJSON')}
                         </button>
                       ))}
-                    </div>
+                    </fieldset>
                   )}
                 </>
               }
             >
-              {engine && editor === 'form' ? (
+              {engine && editor === 'form' && selected.input ? (
                 <SchemaForm
                   key={key}
-                  schema={selected.input!}
+                  schema={selected.input}
                   label={text('input')}
                   submitLabel={text('execute')}
                   disabled={action.disabled || action.pending}
@@ -287,21 +283,21 @@ export function ServiceOperations({ service, mode }: { service: string; mode: 'd
                 <p className="m-0 text-sm text-destructive" role="alert">
                   {text('callFailed', { message: failureText(action.error) })}
                 </p>
-              ) : (
+              ) : action.value ? (
                 <div className="grid gap-3">
-                  {action.value!.error && (
+                  {action.value.error && (
                     <p className="m-0 text-sm text-destructive" role="alert">
                       <span className="font-medium">{text('handlerFailed')}</span>
-                      {action.value!.errorType && (
-                        <span className="ml-2 font-mono text-xs text-muted-foreground">{action.value!.errorType}</span>
+                      {action.value.errorType && (
+                        <span className="ml-2 font-mono text-xs text-muted-foreground">{action.value.errorType}</span>
                       )}
                       <br />
-                      {action.value!.error}
+                      {action.value.error}
                     </p>
                   )}
-                  <JSONViewer label={text('output')} value={action.value!.body} mode={mode} />
+                  <JSONViewer label={text('output')} value={action.value.body} mode={mode} />
                 </div>
-              )}
+              ) : undefined}
             </Panel>
           )}
         </div>

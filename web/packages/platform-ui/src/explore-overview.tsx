@@ -95,10 +95,14 @@ const monotonic = (series: ObsSeries[]) =>
   series.length > 0 &&
   series.every((entry) => {
     const values = entry.samples.map((sample) => Number(sample.value)).filter(Number.isFinite);
+    const first = values[0],
+      last = values.at(-1);
     return (
       values.length > 2 &&
-      values.every((value, index) => index === 0 || value >= values[index - 1]!) &&
-      values.at(-1)! > values[0]!
+      first !== undefined &&
+      last !== undefined &&
+      values.every((value, index) => index === 0 || value >= (values[index - 1] ?? value)) &&
+      last > first
     );
   });
 
@@ -149,7 +153,7 @@ export function MetricsOverview({
       title={
         <>
           <LayoutDashboard className="size-4 text-muted-foreground" />
-          {text(service ? 'serviceDashboard' : 'metricsDashboard', { service })}
+          {text(service ? 'serviceDashboard' : 'metricsDashboard', { service: service ?? '' })}
         </>
       }
       count={count}
@@ -245,43 +249,46 @@ function MetricTile({
   const selector = (metric: string) =>
     `{__name__=${quote(metric)}${service ? `, service.name=${quote(service)}` : ''}}`;
   const by = service ? '' : ' by (service.name)';
-  const state = usePlatformQuery(`obs:tile:${tile.id}:${service ?? ''}:${range}:${visible}`, async (signal) => {
-    if (!visible) return undefined;
-    const to = nanosNow(),
-      request = (expression: string) =>
-        slot(() =>
-          client.queryObs(
-            create(QueryObsRequestSchema, {
-              signal: ObsSignal.METRICS,
-              language: ObsLanguage.METRICSQL,
-              expression,
-              range: { startUnixNano: to - BigInt(ranges[range]) * 1_000_000n, endUnixNano: to },
-              stepNanos: stepFor(range, 120),
-            }),
-            { signal },
+  const state = usePlatformQuery<{ fn: MetricFunction; series: ObsSeries[] } | undefined>(
+    `obs:tile:${tile.id}:${service ?? ''}:${range}:${visible}`,
+    async (signal) => {
+      if (!visible) return undefined;
+      const to = nanosNow(),
+        request = (expression: string) =>
+          slot(() =>
+            client.queryObs(
+              create(QueryObsRequestSchema, {
+                signal: ObsSignal.METRICS,
+                language: ObsLanguage.METRICSQL,
+                expression,
+                range: { startUnixNano: to - BigInt(ranges[range]) * 1_000_000n, endUnixNano: to },
+                stepNanos: stepFor(range, 120),
+              }),
+              { signal },
+            ),
+          );
+      const series = (response: Awaited<ReturnType<typeof request>>) =>
+        response.result.case === 'timeSeries' ? response.result.value.series : [];
+      if (tile.histogram)
+        return {
+          fn: 'p95',
+          series: series(
+            await request(
+              `histogram_quantile(0.95, sum(rate(${selector(`${tile.metric}_bucket`)}[5m])) by (${bucketLabels.join(', ')}${service ? '' : ', service.name'}))`,
+            ),
           ),
-        );
-    const series = (response: Awaited<ReturnType<typeof request>>) =>
-      response.result.case === 'timeSeries' ? response.result.value.series : [];
-    if (tile.histogram)
-      return {
-        fn: 'p95' as MetricFunction,
-        series: series(
-          await request(
-            `histogram_quantile(0.95, sum(rate(${selector(`${tile.metric}_bucket`)}[5m])) by (${bucketLabels.join(', ')}${service ? '' : ', service.name'}))`,
-          ),
-        ),
-      };
-    const raw = series(await request(`sum(${selector(tile.metric)})${by}`));
-    // A series that only grows is a counter: its rate is what an operator reads.
-    return monotonic(raw)
-      ? { fn: 'rate' as MetricFunction, series: series(await request(`sum(rate(${selector(tile.metric)}[5m]))${by}`)) }
-      : { fn: 'sum' as MetricFunction, series: raw };
-  });
+        };
+      const raw = series(await request(`sum(${selector(tile.metric)})${by}`));
+      // A series that only grows is a counter: its rate is what an operator reads.
+      return monotonic(raw)
+        ? { fn: 'rate', series: series(await request(`sum(rate(${selector(tile.metric)}[5m]))${by}`)) }
+        : { fn: 'sum', series: raw };
+    },
+  );
   const chart = (state.value?.series ?? []).map((entry, index) => ({
     id: String(index),
     label: entry.labels['service.name'] ?? tile.metric,
-    color: palette[index % palette.length]!,
+    color: palette[index % palette.length] ?? palette[0],
     points: entry.samples.map((sample) => ({ x: Number(sample.timestampSeconds) * 1000, value: sample.value })),
   }));
   const empty = !!state.value && !chart.length;

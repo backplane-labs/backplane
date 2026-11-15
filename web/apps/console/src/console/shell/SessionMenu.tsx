@@ -1,7 +1,9 @@
 import {
   ListSessionsRequestSchema,
   RevokeOtherSessionsRequestSchema,
+  type RevokeOtherSessionsResponse,
   RevokeSessionRequestSchema,
+  type RevokeSessionResponse,
   type Session,
   SessionServiceClient,
 } from '@backplane-labs/backplane-api';
@@ -40,14 +42,16 @@ export function SessionMenu({ onLogout, pending }: { onLogout: () => void; pendi
   const sessions = usePlatformQuery(`sessions:${opened}`, (signal) =>
     opened ? client.listSessions(create(ListSessionsRequestSchema), { signal }) : Promise.resolve(undefined),
   );
-  const revoke = usePlatformAction<unknown>();
+  const revoke = usePlatformAction<RevokeSessionResponse | RevokeOtherSessionsResponse>();
   const current = sessions.value?.sessions.find((session) => session.current),
     others = (sessions.value?.sessions.length ?? 1) - 1;
-  const control = (execute: (signal: AbortSignal) => Promise<unknown>) => async (signal: AbortSignal) => {
-    const result = await revoke.run((abort) => execute(AbortSignal.any([signal, abort])));
-    if (result === undefined) throw new Error('Revoke outcome is unavailable');
-    sessions.refresh();
-  };
+  const control =
+    (execute: (signal: AbortSignal) => Promise<RevokeSessionResponse | RevokeOtherSessionsResponse>) =>
+    async (signal: AbortSignal) => {
+      const result = await revoke.run((abort) => execute(AbortSignal.any([signal, abort])));
+      if (result === undefined) throw new Error('Revoke outcome is unavailable');
+      sessions.refresh();
+    };
   return (
     <>
       <DropdownMenu
@@ -130,10 +134,13 @@ export function SessionMenu({ onLogout, pending }: { onLogout: () => void; pendi
                   <StatusBadge tone="accent">{t('thisSession')}</StatusBadge>
                 ) : (
                   <ConfirmAction
-                    trigger={t('revoke')}
+                    trigger={
+                      <Button variant="outline" disabled={revoke.pending || revoke.disabled}>
+                        {t('revoke')}
+                      </Button>
+                    }
                     title={t('revokeConfirm')}
                     description={t('revokeHelp')}
-                    disabled={revoke.pending || revoke.disabled}
                     onConfirm={control((signal) =>
                       client.revokeSession(create(RevokeSessionRequestSchema, { id: session.id }), { signal }),
                     )}

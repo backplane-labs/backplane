@@ -1,15 +1,30 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
+import { IncomingMessage, ServerResponse } from 'node:http';
 import type { ProxyOptions } from 'vite';
 import { describe, expect, it } from 'vitest';
 import { consoleDevServer } from '../apps/console/dev-proxy';
 
-function request(headers: IncomingMessage['headers']) {
-  return { headers } as IncomingMessage;
+// Minimal stands-in for node streams: the dev proxy's bypass reads only the headers
+// and passes the response through untouched.
+function request(headers: IncomingMessage['headers']): IncomingMessage {
+  const req: IncomingMessage = Object.create(IncomingMessage.prototype);
+  req.headers = headers;
+  return req;
+}
+function emptyResponse(): ServerResponse {
+  return Object.create(ServerResponse.prototype);
+}
+function proxyOptionsOf(base: string, target?: string): [Record<string, string | ProxyOptions>, ProxyOptions] {
+  const proxy = consoleDevServer(base, target).proxy;
+  if (!proxy) throw new Error('Expected the dev server to configure a proxy');
+  // Vite allows a proxy entry to be a bare target string; the console configures options.
+  const options = Object.values(proxy).find((entry): entry is ProxyOptions => typeof entry === 'object');
+  if (!options) throw new Error('Expected a configured proxy entry');
+  return [proxy, options];
 }
 describe('console development proxy', () => {
   it('routes only backend endpoints and leaves app/HMR paths to Vite', () => {
-    const config = consoleDevServer('/backplane/');
-    const patterns = Object.keys(config.proxy!).map((key) => new RegExp(key));
+    const [proxy] = proxyOptionsOf('/backplane/');
+    const patterns = Object.keys(proxy).map((key) => new RegExp(key));
     const matches = (path: string) => patterns.some((pattern) => pattern.test(path));
     for (const path of [
       '/backplane/auth/login',
@@ -27,40 +42,39 @@ describe('console development proxy', () => {
       '/other/auth/login',
     ])
       expect(matches(path)).toBe(false);
-    expect(config.host).toBe('127.0.0.1');
-    expect(config.cors).toBe(false);
-    expect(config.strictPort).toBe(true);
   });
   it('rejects foreign HTTP and WebSocket origins before any rewriting', () => {
     const config = consoleDevServer('/backplane/');
-    const options = Object.values(config.proxy!)[0] as ProxyOptions;
-    for (const response of [undefined, {} as ServerResponse])
+    if (!config.proxy) throw new Error('Expected the dev server to configure a proxy');
+    expect(config.host).toBe('127.0.0.1');
+    expect(config.cors).toBe(false);
+    expect(config.strictPort).toBe(true);
+    const [, options] = proxyOptionsOf('/backplane/');
+    const bypass = options.bypass;
+    if (!bypass) throw new Error('Expected the proxy entry to install a bypass');
+    for (const response of [undefined, emptyResponse()])
       for (const origin of ['null', 'http://evil.test', 'http://127.0.0.1:8081', 'http://localhost:5173']) {
         const req = request({ host: '127.0.0.1:5173', origin });
-        expect(options.bypass!(req, response, options)).toBe(false);
+        expect(bypass(req, response, options)).toBe(false);
         expect(req.headers.origin).toBe(origin);
       }
-    expect(options.bypass!(request({ host: '127.0.0.1:5173' }), undefined, options)).toBe(false);
-    expect(
-      options.bypass!(
-        request({ host: '127.0.0.1:5173', 'sec-fetch-site': 'cross-site' }),
-        {} as ServerResponse,
-        options,
-      ),
-    ).toBe(false);
+    expect(bypass(request({ host: '127.0.0.1:5173' }), undefined, options)).toBe(false);
+    expect(bypass(request({ host: '127.0.0.1:5173', 'sec-fetch-site': 'cross-site' }), emptyResponse(), options)).toBe(
+      false,
+    );
   });
   it('preserves cookies and rewrites a verified origin for backend origin checks', () => {
-    const options = Object.values(
-      consoleDevServer('/backplane/', 'https://platform.example').proxy!,
-    )[0] as ProxyOptions;
-    for (const response of [undefined, {} as ServerResponse]) {
+    const [, options] = proxyOptionsOf('/backplane/', 'https://platform.example');
+    const bypass = options.bypass;
+    if (!bypass) throw new Error('Expected the proxy entry to install a bypass');
+    for (const response of [undefined, emptyResponse()]) {
       const req = request({
         host: '127.0.0.1:5173',
         origin: 'http://127.0.0.1:5173',
         cookie: 'bp_session=fixture',
         'sec-websocket-protocol': 'ws-proto',
       });
-      expect(options.bypass!(req, response, options)).toBeUndefined();
+      expect(bypass(req, response, options)).toBeUndefined();
       expect(req.headers.origin).toBe('https://platform.example');
       expect(req.headers.cookie).toBe('bp_session=fixture');
       expect(req.headers['sec-websocket-protocol']).toBe('ws-proto');
@@ -77,7 +91,8 @@ describe('console development proxy', () => {
       expect(() => consoleDevServer('/backplane/', target)).toThrow();
     for (const base of ['backplane/', '//host/', '/backplane', '/backplane/?x', '/backplane\\/'])
       expect(() => consoleDevServer(base)).toThrow();
-    const pattern = new RegExp(Object.keys(consoleDevServer('/console.v1/').proxy!)[0]);
+    const [proxy] = proxyOptionsOf('/console.v1/');
+    const pattern = new RegExp(Object.keys(proxy)[0] ?? '');
     expect(pattern.test('/console.v1/auth/login')).toBe(true);
     expect(pattern.test('/consoleXv1/auth/login')).toBe(false);
   });

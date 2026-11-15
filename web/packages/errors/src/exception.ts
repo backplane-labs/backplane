@@ -1,4 +1,4 @@
-import type { ExceptionData, ExceptionInfo } from './protocol.js';
+import type { CapturedInput, ExceptionData, ExceptionInfo } from './protocol.js';
 
 export interface ExceptionLimits {
   maxDepth?: number;
@@ -9,10 +9,10 @@ export function exceptionReader(limits: ExceptionLimits = {}) {
     nodes = limits.maxNodes ?? 32;
   if (![depth, nodes].every((n) => Number.isSafeInteger(n) && n >= 1 && n <= 256))
     throw new TypeError('invalid_exception_limits');
-  return (value: unknown, mechanism: ExceptionData['mechanism'], handled?: boolean): ExceptionData => {
+  return (value: CapturedInput, mechanism: ExceptionData['mechanism'], handled?: boolean): ExceptionData => {
     const ancestors = new Set<object>();
     let count = 0;
-    const read = (input: unknown, level: number): ExceptionInfo => {
+    const read = (input: CapturedInput, level: number): ExceptionInfo => {
       if (level > depth || count >= nodes) return { incomplete: 'limit' };
       count++;
       if (input === null || (typeof input !== 'object' && typeof input !== 'function')) {
@@ -28,7 +28,7 @@ export function exceptionReader(limits: ExceptionLimits = {}) {
           ['stack', 'stacktrace'],
         ] as const) {
           try {
-            const field = (input as Record<string, unknown>)[key];
+            const field = Reflect.get(input, key);
             if (typeof field === 'string') result[dest] = field;
           } catch {
             result.incomplete = 'unreadable';

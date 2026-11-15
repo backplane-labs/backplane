@@ -1,7 +1,8 @@
-import { type Attributes, createTraceState } from '@opentelemetry/api';
+import { createTraceState } from '@opentelemetry/api';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import type { ReadableLogRecord } from '@opentelemetry/sdk-logs';
 import { materialize } from './json.js';
+import type { CapturedInput } from './protocol.js';
 
 // Explicit DTO: no exporter, Context, credentials, or live application objects.
 export function encodeRecord(record: ReadableLogRecord): string {
@@ -45,8 +46,8 @@ export function encodeRecord(record: ReadableLogRecord): string {
 export function decodeRecord(payload: string): ReadableLogRecord {
   const value = JSON.parse(payload);
   materialize(value); // Reject non-finite values and retain literal prototype-like keys safely.
-  const object = (v: unknown) => v !== null && typeof v === 'object' && !Array.isArray(v);
-  const time = (v: unknown) =>
+  const object = (v: CapturedInput) => v !== null && typeof v === 'object' && !Array.isArray(v);
+  const time = (v: CapturedInput) =>
     Array.isArray(v) && v.length === 2 && v.every(Number.isSafeInteger) && v[0] >= 0 && v[1] >= 0 && v[1] < 1e9;
   if (
     !object(value) ||
@@ -89,7 +90,7 @@ export function decodeRecord(payload: string): ReadableLogRecord {
     severityNumber: value.severityNumber,
     attributes: value.attributes,
     droppedAttributesCount: value.droppedAttributesCount,
-    resource: resourceFromAttributes(value.resource as Attributes, {
+    resource: resourceFromAttributes(value.resource, {
       schemaUrl: value.resourceSchemaUrl,
     }),
     instrumentationScope: {

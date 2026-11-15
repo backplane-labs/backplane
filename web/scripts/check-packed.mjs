@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, join, resolve } from 'node:path';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -50,7 +50,7 @@ try {
     resolutions[manifest.name] = `file:${tar}`;
     expected.set(manifest.name, hashes(join(directory, 'dist')));
   }
-  console.log(`Packed ${Object.keys(resolutions).length} packages; external consumer: ${scratch}`);
+  process.stdout.write(`Packed ${Object.keys(resolutions).length} packages; external consumer: ${scratch}\n`);
   for (const [name, source] of [
     ['module', 'templates/module'],
     ['host', 'tests/fixtures/embedding'],
@@ -96,16 +96,18 @@ try {
     }
     if (name === 'module') run('yarn', ['typecheck'], target);
     run('yarn', ['build'], target);
-    console.log(`${name}: installed from packages and built`);
+    process.stdout.write(`${name}: installed from packages and built\n`);
   }
   run('yarn', ['playwright', 'test', '-c', 'playwright.packed.config.ts'], root, { BACKPLANE_PACKED_DIR: scratch });
   run('yarn', ['playwright', 'test', '-c', 'playwright.packed.config.ts', 'standalone.spec.ts'], root, {
     BACKPLANE_PACKED_DIR: scratch,
     BACKPLANE_PACKED_DEV: '1',
   });
-  console.log(`Standalone dev/build and embedded package acceptance passed. Log: ${logPath}`);
+  process.stdout.write(`Standalone dev/build and embedded package acceptance passed. Log: ${logPath}\n`);
 } catch (error) {
-  console.error(`Package acceptance failed. Inspect ${logPath}`);
+  process.stderr.write(
+    `Package acceptance failed: ${error instanceof Error ? error.message : String(error)}. Inspect ${logPath}\n`,
+  );
   process.exitCode = 1;
 } finally {
   closeSync(log);

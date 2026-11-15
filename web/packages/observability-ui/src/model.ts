@@ -42,7 +42,8 @@ export function spanForest(spans: readonly SpanRecord[]) {
   const parents = new Map<string, string>();
   for (const node of nodes.values()) {
     if (!node.parentId) continue;
-    if (!nodes.has(node.parentId) || nodes.get(node.parentId)!.traceId !== node.traceId) {
+    const parent = nodes.get(node.parentId);
+    if (!parent || parent.traceId !== node.traceId) {
       malformed = true;
       continue;
     }
@@ -61,14 +62,15 @@ export function spanForest(spans: readonly SpanRecord[]) {
       path.add(current);
       current = parents.get(current);
     }
-    path.forEach((id) => done.add(id));
+    for (const id of path) done.add(id);
   }
   const roots: SpanNode[] = [];
   let start: bigint | null = null,
     end: bigint | null = null;
   for (const node of nodes.values()) {
-    const parent = parents.get(node.id);
-    if (parent) nodes.get(parent)!.children.push(node);
+    const parentNode = parents.get(node.id);
+    const parent = parentNode ? nodes.get(parentNode) : undefined;
+    if (parent) parent.children.push(node);
     else roots.push(node);
     const from = nanos(node.startUnixNano),
       to = nanos(node.endUnixNano);
@@ -81,7 +83,9 @@ export function spanForest(spans: readonly SpanRecord[]) {
   }
   const stack = roots.map((node) => ({ node, depth: 0 }));
   while (stack.length) {
-    const { node, depth } = stack.pop()!;
+    const frame = stack.pop();
+    if (!frame) break;
+    const { node, depth } = frame;
     node.depth = depth;
     if (depth >= 64 && node.children.length) {
       malformed = true;

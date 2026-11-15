@@ -59,12 +59,13 @@ import {
   type DraftProblem,
   edit,
   editAll,
+  isBindingDefinition,
   nodeAt,
   parseDraft,
   pathAt,
   templateYAML,
   toYAML,
-  unescape,
+  unescapeKey,
   type WiringKind,
 } from './document.js';
 import { lineColumn, problemsOf, sameDefinition, useAnalysis, useDraftText, useParsedDraft } from './draft.js';
@@ -207,9 +208,13 @@ function DraftEditor({
   const version = loaded.version,
     saved = version && !version.deleted ? version.definition : undefined;
   const source =
-    target.kind === 'binding' ? target.hook : ((saved as api.RuleDefinition | undefined)?.event ?? target.event ?? '');
+    target.kind === 'binding'
+      ? target.hook
+      : saved && !isBindingDefinition(saved)
+        ? (saved.event ?? target.event ?? '')
+        : (target.event ?? '');
   const baseline = useMemo(() => (saved ? toYAML(kind, saved) : templateYAML(kind, source)), [kind, saved, source]);
-  const savedName = (version as api.RuleVersion | undefined)?.name ?? '';
+  const savedName = (version && 'name' in version ? version.name : '') ?? '';
   const loadedVersion = version?.version ?? 0n;
   // Defined in a wiring file: the console reads it, tests drafts of it, never saves it.
   const managedBy = version?.managedBy ?? '';
@@ -252,7 +257,7 @@ function DraftEditor({
   useEffect(() => {
     if (textChanged || base !== loadedVersion) drafts.set(key, { text: draft.text, base, name });
     else drafts.delete(key);
-  }, [draft.text, name, base]); // eslint-disable-line react-hooks/exhaustive-deps -- the store is stable per workspace.
+  }, [key, drafts, draft.text, name, base, textChanged, loadedVersion]);
 
   const action = usePlatformAction<{ violations: api.Violation[]; target?: WiringTarget }>();
   const conflict = action.error instanceof WsStatusError && action.error.code === 10;
@@ -262,10 +267,10 @@ function DraftEditor({
       const fresh = parseDraft(kind, draft.text).definition;
       if (!fresh) return { violations: [] };
       let response: { violations: api.Violation[]; version?: { version: bigint; ruleId?: string } };
-      if (kind === 'binding')
+      if (isBindingDefinition(fresh))
         response = await bindings.saveBinding(
           create(api.SaveBindingRequestSchema, {
-            definition: fresh as api.BindingDefinition,
+            definition: fresh,
             comment,
             baseVersion: base,
           }),
@@ -276,7 +281,7 @@ function DraftEditor({
           create(api.SaveRuleRequestSchema, {
             id: target.kind === 'rule' ? target.id : '',
             name: name.trim(),
-            definition: fresh as api.RuleDefinition,
+            definition: fresh,
             comment,
             ...(target.kind === 'rule' && target.id ? { baseVersion: base } : {}),
           }),
@@ -285,8 +290,9 @@ function DraftEditor({
       if (response.violations.length || !response.version) return { violations: response.violations };
       drafts.delete(key);
       setComment('');
+      const targetId = target.kind === 'rule' ? target.id : '';
       const next: WiringTarget =
-        kind === 'binding' ? target : { kind: 'rule', id: response.version.ruleId ?? (target as { id: string }).id };
+        kind === 'binding' ? target : { kind: 'rule', id: response.version.ruleId ?? targetId };
       onSaved(next);
       reload();
       return { violations: [], target: next };
@@ -327,7 +333,12 @@ function DraftEditor({
       if (canSave) save();
     }
     // In YAML CodeMirror keeps its own history; elsewhere the draft's history applies.
-    if (mod && !(event.target as HTMLElement).closest('.cm-editor') && (event.key === 'z' || event.key === 'y')) {
+    if (
+      mod &&
+      event.target instanceof HTMLElement &&
+      !event.target.closest('.cm-editor') &&
+      (event.key === 'z' || event.key === 'y')
+    ) {
       event.preventDefault();
       if (event.key === 'y' || event.shiftKey) draft.redo();
       else draft.undo();
@@ -349,7 +360,6 @@ function DraftEditor({
       : kind === 'rule' && !name.trim()
         ? ('nameToSave' as const)
         : undefined;
-  const state = kind === 'binding' ? hookInfo?.state : loaded.rule?.state;
   const broken = loaded.violations.length > 0 && !textChanged;
   const title = kind === 'binding' ? source : savedName || text('newRule');
   const meta = (
@@ -386,7 +396,7 @@ function DraftEditor({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col" onKeyDown={onKey}>
+    <section role="region" className="flex h-full min-h-0 flex-col" onKeyDown={onKey}>
       <EntityHeader
         level={2}
         className="mb-3"
@@ -394,14 +404,17 @@ function DraftEditor({
         title={<span className={kind === 'binding' ? 'font-mono' : undefined}>{title}</span>}
         meta={meta}
         status={
-          state !== undefined &&
-          (kind === 'binding' ? (
-            <StatusBadge tone={bindingTone[state as api.BindingState]}>
-              {enumLabel(api.BindingState, state)}
-            </StatusBadge>
-          ) : (
-            <StatusBadge tone={ruleTone[state as api.RuleState]}>{enumLabel(api.RuleState, state)}</StatusBadge>
-          ))
+          kind === 'binding'
+            ? hookInfo?.state !== undefined && (
+                <StatusBadge tone={bindingTone[hookInfo.state]}>
+                  {enumLabel(api.BindingState, hookInfo.state)}
+                </StatusBadge>
+              )
+            : loaded.rule?.state !== undefined && (
+                <StatusBadge tone={ruleTone[loaded.rule.state]}>
+                  {enumLabel(api.RuleState, loaded.rule.state)}
+                </StatusBadge>
+              )
         }
         actions={
           <HeaderActions
@@ -677,10 +690,10 @@ function DraftEditor({
                 </p>
               ) : (
                 <ul className="m-0 list-none p-0">
-                  {shown.map((problem, at) => {
+                  {shown.map((problem) => {
                     const place = lineColumn(draft.text, problem.from);
                     return (
-                      <li key={at}>
+                      <li key={`${problem.from}:${problem.message}`}>
                         <button
                           type="button"
                           onClick={() => goTo(problem)}
@@ -807,7 +820,7 @@ function DraftEditor({
       >
         {conflictOpen && <LatestDiff kind={kind} target={target} draft={draft.text} mode={mode} />}
       </DetailDrawer>
-    </div>
+    </section>
   );
 }
 
@@ -846,6 +859,13 @@ function Banner({
   );
 }
 
+/** What a header action's RPC answers. */
+type HeaderActionResult =
+  | api.DeleteBindingResponse
+  | api.DeleteRuleResponse
+  | api.PauseRuleResponse
+  | api.ResumeRuleResponse;
+
 function HeaderActions({
   target,
   loaded,
@@ -866,9 +886,10 @@ function HeaderActions({
   const bindings = useClient(api.BindingServiceClient),
     rules = useClient(api.RuleServiceClient),
     text = usePlatformText(),
-    action = usePlatformAction<unknown>();
+    action = usePlatformAction<HeaderActionResult>();
   const control =
-    (execute: (signal: AbortSignal) => Promise<unknown>, after: () => void) => async (signal: AbortSignal) => {
+    (execute: (signal: AbortSignal) => Promise<HeaderActionResult>, after: () => void) =>
+    async (signal: AbortSignal) => {
       const result = await action.run((abort) => execute(AbortSignal.any([signal, abort])));
       if (result === undefined) throw new Error('Outcome is unavailable');
       after();
@@ -878,14 +899,13 @@ function HeaderActions({
     return (
       <ConfirmAction
         trigger={
-          <>
+          <Button type="button" variant="outline" disabled={action.pending || action.disabled}>
             <Trash2 className="size-3.5" />
             {text('delete')}
-          </>
+          </Button>
         }
         title={text('deleteBindingConfirm')}
         description={text('deleteBindingHelp')}
-        disabled={action.pending || action.disabled}
         onConfirm={control(
           (signal) =>
             bindings.deleteBinding(
@@ -903,14 +923,13 @@ function HeaderActions({
       {paused ? (
         <ConfirmAction
           trigger={
-            <>
+            <Button type="button" variant="outline" disabled={action.pending || action.disabled}>
               <Play className="size-3.5" />
               {text('resume')}
-            </>
+            </Button>
           }
           title={text('resumeRuleConfirm')}
           description={text('resumeRuleHelp')}
-          disabled={action.pending || action.disabled}
           onConfirm={control(
             (signal) =>
               rules.resumeRule(create(api.ResumeRuleRequestSchema, { id, baseVersion: loadedVersion }), { signal }),
@@ -920,14 +939,13 @@ function HeaderActions({
       ) : (
         <ConfirmAction
           trigger={
-            <>
+            <Button type="button" variant="outline" disabled={action.pending || action.disabled}>
               <Pause className="size-3.5" />
               {text('pause')}
-            </>
+            </Button>
           }
           title={text('pauseRuleConfirm')}
           description={text('pauseRuleHelp')}
-          disabled={action.pending || action.disabled}
           onConfirm={control(
             (signal) =>
               rules.pauseRule(create(api.PauseRuleRequestSchema, { id, baseVersion: loadedVersion }), { signal }),
@@ -938,14 +956,13 @@ function HeaderActions({
       {!managed && (
         <ConfirmAction
           trigger={
-            <>
+            <Button type="button" variant="outline" disabled={action.pending || action.disabled}>
               <Trash2 className="size-3.5" />
               {text('delete')}
-            </>
+            </Button>
           }
           title={text('deleteRuleConfirm')}
           description={text('deleteRuleHelp')}
-          disabled={action.pending || action.disabled}
           onConfirm={control(
             (signal) =>
               rules.deleteRule(create(api.DeleteRuleRequestSchema, { id, baseVersion: loadedVersion }), { signal }),
@@ -1025,7 +1042,7 @@ function CursorContext({
   const text = usePlatformText();
   const { path } = pathAt(parsed.doc, cursor);
   if (!path) return <p className="m-0 text-xs text-muted-foreground">{text('atCursorHelp')}</p>;
-  const segments = path.split('/').slice(1).map(unescape);
+  const segments = path.split('/').slice(1).map(unescapeKey);
   const type = analysis?.types.find((entry) => entry.path === path)?.type;
   const reads = analysis?.references.filter((entry) => entry.path === path) ?? [];
   // The step the cursor is in, through the for-each bodies it is nested in.
@@ -1033,7 +1050,7 @@ function CursorContext({
     chain = frames.chain.map((entry) => entry.name);
   const step = chain.at(-1),
     parent = chain.slice(0, -1).join('/'),
-    current = frames.chain.at(-1)?.step as api.Step | undefined;
+    current = frames.chain.at(-1)?.step;
   const stepAnalysis = step
     ? analysis?.steps.find((entry) => entry.name === step && entry.parent === parent)
     : undefined;
@@ -1050,11 +1067,8 @@ function CursorContext({
       frames.rest.slice(1, -1),
     );
     description = fields?.fields?.find((field) => field.name === frames.rest.at(-1))?.description;
-  } else if (definition && kind === 'binding' && segments[0] === 'result') {
-    const shape = shapeAt(
-      shapeOf(index.hooks.get((definition as api.BindingDefinition).hook)?.value.output),
-      segments.slice(1),
-    );
+  } else if (definition && isBindingDefinition(definition) && kind === 'binding' && segments[0] === 'result') {
+    const shape = shapeAt(shapeOf(index.hooks.get(definition.hook)?.value.output), segments.slice(1));
     expected = shape && shapeLabel(shape);
   }
   const found = nodeAt(parsed.doc, path).found;
@@ -1087,8 +1101,12 @@ function CursorContext({
         <>
           <dt className="text-muted-foreground">{text('reads')}</dt>
           <dd className="m-0 flex flex-wrap gap-1">
-            {reads.map((entry, at) => (
-              <Badge key={at} variant="outline" className="font-mono">
+            {reads.map((entry) => (
+              <Badge
+                key={`${entry.path}:${entry.variable}:${entry.fields.join('.')}`}
+                variant="outline"
+                className="font-mono"
+              >
                 {[entry.variable, ...entry.fields].join('.')}
               </Badge>
             ))}

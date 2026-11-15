@@ -12,9 +12,19 @@ import {
   ThemeContext,
   UnitPicker,
 } from '@grafana/ui';
-import { useId, useMemo } from 'react';
+import { useId, useMemo, useRef } from 'react';
 import { useChartText } from './locales.js';
 import { exact, numeric } from './model.js';
+
+let rowKeySeed = 0;
+/** Stable keys for a position-identified editable list, one per row. */
+function useRowKeys(length: number): string[] {
+  const keys = useRef<string[]>([]);
+  if (keys.current.length > length) keys.current.length = length;
+  while (keys.current.length < length) keys.current.push(`row-${rowKeySeed++}`);
+  return keys.current;
+}
+
 import type { ValueProps, VisualizationControlsProps } from './types.js';
 
 export function ValueVisualization({
@@ -73,6 +83,7 @@ export function ValueVisualization({
             />
           ) : (
             <svg viewBox="0 0 200 130" style={{ width: '100%', height }}>
+              <title>{label}</title>
               <path
                 d="M 30 100 A 70 70 0 0 1 170 100"
                 fill="none"
@@ -111,7 +122,10 @@ export function ValueVisualization({
 export function Controls({ value, onChange, mode }: VisualizationControlsProps) {
   const theme = useMemo(() => createGrafanaTheme(mode), [mode]);
   const text = useChartText(),
-    id = useId();
+    id = useId(),
+    // Threshold rows are identified by position; content keys would remount the
+    // number input mid-edit, so each position keeps a stable generated key.
+    thresholdKeys = useRowKeys(value.thresholds.length);
   return (
     <ThemeContext.Provider value={theme}>
       <div style={{ display: 'grid', gap: 12 }}>
@@ -133,7 +147,7 @@ export function Controls({ value, onChange, mode }: VisualizationControlsProps) 
         <fieldset>
           <legend>{text('thresholds')}</legend>
           {value.thresholds.map((threshold, index) => (
-            <div key={index} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <div key={thresholdKeys[index]} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
               <Input
                 type="number"
                 aria-label={`${text('thresholdValue')} ${index + 1}`}

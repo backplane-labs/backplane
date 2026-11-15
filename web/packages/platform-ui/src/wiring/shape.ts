@@ -64,8 +64,10 @@ function fieldShape(field: Field, root: Schema, seen: Set<Schema>): Shape {
       return scalar('bytes');
     case 'choice':
       return { kind: 'string', choices: kind.value.options.map((option) => option.label).filter(Boolean) };
-    case 'list':
-      return { kind: 'list', elem: kind.value.items.length === 1 ? fieldShape(kind.value.items[0]!, root, seen) : dyn };
+    case 'list': {
+      const item = kind.value.items[0];
+      return { kind: 'list', elem: item ? fieldShape(item, root, seen) : dyn };
+    }
     case 'object':
       return kind.value.schema ? objectOf(kind.value.schema, root, seen) : { kind: 'map', elem: dyn };
     case 'map':

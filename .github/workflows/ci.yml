@@ -84,7 +84,7 @@ jobs:
           key: ${{ runner.os }}-yarn-${{ hashFiles('web/yarn.lock') }}
       - run: make configure-web
       # Workspace exports reference built files: build all packages before tsc.
-      - run: cd web && yarn build:packages && yarn typecheck && yarn test:unit
+      - run: cd web && yarn lint && yarn build:packages && yarn typecheck && yarn test:unit
 
   contracts:
     needs: changes

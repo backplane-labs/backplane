@@ -78,16 +78,18 @@ export function collectWires(
         target: { kind: 'rule', id: rule.id },
       });
   }
-  for (const service of manifests)
-    for (const subscription of service.latest?.subscriptions ?? []) {
+  for (const service of manifests) {
+    const latest = service.latest;
+    if (!latest) continue;
+    for (const subscription of latest.subscriptions)
       wires.push({
         kind: 'subscription',
         from: owner(subscription.event),
-        to: service.latest!.service,
+        to: latest.service,
         label: subscription.event,
         detail: `${subscription.event} → ${subscription.consumer}`,
       });
-    }
+  }
   return wires;
 }
 
@@ -97,9 +99,11 @@ function layout(names: string[], wires: Wire[]) {
   for (let pass = 0; pass < names.length; pass++) {
     let changed = false;
     for (const wire of wires) {
-      if (wire.from === wire.to || !rank.has(wire.from) || !rank.has(wire.to)) continue;
-      const next = rank.get(wire.from)! + 1;
-      if (next > rank.get(wire.to)! && next < names.length) {
+      const from = rank.get(wire.from),
+        to = rank.get(wire.to);
+      if (wire.from === wire.to || from === undefined || to === undefined) continue;
+      const next = from + 1;
+      if (next > to && next < names.length) {
         rank.set(wire.to, next);
         changed = true;
       }
@@ -107,12 +111,17 @@ function layout(names: string[], wires: Wire[]) {
     if (!changed) break;
   }
   const columns = new Map<number, string[]>();
-  for (const name of names) columns.set(rank.get(name)!, [...(columns.get(rank.get(name)!) ?? []), name]);
+  for (const name of names) {
+    const rankOf = rank.get(name) ?? 0;
+    columns.set(rankOf, [...(columns.get(rankOf) ?? []), name]);
+  }
   const positions = new Map<string, { x: number; y: number }>();
-  for (const [column, members] of columns)
-    members
-      .sort()
-      .forEach((name, index) => positions.set(name, { x: column * 340, y: index * 170 - (members.length - 1) * 85 }));
+  for (const [column, members] of columns) {
+    const sorted = [...members].sort();
+    sorted.forEach((name, index) => {
+      positions.set(name, { x: column * 340, y: index * 170 - (sorted.length - 1) * 85 });
+    });
+  }
   return positions;
 }
 
@@ -227,7 +236,7 @@ export function SystemMap({
       return {
         id: name,
         type: 'service',
-        position: positions.get(name)!,
+        position: positions.get(name) ?? { x: 0, y: 0 },
         data: {
           name,
           tone: summary ? healthTone[summary.health] : 'neutral',
@@ -248,28 +257,31 @@ export function SystemMap({
           ...(grouped.get(`${wire.kind}:${wire.from}:${wire.to}`) ?? []),
           wire,
         ]);
-    const edges: Edge[] = [...grouped.entries()].map(([id, group]) => {
-      const first = group[0]!,
-        active = !selected || first.from === selected || first.to === selected;
-      return {
-        id,
-        source: first.from,
-        target: first.to,
-        sourceHandle: `out-${first.kind}`,
-        targetHandle: `in-${first.kind}`,
-        label: group.length > 1 ? `${group.length}` : first.label,
-        animated: first.kind === 'subscription',
-        style: {
-          stroke: wireColor[first.kind],
-          strokeWidth: 1.5,
-          strokeDasharray: first.kind === 'rule' ? '5 4' : undefined,
-          opacity: active ? 1 : 0.15,
+    const edges: Edge[] = [...grouped.entries()].flatMap(([id, group]) => {
+      const first = group[0];
+      if (!first) return [];
+      const active = !selected || first.from === selected || first.to === selected;
+      return [
+        {
+          id,
+          source: first.from,
+          target: first.to,
+          sourceHandle: `out-${first.kind}`,
+          targetHandle: `in-${first.kind}`,
+          label: group.length > 1 ? `${group.length}` : first.label,
+          animated: first.kind === 'subscription',
+          style: {
+            stroke: wireColor[first.kind],
+            strokeWidth: 1.5,
+            strokeDasharray: first.kind === 'rule' ? '5 4' : undefined,
+            opacity: active ? 1 : 0.15,
+          },
+          markerEnd: { type: MarkerType.ArrowClosed, color: wireColor[first.kind], width: 16, height: 16 },
+          labelStyle: { fill: 'var(--muted-foreground)', fontSize: 10, fontFamily: 'var(--font-mono)' },
+          labelBgStyle: { fill: 'var(--card)' },
+          labelBgPadding: [4, 2] satisfies [number, number],
         },
-        markerEnd: { type: MarkerType.ArrowClosed, color: wireColor[first.kind], width: 16, height: 16 },
-        labelStyle: { fill: 'var(--muted-foreground)', fontSize: 10, fontFamily: 'var(--font-mono)' },
-        labelBgStyle: { fill: 'var(--card)' },
-        labelBgPadding: [4, 2] as [number, number],
-      };
+      ];
     });
     return { nodes, edges };
   }, [services, wires, selected]);
@@ -304,9 +316,8 @@ export function SystemMap({
             <Controls showInteractive={false} />
           </ReactFlow>
         )}
-        <div
+        <fieldset
           className="absolute top-2 left-2 flex gap-1 rounded-md border border-border bg-chrome/90 p-1"
-          role="group"
           aria-label={text('wireKinds')}
         >
           {(['binding', 'rule', 'subscription'] as const).map((kind) => (
@@ -328,7 +339,7 @@ export function SystemMap({
               {text(`wire_${kind}`)}
             </button>
           ))}
-        </div>
+        </fieldset>
       </div>
       <Panel
         fill
@@ -346,11 +357,12 @@ export function SystemMap({
       >
         <div>
           {!focus.length && <EmptyState className="py-8" title={text('noConnections')} />}
-          {focus.map((wire, index) => {
-            const open = wire.target && onOpenWiring ? () => onOpenWiring(wire.target!) : undefined;
+          {focus.map((wire) => {
+            const target = wire.target;
+            const open = target && onOpenWiring ? () => onOpenWiring(target) : undefined;
             return (
               <button
-                key={index}
+                key={`${wire.kind}:${wire.from}:${wire.to}:${wire.label}`}
                 type="button"
                 disabled={!open}
                 onClick={open}

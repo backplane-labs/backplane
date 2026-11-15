@@ -126,9 +126,14 @@ export function editorTheme(
 }
 
 /** shown is the text a viewer displays: read-only JSON without diagnostics reads pretty-printed. */
-function shown(props: CodeEditorProps): string {
-  if (!props.readOnly || props.language !== 'json' || props.diagnostics?.length) return props.value;
-  return prettyJson(props.value) ?? props.value;
+function shown({
+  value,
+  readOnly,
+  language,
+  diagnostics,
+}: Pick<CodeEditorProps, 'value' | 'readOnly' | 'language' | 'diagnostics'>): string {
+  if (!readOnly || language !== 'json' || diagnostics?.length) return value;
+  return prettyJson(value) ?? value;
 }
 
 /** formatDocument pretty-prints JSON in place (two spaces); false for other languages or invalid JSON. */
@@ -177,27 +182,35 @@ const hangingIndent = ViewPlugin.fromClass(
 );
 
 /** viewSettings is what follows the props: language, theme, read-only state and gutters. */
-function viewSettings(props: CodeEditorProps) {
+function viewSettings({
+  language,
+  mode,
+  inline,
+  height,
+  readOnly,
+  disabled,
+  label,
+}: Pick<CodeEditorProps, 'language' | 'mode' | 'inline' | 'height' | 'readOnly' | 'disabled' | 'label'>) {
   return [
-    languageExtension(props.language ?? 'text'),
-    editorHighlight(props.mode),
-    editorTheme(props.mode, props.inline ? 38 : props.height, props.inline ? 'fixed' : props.readOnly ? 'fit' : 'grow'),
-    EditorState.readOnly.of(!!props.readOnly || !!props.disabled),
-    EditorView.editable.of(!props.disabled),
+    languageExtension(language ?? 'text'),
+    editorHighlight(mode),
+    editorTheme(mode, inline ? 38 : height, inline ? 'fixed' : readOnly ? 'fit' : 'grow'),
+    EditorState.readOnly.of(!!readOnly || !!disabled),
+    EditorView.editable.of(!disabled),
     EditorView.contentAttributes.of({
-      'aria-label': props.label,
-      'aria-readonly': String(!!props.readOnly),
-      'aria-disabled': String(!!props.disabled),
-      tabindex: props.disabled ? '-1' : '0',
+      'aria-label': label,
+      'aria-readonly': String(!!readOnly),
+      'aria-disabled': String(!!disabled),
+      tabindex: disabled ? '-1' : '0',
     }),
     // Long values wrap: a narrow panel shows all of a line instead of cutting it.
-    props.inline
+    inline
       ? []
       : [lineNumbers(), foldGutter(), highlightActiveLine(), lintGutter(), EditorView.lineWrapping, hangingIndent],
   ];
 }
 
-export default function Editor(props: CodeEditorProps) {
+export function CodeEditorSurface(props: CodeEditorProps) {
   const host = useRef<HTMLDivElement>(null),
     viewRef = useRef<EditorView | null>(null),
     latest = useRef(props);
@@ -207,6 +220,7 @@ export default function Editor(props: CodeEditorProps) {
   const [failure, setFailure] = useState<'completionFailed' | 'validationFailed' | null>(null);
   const [messages, setMessages] = useState<readonly Diagnostic[]>([]);
   const text = useEditorText();
+  const { language, mode, inline, height, readOnly, disabled, label, value, diagnostics, reveal } = props;
   useEffect(() => {
     if (!host.current) return;
     const requests = new Set<AbortController>();
@@ -327,7 +341,9 @@ export default function Editor(props: CodeEditorProps) {
     viewRef.current = view;
     return () => {
       disposed = true;
-      requests.forEach((controller) => controller.abort());
+      requests.forEach((controller) => {
+        controller.abort();
+      });
       view.destroy();
       viewRef.current = null;
     };
@@ -335,32 +351,33 @@ export default function Editor(props: CodeEditorProps) {
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
-    view.dispatch({ effects: settings.current.reconfigure(viewSettings(props)) });
-  }, [props.language, props.mode, props.inline, props.height, props.readOnly, props.disabled, props.label]);
+    view.dispatch({
+      effects: settings.current.reconfigure(
+        viewSettings({ language, mode, inline, height, readOnly, disabled, label }),
+      ),
+    });
+  }, [language, mode, inline, height, readOnly, disabled, label]);
   useEffect(() => {
     const view = viewRef.current,
-      text = shown(props);
+      text = shown({ value, readOnly, language, diagnostics });
     if (view && view.state.doc.toString() !== text)
       view.dispatch({
         changes: { from: 0, to: view.state.doc.length, insert: text },
         annotations: Transaction.remote.of(true),
       });
-  }, [props.value, props.readOnly, props.language]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (view && diagnostics)
+      view.dispatch(setDiagnostics(view.state, boundDiagnostics(diagnostics, view.state.doc.length)));
+  }, [value, readOnly, language, diagnostics]);
   useEffect(() => {
     const view = viewRef.current;
-    if (view && props.diagnostics)
-      view.dispatch(setDiagnostics(view.state, boundDiagnostics(props.diagnostics, view.state.doc.length)));
-  }, [props.diagnostics, props.value]);
-  useEffect(() => {
-    const view = viewRef.current,
-      reveal = props.reveal;
     if (!view || !reveal) return;
     const length = view.state.doc.length,
       from = Math.max(0, Math.min(length, reveal.from)),
       to = Math.max(from, Math.min(length, reveal.to));
     view.dispatch({ selection: { anchor: from, head: to }, effects: EditorView.scrollIntoView(from, { y: 'center' }) });
     view.focus();
-  }, [props.reveal?.key]); // eslint-disable-line react-hooks/exhaustive-deps -- a reveal is keyed, not compared.
+    // A reveal is keyed, not compared: hosts raise a new object for each reveal.
+  }, [reveal]);
   const fill = props.height === 'fill';
   return (
     <div style={fill ? { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 } : undefined}>
@@ -396,8 +413,8 @@ export default function Editor(props: CodeEditorProps) {
       {failure && <p role="status">{text(failure)}</p>}
       {!props.hideMessages && !!messages.length && (
         <ul aria-label={text('diagnostics')}>
-          {messages.map((message, index) => (
-            <li key={index}>{message.message}</li>
+          {messages.map((message) => (
+            <li key={`${message.from}:${message.message}`}>{message.message}</li>
           ))}
         </ul>
       )}

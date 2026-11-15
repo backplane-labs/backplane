@@ -43,7 +43,9 @@ export function UserAvatar({ name, src }: { name: string; src?: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span tabIndex={0} role="img" aria-label={name}>
+        {/* The name stays accessible through role=img and the image alt; the
+            tooltip is a pointer-only extra, so the span is not focusable. */}
+        <span role="img" aria-label={name}>
           <Avatar>
             <AvatarImage src={src} alt={name} />
             <AvatarFallback aria-hidden="true">{initials}</AvatarFallback>
@@ -65,7 +67,7 @@ export function UsersIndicator({
 }) {
   const bound = Math.max(1, Math.floor(max));
   return (
-    <div role="group" aria-label={label} style={{ display: 'flex', gap: 4 }}>
+    <fieldset aria-label={label} style={{ display: 'flex', gap: 4, minWidth: 0 }}>
       {users.slice(0, bound).map((user) => (
         <UserAvatar key={user.id} name={user.name} src={user.src} />
       ))}
@@ -79,7 +81,7 @@ export function UsersIndicator({
           +{users.length - bound}
         </span>
       )}
-    </div>
+    </fieldset>
   );
 }
 export function FeatureBadge({ children }: { children: ReactNode }) {
@@ -155,15 +157,18 @@ export function useDelayedSwitch(value: boolean, showDelay = 150, hideDelay = 0)
   }, [value, showDelay, hideDelay]);
   return visible;
 }
+/** Any value React may hand the boundary (an arbitrary reset key, a thrown error); narrowed at use, never trusted. */
+type BoundaryValue = null | undefined | boolean | number | string | bigint | symbol | object;
+
 interface BoundaryProps {
   children: ReactNode;
-  resetKey?: unknown;
+  resetKey?: BoundaryValue;
   fallback: (error: Error, reset: () => void) => ReactNode;
   onError?: (error: Error, info: ErrorInfo) => void;
 }
 export class ErrorBoundary extends Component<BoundaryProps, { error?: Error }> {
   state: { error?: Error } = {};
-  static getDerivedStateFromError(error: unknown) {
+  static getDerivedStateFromError(error: BoundaryValue) {
     return { error: error instanceof Error ? error : new Error(String(error)) };
   }
   componentDidCatch(error: Error, info: ErrorInfo) {

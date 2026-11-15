@@ -96,10 +96,11 @@ export function ServiceCard({ item }: { item: ServiceOverview }) {
           {item.transports.map((transport) => (
             <Tooltip key={transport.name}>
               <TooltipTrigger asChild>
-                <span className="console-chip" tabIndex={0}>
+                {/* A button keeps the informational tooltip keyboard-reachable without a tabindex hack. */}
+                <button type="button" className="console-chip">
                   <StatusDot tone={transportTone(transport)} className="size-1.5" />
                   {transport.name}
-                </span>
+                </button>
               </TooltipTrigger>
               <TooltipContent>
                 {t('transportState', { connected: transport.connected, total: transport.total })}
@@ -111,10 +112,10 @@ export function ServiceCard({ item }: { item: ServiceOverview }) {
             (config.rejected ? (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="console-chip console-chip-warning" tabIndex={0}>
+                  <button type="button" className="console-chip console-chip-warning">
                     <TriangleAlert className="size-3" />
                     {t('configRejected', { revision: config.rejected.revision.toString() })}
-                  </span>
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent>{config.rejected.error}</TooltipContent>
               </Tooltip>

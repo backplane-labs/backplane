@@ -7,7 +7,7 @@ import { languageExtension } from './language.js';
 import { useEditorText } from './locales.js';
 import type { DiffViewerProps } from './types.js';
 
-export default function Diff({ label, before, after, mode, language = 'text', height = 300 }: DiffViewerProps) {
+export function DiffSurface({ label, before, after, mode, language = 'text', height = 300 }: DiffViewerProps) {
   const host = useRef<HTMLDivElement>(null),
     text = useEditorText();
   const beforeLabel = `${label}: ${text('before')}`,

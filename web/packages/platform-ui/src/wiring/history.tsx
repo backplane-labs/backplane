@@ -14,7 +14,7 @@ import {
   Switch,
   Timestamp,
 } from '@backplane-labs/backplane-ui';
-import { create } from '@bufbuild/protobuf';
+import { create, type JsonValue } from '@bufbuild/protobuf';
 import {
   CircleCheck,
   CircleX,
@@ -26,13 +26,13 @@ import {
   RotateCcw,
   Sparkles,
 } from 'lucide-react';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useId, useState } from 'react';
 import { date, durationText, enumLabel } from '../format.js';
 import { usePlatformText } from '../locales.js';
 import { RunDrawer, RunPager, type RunRef, RunStatusFilter, RunTable, useRunPages } from '../runs.js';
 import { usePlatformAction, usePlatformQuery } from '../runtime.js';
 import { shortActor } from './actor.js';
-import { type Definition, toYAML, type WiringKind } from './document.js';
+import { type Definition, isBindingDefinition, toYAML, type WiringKind } from './document.js';
 import { type Shape, shapeOf } from './shape.js';
 
 type Mode = 'dark' | 'light';
@@ -81,7 +81,7 @@ export function Versions({
   const bindings = useClient(api.BindingServiceClient),
     rules = useClient(api.RuleServiceClient),
     text = usePlatformText(),
-    action = usePlatformAction<unknown>();
+    action = usePlatformAction<api.RollbackBindingResponse | api.RollbackRuleResponse>();
   const key = subject.kind === 'binding' ? subject.hook : subject.id;
   const state = usePlatformQuery(
     `wiring-versions:${subject.kind}:${key}:${current}`,
@@ -198,14 +198,13 @@ export function Versions({
               {!managed && (
                 <ConfirmAction
                   trigger={
-                    <>
+                    <Button type="button" variant="outline" disabled={action.pending || action.disabled}>
                       <RotateCcw className="size-3.5" />
                       {text('rollbackToVersion', { version: selected.version.toString() })}
-                    </>
+                    </Button>
                   }
                   title={text('rollbackConfirm')}
                   description={text(subject.kind === 'binding' ? 'rollbackBindingHelp' : 'rollbackRuleHelp')}
-                  disabled={action.pending || action.disabled}
                   onConfirm={rollback(selected)}
                 />
               )}
@@ -250,7 +249,7 @@ export function Versions({
 }
 
 /** A JSON example of a schema: every field with a value of its type. */
-export function exampleOf(shape: Shape, depth = 0): unknown {
+export function exampleOf(shape: Shape, depth = 0): JsonValue {
   switch (shape.kind) {
     case 'object':
       return depth > 4
@@ -304,6 +303,8 @@ export function TestRun({
   const [input, setInput] = useState('{}'),
     [dryRun, setDryRun] = useState(false),
     [useDraft, setUseDraft] = useState(true);
+  const draftSwitch = useId(),
+    dryRunSwitch = useId();
   // Open scaffolded from the schema, never on a bare {}; an edited input stays.
   useEffect(() => {
     if (schema)
@@ -312,12 +313,14 @@ export function TestRun({
   const fromDraft = (dirty || (subject.kind === 'rule' && !subject.id)) && useDraft;
   const run = () =>
     void action.run(async (signal) => {
+      const bindingDraft = draft !== undefined && isBindingDefinition(draft) ? draft : undefined,
+        ruleDraft = draft !== undefined && !isBindingDefinition(draft) ? draft : undefined;
       const response =
         subject.kind === 'binding'
           ? await bindings.testBinding(
               create(
                 api.TestBindingRequestSchema,
-                fromDraft ? { definition: draft as api.BindingDefinition, input } : { hook: subject.hook, input },
+                fromDraft ? { definition: bindingDraft, input } : { hook: subject.hook, input },
               ),
               { signal },
             )
@@ -325,7 +328,7 @@ export function TestRun({
               create(
                 api.TestRuleRequestSchema,
                 fromDraft || !subject.id
-                  ? { definition: draft as api.RuleDefinition, event: input, dryRun }
+                  ? { definition: ruleDraft, event: input, dryRun }
                   : { id: subject.id, event: input, dryRun },
               ),
               { signal },
@@ -369,8 +372,9 @@ export function TestRun({
             </Button>
           )}
           {(dirty || (subject.kind === 'rule' && !subject.id)) && (
-            <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+            <label htmlFor={draftSwitch} className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
               <Switch
+                id={draftSwitch}
                 size="sm"
                 checked={useDraft}
                 onCheckedChange={setUseDraft}
@@ -387,8 +391,8 @@ export function TestRun({
             {action.pending ? text('pending') : text(fromDraft ? 'runDraftTest' : 'runTest')}
           </Button>
           {subject.kind === 'rule' && (
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Switch size="sm" checked={dryRun} onCheckedChange={setDryRun} />
+            <label htmlFor={dryRunSwitch} className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Switch id={dryRunSwitch} size="sm" checked={dryRun} onCheckedChange={setDryRun} />
               {text('dryRun')}
             </label>
           )}
@@ -402,8 +406,8 @@ export function TestRun({
           <div className="grid gap-2">
             {!!action.value.violations.length && (
               <ul className="m-0 grid gap-1 pl-0 text-xs text-destructive" role="alert">
-                {action.value.violations.map((violation, index) => (
-                  <li key={index} className="list-none">
+                {action.value.violations.map((violation) => (
+                  <li key={`${violation.path}:${violation.message}`} className="list-none">
                     <span className="font-mono">{violation.path}</span> {violation.message}
                   </li>
                 ))}
@@ -546,12 +550,12 @@ export function StepTimeline({ subject, run }: { subject: Subject | { kind: 'rul
   if (!state.value?.length) return null;
   return (
     <Panel title={text('steps', { count: state.value.length })} flush>
-      {state.value.map((step, index) => {
+      {state.value.map((step) => {
         const start = date(step.startedTime),
           end = date(step.closeTime);
         return (
           <div
-            key={index}
+            key={`${step.parent ?? ''}/${step.step}:${step.startedTime?.seconds ?? ''}`}
             className={`grid gap-0.5 border-b border-border py-2 pr-3 text-xs last:border-b-0 ${step.parent ? 'pl-7' : 'pl-3'}`}
           >
             <div className="flex flex-wrap items-center gap-2">
@@ -594,6 +598,7 @@ export function Runs({ subject, mode, onOpen }: { subject: Subject; mode: Mode; 
     [tests, setTests] = useState(false),
     [selected, setSelected] = useState<RunRef>(),
     pages = useRunPages();
+  const testsSwitch = useId();
   const key = subject.kind === 'binding' ? subject.hook : subject.id;
   const state = usePlatformQuery(
     `wiring-runs:${subject.kind}:${key}:${status}:${tests}:${Array.from(pages.page)}`,
@@ -628,8 +633,9 @@ export function Runs({ subject, mode, onOpen }: { subject: Subject; mode: Mode; 
       flush
       actions={
         <>
-          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <label htmlFor={testsSwitch} className="flex items-center gap-2 text-xs text-muted-foreground">
             <Switch
+              id={testsSwitch}
               size="sm"
               checked={tests}
               onCheckedChange={(value) => {

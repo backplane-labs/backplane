@@ -230,7 +230,7 @@ export class PersistentLogProcessor implements LogRecordProcessor {
 
   async forceFlush(): Promise<void> {
     await this.flushStorage();
-    if (this.running) await this.running;
+    if (this.running !== undefined) await this.running;
     await this.drain(true);
     await this.exporter.forceFlush();
   }

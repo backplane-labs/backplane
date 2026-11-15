@@ -34,11 +34,12 @@ export function ResourceTree({
   const flat = useMemo(() => {
     const result: FlatNode[] = [];
     const pending = nodes
-      .map((node, index) => ({ node, level: 1, position: index + 1, siblings: nodes.length }) as FlatNode)
+      .map((node, index): FlatNode => ({ node, level: 1, position: index + 1, siblings: nodes.length }))
       .reverse();
     const seen = new Set<string>();
     while (pending.length) {
-      const entry = pending.pop()!;
+      const entry = pending.pop();
+      if (!entry) break;
       if (seen.has(entry.node.id)) throw new Error('ResourceTree requires unique node IDs and an acyclic hierarchy');
       seen.add(entry.node.id);
       result.push(entry);

@@ -8,7 +8,7 @@ import {
 export interface WatchRetryOptions {
   signal: AbortSignal;
   /** Called on interrupted attempts, including unexpected clean EOF. */
-  onRetry?: (error: unknown) => void;
+  onRetry?: (error: WsStatusError) => void;
   /** Test/deployment override; production defaults to capped jittered backoff. */
   retryDelay?: (attempt: number) => number;
 }

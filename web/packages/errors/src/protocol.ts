@@ -5,6 +5,14 @@
  */
 export type JsonValue = null | boolean | number | string | readonly JsonValue[] | { readonly [key: string]: JsonValue };
 
+/**
+ * Any value crossing a capture boundary (a thrown error, a reader's output, a
+ * serializer's input). Every JS value is assignable to it, and nothing may be
+ * read from it without narrowing: materialize and the exception reader do that
+ * once, at the edge.
+ */
+export type CapturedInput = null | undefined | boolean | number | string | bigint | symbol | object;
+
 /** Decimal UNIX nanoseconds. Browser captures can have millisecond precision. */
 export type UnixNano = string;
 export type Id = string;

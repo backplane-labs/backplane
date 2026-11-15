@@ -177,8 +177,9 @@ configure-web: ## Install locked frontend dependencies (Node >=22.12, Yarn 4 via
 	cd web
 	yarn install --immutable
 
-web-check: ## Build packages and fixtures, typecheck, unit and browser tests
+web-check: ## Lint, build packages and fixtures, typecheck, unit and browser tests
 	cd web
+	yarn lint
 	yarn build
 	yarn typecheck
 	yarn test:unit

@@ -5,7 +5,7 @@ import { useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TimeRangeControlProps } from './time-range.js';
 
-export default function GrafanaTimeRange({ value, onChange, mode, label, weekStartPicker }: TimeRangeControlProps) {
+export function GrafanaTimeRange({ value, onChange, mode, label, weekStartPicker }: TimeRangeControlProps) {
   const { t } = useTranslation('backplane.ui');
   const weekId = useId();
   const theme = useMemo(() => createGrafanaTheme(mode), [mode]);

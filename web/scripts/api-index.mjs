@@ -1,19 +1,22 @@
-import { readdir, writeFile } from 'node:fs/promises';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
 
 const dir = new URL('../packages/api/src/gen/backplanepb/console/v1/', import.meta.url);
 const files = (await readdir(dir)).filter((name) => name.endsWith('.ts') && !name.endsWith('.d.ts')).sort();
 const exports = ["export type { CallOptions } from './gen/backplanepb/console/v1/catalog_ws_pb.js';"];
 for (const file of files) {
   const path = `./gen/backplanepb/console/v1/${file.replace(/\.ts$/, '.js')}`;
+  const source = await readFile(new URL(file, dir), 'utf8');
   if (file.endsWith('_ws_pb.ts')) {
-    // Each generator file declares CallOptions; exporting all with * is ambiguous.
-    const { readFile } = await import('node:fs/promises');
-    const source = await readFile(new URL(file, dir), 'utf8');
+    // Each generator file declares CallOptions; a wildcard export would be ambiguous.
     const clients = [...source.matchAll(/export class (\w+Client)/g)].map((match) => match[1]);
     if (!clients.length) throw new Error(`No generated client in ${file}`);
     exports.push(`export { ${clients.join(', ')} } from '${path}';`);
   } else {
-    exports.push(`export * from '${path}';`);
+    const values = [...source.matchAll(/^export (?:const|enum|class) (\w+)/gm)].map((match) => match[1]).sort();
+    const types = [...source.matchAll(/^export (?:type|interface) (\w+)/gm)].map((match) => match[1]).sort();
+    if (!values.length && !types.length) throw new Error(`No exports in ${file}`);
+    if (values.length) exports.push(`export { ${values.join(', ')} } from '${path}';`);
+    if (types.length) exports.push(`export type { ${types.join(', ')} } from '${path}';`);
   }
 }
 await writeFile(

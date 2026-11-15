@@ -5,15 +5,7 @@ import { useChartText } from './locales.js';
 import { exact, numeric } from './model.js';
 import type { HeatmapProps } from './types.js';
 
-export default function Heatmap({
-  label,
-  cells,
-  mode,
-  height = 300,
-  maxCells = 2000,
-  partial,
-  onSelect,
-}: HeatmapProps) {
+export function HeatmapSurface({ label, cells, mode, height = 300, maxCells = 2000, partial, onSelect }: HeatmapProps) {
   const text = useChartText();
   const visible = useMemo(
     () => cells.slice(0, Math.max(1, Math.min(10000, Math.floor(maxCells) || 2000))),
@@ -39,8 +31,8 @@ export default function Heatmap({
           {visible.map((cell) => (
             <rect
               key={cell.id}
-              x={xIndex.get(cell.x)! * 20}
-              y={yIndex.get(cell.y)! * 20}
+              x={(xIndex.get(cell.x) ?? 0) * 20}
+              y={(yIndex.get(cell.y) ?? 0) * 20}
               width={19}
               height={19}
               fill={tokens[mode].primary}

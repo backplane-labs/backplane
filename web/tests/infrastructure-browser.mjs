@@ -13,7 +13,7 @@ try {
   // must not keep old dependency checks green.
   await context.routeWebSocket('**/backplane/ws', (route) => {
     if (disconnected) {
-      route.close({ code: 1012, reason: 'acceptance disconnect' });
+      void route.close({ code: 1012, reason: 'acceptance disconnect' });
       return;
     }
     clientSocket = route;
@@ -80,8 +80,8 @@ try {
   if (process.env.BACKPLANE_INFRA_SCREENSHOTS)
     await page.screenshot({ path: `${process.env.BACKPLANE_INFRA_SCREENSHOTS}/mobile.png` });
   assert.deepEqual(errors, []);
-  console.log(
-    'Infrastructure acceptance passed: fresh checks, connected-but-stale data, disconnect, recovery, both themes, mobile and accessibility',
+  process.stdout.write(
+    'Infrastructure acceptance passed: fresh checks, connected-but-stale data, disconnect, recovery, both themes, mobile and accessibility\n',
   );
 } finally {
   await browser.close();

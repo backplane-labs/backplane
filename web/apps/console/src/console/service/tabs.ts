@@ -11,4 +11,5 @@ export const serviceTabs = [
   'audit',
 ] as const;
 export type ServiceTab = (typeof serviceTabs)[number];
-export const isServiceTab = (value: string): value is ServiceTab => (serviceTabs as readonly string[]).includes(value);
+const tabs = new Set<string>(serviceTabs);
+export const isServiceTab = (value: string): value is ServiceTab => tabs.has(value);

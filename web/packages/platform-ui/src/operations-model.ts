@@ -10,7 +10,7 @@ import {
   type Schema_Field,
   Schema_Field_Severity,
 } from '@gopherex/schemapb';
-import { isLosslessNumber, type LosslessNumber, parse } from 'lossless-json';
+import { isLosslessNumber, parse } from 'lossless-json';
 import { nativeJSON } from './serialization.js';
 
 /** The JSON a payload editor opens with: the schema's defaults and its required fields. */
@@ -32,7 +32,7 @@ function keyPath(text: string, position: number): string[] | undefined {
     lastKey: string | undefined,
     expectKey = false;
   while (i < position) {
-    const ch = text[i]!;
+    const ch = text[i] ?? '';
     if (inString) {
       if (ch === '\\') {
         token += text[i + 1] ?? '';
@@ -89,7 +89,7 @@ export function payloadCompletions(root: Schema, text: string, position: number)
   const schema = schemaAt(root, path);
   if (!schema) return null;
   let from = position;
-  while (from > 0 && /[\w"]/.test(text[from - 1]!)) from--;
+  while (from > 0 && /[\w"]/.test(text[from - 1] ?? '')) from--;
   const quoted = text[from] === '"',
     closing = text[position] === '"';
   const options: EditorCompletion[] = schema.fields
@@ -103,18 +103,22 @@ export function payloadCompletions(root: Schema, text: string, position: number)
   return { from: quoted ? from + 1 : from, options };
 }
 
-function toNativeJSON(value: unknown): Native {
+/** The unvalidated result of lossless-json `parse`, read once at this boundary. */
+export type Parsed = ReturnType<typeof parse>;
+
+/** Converts a parsed JSON tree to native schema values; JSON numbers keep their digits (lossless). */
+export function toNativeJSON(value: Parsed): Native {
   if (value === null) return null;
   if (isLosslessNumber(value)) {
-    const text = (value as LosslessNumber).toString();
+    const text = value.toString();
     return /^-?\d+$/.test(text) ? BigInt(text) : Number(text);
   }
   if (Array.isArray(value)) return value.map(toNativeJSON);
   if (typeof value === 'object')
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, toNativeJSON(item)]),
-    );
-  return value as Native;
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, toNativeJSON(item)]));
+  if (typeof value === 'string' || typeof value === 'boolean' || typeof value === 'bigint' || typeof value === 'number')
+    return value;
+  return null;
 }
 
 /** The payload as the schema engine sees it; undefined when the text is not a JSON object. */
@@ -122,7 +126,7 @@ export function parsePayload(text: string): NativeStruct | undefined {
   try {
     const value = toNativeJSON(parse(text));
     return value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Uint8Array)
-      ? (value as NativeStruct)
+      ? value
       : undefined;
   } catch {
     return undefined;
@@ -132,7 +136,7 @@ export function parsePayload(text: string): NativeStruct | undefined {
 function keyOffset(text: string, path: string): { from: number; to: number } {
   const leaf = path.split(/[.[]/).filter(Boolean).at(-1)?.replace(/]$/, '');
   const index = leaf ? text.indexOf(`"${leaf}"`) : -1;
-  return index < 0 ? { from: 0, to: 0 } : { from: index, to: index + leaf!.length + 2 };
+  return index < 0 || leaf === undefined ? { from: 0, to: 0 } : { from: index, to: index + leaf.length + 2 };
 }
 
 /** Schema diagnostics of a JSON payload; syntax errors are the editor's own. Empty when the text does not parse. */

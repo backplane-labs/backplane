@@ -93,9 +93,9 @@ describe('audit filters', () => {
     expect(decodeChips('[{"key":"field:nope","op":"is","values":[]}]')).toEqual([]);
     expect(decodeChips('not json')).toEqual([]);
     const filter = filterOf(chips, 'text', { from: 1000, to: 2000 });
-    expect(filter.conditions[0]!.target).toEqual({ case: 'field', value: AuditField.SERVICE });
-    expect(filter.conditions[1]!.target).toEqual({ case: 'attribute', value: 'tenant' });
-    expect(filter.conditions[1]!.op).toBe(AuditOperator.IS_NOT);
+    expect(filter.conditions[0]?.target).toEqual({ case: 'field', value: AuditField.SERVICE });
+    expect(filter.conditions[1]?.target).toEqual({ case: 'attribute', value: 'tenant' });
+    expect(filter.conditions[1]?.op).toBe(AuditOperator.IS_NOT);
     expect(filter.start?.seconds).toBe(1n);
     expect(parseValue('3')).toBe(3);
     expect(parseValue('true')).toBe(true);
@@ -112,8 +112,8 @@ describe('audit filters', () => {
     ]);
     expect(encodeChips(decodeChips(link))).toBe(link);
     const filter = filterOf(decodeChips(link), '');
-    expect(filter.conditions[0]!.target).toEqual({ case: 'field', value: AuditField.SUBJECT });
-    expect(filter.conditions[0]!.op).toBe(AuditOperator.IS);
+    expect(filter.conditions[0]?.target).toEqual({ case: 'field', value: AuditField.SUBJECT });
+    expect(filter.conditions[0]?.op).toBe(AuditOperator.IS);
     for (const op of [
       'is',
       'is_not',
@@ -196,14 +196,14 @@ describe('errors', () => {
       { from: 0, to: 60_000 },
     );
     expect(filter.conditions).toHaveLength(2);
-    expect(filter.conditions[1]!.values).toEqual(['otel-log']);
+    expect(filter.conditions[1]?.values).toEqual(['otel-log']);
     const envelope = JSON.parse(readFileSync('tests/fixtures/errors/exception-envelope.json', 'utf8'));
     expect(historyOf(envelope).map((item) => [item.kind, item.name])).toEqual([
       ['breadcrumb', 'command.started'],
       ['state', 'editor'],
     ]);
     expect(stateOf(envelope).map((source) => source.name)).toEqual(['editor', 'inline']);
-    const cause = causesOf({ exception: envelope.exception, stacktrace: '', occurrence: undefined } as never);
+    const cause = causesOf(create(GetErrorResponseSchema, { exception: envelope.exception, stacktrace: '' }));
     expect(cause).toMatchObject({
       type: 'FixtureError',
       message: 'Synthetic fixture exception',
@@ -227,8 +227,8 @@ describe('errors', () => {
       [ErrorField.SERVICE, ['api']],
     ]);
     expect(retentionText(undefined)).toBeUndefined();
-    expect(retentionText({ seconds: 7_776_000n, nanos: 0 } as never)).toBe('90 d');
-    expect(retentionText({ seconds: 7200n, nanos: 0 } as never)).toBe('2 h');
+    expect(retentionText(create(DurationSchema, { seconds: 7_776_000n }))).toBe('90 d');
+    expect(retentionText(create(DurationSchema, { seconds: 7200n }))).toBe('2 h');
     const detail = create(GetErrorResponseSchema, {
       occurrence: {
         ref: 'r1',

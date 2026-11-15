@@ -9,15 +9,29 @@ test.each([4, 8, 14])('watch recovers from code %i and releases the old iterator
   const controller = new AbortController();
   let opens = 0,
     closed = 0;
-  async function* open() {
-    try {
+  // Iterators are built by hand: the sources neither await nor (mostly) yield,
+  // which generator linting would reject.
+  const open = (): AsyncIterable<number> => ({
+    [Symbol.asyncIterator]: () => {
       opens++;
-      if (opens === 1) throw new WsStatusError(code, 'interrupted');
-      yield opens;
-    } finally {
-      closed++;
-    }
-  }
+      let yielded = false;
+      return {
+        next: () => {
+          if (opens === 1) {
+            closed++;
+            return Promise.reject(new WsStatusError(code, 'interrupted'));
+          }
+          if (yielded) return Promise.resolve({ value: undefined, done: true });
+          yielded = true;
+          return Promise.resolve({ value: opens, done: false });
+        },
+        return: () => {
+          closed++;
+          return Promise.resolve({ value: undefined, done: true });
+        },
+      };
+    },
+  });
   const retry = vi.fn();
   const watch = watchWithRetry(open, { signal: controller.signal, onRetry: retry, retryDelay: () => 100 })[
     Symbol.asyncIterator
@@ -34,10 +48,12 @@ test('abort interrupts backoff without opening another stream', async () => {
   vi.useFakeTimers();
   let opens = 0;
   const controller = new AbortController();
-  async function* open() {
-    opens++;
-    throw new WsStatusError(14, 'offline');
-  }
+  const open = (): AsyncIterable<never> => ({
+    [Symbol.asyncIterator]: () => {
+      opens++;
+      return { next: () => Promise.reject(new WsStatusError(14, 'offline')) };
+    },
+  });
   const next = watchWithRetry(open, { signal: controller.signal, retryDelay: () => 30_000 })
     [Symbol.asyncIterator]()
     .next();
@@ -50,9 +66,9 @@ test('abort interrupts backoff without opening another stream', async () => {
 
 test.each([3, 7, 11, 16])('permanent error %i is explicit and never retried', async (code) => {
   const failure = new WsStatusError(code, 'terminal');
-  async function* open() {
-    throw failure;
-  }
+  const open = (): AsyncIterable<never> => ({
+    [Symbol.asyncIterator]: () => ({ next: () => Promise.reject(failure) }),
+  });
   const retry = vi.fn();
   await expect(
     watchWithRetry(open, { signal: new AbortController().signal, onRetry: retry })[Symbol.asyncIterator]().next(),
@@ -63,9 +79,14 @@ test.each([3, 7, 11, 16])('permanent error %i is explicit and never retried', as
 test('unexpected clean EOF retries a long-lived watch', async () => {
   vi.useFakeTimers();
   let opens = 0;
-  async function* open() {
-    if (++opens > 1) yield 'recovered';
-  }
+  const open = (): AsyncIterable<string> => ({
+    [Symbol.asyncIterator]: () => {
+      opens++;
+      return {
+        next: () => Promise.resolve(opens > 1 ? { value: 'recovered', done: false } : { value: undefined, done: true }),
+      };
+    },
+  });
   const watch = watchWithRetry(open, { signal: new AbortController().signal, retryDelay: () => 100 })[
     Symbol.asyncIterator
   ]();

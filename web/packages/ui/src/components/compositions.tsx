@@ -1,4 +1,14 @@
-import { type ComponentProps, type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import {
+  type ComponentProps,
+  Fragment,
+  type ReactElement,
+  type ReactNode,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { decimal, stepDecimal } from '../lib/decimal.js';
 import { Button } from './button.js';
@@ -64,10 +74,9 @@ export function IconButton({ label, ...props }: Omit<ComponentProps<typeof Butto
 
 export function ClipboardButton({ value, label, disabled }: { value: string; label?: string; disabled?: boolean }) {
   const { t } = useTranslation('backplane.ui');
-  const [status, setStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
-  useEffect(() => {
-    setStatus('idle');
-  }, [value]);
+  // Result is keyed by the copied text: a new value reads as idle again.
+  const [result, setResult] = useState<{ value: string; status: 'copied' | 'failed' } | null>(null);
+  const status = result?.value === value ? result.status : 'idle';
   return (
     <span className="inline-flex items-center gap-2">
       <Button
@@ -77,9 +86,9 @@ export function ClipboardButton({ value, label, disabled }: { value: string; lab
         onClick={async () => {
           try {
             await navigator.clipboard.writeText(value);
-            setStatus('copied');
+            setResult({ value, status: 'copied' });
           } catch {
-            setStatus('failed');
+            setResult({ value, status: 'failed' });
           }
         }}
       >
@@ -91,12 +100,12 @@ export function ClipboardButton({ value, label, disabled }: { value: string; lab
 }
 
 export interface ConfirmActionProps {
-  trigger: ReactNode;
+  /** The element that opens the confirmation, usually a Button; it keeps its own size, variant and disabled state. */
+  trigger: ReactElement;
   title: string;
   description: string;
   confirmLabel?: string;
   onConfirm: (signal: AbortSignal) => void | Promise<void>;
-  disabled?: boolean;
   /** danger: the confirm button takes the destructive style (deleting, erasing). */
   tone?: 'default' | 'danger';
   /** Fields the confirmation asks for (a note, a reason), between the description and the buttons. */
@@ -108,10 +117,12 @@ export function ConfirmAction({
   description,
   confirmLabel,
   onConfirm,
-  disabled,
   tone,
   children,
 }: ConfirmActionProps) {
+  // A fragment cannot take the dialog trigger's ref and handlers: the button would never open the dialog.
+  if (trigger.type === Fragment)
+    throw new Error('ConfirmAction: trigger must be an element such as a Button, not a fragment');
   const { t } = useTranslation('backplane.ui');
   const [open, setOpen] = useState(false),
     [pending, setPending] = useState(false),
@@ -128,11 +139,7 @@ export function ConfirmAction({
         }
       }}
     >
-      <DialogTrigger asChild>
-        <Button type="button" variant="outline" disabled={disabled}>
-          {trigger}
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -393,7 +400,9 @@ export function AutoSizeTextarea({
       ref.current.style.height = `${Math.min(maxHeight, ref.current.scrollHeight)}px`;
     }
   };
-  useLayoutEffect(resize, [value, maxHeight]);
+  // No dependency list: the rendered text is what decides the height, so
+  // re-measure after every render that may have changed it.
+  useLayoutEffect(resize);
   return (
     <Textarea
       {...props}

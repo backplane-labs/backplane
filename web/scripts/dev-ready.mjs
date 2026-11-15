@@ -13,7 +13,7 @@ while (true) {
       }),
     );
     if (session.status === 401 && services.every(Boolean)) {
-      console.log('Development console and all three services are ready');
+      process.stdout.write('Development console and all three services are ready\n');
       break;
     }
   } catch {

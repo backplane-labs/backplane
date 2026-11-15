@@ -7,6 +7,7 @@ import {
   type Draft,
   type DraftProblem,
   definitionSchema,
+  isBindingDefinition,
   locate,
   parseDraft,
   type WiringKind,
@@ -17,8 +18,15 @@ import {
  * into one step per pause, a graph edit is one step. CodeMirror keeps its own
  * history while typing; this one spans both views.
  */
+/** A draft's text with its undo stacks. */
+interface DraftTextState {
+  text: string;
+  past: string[];
+  future: string[];
+}
+
 export function useDraftText(initial: string) {
-  const [state, setState] = useState({ text: initial, past: [] as string[], future: [] as string[] });
+  const [state, setState] = useState<DraftTextState>({ text: initial, past: [], future: [] });
   const typing = useRef<{ since: number } | null>(null);
   const set = useCallback(
     (text: string, coalesce: boolean) =>
@@ -41,20 +49,18 @@ export function useDraftText(initial: string) {
     apply: useCallback((text: string) => set(text, false), [set]),
     undo: useCallback(
       () =>
-        setState((old) =>
-          old.past.length
-            ? { text: old.past.at(-1)!, past: old.past.slice(0, -1), future: [old.text, ...old.future] }
-            : old,
-        ),
+        setState((old) => {
+          const text = old.past.at(-1);
+          return text !== undefined ? { text, past: old.past.slice(0, -1), future: [old.text, ...old.future] } : old;
+        }),
       [],
     ),
     redo: useCallback(
       () =>
-        setState((old) =>
-          old.future.length
-            ? { text: old.future[0]!, past: [...old.past, old.text], future: old.future.slice(1) }
-            : old,
-        ),
+        setState((old) => {
+          const text = old.future[0];
+          return text !== undefined ? { text, past: [...old.past, old.text], future: old.future.slice(1) } : old;
+        }),
       [],
     ),
   };
@@ -72,7 +78,7 @@ export function definitionKey(kind: WiringKind, definition?: Definition): string
 /** Whether two definitions say the same (maps compared by key, not order). */
 export function sameDefinition(kind: WiringKind, a?: Definition, b?: Definition): boolean {
   if (!a || !b) return a === b;
-  return equals(definitionSchema(kind), a as never, b as never);
+  return equals(definitionSchema(kind), a, b);
 }
 
 /**
@@ -94,15 +100,11 @@ export function useAnalysis(kind: WiringKind, definition?: Definition) {
     const controller = new AbortController();
     setState((old) => ({ ...old, pending: true }));
     const timer = setTimeout(() => {
-      const request =
-        kind === 'binding'
-          ? client.analyzeBinding(
-              create(api.AnalyzeBindingRequestSchema, { definition: definition as api.BindingDefinition }),
-              { signal: controller.signal },
-            )
-          : client.analyzeRule(create(api.AnalyzeRuleRequestSchema, { definition: definition as api.RuleDefinition }), {
-              signal: controller.signal,
-            });
+      const request = isBindingDefinition(definition)
+        ? client.analyzeBinding(create(api.AnalyzeBindingRequestSchema, { definition }), {
+            signal: controller.signal,
+          })
+        : client.analyzeRule(create(api.AnalyzeRuleRequestSchema, { definition }), { signal: controller.signal });
       void request.then(
         (response) => {
           if (!controller.signal.aborted) setState({ key, analysis: response.analysis, pending: false, failed: false });
@@ -116,7 +118,8 @@ export function useAnalysis(kind: WiringKind, definition?: Definition) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [key, connection.connection]); // eslint-disable-line react-hooks/exhaustive-deps -- the key stands for the definition.
+    // The key encodes the definition's content; an identity-only change re-requests the same analysis.
+  }, [key, definition, client, connection.connection]);
   return {
     analysis: state.analysis,
     current: !!definition && state.key === key && !state.pending,

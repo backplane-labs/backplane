@@ -12,7 +12,7 @@ import { consoleErrorReporter } from './errors';
 import { InfrastructurePage } from './InfrastructurePage';
 import { FeatureGate, PlatformProvider } from './Platform';
 import type { ModuleEntry, useRegistry } from './registry';
-import Sidebar from './Sidebar';
+import { Sidebar } from './Sidebar';
 import { ServicePage } from './service/ServicePage';
 import { ServicesPage } from './services/ServicesPage';
 import { Header } from './shell/Header';
@@ -22,7 +22,7 @@ import '@xyflow/react/dist/base.css';
 import './tailwind.css';
 import './console.css';
 
-const Development = lazy(() => import('../dev'));
+const Development = lazy(() => import('../dev').then((module) => ({ default: module.Development })));
 
 function ModulePage({
   modules,
@@ -90,7 +90,7 @@ function ModuleLoading() {
   );
 }
 
-export default function Console({
+export function Console({
   mode,
   onThemeChange,
   onLogout,

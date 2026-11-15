@@ -31,7 +31,7 @@ const views = [
 ] as const;
 
 /** Technical acceptance page: every platform composition against the live installation. */
-export default function Development({ mode }: { mode: 'dark' | 'light' }) {
+export function Development({ mode }: { mode: 'dark' | 'light' }) {
   const { t } = useTranslation('host'),
     [service, setService] = useState('hello'),
     [view, setView] = useState<(typeof views)[number]>('services');

@@ -66,7 +66,9 @@ function Standalone() {
     </ThemeContext.Provider>
   );
 }
-createRoot(document.getElementById('root')!).render(
+const host = document.getElementById('root');
+if (!host) throw new Error('#root is missing');
+createRoot(host).render(
   <I18nextProvider i18n={i18n}>
     <BrowserRouter>
       <Standalone />

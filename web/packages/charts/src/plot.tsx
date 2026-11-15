@@ -7,7 +7,7 @@ import { useChartText } from './locales.js';
 import { exact, formatValue, prepareSeries } from './model.js';
 import type { ChartProps } from './types.js';
 
-export default function Plot({
+export function PlotSurface({
   label,
   series,
   mode,
@@ -34,6 +34,9 @@ export default function Plot({
     [to, setTo] = useState(''),
     [rangeError, setRangeError] = useState(false);
   const text = useChartText();
+  // The hidden set must survive plot recreation without recreating the plot on every toggle.
+  const hiddenRef = useRef(hidden);
+  hiddenRef.current = hidden;
   useEffect(() => {
     if (!host.current || !prepared.x.length) return;
     const c = tokens[mode],
@@ -102,10 +105,15 @@ export default function Plot({
           ],
         },
       },
-      prepared.data as uPlot.AlignedData,
+      prepared.data,
       host.current,
     );
     plot.current = view;
+    // A recreated plot resets series visibility; re-apply the hidden set here so
+    // the separate setSeries effect only reacts to prepared/hidden changes.
+    prepared.series.forEach((series, index) => {
+      view.setSeries(index + 1, { show: !hiddenRef.current.has(series.id) });
+    });
     const resize = new ResizeObserver(() => {
       if (host.current) view.setSize({ width: Math.max(200, host.current.clientWidth), height });
     });
@@ -116,9 +124,6 @@ export default function Plot({
       plot.current = null;
     };
   }, [prepared, mode, height, kind, timeZone, unit]);
-  useEffect(() => {
-    prepared.series.forEach((series, index) => plot.current?.setSeries(index + 1, { show: !hidden.has(series.id) }));
-  }, [prepared, hidden, mode, height, kind, timeZone]);
   const rows = useMemo(
     () =>
       prepared.series.flatMap((series) =>
@@ -137,26 +142,29 @@ export default function Plot({
       {!loading && !prepared.x.length && <p>{text('empty')}</p>}
       <div ref={host} role="img" aria-label={label} style={{ minWidth: 0 }} />
       {controls && (
-        <div role="group" aria-label={text('series')} style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        <fieldset
+          aria-label={text('series')}
+          style={{ display: 'flex', flexWrap: 'wrap', gap: 8, border: 'none', padding: 0, margin: 0, minWidth: 0 }}
+        >
           {prepared.series.map((series) => (
             <Button
               key={series.id}
               type="button"
               variant="outline"
               aria-pressed={!hidden.has(series.id)}
-              onClick={() =>
-                setHidden((previous) => {
-                  const next = new Set(previous);
-                  if (next.has(series.id)) next.delete(series.id);
-                  else next.add(series.id);
-                  return next;
-                })
-              }
+              onClick={() => {
+                const next = new Set(hidden);
+                if (next.has(series.id)) next.delete(series.id);
+                else next.add(series.id);
+                setHidden(next);
+                for (const [index, each] of prepared.series.entries())
+                  plot.current?.setSeries(index + 1, { show: !next.has(each.id) });
+              }}
             >
               {series.label}
             </Button>
           ))}
-        </div>
+        </fieldset>
       )}
       {cursor !== undefined && (
         <output

@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import type { LogRecord } from '@opentelemetry/api-logs';
+import type { LogAttributes, LogRecord } from '@opentelemetry/api-logs';
 import Ajv from 'ajv/dist/2020';
 import { afterEach, expect, it, vi } from 'vitest';
 import { deliveryOutcome, retryDelay } from '../packages/errors/src/delivery';
@@ -25,7 +25,7 @@ function setup(options: Partial<ClientOptions> = {}) {
     runtime: options.runtime ?? nodeRuntime,
   });
   const body = () => {
-    const result = JSON.parse(String(records.at(-1)?.body)) as DebugEnvelopeV1;
+    const result: DebugEnvelopeV1 = JSON.parse(String(records.at(-1)?.body));
     expect(validate(result), JSON.stringify(validate.errors)).toBe(true);
     return result;
   };
@@ -89,7 +89,8 @@ it('a sanitizer retaining and mutating its input/output cannot rewrite saved his
     },
   });
   client.addBreadcrumb('one', { revision: 1 });
-  (leaked as unknown as { revision: number }).revision = 9;
+  // defineProperty reaches through the JsonValue type without asserting a shape.
+  Object.defineProperty(leaked, 'revision', { value: 9, writable: true, enumerable: true, configurable: true });
   client.captureException('test');
   expect(body().history.items[0]).toMatchObject({ data: { value: { revision: 1 } } });
 });
@@ -114,7 +115,7 @@ it('filters before readers, isolates callback failure, and protects the original
   const { client, body } = setup({
     filter: (error) => {
       const message = error.message;
-      (error as { message: string }).message = 'rewritten';
+      Object.assign(error, { message: 'rewritten' });
       if (message === 'throw') throw Error('failed filter');
       return message === 'keep';
     },
@@ -130,10 +131,14 @@ it('filters before readers, isolates callback failure, and protects the original
 
 it('invalid auxiliary JSON omits sections with visible diagnostics and preserves the original error', () => {
   const { client, records, body } = setup();
-  const bad = { a: undefined } as unknown as Record<string, JsonValue>;
+  // A value that violates JsonValue on purpose: an undefined member the serializer must omit.
+  const bad: Record<string, JsonValue> & LogAttributes = Object.defineProperty({}, 'a', {
+    value: undefined,
+    enumerable: true,
+  });
   expect(
     client.captureException(new Error('original'), {
-      attributes: bad as unknown as import('@opentelemetry/api-logs').LogAttributes,
+      attributes: bad,
       extensions: bad,
     }).status,
   ).toBe('emitted');

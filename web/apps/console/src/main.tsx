@@ -20,7 +20,7 @@ import { Login } from './console/Login';
 import { consoleEnglish } from './console/locales';
 import { loginEnglish } from './console/login-locales';
 
-const Console = lazy(() => import('./console/ConsoleRuntime'));
+const Console = lazy(() => import('./console/ConsoleRuntime').then((module) => ({ default: module.ConsoleRuntime })));
 const consoleBase = import.meta.env.BASE_URL;
 const errors = consoleErrors(consoleBase);
 const runtime = new BackplaneClient({ baseURL: new URL(consoleBase, location.origin).href });
@@ -87,7 +87,9 @@ function Host() {
   );
 }
 void runtime.start();
-createRoot(document.getElementById('root')!, {
+const host = document.getElementById('root');
+if (host === null) throw new Error('Console mount point #root is missing');
+createRoot(host, {
   onCaughtError: errors.onReactError,
   onUncaughtError: errors.onReactError,
 }).render(

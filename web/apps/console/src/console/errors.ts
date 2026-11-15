@@ -1,5 +1,23 @@
-import { createReactErrorHandler } from '@backplane-labs/backplane-errors';
+import { type CapturedInput, createReactErrorHandler } from '@backplane-labs/backplane-errors';
 import { createBrowserClient, instrumentBrowser } from '@backplane-labs/backplane-errors/browser';
+import type { ErrorReporter } from '@backplane-labs/backplane-plugin-sdk';
+import type { RootOptions } from 'react-dom/client';
+
+type ReportedError = Parameters<ErrorReporter>[0];
+/** What React hands a root's error callbacks: any thrown value, untyped by React's contract. */
+type ReactThrown = Parameters<NonNullable<RootOptions['onCaughtError']>>[0];
+type ReportOptions = { handled?: boolean; attributes?: Readonly<Record<string, string>> };
+/** CapturedInput already covers every value a catch can hold; the check only makes that explicit to the compiler. */
+const isCaptured = (error: ReactThrown): error is CapturedInput =>
+  error === null ||
+  error === undefined ||
+  typeof error === 'boolean' ||
+  typeof error === 'number' ||
+  typeof error === 'string' ||
+  typeof error === 'bigint' ||
+  typeof error === 'symbol' ||
+  typeof error === 'object' ||
+  typeof error === 'function';
 
 /**
  * The console reports its own errors like any frontend: through the
@@ -17,18 +35,22 @@ export function consoleErrors(base: string) {
   });
   // Fetches, XHRs and navigations become breadcrumbs; URLs lose query and credentials.
   instrumentBrowser(client, { fetch: true, xhr: true, navigation: true, excludeUrls: [url] });
+  const reactError = createReactErrorHandler(client);
   const reporter = {
     client,
-    onReactError: createReactErrorHandler(client),
-    report: (error: unknown, options?: { handled?: boolean; attributes?: Readonly<Record<string, string>> }) =>
-      client.captureException(error, { handled: options?.handled ?? true, attributes: options?.attributes }),
+    // React hands over its errors as an untyped boundary value; accepted here, not in the package's handler.
+    onReactError: (error: ReactThrown, info: { componentStack?: string | null }) => {
+      if (isCaptured(error)) reactError(error, info);
+    },
+    report: (error: ReportedError, options?: ReportOptions) => {
+      if (isCaptured(error))
+        client.captureException(error, { handled: options?.handled ?? true, attributes: options?.attributes });
+    },
   };
   current = reporter.report;
   return reporter;
 }
 
-let current:
-  | ((error: unknown, options?: { handled?: boolean; attributes?: Readonly<Record<string, string>> }) => void)
-  | undefined;
+let current: ((error: ReportedError, options?: ReportOptions) => void) | undefined;
 /** The live console's reporter for module contexts; undefined in the fixture. */
-export const consoleErrorReporter = () => current;
+export const consoleErrorReporter = (): ErrorReporter | undefined => current;

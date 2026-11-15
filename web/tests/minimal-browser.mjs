@@ -32,8 +32,8 @@ try {
   await page.getByRole('button', { name: 'YAML', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Definition', exact: true })).toBeVisible();
   assert.deepEqual(errors, []);
-  console.log(
-    'Minimal Compose: login, assets, both themes, infrastructure and disabled execution with editable definitions passed',
+  process.stdout.write(
+    'Minimal Compose: login, assets, both themes, infrastructure and disabled execution with editable definitions passed\n',
   );
 } finally {
   await browser.close();

@@ -54,7 +54,7 @@ describe('values in their unit', () => {
     expect(formatValue(250, 'ms')).toBe('250 ms');
     expect(formatValue(0, 's')).toBe('0 s');
     expect(formatValue(12_582_912, 'By')).toBe('12 MiB');
-    expect(formatValue(3.14159, 'req')).toBe('3.14 req');
+    expect(formatValue(Math.PI, 'req')).toBe('3.14 req');
     expect(formatValue(null, 's')).toBe('—');
   });
 });

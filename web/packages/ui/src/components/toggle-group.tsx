@@ -7,6 +7,11 @@ import { cn } from '../lib/utils.js';
 
 import { toggleVariants } from './toggle.js';
 
+// CSSProperties does not model custom properties; this keeps the cast out.
+function gapStyle(spacing: number): React.CSSProperties & Record<'--gap', string | number> {
+  return { '--gap': spacing };
+}
+
 const ToggleGroupContext = React.createContext<
   VariantProps<typeof toggleVariants> & {
     spacing?: number;
@@ -39,7 +44,7 @@ function ToggleGroup({
       data-size={size}
       data-spacing={spacing}
       data-orientation={orientation}
-      style={{ '--gap': spacing } as React.CSSProperties}
+      style={gapStyle(spacing)}
       className={cn(
         'group/toggle-group flex w-fit flex-row items-center gap-[--spacing(var(--gap))] rounded-lg data-[size=sm]:rounded-[min(var(--radius-md),10px)] data-vertical:flex-col data-vertical:items-stretch',
         className,

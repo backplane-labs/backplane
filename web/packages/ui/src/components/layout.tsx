@@ -366,8 +366,7 @@ export function ViewToggle<T extends string>({
   className?: string;
 }) {
   return (
-    <div
-      role="group"
+    <fieldset
       aria-label={label}
       data-slot="view-toggle"
       className={cn('inline-flex h-8 items-center gap-0.5 rounded-md border border-border bg-muted p-0.5', className)}
@@ -385,7 +384,7 @@ export function ViewToggle<T extends string>({
           <span className={cn(option.icon && 'sr-only sm:not-sr-only')}>{option.label}</span>
         </button>
       ))}
-    </div>
+    </fieldset>
   );
 }
 
@@ -413,14 +412,9 @@ export function Meter({
     accent: 'bg-primary',
   };
   return (
-    <div
-      role="meter"
-      aria-label={label}
-      aria-valuemin={0}
-      aria-valuemax={max}
-      aria-valuenow={value}
-      className={cn('h-1 w-full overflow-hidden rounded-full bg-raised', className)}
-    >
+    <div className={cn('h-1 w-full overflow-hidden rounded-full bg-raised', className)}>
+      {/* A native meter carries the semantics; the visible bar is presentation. */}
+      <meter className="sr-only" min={0} max={max} value={value} aria-label={label} />
       <div className={cn('h-full rounded-full transition-[width]', fill[tone])} style={{ width: `${ratio * 100}%` }} />
     </div>
   );

@@ -79,7 +79,10 @@ const same = (a: JsonValue, b: JsonValue) => JSON.stringify(a) === JSON.stringif
 /** A typed value: JSON when it parses as a number, boolean or null, else the text. */
 export function parseValue(text: string): JsonValue {
   const trimmed = text.trim();
-  if (/^(-?\d+(\.\d+)?([eE][+-]?\d+)?|true|false|null)$/.test(trimmed)) return JSON.parse(trimmed) as JsonValue;
+  if (/^(-?\d+(\.\d+)?([eE][+-]?\d+)?|true|false|null)$/.test(trimmed)) {
+    const parsed: JsonValue = JSON.parse(trimmed);
+    return parsed;
+  }
   return text;
 }
 
@@ -88,7 +91,8 @@ export function addValue(chips: readonly FeedChip[], key: string, value: JsonVal
   const op: FeedOp = exclude ? 'is_not' : 'is',
     at = chips.findIndex((chip) => chip.key === key && chip.op === op);
   if (at < 0) return [...chips, { key, op, values: [value] }];
-  const chip = chips[at]!;
+  const chip = chips[at];
+  if (!chip) return [...chips];
   if (chip.values.some((v) => same(v, value))) return [...chips];
   return chips.map((other, index) => (index === at ? { ...chip, values: [...chip.values, value] } : other));
 }
@@ -122,13 +126,13 @@ export function FeedFilterBar({
     if (draft === value) return;
     const timer = setTimeout(() => onText(draft), 400);
     return () => clearTimeout(timer);
-  }, [draft]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [draft, value, onText]);
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-2">
       {pinned}
       {chips.map((chip, index) => (
         <ChipEditor
-          key={index}
+          key={`${chip.key}:${chip.op}:${chip.values.map(valueLabel).join(',')}`}
           chip={chip}
           targets={targets}
           suggest={suggest}
@@ -212,7 +216,7 @@ export function FeedHistogram({
   const text = usePlatformText();
   return (
     <Panel className="shrink-0" title={title} count={count}>
-      {series && series.some((entry) => entry.points.length) ? (
+      {series?.some((entry) => entry.points.length) ? (
         <BarChart
           label={title}
           mode={mode}
@@ -316,7 +320,8 @@ function ChipEditor({
       setValues(chip?.values ?? []);
       setDraft('');
     }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, chip?.key, chip?.op, chip?.values, first]);
+  const valueItems = values.map((value, at) => ({ id: `${valueLabel(value)}:${at}`, value, at }));
   const target = targets.find((entry) => entry.key === key),
     ops = target?.ops ?? textOps;
   const pending = draft.trim() ? [...values, numeric(op) ? Number(draft) : parseValue(draft)] : values;
@@ -385,20 +390,23 @@ function ChipEditor({
         <SelectControl
           aria-label={text('filterOperator')}
           value={op}
-          onValueChange={(value) => setOp(value as FeedOp)}
+          onValueChange={(value) => {
+            const next = ops.find((entry) => entry === value);
+            if (next) setOp(next);
+          }}
           options={ops.map((entry) => ({ value: entry, label: text(`auditOp_${entry}`) }))}
         />
         {takesValues(op) && (
           <div className="grid gap-2">
             {values.length > 0 && (
               <div className="flex flex-wrap gap-1">
-                {values.map((value, at) => (
-                  <Badge key={at} variant="outline" className="gap-1 font-mono">
-                    {valueLabel(value)}
+                {valueItems.map((item) => (
+                  <Badge key={item.id} variant="outline" className="gap-1 font-mono">
+                    {valueLabel(item.value)}
                     <button
                       type="button"
-                      aria-label={text('removeFilter', { name: valueLabel(value) })}
-                      onClick={() => setValues(values.filter((_, other) => other !== at))}
+                      aria-label={text('removeFilter', { name: valueLabel(item.value) })}
+                      onClick={() => setValues(values.filter((_, other) => other !== item.at))}
                     >
                       <X className="size-3" />
                     </button>
@@ -469,12 +477,13 @@ export function useFresh(ids: readonly string[] | undefined, key: string): Reado
     [fresh, setFresh] = useState<ReadonlySet<string>>(new Set());
   useEffect(() => {
     if (!ids) return;
-    if (seen.current?.key !== key) {
+    const previous = seen.current;
+    if (!previous || previous.key !== key) {
       seen.current = { key, ids: new Set(ids) };
       return;
     }
-    const added = ids.filter((id) => !seen.current!.ids.has(id));
-    for (const id of ids) seen.current.ids.add(id);
+    const added = ids.filter((id) => !previous.ids.has(id));
+    for (const id of ids) previous.ids.add(id);
     if (!added.length) return;
     setFresh(new Set(added));
     const timer = setTimeout(() => setFresh(new Set()), 2500);

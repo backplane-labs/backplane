@@ -82,8 +82,8 @@ export function SpanDetails({
       <AttributeTable label={text('resource')} attributes={span.resource ?? {}} />
       <section aria-label={text('events')}>
         <h3>{text('events')}</h3>
-        {span.events?.map((event, index) => (
-          <details key={index}>
+        {span.events?.map((event) => (
+          <details key={`${event.timestamp}:${event.name}`}>
             <summary>
               {event.timestamp} · {event.name}
             </summary>
@@ -93,8 +93,8 @@ export function SpanDetails({
       </section>
       <section aria-label={text('links')}>
         <h3>{text('links')}</h3>
-        {span.links?.map((link, index) => (
-          <details key={index}>
+        {span.links?.map((link) => (
+          <details key={`${link.traceId}:${link.spanId}`}>
             <summary>
               {link.traceId} · {link.spanId}
             </summary>

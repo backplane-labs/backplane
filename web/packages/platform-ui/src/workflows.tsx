@@ -33,7 +33,7 @@ import {
   Workflow,
   Zap,
 } from 'lucide-react';
-import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { date, durationText, enumLabel } from './format.js';
 import { usePlatformText } from './locales.js';
 import { RunDrawer, RunPager, type RunRef, RunStatusFilter, RunTable, useRunPages } from './runs.js';
@@ -72,10 +72,13 @@ export function CommandForm<S extends DescMessage>({
       />
       <div>
         <ConfirmAction
-          trigger={label}
+          trigger={
+            <Button type="button" variant="outline" disabled={action.pending || action.disabled}>
+              {label}
+            </Button>
+          }
           title={text('confirmTitle')}
           description={text('confirmDescription')}
-          disabled={action.pending || action.disabled}
           onConfirm={async (signal) => {
             const result = await action.run((abort) =>
               execute(fromJsonString(schema, value), AbortSignal.any([signal, abort])),
@@ -366,9 +369,10 @@ export function parseTimeout(value: string): Duration | undefined | null {
   if (!trimmed) return undefined;
   const match = /^(\d+(?:\.\d+)?)\s*(ms|s|m|h)$/.exec(trimmed);
   if (!match) return null;
-  const milliseconds = Math.round(
-    Number(match[1]) * { ms: 1, s: 1000, m: 60_000, h: 3_600_000 }[match[2] as 'ms' | 's' | 'm' | 'h'],
-  );
+  const units = { ms: 1, s: 1000, m: 60_000, h: 3_600_000 },
+    unit = match[2];
+  if (unit !== 'ms' && unit !== 's' && unit !== 'm' && unit !== 'h') return null;
+  const milliseconds = Math.round(Number(match[1]) * units[unit]);
   return create(DurationSchema, {
     seconds: BigInt(Math.floor(milliseconds / 1000)),
     nanos: (milliseconds % 1000) * 1_000_000,
@@ -392,6 +396,8 @@ function StartWorkflow({
   const [input, setInput] = useState('{}'),
     [workflowId, setWorkflowId] = useState(''),
     [timeout, setTimeoutText] = useState(''),
+    idField = useId(),
+    timeoutField = useId(),
     [opened, setOpened] = useState<RunRef>();
   const duration = parseTimeout(timeout),
     blocked = action.disabled || action.pending || duration === null;
@@ -413,18 +419,20 @@ function StartWorkflow({
   return (
     <div className="grid gap-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="grid gap-1 text-xs text-muted-foreground">
+        <label htmlFor={idField} className="grid gap-1 text-xs text-muted-foreground">
           {text('workflowIdOptional')}
           <Input
+            id={idField}
             className="h-8 font-mono text-xs"
             value={workflowId}
             placeholder={text('workflowIdDefault', { service, workflow: workflow.name })}
             onChange={(event) => setWorkflowId(event.target.value)}
           />
         </label>
-        <label className="grid gap-1 text-xs text-muted-foreground">
+        <label htmlFor={timeoutField} className="grid gap-1 text-xs text-muted-foreground">
           {text('timeoutOptional')}
           <Input
+            id={timeoutField}
             className="h-8 font-mono text-xs"
             value={timeout}
             placeholder={text('timeoutPlaceholder')}
@@ -604,9 +612,12 @@ function ScheduleRow({
 }) {
   const client = useClient(api.ScheduleServiceClient),
     text = usePlatformText(),
-    action = usePlatformAction<unknown>();
+    action = usePlatformAction<
+      api.DeleteScheduleResponse | api.PauseScheduleResponse | api.UnpauseScheduleResponse | api.TriggerScheduleResponse
+    >();
   const [note, setNote] = useState(''),
-    [expanded, setExpanded] = useState(false);
+    [expanded, setExpanded] = useState(false),
+    noteInput = useId();
   const live = schedule.state,
     paused = live?.paused,
     spec = schedule.declared?.spec,
@@ -614,7 +625,7 @@ function ScheduleRow({
     next = live?.nextActions[0];
   const drift = live && schedule.declared && schedule.declared.paused !== live.paused;
   const control = (operation: 'pause' | 'resume' | 'trigger' | 'delete') => async (signal: AbortSignal) => {
-    const response = await action.run(async (abort) => {
+    const response = await action.run((abort) => {
       const options = { signal: AbortSignal.any([signal, abort]) },
         request = { service: schedule.service, name: schedule.name };
       if (operation === 'delete')
@@ -633,9 +644,10 @@ function ScheduleRow({
     onChanged(operation === 'trigger');
   };
   const noteField = (
-    <label className="grid gap-1 text-xs text-muted-foreground">
+    <label htmlFor={noteInput} className="grid gap-1 text-xs text-muted-foreground">
       {text('note')}
       <Input
+        id={noteInput}
         className="h-8"
         value={note}
         placeholder={text('notePlaceholder')}
@@ -656,11 +668,7 @@ function ScheduleRow({
   const blocked = !live || action.pending || action.disabled,
     managed = schedule.managedBy !== '';
   return (
-    <div
-      role="group"
-      aria-label={schedule.name}
-      className="grid gap-1.5 border-b border-border px-3 py-2.5 last:border-b-0"
-    >
+    <fieldset aria-label={schedule.name} className="grid gap-1.5 border-b border-border px-3 py-2.5 last:border-b-0">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-xs">{schedule.name}</span>
         {!live ? (
@@ -675,12 +683,12 @@ function ScheduleRow({
             {text('managedBy', { file: schedule.managedBy })}
           </Badge>
         )}
-        {drift && (
+        {drift && schedule.declared && (
           <Badge
             variant="outline"
             className="text-warning"
             title={text('driftHelp', {
-              declared: text(schedule.declared!.paused ? 'paused' : 'active'),
+              declared: text(schedule.declared.paused ? 'paused' : 'active'),
               actual: text(paused ? 'paused' : 'active'),
             })}
           >
@@ -722,25 +730,27 @@ function ScheduleRow({
         )}
         {!managed && (
           <ConfirmAction
-            trigger={text('deleteSchedule')}
+            trigger={
+              <Button type="button" variant="outline" disabled={blocked}>
+                {text('deleteSchedule')}
+              </Button>
+            }
             tone="danger"
             title={text('deleteSchedule')}
             description={text('deleteScheduleHelp')}
-            disabled={blocked}
             onConfirm={control('delete')}
           />
         )}
         {paused ? (
           <ConfirmAction
             trigger={
-              <>
+              <Button type="button" variant="outline" disabled={blocked}>
                 <Play className="size-3.5" />
                 {text('resume')}
-              </>
+              </Button>
             }
             title={text('resumeConfirm', { name: schedule.name })}
             description={text('resumeHelp')}
-            disabled={blocked}
             onConfirm={control('resume')}
           >
             {noteField}
@@ -748,14 +758,13 @@ function ScheduleRow({
         ) : (
           <ConfirmAction
             trigger={
-              <>
+              <Button type="button" variant="outline" disabled={blocked}>
                 <Pause className="size-3.5" />
                 {text('pause')}
-              </>
+              </Button>
             }
             title={text('pauseConfirm', { name: schedule.name })}
             description={text('pauseHelp')}
-            disabled={blocked}
             onConfirm={control('pause')}
           >
             {noteField}
@@ -763,14 +772,13 @@ function ScheduleRow({
         )}
         <ConfirmAction
           trigger={
-            <>
+            <Button type="button" variant="outline" disabled={blocked}>
               <Zap className="size-3.5" />
               {text('trigger')}
-            </>
+            </Button>
           }
           title={text('triggerConfirm', { name: schedule.name })}
           description={text('triggerHelp')}
-          disabled={blocked}
           onConfirm={control('trigger')}
         />
         {onShowRuns && (
@@ -806,8 +814,8 @@ function ScheduleRow({
               label: text('nextActions'),
               value: live.nextActions.length ? (
                 <span className="grid gap-0.5">
-                  {live.nextActions.map((time, index) => (
-                    <Timestamp key={index} value={date(time)} absolute />
+                  {live.nextActions.map((time) => (
+                    <Timestamp key={`${time.seconds}:${time.nanos}`} value={date(time)} absolute />
                   ))}
                 </span>
               ) : (
@@ -818,8 +826,8 @@ function ScheduleRow({
               label: text('recentActions'),
               value: live.recentActions.length ? (
                 <span className="grid gap-0.5">
-                  {[...live.recentActions].reverse().map((entry, index) => (
-                    <span key={index}>
+                  {[...live.recentActions].reverse().map((entry) => (
+                    <span key={`${entry.workflowId ?? ''}:${entry.runId}:${entry.actualTime?.seconds ?? ''}`}>
                       {entry.workflowId ? (
                         runLink(
                           { workflowId: entry.workflowId, runId: entry.runId },
@@ -857,6 +865,6 @@ function ScheduleRow({
           ]}
         />
       )}
-    </div>
+    </fieldset>
   );
 }

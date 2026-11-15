@@ -50,25 +50,26 @@ export function MetricResults({ run, mode }: { run: ExploreRun; mode: 'dark' | '
     return {
       index,
       label,
-      color: palette[index % palette.length]!,
+      color: palette[index % palette.length] ?? palette[0],
       last: values.at(-1) ?? NaN,
       min: Math.min(...values),
       max: Math.max(...values),
       avg: values.reduce((sum, value) => sum + value, 0) / (values.length || 1),
     };
   });
-  const chart = series.flatMap((entry, index) =>
-    hidden.has(index)
+  const chart = series.flatMap((entry, index) => {
+    const row = rows[index];
+    return hidden.has(index) || !row
       ? []
       : [
           {
             id: String(index),
-            label: rows[index]!.label,
-            color: rows[index]!.color,
+            label: row.label,
+            color: row.color,
             points: entry.samples.map((sample) => ({ x: Number(sample.timestampSeconds) * 1000, value: sample.value })),
           },
-        ],
-  );
+        ];
+  });
   if (!series.length)
     return (
       <Panel fill>
@@ -140,8 +141,15 @@ export function MetricResults({ run, mode }: { run: ExploreRun; mode: 'dark' | '
                     </span>
                   </span>
                 </td>
-                {[row.last, row.min, row.avg, row.max].map((value, index) => (
-                  <td key={index} className="px-3 text-right font-mono tabular-nums">
+                {(
+                  [
+                    ['last', row.last],
+                    ['min', row.min],
+                    ['avg', row.avg],
+                    ['max', row.max],
+                  ] satisfies [string, number][]
+                ).map(([key, value]) => (
+                  <td key={key} className="px-3 text-right font-mono tabular-nums">
                     {unit && Number.isFinite(value) ? formatValue(value, unit) : format(value)}
                   </td>
                 ))}

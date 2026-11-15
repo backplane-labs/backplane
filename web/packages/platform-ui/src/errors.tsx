@@ -78,10 +78,8 @@ import {
   FeedFacets,
   FeedFilterBar,
   FeedHistogram,
-  type FeedOp,
   type FeedTarget,
   FeedTimeBar,
-  textOps,
   useFresh,
   valueLabel,
 } from './feed.js';
@@ -167,7 +165,11 @@ export function ErrorsExplorer({
     () => (service ? [{ key: 'service', op: 'is' as const, values: [service] }, ...state.chips] : state.chips),
     [service, state.chips],
   );
-  const range = useMemo(() => resolveTimeRange(state.range), [state.range, tick]); // eslint-disable-line react-hooks/exhaustive-deps
+  // `tick` re-reads the wall clock: relative ranges move with it.
+  const range = useMemo(() => {
+    void tick;
+    return resolveTimeRange(state.range);
+  }, [state.range, tick]);
   const filter = useMemo(() => range && errorFilterOf(chips, state.text, range), [chips, state.text, range]);
   const key = JSON.stringify([chips, state.text, state.range]);
   const setChips = (next: FeedChip[]) => {
@@ -253,7 +255,7 @@ export function ErrorsExplorer({
         return {
           key: field,
           label: text(`errorField_${field}`),
-          values: facet.values.map((entry) => ({ value: entry.value as JsonValue, count: Number(entry.count) })),
+          values: facet.values.map((entry) => ({ value: entry.value, count: Number(entry.count) })),
         };
       }),
     [facets.value, text],
@@ -379,10 +381,10 @@ export function ErrorsExplorer({
           fill
           flush
           title={
-            <div role="group" aria-label={text('errorsView')} className="flex items-center gap-1">
+            <fieldset aria-label={text('errorsView')} className="flex items-center gap-1">
               {viewButton('groups', <Layers />)}
               {viewButton('occurrences', <Bug />)}
-            </div>
+            </fieldset>
           }
           count={rows}
           actions={
@@ -392,8 +394,10 @@ export function ErrorsExplorer({
                   aria-label={text('errorsStates')}
                   value={state.states}
                   onValueChange={(value) => {
+                    const next = errorsStates.find((entry) => entry === value);
+                    if (!next) return;
                     setPages([]);
-                    onStateChange({ ...state, states: value as ErrorsStates });
+                    onStateChange({ ...state, states: next });
                   }}
                   className="h-7 w-32"
                   options={errorsStates.map((states) => ({ value: states, label: text(`errorsStates_${states}`) }))}
@@ -402,8 +406,10 @@ export function ErrorsExplorer({
                   aria-label={text('sort')}
                   value={state.sort}
                   onValueChange={(value) => {
+                    const next = errorsSorts.find((entry) => entry === value);
+                    if (!next) return;
                     setPages([]);
-                    onStateChange({ ...state, sort: value as ErrorsSort });
+                    onStateChange({ ...state, sort: next });
                   }}
                   className="h-7 w-40"
                   options={errorsSorts.map((sort) => ({ value: sort, label: text(`groupSort_${sort}`) }))}
@@ -419,7 +425,7 @@ export function ErrorsExplorer({
                 variant="ghost"
                 className="ml-auto"
                 disabled={!next || listed.loading}
-                onClick={() => setPages([...pages, next!])}
+                onClick={() => next && setPages([...pages, next])}
               >
                 {listed.loading && pages.length ? text('loading') : text('more')}
               </Button>
@@ -582,10 +588,13 @@ const onEnter = (fn: () => void) => (event: React.KeyboardEvent) => {
 
 /** Occurrences per bucket as a tiny bar chart. */
 export function Sparkline({ values, label }: { values: readonly bigint[]; label: string }) {
-  const max = values.reduce((top, value) => (value > top ? value : top), 0n);
+  let max = 0n;
+  for (const value of values) if (value > max) max = value;
   const width = 72,
     height = 18,
-    bar = width / Math.max(values.length, 1);
+    barWidth = width / Math.max(values.length, 1),
+    // Bars are positional: a bar's identity is its bucket, its key that bucket plus its count.
+    bars = values.map((value, at) => ({ key: `${at}:${value}`, value, at }));
   return (
     <svg
       role="img"
@@ -594,14 +603,14 @@ export function Sparkline({ values, label }: { values: readonly bigint[]; label:
       height={height}
       className="block overflow-visible text-destructive"
     >
-      {values.map((value, at) => {
+      {bars.map(({ key, value, at }) => {
         const h = max > 0n ? Math.max(value > 0n ? 1.5 : 0, (Number(value) / Number(max)) * height) : 0;
         return (
           <rect
-            key={at}
-            x={at * bar}
+            key={key}
+            x={at * barWidth}
             y={height - h}
-            width={Math.max(bar - 0.5, 0.5)}
+            width={Math.max(barWidth - 0.5, 0.5)}
             height={h}
             fill="currentColor"
             opacity={value > 0n ? 0.85 : 0}
@@ -695,8 +704,8 @@ function GroupsTable({
     <table aria-label={text('errorsTitle')} className="w-full table-fixed text-sm">
       <thead className="sticky top-0 z-[1]">
         <tr className="border-b border-border bg-raised text-left text-xs text-muted-foreground">
-          {headings.map(([heading, className], at) => (
-            <th key={at} className={`h-8 px-2 font-medium whitespace-nowrap ${className}`}>
+          {headings.map(([heading, className]) => (
+            <th key={`${heading}:${className}`} className={`h-8 px-2 font-medium whitespace-nowrap ${className}`}>
               {heading}
             </th>
           ))}
@@ -792,24 +801,31 @@ function OccurrencesTable({
   compact?: boolean;
 }) {
   const text = usePlatformText();
-  const headings = compact
-    ? [text('time'), '', text('errorField_message'), text('errorField_environment'), text('errorField_release'), '']
+  const headings: [string, string][] = compact
+    ? [
+        ['time', text('time')],
+        ['spacer', ''],
+        ['message', text('errorField_message')],
+        ['environment', text('errorField_environment')],
+        ['release', text('errorField_release')],
+        ['end', ''],
+      ]
     : [
-        text('time'),
-        '',
-        text('service'),
-        text('errorField_type'),
-        text('errorField_message'),
-        text('errorField_environment'),
-        text('errorField_release'),
-        '',
+        ['time', text('time')],
+        ['spacer', ''],
+        ['service', text('service')],
+        ['type', text('errorField_type')],
+        ['message', text('errorField_message')],
+        ['environment', text('errorField_environment')],
+        ['release', text('errorField_release')],
+        ['end', ''],
       ];
   return (
     <table aria-label={text(compact ? 'occurrencesOf' : 'errorsTitle')} className="w-full text-sm">
       <thead className="sticky top-0 z-[1]">
         <tr className="border-b border-border bg-raised text-left text-xs text-muted-foreground">
-          {headings.map((heading, at) => (
-            <th key={at} className="h-8 px-2 font-medium whitespace-nowrap">
+          {headings.map(([key, heading]) => (
+            <th key={key} className="h-8 px-2 font-medium whitespace-nowrap">
               {heading}
             </th>
           ))}
@@ -969,10 +985,10 @@ function GroupDetail({
               <ConfirmAction
                 key={name}
                 trigger={
-                  <>
+                  <Button type="button" variant="outline">
                     {icon}
                     {text(`setState_${name}`)}
-                  </>
+                  </Button>
                 }
                 title={text(`setState_${name}Confirm`)}
                 description={text(`setState_${name}Help`)}
@@ -1103,7 +1119,10 @@ function GroupDetail({
               variant="ghost"
               className="ml-auto"
               disabled={!feed.value?.next || feed.loading}
-              onClick={() => setPages([...pages, feed.value!.next])}
+              onClick={() => {
+                const next = feed.value?.next;
+                if (next) setPages([...pages, next]);
+              }}
             >
               {text('more')}
             </Button>
@@ -1153,13 +1172,13 @@ function ErrorDetail({
     return <EmptyState icon={<CircleAlert />} title={text('errorGone')} description={text('errorGoneHelp')} />;
   if (!detail.value?.occurrence) return <Skeleton className="h-64" />;
   const value = detail.value,
-    occurrence = value.occurrence!,
+    occurrence = detail.value.occurrence,
     sdk = occurrence.origin === ErrorOrigin.SDK;
   const tabs: Tab[] = [
     'stack',
-    ...(sdk ? (['state', 'history'] as Tab[]) : []),
-    ...(occurrence.traceId ? (['trace'] as Tab[]) : []),
-    ...(info?.relatedAvailable !== false ? (['logs'] as Tab[]) : []),
+    ...(sdk ? (['state', 'history'] as const) : []),
+    ...(occurrence.traceId ? (['trace'] as const) : []),
+    ...(info?.relatedAvailable !== false ? (['logs'] as const) : []),
     'environment',
     'fields',
   ];
@@ -1210,7 +1229,10 @@ function ErrorDetail({
             size="xs"
             variant="outline"
             className="ml-auto"
-            onClick={() => onOpenGroup({ fingerprint: value.group!.fingerprint, service: value.group!.service })}
+            onClick={() => {
+              const group = value.group;
+              if (group) onOpenGroup({ fingerprint: group.fingerprint, service: group.service });
+            }}
           >
             <Layers />
             {text('groupSummary', { count: Number(value.group.count) })}
@@ -1299,7 +1321,8 @@ function EnvironmentTab({
   onAdd: (field: string, value: JsonValue, exclude: boolean) => void;
 }) {
   const text = usePlatformText(),
-    o = detail.occurrence!;
+    o = detail.occurrence;
+  if (!o) return null;
   const facts: [ErrorFieldName | undefined, string, string][] = [
     ['service', text('service'), o.service],
     ['environment', text('errorField_environment'), o.environment],
@@ -1384,7 +1407,7 @@ function StackTab({ detail, mode }: { detail: GetErrorResponse; mode: Mode }) {
 
 function StateTab({ detail, mode }: { detail: GetErrorResponse; mode: Mode }) {
   const text = usePlatformText(),
-    state = useMemo(() => stateOf(detail.envelope as JsonValue | undefined), [detail]);
+    state = useMemo(() => stateOf(detail.envelope), [detail]);
   if (!state.length) return <EmptyState className="py-8" title={text('noState')} description={text('noStateHelp')} />;
   return (
     <div className="grid gap-3">
@@ -1400,7 +1423,7 @@ function StateTab({ detail, mode }: { detail: GetErrorResponse; mode: Mode }) {
 
 function HistoryTab({ detail, mode }: { detail: GetErrorResponse; mode: Mode }) {
   const text = usePlatformText(),
-    items = useMemo(() => historyOf(detail.envelope as JsonValue | undefined), [detail]),
+    items = useMemo(() => historyOf(detail.envelope), [detail]),
     [open, setOpen] = useState<number>();
   if (!items.length)
     return <EmptyState className="py-8" title={text('noHistory')} description={text('noHistoryHelp')} />;
@@ -1460,7 +1483,10 @@ function LogsTab({ occurrence, mode }: { occurrence: ErrorOccurrence; mode: Mode
       <SelectControl
         aria-label={text('relatedLogs')}
         value={String(relation)}
-        onValueChange={(value) => setRelation(Number(value) as (typeof relations)[number])}
+        onValueChange={(value) => {
+          const next = relations.find((entry) => String(entry) === value);
+          if (next !== undefined) setRelation(next);
+        }}
         className="max-w-72"
         options={relations.map((entry) => ({ value: String(entry), label: text(relationName[entry]) }))}
       />

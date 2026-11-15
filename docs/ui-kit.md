@@ -43,7 +43,7 @@ classes the module would have to generate.
 | Family | Public API | Contract |
 | --- | --- | --- |
 | Layout/text | Stack, Grid, Text, TextLink, Toolbar, IconButton | Semantic HTML, token colors, keyboard toolbar movement |
-| Actions | ConfirmAction, ClipboardButton | Abortable confirmation with optional fields (a note, a reason) between description and buttons, retained failure state, clipboard success/failure |
+| Actions | ConfirmAction, ClipboardButton | Abortable confirmation opened by the caller's own trigger element (usually a `Button`, which keeps its size, variant and disabled state), with optional fields (a note, a reason) between description and buttons, retained failure state, clipboard success/failure |
 | Text | SearchInput, SecretInput, AutoSizeInput, AutoSizeTextarea, AutoSaveInput | Clear/reveal, masked readonly secrets, size limits, blur-save with explicit retry |
 | Numbers | NumberInput, stepDecimal | Controlled decimal strings and exact bigint arithmetic; units, bounds, readonly |
 | Selection | SelectControl, Combobox, TagsInput, Cascader | Themed single choice with keyboard/typeahead; static/async and multiple selection; literal string IDs; cancellation and retry |

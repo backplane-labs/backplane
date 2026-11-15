@@ -1,7 +1,6 @@
-import type * as api from '@backplane-labs/backplane-api';
 import type { EditorCompletion, EditorCompletionResult } from '@backplane-labs/backplane-editors';
 import { framesOf, type Scope, type StepLike, scopeAt, type WiringIndex } from './catalog.js';
-import type { Definition, WiringKind } from './document.js';
+import { type Definition, isBindingDefinition, type WiringKind } from './document.js';
 import { type Shape, shapeAt, shapeLabel, shapeOf } from './shape.js';
 
 const rootKeys: Record<WiringKind, [string, string][]> = {
@@ -122,11 +121,11 @@ export function completeYAML({
     return frames.chain.length > 1 ? (frames.chain.at(-2)?.step?.steps ?? {}) : steps;
   };
   if (listItem) {
-    const path = parentKeys(text, lineStart, listItem[1]!.length);
+    const path = parentKeys(text, lineStart, listItem[1].length);
     if (path.at(-1) === 'after') {
       const around = siblings(path.slice(0, -1));
       return {
-        from: position - listItem[2]!.length,
+        from: position - listItem[2].length,
         options: Object.keys(around).map((name) => ({ label: name, type: 'variable', detail: around[name]?.activity })),
       };
     }
@@ -134,16 +133,16 @@ export function completeYAML({
   }
   if (keyOnly) {
     const path = parentKeys(text, lineStart, indent);
-    const options = keysFor(kind, index, path, steps, definitionSource(kind, definition));
-    return options.length ? { from: position - keyOnly[2]!.length, options } : null;
+    const options = keysFor(kind, index, path, steps, definitionSource(definition));
+    return options.length ? { from: position - keyOnly[2].length, options } : null;
   }
   if (!keyValue) return null;
-  const path = [...parentKeys(text, lineStart, keyValue[1]!.length), keyValue[2]!],
-    rest = keyValue[3]!;
-  const key = path.at(-1)!,
+  const path = [...parentKeys(text, lineStart, keyValue[1].length), keyValue[2]],
+    rest = keyValue[3];
+  const key = path.at(-1) ?? '',
     frames = framesOf(path.slice(0, -1), steps);
   const inStep = frames.chain.length > 0 && frames.rest.length === 0 && !frames.inStepsMap;
-  const word = /[\w.<>-]*$/.exec(rest)![0];
+  const word = /[\w.<>-]*$/.exec(rest)?.[0] ?? '';
   const names = (list: Map<string, { value: { description: string } }>) =>
     [...list.entries()].map(([full, entry]) => ({
       label: full,
@@ -155,14 +154,14 @@ export function completeYAML({
   if (inStep && (key === 'activity' || key === 'undo'))
     return { from: position - word.length, options: names(index.activities) };
   if (inStep && key === 'onError') {
-    const partial = /\w*$/.exec(rest)![0];
+    const partial = /\w*$/.exec(rest)?.[0] ?? '';
     return {
       from: position - partial.length,
       options: ['fail', 'continue'].map((label) => ({ label, type: 'keyword' as const })),
     };
   }
   if (inStep && key === 'after') {
-    const partial = /[\w]*$/.exec(rest)![0],
+    const partial = /[\w]*$/.exec(rest)?.[0] ?? '',
       around = siblings(path.slice(0, -1));
     return {
       from: position - partial.length,
@@ -176,7 +175,7 @@ export function completeYAML({
     (exprFrames.chain.length > 0 && ['input', 'undoInput', 'when', 'forEach', 'result'].includes(first ?? '')) ||
     (path.length === 1 && key === 'when');
   if (!cel) return null;
-  const source = definitionSource(kind, definition);
+  const source = definitionSource(definition);
   if (!source) return null;
   return completeCEL(rest, position, scopeAt(index, source, steps, path, kind));
 }
@@ -194,7 +193,7 @@ function keysFor(
   if (!path.length) return toOptions(rootKeys[kind]);
   const frames = framesOf(path, steps);
   if (frames.inStepsMap) return [];
-  const step = frames.chain.at(-1)?.step as (StepLike & { undo?: string }) | undefined;
+  const step = frames.chain.at(-1)?.step;
   if (frames.chain.length && !frames.rest.length)
     return toOptions(step?.forEach ? [...stepKeys, ...forEachKeys] : stepKeys);
   if (frames.chain.length && frames.rest.length === 1 && frames.rest[0] === 'retry') return toOptions(retryKeys);
@@ -219,13 +218,13 @@ function fieldOptions(shape: Shape | undefined): EditorCompletion[] {
 export function completeCEL(before: string, position: number, scope: Scope): EditorCompletionResult | null {
   const chain = /([A-Za-z_]\w*(?:\s*\.\s*[A-Za-z_]\w*)*)\s*\.\s*(\w*)$/.exec(before);
   if (chain) {
-    const [root, ...fields] = chain[1]!.split('.').map((part) => part.trim());
-    const variable = scope.variables.get(root!);
+    const [root, ...fields] = chain[1].split('.').map((part) => part.trim());
+    const variable = scope.variables.get(root);
     if (!variable) return null;
     const shape = shapeAt(variable.shape, fields);
-    return { from: position - chain[2]!.length, options: fieldOptions(shape) };
+    return { from: position - chain[2].length, options: fieldOptions(shape) };
   }
-  const partial = /(\w*)$/.exec(before)![1]!;
+  const partial = /(\w*)$/.exec(before)?.[1] ?? '';
   if (/\d/.test(partial[0] ?? '')) return null;
   return {
     from: position - partial.length,
@@ -244,12 +243,7 @@ export function stepsOf(definition?: Definition): Record<string, StepLike | unde
   return definition?.steps ?? {};
 }
 
-export function definitionSource(
-  kind: WiringKind,
-  definition?: Definition,
-): { hook: string } | { event: string } | undefined {
+export function definitionSource(definition?: Definition): { hook: string } | { event: string } | undefined {
   if (!definition) return undefined;
-  return kind === 'binding'
-    ? { hook: (definition as api.BindingDefinition).hook }
-    : { event: (definition as api.RuleDefinition).event };
+  return isBindingDefinition(definition) ? { hook: definition.hook } : { event: definition.event };
 }

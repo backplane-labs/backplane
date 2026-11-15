@@ -6,8 +6,10 @@ import {
   type Revision,
   RollbackRequestSchema,
   SaveRevisionRequestSchema,
+  type SaveRevisionResponse,
   type ServiceConfig,
   ValidateOverrideRequestSchema,
+  type ValidateOverrideResponse,
   WatchConfigRequestSchema,
 } from '@backplane-labs/backplane-api';
 import { ConfigSource, InstancePhase } from '@backplane-labs/backplane-api/backplanepb/v1/instance_pb';
@@ -32,7 +34,7 @@ import {
   Switch,
   Timestamp,
 } from '@backplane-labs/backplane-ui';
-import { clone, create, isMessage } from '@bufbuild/protobuf';
+import { clone, create, isMessage, type JsonValue } from '@bufbuild/protobuf';
 import { DurationSchema } from '@bufbuild/protobuf/wkt';
 import {
   defaultValue,
@@ -49,6 +51,7 @@ import { CircleAlert, CircleCheck, History, Lock, RotateCcw, SlidersHorizontal, 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { date, enumLabel } from './format.js';
 import { usePlatformText } from './locales.js';
+import { type Parsed, toNativeJSON } from './operations-model.js';
 import { usePlatformAction, usePlatformQuery } from './runtime.js';
 import { nativeJSON } from './serialization.js';
 
@@ -86,12 +89,13 @@ export function ConfigurationPanel({ service, mode }: { service: string; mode: '
 
 /** Resolves a dotted Live path to its schema field through objects and refs. */
 function resolveField(schema: Schema | undefined, path: string): Schema_Field | undefined {
-  let current = schema,
+  if (!schema) return undefined;
+  let current: Schema | undefined = schema,
     field: Schema_Field | undefined;
   for (const segment of path.split('.')) {
     field = current?.fields.find((entry) => entry.name === segment);
     if (!field || !current) return undefined;
-    current = fieldSchema(schema!, field, undefined) ?? undefined;
+    current = fieldSchema(schema, field, undefined) ?? undefined;
   }
   return field;
 }
@@ -103,7 +107,7 @@ const same = (a: Values, b: Values) =>
 function ConfigDraft({ config, mode }: { config: ServiceConfig; mode: 'dark' | 'light' }) {
   const client = useClient(ConfigServiceClient),
     text = usePlatformText(),
-    action = usePlatformAction<unknown>();
+    action = usePlatformAction<ValidateOverrideResponse | SaveRevisionResponse>();
   const [baseline, setBaseline] = useState(config.current),
     [values, setValues] = useState<Values>({ ...config.current?.values }),
     [comment, setComment] = useState('');
@@ -117,6 +121,8 @@ function ConfigDraft({ config, mode }: { config: ServiceConfig; mode: 'dark' | '
     }),
   );
   useEffect(() => {
+    // The current revision changing resets the paging.
+    void config.current?.revision;
     setOlder([]);
     setBefore(0n);
   }, [config.current?.revision]);
@@ -319,8 +325,8 @@ function ConfigDraft({ config, mode }: { config: ServiceConfig; mode: 'dark' | '
           )}
           {general.length > 0 && (
             <ul className="m-0 grid gap-1 border-t border-border px-3 py-2 text-xs text-destructive" role="alert">
-              {general.map((violation, index) => (
-                <li key={index}>
+              {general.map((violation) => (
+                <li key={`${violation.instance ?? ''}:${violation.message}`}>
                   {violation.instance && <span className="font-mono">{violation.instance}: </span>}
                   {violation.message}
                 </li>
@@ -363,8 +369,10 @@ function ConfigDraft({ config, mode }: { config: ServiceConfig; mode: 'dark' | '
                 variant="ghost"
                 disabled={revisions.loading}
                 onClick={() => {
+                  const next = revisions.value?.nextBefore;
+                  if (next === undefined) return;
                   setOlder(all);
-                  setBefore(revisions.value!.nextBefore);
+                  setBefore(next);
                 }}
               >
                 {text('more')}
@@ -421,10 +429,10 @@ function ConfigDraft({ config, mode }: { config: ServiceConfig; mode: 'dark' | '
           selected.revision !== config.current?.revision && (
             <ConfirmAction
               trigger={
-                <>
+                <Button type="button" variant="outline">
                   <RotateCcw className="size-3.5" />
                   {text('rollbackTo', { revision: selected.revision.toString() })}
-                </>
+                </Button>
               }
               title={text('rollbackConfirm')}
               description={text('rollbackHelp', { revision: selected.revision.toString() })}
@@ -572,8 +580,9 @@ function LiveSetting({
         </div>
       </div>
       <div className="grid min-w-0 content-start gap-1.5">
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+        <label htmlFor={`override-${path}`} className="flex items-center gap-2 text-xs text-muted-foreground">
           <Switch
+            id={`override-${path}`}
             size="sm"
             checked={overridden}
             disabled={disabled}
@@ -593,8 +602,12 @@ function LiveSetting({
             onChange={onChange}
           />
         )}
-        {violations.map((violation, index) => (
-          <p key={index} className="m-0 text-xs text-destructive" role="alert">
+        {violations.map((violation) => (
+          <p
+            key={`${violation.instance ?? ''}:${violation.message}`}
+            className="m-0 text-xs text-destructive"
+            role="alert"
+          >
             {violation.instance && <span className="font-mono">{violation.instance}: </span>}
             {violation.message}
           </p>
@@ -610,9 +623,10 @@ function LiveSetting({
  * depth); overrides are in the form an override accepts.
  */
 function native(root: Schema | undefined, field: Schema_Field | undefined, value: string): Native | undefined {
-  let parsed: unknown;
+  let parsed: Native;
   try {
-    parsed = parseLossless(value, null, parseNumberAndBigInt);
+    const raw: Parsed = parseLossless(value, null, parseNumberAndBigInt);
+    parsed = toNativeJSON(raw);
   } catch {
     return undefined;
   }
@@ -656,9 +670,10 @@ function initialFor(field?: Schema_Field): string {
       return 'null';
   }
 }
-function parse(value: string): unknown {
+function parse(value: string): JsonValue | undefined {
   try {
-    return JSON.parse(value);
+    const parsed: JsonValue = JSON.parse(value);
+    return parsed;
   } catch {
     return undefined;
   }
@@ -687,14 +702,22 @@ function ValueEditor({
     case 'object':
     case 'ref': {
       const values = native(root, field, value);
-      if (!nested || !root || !values || typeof values !== 'object' || Array.isArray(values) || '$typeName' in values)
+      if (
+        !nested ||
+        !root ||
+        !values ||
+        typeof values !== 'object' ||
+        Array.isArray(values) ||
+        values instanceof Uint8Array ||
+        '$typeName' in values
+      )
         break;
       return (
         <ObjectEditor
           root={root}
           schema={nested}
           path={path}
-          values={values as NativeStruct}
+          values={values}
           disabled={disabled}
           onChange={(next) => onChange(nativeJSON(next))}
         />
@@ -702,8 +725,9 @@ function ValueEditor({
     }
     case 'bool':
       return (
-        <label className="flex items-center gap-2 text-sm">
+        <label htmlFor={`bool-${path}`} className="flex items-center gap-2 text-sm">
           <Switch
+            id={`bool-${path}`}
             checked={parsed === true}
             disabled={disabled}
             onCheckedChange={(checked) => onChange(String(checked))}
@@ -794,14 +818,21 @@ function startupPaths(root: Schema, live: readonly string[]): { path: string; fi
   return out;
 }
 
-function valueAtPath(document: unknown, path: string): { found: boolean; value: unknown } {
+function valueAtPath(document: Native | undefined, path: string): { found: true; value: Native } | { found: false } {
   let value = document;
   for (const key of path.split('.')) {
-    if (!value || typeof value !== 'object' || Array.isArray(value) || !Object.hasOwn(value, key))
-      return { found: false, value: undefined };
-    value = (value as Record<string, unknown>)[key];
+    if (
+      !value ||
+      typeof value !== 'object' ||
+      Array.isArray(value) ||
+      value instanceof Uint8Array ||
+      '$typeName' in value ||
+      !Object.hasOwn(value, key)
+    )
+      return { found: false };
+    value = value[key];
   }
-  return { found: true, value };
+  return value === undefined ? { found: false } : { found: true, value };
 }
 
 /** Startup values are read-only: the effective value each instance runs with, beside the declaration. */
@@ -820,7 +851,8 @@ function StartupSettings({
     () =>
       instances.map((instance) => {
         try {
-          return parseLossless(new TextDecoder().decode(instance.config), null, parseNumberAndBigInt);
+          const raw: Parsed = parseLossless(new TextDecoder().decode(instance.config), null, parseNumberAndBigInt);
+          return toNativeJSON(raw);
         } catch {
           return undefined;
         }
@@ -833,7 +865,7 @@ function StartupSettings({
     const group = row.path.includes('.') ? row.path.slice(0, row.path.indexOf('.')) : '';
     groups.set(group, [...(groups.get(group) ?? []), row]);
   }
-  const show = (field: Schema_Field, value: unknown) => {
+  const show = (field: Schema_Field, value: Native) => {
     const parsed = nativeOf(root, field, value);
     return isMessage(parsed, DurationSchema)
       ? formatDuration(Number(parsed.seconds) * 1000 + parsed.nanos / 1e6)
@@ -863,8 +895,7 @@ function StartupSettings({
             {entries.map(({ path, field }) => {
               const values = documents
                 .map((document) => valueAtPath(document, path))
-                .filter((entry) => entry.found)
-                .map((entry) => show(field, entry.value));
+                .flatMap((entry) => (entry.found ? [show(field, entry.value)] : []));
               const distinct = [...new Set(values)];
               const preset = defaultValue(field);
               return (

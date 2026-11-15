@@ -94,8 +94,8 @@ export function Header({
       </Link>
       <nav aria-label={t('breadcrumbs')} className="console-crumbs">
         <ol>
-          {crumbs.map((crumb, index) => (
-            <Fragment key={index}>
+          {crumbs.map((crumb) => (
+            <Fragment key={crumb.to ?? crumb.label}>
               <li aria-hidden="true">
                 <ChevronRight size={13} />
               </li>
@@ -103,7 +103,7 @@ export function Header({
                 {crumb.to ? (
                   <Link to={crumb.to}>{crumb.label}</Link>
                 ) : (
-                  <span aria-current={index === crumbs.length - 1 ? 'page' : undefined}>{crumb.label}</span>
+                  <span aria-current={crumb === crumbs[crumbs.length - 1] ? 'page' : undefined}>{crumb.label}</span>
                 )}
               </li>
             </Fragment>

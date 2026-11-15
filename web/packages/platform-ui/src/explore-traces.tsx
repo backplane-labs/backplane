@@ -1,6 +1,7 @@
 import { GetTraceRequestSchema, ObsServiceClient } from '@backplane-labs/backplane-api';
 import { JSONViewer } from '@backplane-labs/backplane-editors';
 import {
+  type Attributes,
   attributeText,
   type CorrelationTarget,
   humanDuration,
@@ -51,7 +52,10 @@ const palette = [
   '#74c0fc',
 ];
 export const serviceColor = (services: string[], service?: string) =>
-  palette[Math.max(0, services.indexOf(service ?? '')) % palette.length]!;
+  palette[Math.max(0, services.indexOf(service ?? '')) % palette.length] ?? palette[0];
+
+const byStart = (a: SpanNode, b: SpanNode) =>
+  a.startUnixNano.localeCompare(b.startUnixNano, undefined, { numeric: true });
 
 interface TraceRow {
   id: string;
@@ -76,11 +80,17 @@ function groupRows(rows: Record<string, string>[]): TraceRow[] {
       const end = (row: Record<string, string>) =>
         BigInt(row.end_time_unix_nano || '0') || start(row) + BigInt(row.duration || '0');
       const root = spans.find((row) => !row.parent_span_id) ?? spans.reduce((a, b) => (start(a) <= start(b) ? a : b));
-      const from = spans.reduce((min, row) => (start(row) < min ? start(row) : min), start(spans[0]!)),
-        to = spans.reduce((max, row) => (end(row) > max ? end(row) : max), 0n);
+      let from = start(spans[0] ?? root),
+        to = 0n;
+      for (const row of spans) {
+        const rowStart = start(row),
+          rowEnd = end(row);
+        if (rowStart < from) from = rowStart;
+        if (rowEnd > to) to = rowEnd;
+      }
       return {
         id,
-        root: root.name!,
+        root: root.name ?? '',
         service: root['resource_attr:service.name'] ?? '',
         services: [...new Set(spans.map((row) => row['resource_attr:service.name'] ?? ''))],
         spans: spans.length,
@@ -118,7 +128,8 @@ export function TraceResults({
     return [];
   }, [run]);
   const services = [...new Set(traces.flatMap((trace) => trace.services))].sort();
-  const longest = traces.reduce((max, trace) => (trace.duration > max ? trace.duration : max), 1n);
+  let longest = 1n;
+  for (const trace of traces) if (trace.duration > longest) longest = trace.duration;
   return (
     <Panel
       fill
@@ -288,13 +299,12 @@ export function TraceView({
   const services = useMemo(() => [...new Set(spans.map((span) => span.service ?? ''))].sort(), [spans]);
   const total =
     forest.start !== null && forest.end !== null && forest.end > forest.start ? forest.end - forest.start : 1n;
-  const byStart = (a: SpanNode, b: SpanNode) =>
-    a.startUnixNano.localeCompare(b.startUnixNano, undefined, { numeric: true });
   const rows = useMemo(() => {
     const list: SpanNode[] = [],
       stack = [...forest.roots].sort(byStart).reverse();
     while (stack.length) {
-      const node = stack.pop()!;
+      const node = stack.pop();
+      if (!node) break;
       list.push(node);
       if (!collapsed.has(node.id)) stack.push(...[...node.children].sort(byStart).reverse());
     }
@@ -317,7 +327,7 @@ export function TraceView({
     }
   };
   const errors = spans.filter((span) => span.status === 'error').length;
-  const span = spans.find((entry) => entry.id === selected) as SpanNode | undefined;
+  const span = spans.find((entry) => entry.id === selected);
   const all = () => {
     const ids = new Set<string>();
     const walk = (nodes: SpanNode[]) =>
@@ -518,7 +528,7 @@ function SpanPanel({
   onNavigate,
   traceId,
 }: {
-  span: SpanNode;
+  span: SpanRecord;
   services: string[];
   traceStart: bigint;
   onNavigate?: (target: CorrelationTarget) => void;
@@ -532,9 +542,8 @@ function SpanPanel({
         return 0n;
       }
     })();
-  const entries = (attributes?: Readonly<Record<string, unknown>>) =>
-    Object.entries(attributes ?? {}).sort(([a], [b]) => a.localeCompare(b));
-  const list = (items: [string, unknown][]) => (
+  const entries = (attributes?: Attributes) => Object.entries(attributes ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  const list = (items: [string, Attributes[string]][]) => (
     <dl className="m-0 grid grid-cols-[minmax(110px,max-content)_minmax(0,1fr)] text-xs">
       {items.map(([key, value]) => (
         <div key={key} className="contents">
@@ -608,8 +617,8 @@ function SpanPanel({
           <div className="border-t border-border px-3 py-1.5 text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
             {text('spanEvents')} · {span.events.length}
           </div>
-          {span.events.map((event, index) => (
-            <details key={index} className="border-b border-border px-3 py-1.5 text-xs">
+          {span.events.map((event) => (
+            <details key={`${event.name}:${event.timestamp}`} className="border-b border-border px-3 py-1.5 text-xs">
               <summary className="cursor-pointer font-mono">{event.name}</summary>
               {list(entries(event.attributes))}
             </details>
@@ -621,9 +630,9 @@ function SpanPanel({
           <div className="border-t border-border px-3 py-1.5 text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
             {text('links')}
           </div>
-          {span.links.map((link, index) => (
+          {span.links.map((link) => (
             <button
-              key={index}
+              key={`${link.traceId}:${link.spanId}`}
               type="button"
               className="block w-full truncate border-b border-border px-3 py-1.5 text-left font-mono text-xs text-link hover:underline"
               onClick={() => onNavigate?.({ signal: 'traces', traceId: link.traceId, spanId: link.spanId })}

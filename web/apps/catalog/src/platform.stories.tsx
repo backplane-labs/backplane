@@ -45,8 +45,9 @@ function Fixture({ children }: { children: ReactNode }) {
         <h1>Platform API compositions</h1>
         <p>Explicit local transport fixtures</p>
         <div style={{ display: 'flex', gap: 8 }}>
-          <label style={{ display: 'flex', gap: 8 }}>
+          <label htmlFor="fixture-fail-writes" style={{ display: 'flex', gap: 8 }}>
             <Checkbox
+              id="fixture-fail-writes"
               checked={fail}
               onCheckedChange={(value) => {
                 setFail(value === true);
@@ -86,7 +87,7 @@ export default {
   ],
 } satisfies Meta;
 type Story = StoryObj;
-const mode = (context: { globals: Record<string, unknown> }) =>
+const mode = (context: { globals: { theme?: string } }) =>
   context.globals.theme === 'light' ? ('light' as const) : ('dark' as const);
 export const ServicesAndHealth: Story = { render: (_, context) => <Services mode={mode(context)} /> };
 export const ExternalAPI: Story = {

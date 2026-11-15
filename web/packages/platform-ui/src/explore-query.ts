@@ -59,8 +59,8 @@ export const bucketLabels = ['le', 'vmrange'] as const;
 
 /** Metric names of an expression: quoted __name__ matchers and bare selectors. */
 function metricNames(expression: string): string[] {
-  const quoted = [...expression.matchAll(/__name__\s*=\s*"([^"]+)"/g)].map((match) => match[1]!);
-  const bare = [...expression.matchAll(/(?:^|[(\s,])([a-zA-Z_][\w.:]*)\s*(?:\{|\[)/g)].map((match) => match[1]!);
+  const quoted = [...expression.matchAll(/__name__\s*=\s*"([^"]+)"/g)].map((match) => match[1]);
+  const bare = [...expression.matchAll(/(?:^|[(\s,])([a-zA-Z_][\w.:]*)\s*(?:\{|\[)/g)].map((match) => match[1]);
   return [...quoted, ...bare];
 }
 

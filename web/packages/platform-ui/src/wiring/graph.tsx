@@ -1,6 +1,6 @@
 import * as api from '@backplane-labs/backplane-api';
 import { Badge, EmptyState, StatusBadge, type StatusTone } from '@backplane-labs/backplane-ui';
-import { toJson } from '@bufbuild/protobuf';
+import { type JsonValue, toJson } from '@bufbuild/protobuf';
 import { ValueSchema } from '@bufbuild/protobuf/wkt';
 import {
   applyNodeChanges,
@@ -33,10 +33,11 @@ import {
   type DraftProblem,
   definitionSchema,
   editAll,
+  isBindingDefinition,
   removeStep,
   stepAt,
   stepPathOf,
-  unescape,
+  unescapeKey,
   type WiringKind,
 } from './document.js';
 import { stepTone } from './history.js';
@@ -50,7 +51,7 @@ const palette = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--ch
 export function serviceColor(service: string): string {
   let hash = 0;
   for (const char of service) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  return palette[hash % palette.length]!;
+  return palette[hash % palette.length] ?? palette[0];
 }
 const owner = (full: string) => full.slice(0, Math.max(0, full.indexOf('.'))) || full;
 
@@ -125,7 +126,7 @@ const WIDTH = 272,
 function ports(
   shape: Shape,
   prefix: 'in' | 'out',
-  values?: Record<string, unknown>,
+  values?: Record<string, JsonValue>,
   problems?: (field: string) => boolean,
 ): Port[] {
   const fields = shape.kind === 'object' ? (shape.fields ?? []) : [];
@@ -152,26 +153,26 @@ function ports(
 }
 
 /** A value as a port shows it: an expression as written, a literal as JSON. */
-function describe(value: unknown): string | undefined {
+function describe(value: JsonValue | undefined): string | undefined {
   if (value === undefined) return undefined;
   if (typeof value === 'string') return value;
   return JSON.stringify(value);
 }
 
-function valueObject(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
+function valueObject(value: JsonValue | undefined): Record<string, JsonValue> | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : undefined;
 }
 
 /** A google.protobuf.Value as plain JSON. */
-function apiJson(value: api.BindingDefinition['result']): unknown {
+function apiJson(value: api.BindingDefinition['result']): JsonValue | undefined {
   return value ? toJson(ValueSchema, value) : undefined;
 }
 
 /** The value at a path of the definition's JSON, as written (expressions as strings). */
-function valueAt(kind: WiringKind, definition: Definition, path: readonly string[]): unknown {
-  let current: unknown = toJson(definitionSchema(kind), definition);
+function valueAt(kind: WiringKind, definition: Definition, path: readonly string[]): JsonValue | undefined {
+  let current: JsonValue | undefined = toJson(definitionSchema(kind), definition);
   for (const key of path)
-    current = current && typeof current === 'object' ? (current as Record<string, unknown>)[key] : undefined;
+    current = current && typeof current === 'object' && !Array.isArray(current) ? current[key] : undefined;
   return current;
 }
 
@@ -285,7 +286,11 @@ function Graph({
   );
 
   const graph = useMemo(() => {
-    if (!definition) return { nodes: [] as GraphNode[], edges: [] as Edge[] };
+    if (!definition) {
+      const nodes: GraphNode[] = [],
+        edges: Edge[] = [];
+      return { nodes, edges };
+    }
     const levels = new Map(
       (analysis?.steps ?? []).map((step) => [step.parent ? `${step.parent}/${step.name}` : step.name, step.level]),
     );
@@ -319,7 +324,7 @@ function Graph({
     ): GraphNode[] => {
       const built: { id: string; node: GraphNode; children: GraphNode[] }[] = [];
       for (const name of Object.keys(steps).sort()) {
-        const step = steps[name]!,
+        const step = steps[name],
           id = frame.prefix + name,
           stepPath = `${path}/steps/${name}`;
         if (step.forEach && Object.keys(step.steps).length) {
@@ -440,8 +445,8 @@ function Graph({
       return at ? { x: at.x, y: at.y } : fallback;
     };
 
-    if (kind === 'binding') {
-      const hook = (definition as api.BindingDefinition).hook,
+    if (isBindingDefinition(definition)) {
+      const hook = definition.hook,
         contract = index.hooks.get(hook)?.value;
       const triggerPorts = ports(shapeOf(contract?.input), 'out');
       triggerPorts.unshift({ id: 'out:*', label: 'req', type: contract?.input ? 'object' : 'dyn' });
@@ -460,19 +465,19 @@ function Graph({
           problems: problemAt('/hook'),
         },
       });
-      const result = valueObject(apiJson((definition as api.BindingDefinition).result));
+      const result = valueObject(apiJson(definition.result));
       const resultPorts = ports(
         shapeOf(contract?.output),
         'in',
         result ?? {},
         (field) => problemAt(`/result/${field}`) > 0,
       );
-      if ((definition as api.BindingDefinition).result && !result)
+      if (definition.result && !result)
         resultPorts.unshift({
           id: 'in:*',
           label: text('wholeResult'),
           type: 'object',
-          expr: describe(apiJson((definition as api.BindingDefinition).result)),
+          expr: describe(apiJson(definition.result)),
         });
       else if (!contract?.output) resultPorts.unshift({ id: 'in:*', label: text('wholeResult'), type: 'dyn' });
       nodes.push(...stepNodes);
@@ -492,7 +497,7 @@ function Graph({
         },
       });
     } else {
-      const event = (definition as api.RuleDefinition).event,
+      const event = definition.event,
         contract = index.events.get(event)?.value;
       const triggerPorts = ports(shapeOf(contract?.schema), 'out');
       triggerPorts.unshift({ id: 'out:*', label: 'event', type: contract?.schema ? 'object' : 'dyn' });
@@ -510,7 +515,7 @@ function Graph({
           ports: triggerPorts,
           selected: selected === TRIGGER,
           problems: problemAt('/event') + problemAt('/when'),
-          when: (definition as api.RuleDefinition).when || undefined,
+          when: definition.when || undefined,
         },
       });
       nodes.push(...stepNodes);
@@ -519,20 +524,20 @@ function Graph({
     // Edges: every read of a variable by an expression, from the port it reads to the port of the value it sets.
     const byId = new Map(nodes.map((node) => [node.id, node]));
     const has = (id: string, handle: string, side: 'in' | 'out') => {
-      const data = byId.get(id)?.data as StepData | EndData | LoopData | undefined;
+      const data = byId.get(id)?.data;
       if (!data) return false;
       if (data.kind === 'loop') return side === 'out' ? handle === 'out:*' || handle === 'item' : handle === 'result';
       const list = data.kind === 'step' ? (side === 'in' ? data.inputs : data.outputs) : data.ports;
       return list.some((port) => port.id === handle);
     };
     const edges = new Map<string, Edge>();
-    const colorOf = (id: string) => (byId.get(id)?.data as { color?: string } | undefined)?.color ?? 'var(--subtle)';
+    const colorOf = (id: string) => byId.get(id)?.data.color ?? 'var(--subtle)';
     for (const reference of analysis?.references ?? []) {
-      const segments = reference.path.split('/').slice(1).map(unescape);
+      const segments = reference.path.split('/').slice(1).map(unescapeKey);
       let at = 0,
         id = '';
       while (segments[at] === 'steps' && segments[at + 1] !== undefined) {
-        id = id ? `${id}/${segments[at + 1]}` : segments[at + 1]!;
+        id = id ? `${id}/${segments[at + 1]}` : (segments[at + 1] ?? '');
         if (segments[at + 2] === 'steps' && frames.has(id)) {
           at += 2;
           continue;
@@ -561,8 +566,14 @@ function Graph({
           frame = frames.get(id) ?? frame;
         } else continue;
         // A step's own item is read inside it: nothing to draw.
-        const own = byId.get(id)?.data as StepData | undefined;
-        if (rest[0] !== 'forEach' && own?.loop && reference.variable === own.loop.item) continue;
+        const own = byId.get(id)?.data;
+        if (
+          rest[0] !== 'forEach' &&
+          (own?.kind === 'step' || own?.kind === 'loop') &&
+          own.loop &&
+          reference.variable === own.loop.item
+        )
+          continue;
       } else if (!id && rest[0] === 'result' && kind === 'binding') {
         target = RESULT;
         targetHandle = rest[1] ? `in:${rest[1]}` : 'in:*';
@@ -679,7 +690,7 @@ function Graph({
         const sourceParent = connection.source.split('/').slice(0, -1).join('/'),
           targetParent = connection.target.split('/').slice(0, -1).join('/');
         const { step } = stepAt(definition, connection.target),
-          name = connection.source.split('/').at(-1)!;
+          name = connection.source.split('/').at(-1) ?? '';
         if (sourceParent !== targetParent || !step || step.after.includes(name)) return;
         apply([{ path: [...stepPathOf(connection.target), 'after'], value: [...step.after, name] }]);
         return;
@@ -742,8 +753,9 @@ function Graph({
   if (!definition)
     return <EmptyState className="h-full" title={text('graphNeedsYaml')} description={text('graphNeedsYamlHelp')} />;
   return (
-    <div
+    <section
       className="relative h-full"
+      role="region"
       onDragOver={(event) => {
         if (event.dataTransfer.types.includes(activityDragType)) {
           event.preventDefault();
@@ -798,10 +810,10 @@ function Graph({
         onEdgesDelete={(deleted) => {
           const changes: Change[] = [];
           for (const edge of deleted) {
-            const data = edge.data as { after?: boolean; reference?: string; path?: string } | undefined;
+            const data = edge.data;
             if (data?.after) {
               const { step } = stepAt(definition, edge.target),
-                name = edge.source.split('/').at(-1)!;
+                name = edge.source.split('/').at(-1) ?? '';
               if (step)
                 changes.push({
                   path: [...stepPathOf(edge.target), 'after'],
@@ -810,8 +822,8 @@ function Graph({
               continue;
             }
             // Only a port that is exactly the reference unsets; an expression that reads more stays for the author to edit.
-            if (data?.path && data.reference) {
-              const path = data.path.split('/').slice(1).map(unescape);
+            if (typeof data?.path === 'string' && typeof data.reference === 'string') {
+              const path = data.path.split('/').slice(1).map(unescapeKey);
               if (valueAt(kind, definition, path) === data.reference) changes.push({ path, value: undefined });
             }
           }
@@ -825,7 +837,7 @@ function Graph({
             pannable
             zoomable
             className="backplane-minimap"
-            nodeColor={(node) => (node.data as { color?: string }).color ?? 'var(--subtle)'}
+            nodeColor={(node) => (typeof node.data.color === 'string' ? node.data.color : 'var(--subtle)')}
             maskColor="color-mix(in oklab, var(--background) 70%, transparent)"
             style={{ width: 160, height: 100 }}
           />
@@ -836,7 +848,7 @@ function Graph({
           {text('graphReadOnly')}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 

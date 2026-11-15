@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
-import { type Context, type ContextManager, context, ROOT_CONTEXT, trace } from '@opentelemetry/api';
+import { type ContextManager, context, ROOT_CONTEXT, trace } from '@opentelemetry/api';
 import type { LoggerProvider, LogRecord } from '@opentelemetry/api-logs';
 import Ajv from 'ajv/dist/2020';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type ClientOptions, createClient, type UncaughtSource } from '../packages/errors/src/index';
 import { materialize } from '../packages/errors/src/json';
-import type { DebugEnvelopeV1, JsonValue } from '../packages/errors/src/protocol';
+import type { CapturedInput, DebugEnvelopeV1, JsonValue } from '../packages/errors/src/protocol';
 import { nodeRuntime } from './errors-runtime';
 
 const schema = JSON.parse(readFileSync('../internal/errors/envelope/app-debug-v1.schema.json', 'utf8'));
@@ -26,7 +26,7 @@ function setup(options: Partial<ClientOptions> = {}) {
     runtime: options.runtime ?? nodeRuntime,
   });
   function body(index = 0) {
-    const result = JSON.parse(String(records[index].body)) as DebugEnvelopeV1;
+    const result: DebugEnvelopeV1 = JSON.parse(String(records[index].body));
     expect(validate(result), JSON.stringify(validate.errors)).toBe(true);
     return result;
   }
@@ -70,7 +70,7 @@ describe('strict immutable JSON', () => {
   it('rejects accessors, toJSON, sparse arrays, extra array keys, symbols and cycles', () => {
     const getter = vi.fn(() => 1),
       toJSON = vi.fn(() => 1);
-    const cyclic: Record<string, unknown> = {};
+    const cyclic: Record<string, CapturedInput> = {};
     cyclic.self = cyclic;
     for (const value of [
       Object.defineProperty({}, 'x', { get: getter, enumerable: true }),
@@ -239,12 +239,7 @@ it('uses explicit, active, then missing context; unsampled traces still emit', (
   });
   const manager: ContextManager = {
     active: () => active,
-    with: <A extends unknown[], F extends (...args: A) => ReturnType<F>>(
-      _ctx: Context,
-      fn: F,
-      thisArg?: ThisParameterType<F>,
-      ...args: A
-    ) => fn.apply(thisArg, args),
+    with: (_ctx, fn, thisArg, ...args) => fn.apply(thisArg, args),
     bind: (_ctx, target) => target,
     enable() {
       return this;

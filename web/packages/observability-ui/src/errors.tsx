@@ -7,17 +7,18 @@ export function SourceContext({ lines, line, label }: { lines: readonly SourceLi
   const at = lines.findIndex((item) => item.number === line),
     visible = lines.slice(Math.max(0, at - 10), Math.max(0, at - 10) + 21);
   return (
-    <pre
-      aria-label={label}
-      style={{ overflow: 'auto', fontFamily: 'var(--font-mono)', padding: 8, background: 'var(--muted)' }}
-    >
-      {visible.map((item) => (
-        <div key={item.number} style={{ background: item.number === line ? 'var(--accent)' : undefined }}>
-          <span aria-hidden="true">{item.number === line ? '→ ' : '  '}</span>
-          {item.number}: {item.text}
-        </div>
-      ))}
-    </pre>
+    // A `pre` is a generic node and carries no accessible name; the region
+    // wrapper names the source context for screen readers.
+    <section aria-label={label}>
+      <pre style={{ overflow: 'auto', fontFamily: 'var(--font-mono)', padding: 8, background: 'var(--muted)' }}>
+        {visible.map((item) => (
+          <div key={item.number} style={{ background: item.number === line ? 'var(--accent)' : undefined }}>
+            <span aria-hidden="true">{item.number === line ? '→ ' : '  '}</span>
+            {item.number}: {item.text}
+          </div>
+        ))}
+      </pre>
+    </section>
   );
 }
 export function StackTrace({ frames, label }: { frames: readonly StackFrame[]; label: string }) {
@@ -60,8 +61,8 @@ export function ErrorDetails({ error, mode }: { error: ErrorCause; mode: 'dark' 
   }
   return (
     <section aria-label={text('causes')} style={{ display: 'grid', gap: 16 }}>
-      {causes.map((cause, index) => (
-        <article key={`${cause.id}:${index}`}>
+      {causes.map((cause) => (
+        <article key={`${cause.id}:${cause.message}`}>
           <h3>{cause.type}</h3>
           <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{cause.message}</p>
           {!!cause.frames?.length && <StackTrace label={cause.type ?? cause.id} frames={cause.frames} />}

@@ -10,7 +10,7 @@ export function prettyJson(text: string, indent = 2): string | undefined {
   } catch {
     return undefined;
   }
-  const pad = (depth: number) => '\n' + ' '.repeat(depth * indent);
+  const pad = (depth: number) => `\n${' '.repeat(depth * indent)}`;
   let out = '',
     depth = 0,
     inString = false,
@@ -49,7 +49,7 @@ export function prettyJson(text: string, indent = 2): string | undefined {
       continue;
     }
     if (ch === ',') {
-      out += ',' + pad(depth);
+      out += `,${pad(depth)}`;
       continue;
     }
     if (ch === ':') {

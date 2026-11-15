@@ -3,7 +3,9 @@ import { fromBinary, toJson } from '@bufbuild/protobuf';
 import { type DescriptorProto, type FieldDescriptorProto, FileDescriptorSetSchema } from '@bufbuild/protobuf/wkt';
 import { parseDocument } from 'yaml';
 
-type ObjectValue = Record<string, unknown>;
+/** A JSON tree, as an external API document (OpenAPI, GraphQL introspection) reads. */
+export type JSONTree = null | boolean | number | string | JSONTree[] | { [key: string]: JSONTree };
+type ObjectValue = Record<string, JSONTree>;
 export interface APIField {
   name: string;
   type: string;
@@ -13,7 +15,7 @@ export interface APIField {
 }
 export interface APIExample {
   name: string;
-  value: unknown;
+  value: JSONTree;
 }
 export interface APISection {
   name: string;
@@ -22,7 +24,7 @@ export interface APISection {
   description?: string;
   fields?: APIField[];
   examples?: APIExample[];
-  value?: unknown;
+  value?: JSONTree;
 }
 export interface APIOperation {
   id: string;
@@ -39,16 +41,16 @@ export interface APIDocument {
   format: string;
   operations: APIOperation[];
   schemas: APISection[];
-  metadata?: unknown;
+  metadata?: JSONTree;
   source: string;
   warnings: string[];
 }
 export type APIResult = { document: APIDocument } | { problem: 'missing' | 'invalid'; detail?: string };
-const object = (value: unknown): ObjectValue =>
-  value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as ObjectValue) : {};
-const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
-const string = (value: unknown): string => (typeof value === 'string' ? value : '');
-const entries = (value: unknown) => Object.entries(object(value));
+const object = (value: JSONTree | undefined): ObjectValue =>
+  value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};
+const list = (value: JSONTree | undefined): JSONTree[] => (Array.isArray(value) ? value : []);
+const string = (value: JSONTree | undefined): string => (typeof value === 'string' ? value : '');
+const entries = (value: JSONTree | undefined) => Object.entries(object(value));
 const decode = (bytes: Uint8Array) => new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 
 /** A gRPC or ws-proto route: its document comes from the service's descriptor set (Manifest.descriptorsHash). */
@@ -78,7 +80,7 @@ function openAPI(source: string): APIDocument {
   const version = string(root.openapi) || string(root.swagger);
   if (!/^3\.(0|1|2)\./.test(version) && version !== '2.0') throw new Error('Expected OpenAPI 3.x or Swagger 2.0.');
   const warnings = new Set<string>();
-  const resolve = (value: unknown): ObjectValue => {
+  const resolve = (value: JSONTree | undefined): ObjectValue => {
     const seen = new Set<string>();
     let current = object(value);
     while (typeof current.$ref === 'string') {
@@ -92,7 +94,7 @@ function openAPI(source: string): APIDocument {
         warnings.add(ref);
         break;
       }
-      let target: unknown = root;
+      let target: JSONTree | undefined = root;
       for (const part of ref === '#' ? [] : decodeURIComponent(ref.slice(2)).split('/')) {
         const key = part.replace(/~1/g, '/').replace(/~0/g, '~');
         target = Object.hasOwn(object(target), key) ? object(target)[key] : undefined;
@@ -107,7 +109,7 @@ function openAPI(source: string): APIDocument {
     return current;
   };
   // Check references without expanding schemas (recursive models remain finite).
-  const scan = (value: unknown, ancestors = new Set<unknown>()) => {
+  const scan = (value: JSONTree, ancestors = new Set<JSONTree>()) => {
     if (!value || typeof value !== 'object' || ancestors.has(value)) return;
     const next = new Set(ancestors);
     next.add(value);
@@ -117,7 +119,7 @@ function openAPI(source: string): APIDocument {
   scan(root);
   // YAML object aliases are not an OpenAPI reference mechanism. Reject cycles.
   const normalizedSource = JSON.stringify(root, null, 2);
-  const referenceNames = (value: unknown): string[] => {
+  const referenceNames = (value: JSONTree | undefined): string[] => {
     const schema = object(value);
     if (typeof schema.$ref === 'string')
       return [
@@ -132,7 +134,7 @@ function openAPI(source: string): APIDocument {
       ]),
     ];
   };
-  const describe = (value: unknown): string => {
+  const describe = (value: JSONTree | undefined): string => {
     const schema = resolve(value);
     return [
       string(schema.description),
@@ -156,7 +158,7 @@ function openAPI(source: string): APIDocument {
       .filter(Boolean)
       .join('\n');
   };
-  const fieldsFor = (value: unknown, prefix = '', seen = new Set<unknown>(), depth = 0): APIField[] => {
+  const fieldsFor = (value: JSONTree, prefix = '', seen = new Set<JSONTree>(), depth = 0): APIField[] => {
     const schema = resolve(value);
     if (depth > 4 || seen.has(value)) return [];
     const next = new Set(seen);
@@ -191,7 +193,7 @@ function openAPI(source: string): APIDocument {
       ...list(schema.allOf ?? schema.oneOf ?? schema.anyOf).flatMap((part) => fieldsFor(part, prefix, next, depth + 1)),
     ];
   };
-  const mediaFields = (content: unknown): APIField[] =>
+  const mediaFields = (content: JSONTree | undefined): APIField[] =>
     entries(content).flatMap(([name, media]) => {
       const schema = object(media).schema;
       return [
@@ -199,7 +201,7 @@ function openAPI(source: string): APIDocument {
         ...fieldsFor(schema, `${name} · `),
       ];
     });
-  const examplesFor = (value: unknown, name = 'Example'): APIExample[] => {
+  const examplesFor = (value: JSONTree | undefined, name = 'Example'): APIExample[] => {
     const item = object(value);
     return [
       ...(item.example !== undefined ? [{ name, value: item.example }] : []),
@@ -213,7 +215,7 @@ function openAPI(source: string): APIDocument {
           })),
     ];
   };
-  const mediaExamples = (content: unknown) =>
+  const mediaExamples = (content: JSONTree | undefined) =>
     entries(content).flatMap(([name, media]) => {
       const own = examplesFor(media, name);
       return own.length ? own : examplesFor(resolve(object(media).schema), name);
@@ -381,7 +383,7 @@ function openAPI(source: string): APIDocument {
   };
 }
 
-function schemaType(value: unknown, depth = 0): string {
+function schemaType(value: JSONTree | undefined, depth = 0): string {
   if (depth > 12) return '…';
   if (value === false) return 'never';
   const schema = object(value);
@@ -497,7 +499,7 @@ function protobuf(bytes: Uint8Array, names: string[]): APIDocument {
     file.service.forEach((service, serviceIndex) => {
       const name = qualify(service.name ?? '');
       if (names.length && !names.includes(name)) return;
-      service.method.forEach((method, methodIndex) =>
+      service.method.forEach((method, methodIndex) => {
         operations.push({
           id: `/${name}/${method.name}`,
           method: 'RPC',
@@ -524,8 +526,8 @@ function protobuf(bytes: Uint8Array, names: string[]): APIDocument {
               ],
             },
           ],
-        }),
-      );
+        });
+      });
     });
   }
   // Only types reachable from this route's methods belong to its public API.
@@ -539,10 +541,10 @@ function protobuf(bytes: Uint8Array, names: string[]): APIDocument {
   };
   for (const op of operations)
     for (const section of op.sections) for (const field of section.fields ?? []) visit(field.type);
-  const sampleMessage = (name: string, seen = new Set<string>()): unknown => {
+  const sampleMessage = (name: string, seen = new Set<string>()): JSONTree => {
     if (seen.has(name) || seen.size > 4) return {};
     const type = schemas.find((schema) => schema.name === name);
-    if (type?.type === 'enum') return type.fields?.[0]?.name;
+    if (type?.type === 'enum') return type.fields?.[0]?.name ?? null;
     const next = new Set(seen);
     next.add(name);
     return Object.fromEntries(
@@ -586,7 +588,7 @@ function graphQL(source: string): APIDocument {
     schema = object(root.__schema ?? object(root.data).__schema);
   if (!Array.isArray(schema.types)) throw new Error('Expected a GraphQL introspection result with __schema.types.');
   const types = schema.types.map(object);
-  const typeName = (value: unknown, depth = 0): string => {
+  const typeName = (value: JSONTree | undefined, depth = 0): string => {
     if (depth > 12) return '…';
     const ref = object(value);
     return ref.kind === 'NON_NULL'
@@ -595,7 +597,7 @@ function graphQL(source: string): APIDocument {
         ? `[${typeName(ref.ofType, depth + 1)}]`
         : string(ref.name);
   };
-  const fields = (value: unknown): APIField[] =>
+  const fields = (value: JSONTree | undefined): APIField[] =>
     list(value)
       .map(object)
       .map((field) => ({
@@ -611,11 +613,11 @@ function graphQL(source: string): APIDocument {
           .join('\n'),
       }));
   const operations: APIOperation[] = [];
-  const unwrapped = (value: unknown): ObjectValue => {
+  const unwrapped = (value: JSONTree | undefined): ObjectValue => {
     const ref = object(value);
     return ref.kind === 'NON_NULL' || ref.kind === 'LIST' ? unwrapped(ref.ofType) : ref;
   };
-  const sampleValue = (value: unknown, name: string, depth = 0): string | undefined => {
+  const sampleValue = (value: JSONTree | undefined, name: string, depth = 0): string | undefined => {
     if (depth > 4) return undefined;
     const ref = object(value);
     if (ref.kind === 'NON_NULL') return sampleValue(ref.ofType, name, depth + 1);
@@ -640,7 +642,7 @@ function graphQL(source: string): APIDocument {
     }
     return undefined;
   };
-  const selection = (value: unknown): string | undefined => {
+  const selection = (value: JSONTree | undefined): string | undefined => {
     const ref = unwrapped(value),
       type = types.find((entry) => entry.name === ref.name);
     if (ref.kind === 'SCALAR' || ref.kind === 'ENUM') return '';

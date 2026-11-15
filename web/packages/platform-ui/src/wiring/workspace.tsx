@@ -508,9 +508,9 @@ function Overview({
                 description={text('allWiredHelp')}
               />
             )}
-            {broken.map((item, at) => (
+            {broken.map((item) => (
               <button
-                key={`broken:${at}`}
+                key={`broken:${item.target.kind}:${'hook' in item.target ? item.target.hook : item.target.id}:${item.title}`}
                 type="button"
                 onClick={() => onOpen(item.target)}
                 className="grid w-full gap-0.5 border-b border-border px-3 py-2 text-left hover:bg-raised"
@@ -522,8 +522,11 @@ function Overview({
                     {text('broken')}
                   </StatusBadge>
                 </span>
-                {item.violations.slice(0, 2).map((violation, index) => (
-                  <span key={index} className="truncate pl-4 text-xs text-muted-foreground">
+                {item.violations.slice(0, 2).map((violation) => (
+                  <span
+                    key={`${violation.path}:${violation.message}`}
+                    className="truncate pl-4 text-xs text-muted-foreground"
+                  >
                     <span className="font-mono">{violation.path}</span> {violation.message}
                   </span>
                 ))}

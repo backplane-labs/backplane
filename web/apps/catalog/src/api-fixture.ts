@@ -1,9 +1,9 @@
 import { ApiKind, ManifestSchema, SchemaFormat } from '@backplane-labs/backplane-api/backplanepb/v1/manifest_pb';
-import { create, toBinary } from '@bufbuild/protobuf';
+import { create, type JsonValue, toBinary } from '@bufbuild/protobuf';
 import { FileDescriptorSetSchema } from '@bufbuild/protobuf/wkt';
 
-const bytes = (value: unknown) => new TextEncoder().encode(typeof value === 'string' ? value : JSON.stringify(value));
-const bundleFiles: Record<string, unknown> = {
+const bytes = (value: JsonValue) => new TextEncoder().encode(typeof value === 'string' ? value : JSON.stringify(value));
+const bundleFiles: Record<string, JsonValue> = {
   'api.yaml': {
     openapi: '3.1.0',
     info: { title: 'Multi-file visitor API' },
@@ -24,10 +24,10 @@ const bundleFiles: Record<string, unknown> = {
 };
 /** Content hash the fixture manifest names its descriptor set by. */
 export const descriptorsHash = 'b'.repeat(64);
-export async function readAPIFixtureFile(hash: string, file: string): Promise<Uint8Array> {
-  if (hash === descriptorsHash && file === 'descriptors.binpb') return publicDescriptors;
+export function readAPIFixtureFile(hash: string, file: string): Promise<Uint8Array> {
+  if (hash === descriptorsHash && file === 'descriptors.binpb') return Promise.resolve(publicDescriptors);
   if (!Object.hasOwn(bundleFiles, file)) throw new Error(`No fixture file: ${file}`);
-  return bytes(bundleFiles[file]);
+  return Promise.resolve(bytes(bundleFiles[file]));
 }
 export const publicDescriptors = toBinary(
   FileDescriptorSetSchema,

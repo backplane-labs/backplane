@@ -1,6 +1,6 @@
 // The SDK core reaches its host only through these ports. A runtime (browser,
 // worker, React Native, Node) supplies them; /browser ships the browser set.
-import type { ExceptionData } from './protocol.js';
+import type { CapturedInput, ExceptionData } from './protocol.js';
 
 /** Time and identity of the host. */
 export interface Runtime {
@@ -14,7 +14,7 @@ export interface Runtime {
 
 /** An error nobody caught, as the host reports it. */
 export interface UncaughtError {
-  readonly error: unknown;
+  readonly error: CapturedInput;
   readonly mechanism: Exclude<ExceptionData['mechanism'], 'manual'>;
   readonly location?: ExceptionData['location'];
 }

@@ -127,14 +127,15 @@ export function queryParser(language: QueryLanguage): StreamParser<{ quote: stri
       }
       if (!state.quote && stream.match(/["'`]/)) state.quote = stream.current();
       if (state.quote) {
-        let escaped = false,
-          next: string | void;
-        while ((next = stream.next()) !== undefined) {
+        let escaped = false;
+        let next = stream.next();
+        while (next !== undefined) {
           if (next === state.quote && !escaped) {
             state.quote = null;
             break;
           }
           escaped = next === '\\' && !escaped;
+          next = stream.next();
         }
         return 'string';
       }

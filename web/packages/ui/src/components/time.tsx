@@ -14,7 +14,9 @@ function subscribe(listener: () => void) {
     now = Date.now();
     timer = setInterval(() => {
       now = Date.now();
-      listeners.forEach((notify) => notify());
+      listeners.forEach((notify) => {
+        notify();
+      });
     }, TICK);
   }
   return () => {

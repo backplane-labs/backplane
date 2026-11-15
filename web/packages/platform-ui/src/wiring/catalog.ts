@@ -79,6 +79,7 @@ export interface StepLike {
   activity: string;
   forEach?: string;
   as?: string;
+  undo?: string;
   steps?: Record<string, StepLike | undefined>;
 }
 
@@ -171,8 +172,8 @@ function withSteps(index: WiringIndex, scope: Scope, steps: Record<string, StepL
 export function itemShape(expression: string | undefined, scope: Scope): Shape {
   const chain = /^\s*([A-Za-z_]\w*(?:\s*\.\s*[A-Za-z_]\w*)*)\s*$/.exec(expression ?? '');
   if (!chain) return dyn;
-  const [root, ...fields] = chain[1]!.split('.').map((part) => part.trim());
-  const shape = shapeAt(scope.variables.get(root!)?.shape ?? dyn, fields);
+  const [root, ...fields] = chain[1].split('.').map((part) => part.trim());
+  const shape = shapeAt(scope.variables.get(root)?.shape ?? dyn, fields);
   if (shape?.kind === 'list') return shape.elem ?? dyn;
   if (shape?.kind === 'map')
     return {

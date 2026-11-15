@@ -13,16 +13,31 @@
       "scripts/**",
       "!**/src/gen",
       "!tests/api-examples.generated.ts",
-      "!**/dist",
-      // Tailwind directives (@theme, @apply) that Biome does not parse.
-      "!apps/console/src/console/tailwind.css",
-      "!packages/ui/src/style.css",
-      "!packages/ui/src/theme.css"
+      // Written by scripts/api-index.mjs from the generated pb files.
+      "!packages/api/src/index.ts",
+      "!**/dist"
     ]
   },
   // ADAPT: "overrides": [{ "includes": ["vite.config.ts"], "linter": { "rules": { "style": { "noDefaultExport": "off" } } } }]
   // for a file whose tool or library contract makes a rule impossible; one rule per file, the reason in a comment.
   // Bans Biome has no rule for: `as` casts (except `as const`) and `unknown`.
+  "overrides": [
+    // Storybook CSF reads a story file's meta from its default export.
+    {
+      "includes": ["apps/catalog/src/**/*.stories.tsx"],
+      "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
+    },
+    // The console host loads the federated ./Routes and ./Nav exposes as default exports (plugin-sdk host contract).
+    {
+      "includes": ["templates/*/src/embedded.tsx", "templates/*/src/navigation.ts"],
+      "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
+    },
+    // Vite and Playwright load their config from the default export.
+    {
+      "includes": ["tests/**/vite.config.ts", "tests/**/playwright.config.ts"],
+      "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
+    }
+  ],
   "plugins": ["./biome/no-type-assertion.grit", "./biome/no-unknown.grit"],
   "formatter": {
     "indentStyle": "space",
@@ -35,6 +50,10 @@
       "semicolons": "always",
       "trailingCommas": "all"
     }
+  },
+  "css": {
+    // Tailwind v4 stylesheets use @theme, @apply and @custom-variant.
+    "parser": { "tailwindDirectives": true }
   },
   "linter": {
     "rules": {

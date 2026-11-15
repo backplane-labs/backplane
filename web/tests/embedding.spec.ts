@@ -8,7 +8,7 @@ test('remote uses host providers under a prefix, survives deep links and obeys c
   page.on('requestfailed', (request) => failures.push(`${request.url()}: ${request.failure()?.errorText}`));
   page.on('request', (request) => {
     if (request.url().includes('/plugins/')) remoteRequests.push(request.url());
-    if (!request.url().startsWith(base + '/')) failures.push(`Request outside console prefix: ${request.url()}`);
+    if (!request.url().startsWith(`${base}/`)) failures.push(`Request outside console prefix: ${request.url()}`);
   });
   const response = await page.goto(`${base}/s/hello/`);
   expect(response?.headers()['content-security-policy']).toContain("script-src 'self';");

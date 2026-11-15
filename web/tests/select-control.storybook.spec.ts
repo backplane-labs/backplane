@@ -46,14 +46,12 @@ for (const theme of ['dark', 'light'])
     await expect(page.getByRole('option', { name: 'Europe', exact: true })).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(page.getByLabel('Selected region')).toHaveText('eu');
-    expect(await page.locator('form').evaluate((form) => new FormData(form as HTMLFormElement).get('region'))).toBe(
-      'eu',
-    );
+    expect(await page.locator('form').evaluate((form: HTMLFormElement) => new FormData(form).get('region'))).toBe('eu');
     await chooseOption(page, 'Region', 'region-40');
     await expect(page.getByLabel('Selected region')).toHaveText('region-40');
     await chooseOption(page, 'Region', '');
     await expect(page.getByLabel('Selected region')).toHaveText('all');
-    expect(await page.locator('form').evaluate((form) => new FormData(form as HTMLFormElement).get('region'))).toBe('');
+    expect(await page.locator('form').evaluate((form: HTMLFormElement) => new FormData(form).get('region'))).toBe('');
     await page.setViewportSize({ width: 390, height: 844 });
     await trigger.click();
     expect(

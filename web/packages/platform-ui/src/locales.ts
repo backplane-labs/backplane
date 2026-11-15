@@ -860,17 +860,17 @@ type PlatformKey = keyof typeof platformEnglish extends infer K
   : never;
 export function usePlatformText() {
   const { t } = useTranslation('backplane.platform');
-  const english = platformEnglish as Record<string, string>;
+  const english: Record<string, string> = platformEnglish;
   // Plural keys carry both English forms as defaults, so counts read correctly before resources load.
   // Stable per language: memoized views may depend on it.
   return useCallback(
-    (key: PlatformKey, options?: Record<string, unknown>) =>
+    (key: PlatformKey, options?: Record<string, string | number>) =>
       t(key, {
         defaultValue: english[key] ?? english[`${key}_other`],
         defaultValue_one: english[`${key}_one`],
         defaultValue_other: english[`${key}_other`],
         ...options,
       }),
-    [t, english],
+    [t],
   );
 }

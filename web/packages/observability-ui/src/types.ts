@@ -1,9 +1,24 @@
-export type Attributes = Readonly<Record<string, unknown>>;
+/**
+ * An OTel attribute/log-body/error-payload value: plain JSON plus the bigint
+ * and byte values lossless decoding produces.
+ */
+export type AttributeValue =
+  | null
+  | boolean
+  | number
+  | bigint
+  | string
+  | Uint8Array
+  | readonly AttributeValue[]
+  | {
+      readonly [key: string]: AttributeValue;
+    };
+export type Attributes = Readonly<Record<string, AttributeValue>>;
 export interface LogRecord {
   id: string;
   timestamp: string;
   severity?: string;
-  body: unknown;
+  body: AttributeValue;
   attributes?: Attributes;
   resource?: Attributes;
   traceId?: string;
@@ -61,7 +76,7 @@ export interface ErrorCause {
   message: string;
   frames?: readonly StackFrame[];
   cause?: ErrorCause;
-  payload?: unknown;
+  payload?: AttributeValue;
 }
 export interface CorrelationTarget {
   signal: 'logs' | 'metrics' | 'traces';

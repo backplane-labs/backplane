@@ -69,12 +69,7 @@ export function InfrastructurePage() {
           </Button>
         }
       />
-      <div
-        role="region"
-        aria-label={t('infrastructure')}
-        tabIndex={0}
-        className="console-scroll grid content-start gap-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-      >
+      <section aria-label={t('infrastructure')} className="console-scroll grid content-start gap-4">
         <MetaList>
           <MetaItem icon={<Radio />}>
             <StatusBadge tone={overall === 'healthy' ? 'success' : overall === 'degraded' ? 'danger' : 'neutral'}>
@@ -248,7 +243,7 @@ export function InfrastructurePage() {
             )}
           </Panel>
         </div>
-      </div>
+      </section>
     </>
   );
 }

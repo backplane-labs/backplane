@@ -44,9 +44,9 @@ try {
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
   await expect(row).toHaveCount(0);
   assert.deepEqual(errors, []);
-  console.log('Schedule UI: create, timer execution completed, pause, edit preserving pause, delete passed');
+  process.stdout.write('Schedule UI: create, timer execution completed, pause, edit preserving pause, delete passed\n');
 } catch (error) {
-  console.error(error);
+  process.stderr.write(`${error}\n`);
   throw error;
 } finally {
   await browser.close();

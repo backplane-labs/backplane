@@ -6,7 +6,7 @@ import {
 } from '@backplane-labs/backplane-api/backplanepb/v1/manifest_pb';
 import { create } from '@bufbuild/protobuf';
 import { parseDocument } from 'yaml';
-import { type APIResult, readAPIDocument } from './api-document.js';
+import { type APIResult, type JSONTree, readAPIDocument } from './api-document.js';
 
 export type APIFileReader = (hash: string, file: string, signal: AbortSignal) => Promise<Uint8Array>;
 
@@ -29,28 +29,35 @@ export async function readAPIBundle(
 
 /** Rewrite file references to internal JSON pointers, preserving recursive refs. */
 export async function bundleOpenAPI(entry: string, read: (file: string) => Promise<Uint8Array>): Promise<string> {
-  const files = new Map<string, unknown>(),
-    queue = [relativeFile('', entry)],
-    queued = new Set(queue);
-  const rootFile = queue[0]!;
+  const first = relativeFile('', entry),
+    files = new Map<string, JSONTree>(),
+    queue = [first],
+    queued = new Set(queue),
+    rootFile = first;
   let total = 0,
     extension = 'x-backplane-documents';
   const pointer = (file: string) =>
     file === rootFile ? '' : `/${extension}/${file.replace(/~/g, '~0').replace(/\//g, '~1')}`;
   while (queue.length) {
-    const file = queue.shift()!,
+    const next = queue.shift();
+    if (next === undefined) break;
+    const file = next,
       bytes = await read(file);
     total += bytes.length;
     if (total > 32 * 1024 * 1024 || queued.size > 256) throw new Error('API bundle exceeds its file or size limit.');
     const parsed = parseDocument(new TextDecoder('utf-8', { fatal: true }).decode(bytes), { uniqueKeys: true });
     if (parsed.errors.length) throw parsed.errors[0];
-    const value: unknown = JSON.parse(JSON.stringify(parsed.toJS({ maxAliasCount: 50 })));
+    const value = JSON.parse(JSON.stringify(parsed.toJS({ maxAliasCount: 50 })));
     if (file === rootFile && value && typeof value === 'object')
       while (Object.hasOwn(value, extension)) extension += '-files';
     files.set(file, value);
-    const rewrite = (node: unknown) => {
+    const rewrite = (node: JSONTree | undefined) => {
       if (!node || typeof node !== 'object') return;
-      const object = node as Record<string, unknown>;
+      if (Array.isArray(node)) {
+        for (const child of node) rewrite(child);
+        return;
+      }
+      const object = node;
       if (typeof object.$ref === 'string') {
         const ref = object.$ref,
           at = ref.indexOf('#');

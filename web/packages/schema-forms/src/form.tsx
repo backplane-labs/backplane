@@ -22,6 +22,7 @@ import {
   BakedSchema,
   Engine,
   fieldIsActive,
+  isNativeStruct,
   listItemDef,
   masked,
   type Native,
@@ -214,8 +215,8 @@ function FormBody({
       {attempted && !!outcome.result.errors.length && (
         <section aria-label={t('errors')}>
           <ul>
-            {outcome.result.errors.map((error, index) => (
-              <li key={index}>
+            {outcome.result.errors.map((error) => (
+              <li key={`${error.path}:${error.message}`}>
                 <strong>{error.path || props.label}</strong>: {error.message}
               </li>
             ))}
@@ -325,11 +326,11 @@ function FieldsBody({ engine, values, onChange, disabled, label }: SchemaFieldsP
     invalid: () => {},
   };
   return (
-    <div role="group" aria-label={label} style={stack}>
+    <fieldset aria-label={label} style={{ ...stack, border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
       {engine.schema.fields.map((field) => (
         <FormField key={field.name} field={field} path={[field.name]} context={context} />
       ))}
-    </div>
+    </fieldset>
   );
 }
 
@@ -412,6 +413,7 @@ function FormField({
       </>
     );
   } else if (['object', 'ref', 'oneOf'].includes(field.kind.case ?? '')) {
+    const record: NativeStruct | undefined = typeof value === 'object' && isNativeStruct(value) ? value : undefined;
     const nested = fieldSchema(context.engine.schema, field, value);
     const union = field.kind.case === 'oneOf' ? field.kind.value : undefined;
     control = (
@@ -420,7 +422,7 @@ function FormField({
         {union && (
           <SelectControl
             aria-label={t('variant', { name: title })}
-            value={String((value as NativeStruct)[union.discriminator] ?? '')}
+            value={String(record?.[union.discriminator] ?? '')}
             disabled={disabled}
             onValueChange={(next) => set({ [union.discriminator]: next })}
             options={[
@@ -459,6 +461,7 @@ function FormField({
     );
   } else if (field.kind.case === 'map' && typeof value === 'object' && !Array.isArray(value)) {
     const map = field.kind.value;
+    const record: NativeStruct | undefined = isNativeStruct(value) ? value : undefined;
     control = (
       <div style={stack}>
         {Object.keys(value).map((key) => {
@@ -480,7 +483,7 @@ function FormField({
                 <StructuredControl
                   id={`${id}-${encodeURIComponent(key)}`}
                   label={key}
-                  value={(value as NativeStruct)[key]}
+                  value={record?.[key] ?? null}
                   path={[...path, key]}
                   context={context}
                   disabled={disabled}
@@ -503,7 +506,7 @@ function FormField({
         {!disabled && (
           <MapEntry
             title={title}
-            value={value as NativeStruct}
+            value={record ?? {}}
             onAdd={(key) => context.update([...path, key], map.valueField ? emptyValue(map.valueField) : {})}
           />
         )}
@@ -896,11 +899,12 @@ export function SchemaValuesPreview({
   const t = useText();
   const safe = masked(create(BakedSchema, { schema, values }));
   return (
-    <pre
-      aria-label={label ?? t('preview')}
-      style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'var(--font-mono)' }}
-    >
-      {encodeValue(structToNative(safe))}
-    </pre>
+    // A `pre` is a generic node and carries no accessible name; the region
+    // wrapper names the preview for screen readers.
+    <section aria-label={label ?? t('preview')}>
+      <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'var(--font-mono)' }}>
+        {encodeValue(structToNative(safe))}
+      </pre>
+    </section>
   );
 }
