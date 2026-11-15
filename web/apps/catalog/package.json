@@ -22,7 +22,7 @@
     "@fontsource/ibm-plex-mono": "5.2.6",
     "@fontsource/ibm-plex-sans": "5.2.6",
     "@gopherex/schemapb": "1.10.1",
-    "@gopherex/ws-proto-transport": "1.11.0",
+    "@gopherex/ws-proto-transport": "1.11.1",
     "@grafana/data": "13.2.3",
     "@grafana/ui": "13.2.3",
     "@xyflow/react": "12.10.2",
