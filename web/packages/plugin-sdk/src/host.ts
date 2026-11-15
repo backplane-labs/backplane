@@ -1,6 +1,6 @@
 import { getInstance } from '@module-federation/runtime';
 import type { ComponentType } from 'react';
-import { assertRelativePath, type NavEntry, type PluginMetadata, SDK_MAJOR } from './index.js';
+import { assertRelativePath, type NavEntry, type PluginMetadata, type PluginResources, SDK_MAJOR } from './index.js';
 
 /** A descriptor from the platform catalog, never a URL supplied by module code. */
 export interface PluginDescriptor {
@@ -11,7 +11,7 @@ export interface PluginDescriptor {
 }
 export interface LoadedPlugin {
   Routes: ComponentType;
-  navigation: PluginMetadata & { english: Record<string, string> };
+  navigation: PluginMetadata & { english: PluginResources };
 }
 
 /** The raw nav entries as plugin.json and the remote export deliver them. */

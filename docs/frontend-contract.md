@@ -55,7 +55,8 @@ The kit distributes compiled CSS; consumers do not scan its source with Tailwind
 
 Use i18next/react-i18next with English resources only. All product strings,
 validation messages and accessible labels use keys. Plugins register isolated
-namespaces. There is no language switcher or Russian translation. Number/date
+namespaces; a plugin's `english` resources are an i18next tree (`PluginResources`),
+nested as deep as the module needs. There is no language switcher or Russian translation. Number/date
 formatting uses the locale; resource values, identifiers and raw backend errors
 are data, not translation keys. Vendored/adapted controls must support these
 requirements before they count as covered in the matrix.

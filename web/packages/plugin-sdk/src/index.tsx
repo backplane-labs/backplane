@@ -15,9 +15,11 @@ export interface PluginMetadata {
 }
 /** Every value a `catch` can hold, as the host's Errors pipeline accepts it. */
 export type ThrownValue = null | undefined | boolean | number | string | bigint | symbol | object;
+/** An i18next resource tree: strings, nested under keys as deep as the module needs. */
+export type PluginResources = { [key: string]: string | PluginResources };
 export interface PluginDefinition extends PluginMetadata {
   routes: RouteObject[];
-  english: Record<string, string>;
+  english: PluginResources;
 }
 export interface PluginContext {
   service: string;
