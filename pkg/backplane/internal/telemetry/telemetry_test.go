@@ -2,6 +2,7 @@ package telemetry_test
 
 import (
 	"compress/gzip"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,8 @@ import (
 	"testing"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/baggage"
+	"go.opentelemetry.io/otel/trace"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 	"google.golang.org/protobuf/proto"
@@ -126,5 +129,65 @@ func TestCallerAddressNeverExported(t *testing.T) {
 		if !keys["http.request.method"] {
 			t.Fatalf("span %s lost its other attributes: %v", s.GetName(), keys)
 		}
+	}
+}
+
+// A service that never sets a propagator itself continues its caller's trace
+// across HTTP: Start installs W3C trace context and baggage, which otelhttp
+// injects on the way out and extracts on the way in.
+func TestTraceContinuesAcrossHTTP(t *testing.T) {
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "")
+
+	tel := telemetry.New(telemetry.Identity{Service: "svc"},
+		config.Telemetry{Traces: config.Traces{Sampler: config.SamplerParentBasedAlwaysOn}}, testlog.Discard())
+	if err := tel.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() { _ = tel.Stop(context.Background()) })
+
+	var (
+		gotTrace   trace.TraceID
+		gotBaggage string
+		header     string
+	)
+
+	srv := httptest.NewServer(otelhttp.NewHandler(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		header = r.Header.Get("Traceparent")
+		gotTrace = trace.SpanContextFromContext(r.Context()).TraceID()
+		gotBaggage = baggage.FromContext(r.Context()).Member("tenant").Value()
+	}), "served"))
+	t.Cleanup(srv.Close)
+
+	traceID := trace.TraceID{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	ctx := trace.ContextWithSpanContext(t.Context(), trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID: traceID, SpanID: trace.SpanID{1, 2, 3, 4, 5, 6, 7, 8}, TraceFlags: trace.FlagsSampled, Remote: true,
+	}))
+
+	member, err := baggage.NewMember("tenant", "t-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bag, err := baggage.New(member)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequestWithContext(baggage.ContextWithBaggage(ctx, bag), http.MethodGet, srv.URL, http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := (&http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}).Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_ = res.Body.Close()
+
+	if header == "" || gotTrace != traceID || gotBaggage != "t-1" {
+		t.Fatalf("traceparent %q, trace %s, baggage %q: the caller's trace did not continue", header, gotTrace, gotBaggage)
 	}
 }
