@@ -467,7 +467,7 @@ __metadata:
     "@backplane-labs/backplane-schema-forms": "npm:0.1.1"
     "@backplane-labs/backplane-ui": "npm:0.1.1"
     "@bufbuild/protobuf": "npm:2.16.0"
-    "@gopherex/schemapb": "npm:1.10.1"
+    "@gopherex/schemapb": "npm:1.12.1"
     "@types/react": "npm:19.2.14"
     "@xyflow/react": "npm:12.10.2"
     i18next: "npm:26.4.2"
@@ -478,6 +478,7 @@ __metadata:
     react-i18next: "npm:17.0.15"
     yaml: "npm:2.9.1"
   peerDependencies:
+    "@gopherex/schemapb": ^1.12.1
     i18next: ">=26 <27"
     react: ">=19 <20"
     react-dom: ">=19 <20"
@@ -537,13 +538,14 @@ __metadata:
   dependencies:
     "@backplane-labs/backplane-ui": "npm:0.1.1"
     "@bufbuild/protobuf": "npm:2.16.0"
-    "@gopherex/schemapb": "npm:1.10.1"
+    "@gopherex/schemapb": "npm:1.12.1"
     "@types/react": "npm:19.2.14"
     i18next: "npm:26.4.2"
     react: "npm:19.3.0"
     react-dom: "npm:19.3.0"
     react-i18next: "npm:17.0.15"
   peerDependencies:
+    "@gopherex/schemapb": ^1.12.1
     i18next: ">=26 <27"
     react: ">=19 <20"
     react-dom: ">=19 <20"
@@ -617,7 +619,7 @@ __metadata:
     "@codemirror/view": "npm:6.43.13"
     "@fontsource/ibm-plex-mono": "npm:5.2.6"
     "@fontsource/ibm-plex-sans": "npm:5.2.6"
-    "@gopherex/schemapb": "npm:1.10.1"
+    "@gopherex/schemapb": "npm:1.12.1"
     "@gopherex/ws-proto-transport": "npm:1.11.1"
     "@grafana/data": "npm:13.2.3"
     "@grafana/ui": "npm:13.2.3"
@@ -652,6 +654,7 @@ __metadata:
     "@bufbuild/protobuf": "npm:2.16.0"
     "@fontsource/ibm-plex-mono": "npm:5.2.6"
     "@fontsource/ibm-plex-sans": "npm:5.2.6"
+    "@gopherex/schemapb": "npm:1.12.1"
     "@grafana/data": "npm:13.2.3"
     "@grafana/ui": "npm:13.2.3"
     "@tailwindcss/vite": "npm:4.3.1"
@@ -690,6 +693,7 @@ __metadata:
     "@bufbuild/protobuf": "npm:2.16.0"
     "@fontsource/ibm-plex-mono": "npm:5.2.6"
     "@fontsource/ibm-plex-sans": "npm:5.2.6"
+    "@gopherex/schemapb": "npm:1.12.1"
     "@grafana/data": "npm:13.2.3"
     "@grafana/ui": "npm:13.2.3"
     "@tailwindcss/vite": "npm:4.3.1"
@@ -727,7 +731,7 @@ __metadata:
     "@bufbuild/protobuf": "npm:2.16.0"
     "@fontsource/ibm-plex-mono": "npm:5.2.6"
     "@fontsource/ibm-plex-sans": "npm:5.2.6"
-    "@gopherex/schemapb": "npm:1.10.1"
+    "@gopherex/schemapb": "npm:1.12.1"
     "@gopherex/ws-proto-transport": "npm:1.11.1"
     "@grafana/data": "npm:13.2.3"
     "@grafana/ui": "npm:13.2.3"
@@ -1724,15 +1728,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@gopherex/schemapb@npm:1.10.1":
-  version: 1.10.1
-  resolution: "@gopherex/schemapb@npm:1.10.1::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40gopherex%2Fschemapb%2F1.10.1%2Fc55d2f54cff665c367e48fcbfe62743e756fc681"
+"@gopherex/schemapb@npm:1.12.1":
+  version: 1.12.1
+  resolution: "@gopherex/schemapb@npm:1.12.1::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40gopherex%2Fschemapb%2F1.12.1%2Fe3bad03077942e1719cf654f7658d5cb35e339e8"
   dependencies:
     "@bufbuild/cel": "npm:0.6.0"
     "@bufbuild/protobuf": "npm:^2.11.0"
     mustache: "npm:^4.2.0"
     semver: "npm:^7.7.0"
-  checksum: 10c0/d653b12c1951704bd8a61d9ba6235ed9b9b2763497f445f363313598d2396099f3ddbd84f80ac02d2f4e56cf90002e218225b3f07b6f14fcb3c961f614a45149
+  checksum: 10c0/4924b87404244186d071eb7114a80345095fc1b3187ff18d7037df9240da812ac35933b2d30e37fb3a79c6baab28c95687f10f6a210a66558d475fd5fe20b86d
   languageName: node
   linkType: hard
 

@@ -26,6 +26,7 @@
     "prepack": "yarn build"
   },
   "peerDependencies": {
+    "@gopherex/schemapb": "^1.12.1",
     "i18next": ">=26 <27",
     "react": ">=19 <20",
     "react-dom": ">=19 <20",
@@ -41,13 +42,13 @@
     "@backplane-labs/backplane-schema-forms": "0.1.1",
     "@backplane-labs/backplane-ui": "0.1.1",
     "@bufbuild/protobuf": "2.16.0",
-    "@gopherex/schemapb": "1.10.1",
     "@xyflow/react": "12.10.2",
     "lossless-json": "4.3.1",
     "lucide-react": "1.48.0",
     "yaml": "2.9.1"
   },
   "devDependencies": {
+    "@gopherex/schemapb": "1.12.1",
     "@types/react": "19.2.14",
     "i18next": "26.4.2",
     "react": "19.3.0",

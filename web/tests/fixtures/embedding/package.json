@@ -22,6 +22,7 @@
     "@bufbuild/protobuf": "2.16.0",
     "@fontsource/ibm-plex-mono": "5.2.6",
     "@fontsource/ibm-plex-sans": "5.2.6",
+    "@gopherex/schemapb": "1.12.1",
     "@grafana/data": "13.2.3",
     "@grafana/ui": "13.2.3",
     "@xyflow/react": "12.10.2",

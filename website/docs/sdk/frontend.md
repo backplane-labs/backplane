@@ -28,6 +28,12 @@ yarn add @backplane-labs/backplane-api@0.1.1 \
   @backplane-labs/backplane-react@0.1.1
 ```
 
+`backplane-schema-forms` and `backplane-platform-ui` take `@gopherex/schemapb` (`^1.12.1`) as a peer dependency: the application installs it once, and the packages use that copy, so the schema types it builds and the forms it renders are the same:
+
+```bash
+yarn add @backplane-labs/backplane-schema-forms@0.1.1 @gopherex/schemapb@^1.12.1
+```
+
 The [module template](../reference/module-template.md) contains the complete dependency and build setup for an embedded author UI. It is preferable to reconstructing the Module Federation configuration by hand.
 
 ## One client per host
