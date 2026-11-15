@@ -32,11 +32,18 @@
     "react-i18next": ">=17 <18"
   },
   "dependencies": {
-    "@backplane-labs/backplane-ui": "0.1.1",
     "@backplane-labs/backplane-theme": "0.1.1",
+    "@backplane-labs/backplane-ui": "0.1.1",
     "@grafana/data": "13.2.3",
-    "@grafana/ui": "13.2.3",
     "@grafana/schema": "13.2.3",
+    "@grafana/ui": "13.2.3",
     "uplot": "1.6.32"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "i18next": "26.4.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-i18next": "17.0.15"
   }
 }

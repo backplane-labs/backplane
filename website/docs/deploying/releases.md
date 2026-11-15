@@ -18,7 +18,7 @@ Handwritten guides live in `website/docs`. Authoritative package/API documents r
 
 ```bash
 cd website
-yarn install --frozen-lockfile
+yarn install --immutable
 yarn start
 yarn build
 yarn serve

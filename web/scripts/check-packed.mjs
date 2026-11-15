@@ -21,7 +21,7 @@ try {
   for (const name of readdirSync(join(root, 'packages'))) {
     const directory = join(root, 'packages', name), manifest = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'));
     const tar = join(scratch, 'packages', `${name}-${basename(scratch)}.tgz`);
-    run('yarn', ['pack', '--ignore-scripts', '--filename', tar], directory);
+    run('yarn', ['pack', '--out', tar], directory);
     resolutions[manifest.name] = `file:${tar}`;
     expected.set(manifest.name, hashes(join(directory, 'dist')));
   }
@@ -34,8 +34,10 @@ try {
     for (const group of ['dependencies', 'devDependencies']) for (const dependency of Object.keys(manifest[group] ?? {})) if (resolutions[dependency]) manifest[group][dependency] = resolutions[dependency];
     // All public exports, including build-only packages, must resolve from tarballs.
     Object.assign(manifest.dependencies, resolutions);
+    // The consumer is its own Yarn 4 project, configured as the workspace is.
+    manifest.packageManager = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).packageManager;
     writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-    writeFileSync(join(target, '.npmrc'), '@backplane-labs:registry=https://npm.pkg.github.com\n@gopherex:registry=https://npm.pkg.github.com\n');
+    cpSync(join(root, '.yarnrc.yml'), join(target, '.yarnrc.yml'));
     if (name === 'host') {
       cpSync(join(scratch, 'module/src/gen'), join(target, 'src/gen'), { recursive: true });
       cpSync(join(scratch, 'module/src/fixtures.ts'), join(target, 'src/fixtures.ts'));
@@ -44,7 +46,7 @@ try {
       writeFileSync(entry, readFileSync(entry, 'utf8').replaceAll('../../../../templates/module/src/', './'));
     }
     cpSync(join(root, 'yarn.lock'), join(target, 'yarn.lock'));
-    run('yarn', ['install', '--non-interactive'], target);
+    run('yarn', ['install'], target);
     for (const dependency of Object.keys(resolutions)) {
       const installed = join(target, 'node_modules', dependency);
       for (const [file, digest] of expected.get(dependency)) {

@@ -9,15 +9,17 @@ console screens use the same packages and shared light/dark tokens.
 The [package contract](../docs/frontend-contract.md) and
 [component matrix](../docs/ui-components.md) describe the public scope.
 
-Requirements: Node >=22.12 and Yarn 1.22.22. Gopherex dependencies are downloaded
-from GitHub Packages; configure a GitHub token with package read access in your
-user package-manager configuration. Do not commit credentials. Our packages are
+Requirements: Node >=22.12 and Yarn 4 (`corepack enable`; the version is pinned by
+`packageManager`). `@gopherex` and `@backplane-labs` packages are downloaded from
+GitHub Packages; put a GitHub token with package read access in your user
+`~/.yarnrc.yml` (`yarn config set --home npmScopes.gopherex.npmAuthToken <token>`,
+the same for `backplane-labs`). Do not commit credentials. Our packages are
 configured to publish only to `https://npm.pkg.github.com`.
 
 From `web/`:
 
 ```sh
-yarn install --frozen-lockfile
+yarn install --immutable
 yarn dev                 # component compatibility fixture
 yarn dev:module          # standalone hello UI with explicit local fixtures
 ```

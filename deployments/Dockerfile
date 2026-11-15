@@ -3,11 +3,13 @@
 FROM --platform=$BUILDPLATFORM node:24-bookworm-slim AS web
 WORKDIR /src/web
 COPY web/ ./
+# The home .yarnrc.yml names the variable, not the token: Yarn reads it from the environment.
 RUN --mount=type=secret,id=github_token,required=true \
-    --mount=type=cache,target=/usr/local/share/.cache/yarn \
-    printf '\n//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}\n' >> .npmrc && \
-    export NODE_AUTH_TOKEN="$(cat /run/secrets/github_token)" && \
-    yarn install --frozen-lockfile && \
+    --mount=type=cache,target=/root/.yarn/berry/cache \
+    corepack enable && \
+    printf 'npmScopes:\n  backplane-labs:\n    npmAuthToken: "${NODE_AUTH_TOKEN}"\n  gopherex:\n    npmAuthToken: "${NODE_AUTH_TOKEN}"\n' > /root/.yarnrc.yml && \
+    export NODE_AUTH_TOKEN="$(cat /run/secrets/github_token)" COREPACK_ENABLE_DOWNLOAD_PROMPT=0 && \
+    yarn install --immutable && \
     yarn build:packages && \
     yarn workspace @backplane/console build
 

@@ -39,7 +39,7 @@ try {
   // This service only exists in the Go test's registry, proving the browser
   // consumed the real CatalogService stream rather than the dev installation.
   await page.getByRole('navigation', { name: 'Platform', exact: true }).getByRole('link', { name: 'Services', exact: true }).click();
-  await expect(page.getByRole('link', { name: 'browser-live-data', exact: true })).toBeVisible();
+  await expect(page.getByRole('main').getByRole('link', { name: 'browser-live-data', exact: true })).toBeVisible();
   await page.getByRole('navigation', { name: 'Platform', exact: true }).getByRole('link', { name: 'Infrastructure', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Infrastructure', exact: true })).toBeVisible();
   await expect(page.getByText('PostgreSQL', { exact: true })).toBeVisible();

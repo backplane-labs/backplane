@@ -91,8 +91,11 @@ module's platform port, cached/proxied by backplane, and loaded from the console
 origin. The build emits `plugin.json`, `mf-manifest.json`, relative asset URLs
 and the `./Routes` and `./Nav` exports. The host validates `sdk_major` before
 executing the remote. React, React DOM, router and context-bearing platform
-packages are shared singletons with compatible versions. Incompatible remotes
-fail visibly; bundling another React copy is not a compatibility strategy.
+packages are shared singletons with compatible versions. A module declares each
+shared package it uses as a direct dependency, `react-router` next to
+`react-router-dom` included: the shared copy is the one at the project root, and
+without a direct dependency the package manager may hoist Grafana's private v5
+router there instead. Incompatible remotes fail visibly; bundling another React copy is not a compatibility strategy.
 Build output must work under a console prefix and a hashed plugin URL without
 external scripts, fonts or inline scripts forbidden by the console CSP.
 

@@ -49,16 +49,14 @@ jobs:
         env:
           RELEASE_VERSION: ${{ inputs.version }}
         run: node scripts/stamp-release.mjs "$RELEASE_VERSION"
-      - run: corepack enable && corepack prepare yarn@1.22.22 --activate
+      - run: corepack enable
       - uses: actions/cache@v5
         with:
-          path: ${{ runner.temp }}/docs-yarn-cache
+          path: ~/.yarn/berry/cache
           key: ${{ runner.os }}-docs-yarn-${{ hashFiles('website/yarn.lock') }}
       - name: Install documentation dependencies
         working-directory: website
-        env:
-          YARN_CACHE_FOLDER: ${{ runner.temp }}/docs-yarn-cache
-        run: yarn install --frozen-lockfile
+        run: yarn install --immutable
       - name: Build and validate links
         working-directory: website
         env:

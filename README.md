@@ -38,7 +38,7 @@ It does not deploy services or replace your orchestrator.
 
 ## Quickstart
 
-Requirements: Go 1.27, Node.js 24, Yarn 1.22.22 and Docker Compose. Gopherex
+Requirements: Go 1.27, Node.js 24, Yarn 4 (`corepack enable`) and Docker Compose. Gopherex
 frontend dependencies come from GitHub Packages; configure a token with package
 read access in your user [package-manager configuration](web/README.md).
 

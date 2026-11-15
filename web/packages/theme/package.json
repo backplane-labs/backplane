@@ -35,5 +35,9 @@
   "peerDependencies": {
     "react": ">=19 <20",
     "react-dom": ">=19 <20"
+  },
+  "devDependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
   }
 }

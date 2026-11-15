@@ -29,7 +29,7 @@ and must match the backend prefix. After the initial package build,
 This command requires a running backend; it does not start Docker or seed data.
 
 Run `make dev` at the repository root. Requirements: Docker Compose, Go 1.27,
-Node >=22.12, Yarn 1.22.22 and GitHub Packages read credentials in the user's
+Node >=22.12, Yarn 4 (`corepack enable`) and GitHub Packages read credentials in the user's
 package-manager configuration. `make configure` installs pinned generators.
 
 The command builds packages, the standalone/remote module and the live platform

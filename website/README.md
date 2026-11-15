@@ -4,7 +4,7 @@ English Docusaurus handbook, published from version tags at
 https://backplane-labs.github.io/backplane/.
 
 ```sh
-yarn install --frozen-lockfile
+yarn install --immutable
 yarn start
 yarn build
 yarn serve

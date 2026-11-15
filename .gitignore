@@ -39,6 +39,10 @@ bin/
 easyp_vendor/
 # Frontend workspace
 node_modules/
+# Yarn 4 state; patches and plugins would be committed.
+**/.yarn/*
+!**/.yarn/patches
+!**/.yarn/plugins
 web/**/dist/
 web/**/storybook-static/
 web/test-results/

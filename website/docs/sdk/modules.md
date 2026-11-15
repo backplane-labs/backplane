@@ -19,7 +19,7 @@ In the repository:
 
 ```bash
 cd web
-yarn install --frozen-lockfile
+yarn install --immutable
 yarn dev:module
 ```
 

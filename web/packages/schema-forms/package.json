@@ -32,8 +32,15 @@
     "react-i18next": ">=17 <18"
   },
   "dependencies": {
-    "@gopherex/schemapb": "1.10.1",
     "@backplane-labs/backplane-ui": "0.1.1",
-    "@bufbuild/protobuf": "2.16.0"
+    "@bufbuild/protobuf": "2.16.0",
+    "@gopherex/schemapb": "1.10.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "i18next": "26.4.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-i18next": "17.0.15"
   }
 }

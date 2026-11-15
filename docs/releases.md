@@ -102,6 +102,6 @@ another base path, change `website/docusaurus.config.js` and rebuild.
 
 Edit guides in `website/docs`; reference pages are synchronized from source
 documents by `website/scripts/sync-reference.mjs`. From `website`, run
-`yarn install --frozen-lockfile` and `yarn build` to validate links and anchors,
+`yarn install --immutable` and `yarn build` to validate links and anchors,
 or `yarn start` for development. Release CI stamps the site and its examples from the coordinated tag before
 building.

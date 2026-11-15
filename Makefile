@@ -173,9 +173,9 @@ run-backplane: backplane ## Run backplane against the local stack (console token
 check: verify ## Full verification on explicit request; same as manual full CI
 
 .PHONY: configure-web web-check dev-ui dev-module
-configure-web: ## Install locked frontend dependencies (Node >=22.12, Yarn 1.22.22)
+configure-web: ## Install locked frontend dependencies (Node >=22.12, Yarn 4 via corepack)
 	cd web
-	yarn install --frozen-lockfile
+	yarn install --immutable
 
 web-check: ## Build packages and fixtures, typecheck, unit and browser tests
 	cd web
@@ -317,7 +317,7 @@ DEV_COMPOSE = docker compose --profile full -f docker-compose.yaml -f docker-com
 .PHONY: dev dev-down dev-build dev-logs test-dev
 dev-build: ## Build the console, example module and static Go binaries
 	cd web
-	yarn install --frozen-lockfile
+	yarn install --immutable
 	yarn build
 	cd ..
 	CGO_ENABLED=0 GOWORK=off $(MAKE) VERSION="$(DEV_VERSION)" backplane hello formatter

@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@backplane-labs/backplane-theme": "0.1.1",
+    "@grafana/data": "13.2.3",
     "@grafana/ui": "13.2.3",
     "@tanstack/react-table": "8.21.3",
     "@tanstack/react-virtual": "3.14.13",
@@ -52,12 +53,15 @@
     "react-hook-form": "7.89.0",
     "react-resizable-panels": "4.14.1",
     "sonner": "2.0.8",
-    "tailwind-merge": "3.3.1",
-    "@grafana/data": "13.2.3"
+    "tailwind-merge": "3.3.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.1",
+    "@types/react": "19.2.14",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "shadcn": "4.21.0",
-    "tailwindcss": "4.3.1"
+    "tailwindcss": "4.3.1",
+    "vite": "8.3.1"
   }
 }
