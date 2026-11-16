@@ -17,7 +17,7 @@ The `pkg/backplane/backplanetest` package and repository conformance tests provi
 
 ## Component harness
 
-`backplanetest.New(t, backplanetest.Name("hello"))` constructs a service tree with recording transports, without `Open`, listeners or Consul. Build your components under `h.Root()`, substitute providers with `deps.Static(value)` and call `h.Start()`. Cleanup stops the tree under a bounded shutdown budget.
+`backplanetest.New(t, backplanetest.Name("hello"))` constructs a service tree with recording transports, without `Open`, listeners or Consul. Build your components under `h.Root()`, substitute providers with `deps.Static(value)` and call `h.Start()`. The start is bounded too (`backplanetest.StartBudget`, default 2 minutes): a required dependency not provided by then fails the test with its name and last error, instead of retrying until `go test -timeout`. Cleanup stops the tree under a bounded shutdown budget (`backplanetest.StopBudget`, default 10 seconds).
 
 | Helper | Use |
 | --- | --- |

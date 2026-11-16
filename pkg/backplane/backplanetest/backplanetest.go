@@ -41,7 +41,11 @@ import (
 const (
 	defaultService    = "test"
 	defaultStopBudget = 10 * time.Second
-	readyTimeout      = 5 * time.Second
+	// defaultStartBudget bounds the start: a dependency retries providing
+	// itself until it comes, which a test with dead infrastructure would
+	// wait for until go test's timeout.
+	defaultStartBudget = 2 * time.Minute
+	readyTimeout       = 5 * time.Second
 )
 
 // Errors.
@@ -60,6 +64,7 @@ type Option func(o *options)
 type options struct {
 	service string
 	budget  time.Duration
+	start   time.Duration
 }
 
 // Name is the service's name (default "test"): events are published as
@@ -84,6 +89,16 @@ func StopBudget(d time.Duration) Option {
 	return func(o *options) { o.budget = d }
 }
 
+// StartBudget bounds Start (default 2m): a required dependency not
+// provided by then fails the test with its name and last error.
+func StartBudget(d time.Duration) Option {
+	if d <= 0 {
+		panic(fmt.Sprintf("backplanetest: StartBudget must be positive, got %v", d))
+	}
+
+	return func(o *options) { o.start = d }
+}
+
 func validService(s string) bool {
 	for i, r := range s {
 		switch {
@@ -105,6 +120,7 @@ type Harness struct {
 	env    *env.Env
 	rec    *recorder
 	budget time.Duration
+	start  time.Duration
 
 	mu    sync.Mutex
 	bound []string // answered hooks, short names
@@ -116,7 +132,7 @@ type Harness struct {
 func New(tb testing.TB, opts ...Option) *Harness {
 	tb.Helper()
 
-	o := options{service: defaultService, budget: defaultStopBudget}
+	o := options{service: defaultService, budget: defaultStopBudget, start: defaultStartBudget}
 	for _, opt := range opts {
 		opt(&o)
 	}
@@ -132,6 +148,7 @@ func New(tb testing.TB, opts ...Option) *Harness {
 
 	return &Harness{
 		t: tb, svc: svc, app: svc.Child(o.service, node.Root, false), env: e, rec: rec, budget: o.budget,
+		start: o.start,
 	}
 }
 
@@ -152,15 +169,25 @@ func (h *Harness) Root() deps.Component {
 	return link.Scope(h.app).(deps.Component) //nolint:forcetypeassert,errcheck // deps installs it
 }
 
-// Start starts the tree (dependencies are provided, goroutines run) and
-// stops it at test cleanup within the StopBudget; a failure fails the
-// test.
+// Start starts the tree (dependencies are provided, goroutines run) within
+// the StartBudget and stops it at test cleanup within the StopBudget; a
+// failure fails the test, a start out of budget naming each required
+// dependency not provided and its last error.
 func (h *Harness) Start() {
 	h.t.Helper()
 
 	h.t.Cleanup(h.stopTree)
 
-	if err := h.svc.Start(h.t.Context()); err != nil {
+	ctx, cancel := context.WithTimeout(h.t.Context(), h.start)
+	defer cancel()
+
+	err := h.svc.Start(ctx)
+
+	switch {
+	case err == nil:
+	case errors.Is(ctx.Err(), context.DeadlineExceeded):
+		h.t.Fatalf("backplanetest: start: not ready within %v: %v", h.start, Ready(h))
+	default:
 		h.t.Fatalf("backplanetest: start: %v", err)
 	}
 }

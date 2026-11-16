@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -33,7 +34,17 @@ type recordingTB struct {
 
 	mu       sync.Mutex
 	errs     []string
+	fatal    string
 	cleanups []func()
+}
+
+// Fatalf records the failure and ends the calling goroutine, as FailNow.
+func (r *recordingTB) Fatalf(format string, args ...any) {
+	r.mu.Lock()
+	r.fatal = fmt.Sprintf(format, args...)
+	r.mu.Unlock()
+
+	runtime.Goexit()
 }
 
 func (r *recordingTB) Cleanup(fn func()) {
@@ -98,6 +109,54 @@ func TestNameAndStopBudget(t *testing.T) {
 			bad()
 		}()
 	}
+}
+
+// A start whose required dependency never comes fails within the
+// StartBudget, naming that dependency and its last error, instead of
+// retrying until go test's timeout.
+func TestStartBudget(t *testing.T) {
+	t.Parallel()
+
+	rec := &recordingTB{T: t}
+	h := backplanetest.New(rec, backplanetest.StartBudget(300*time.Millisecond))
+
+	errDown := errors.New("db down")
+	deps.NewDependency(h.Root(), deps.Func(func(context.Context) (int, error) { return 0, errDown }), deps.Name("db"))
+	deps.NewOptional(h.Root(), deps.Func(func(context.Context) (int, error) { return 0, errDown }), deps.Name("cache"))
+
+	done := make(chan struct{})
+	started := time.Now()
+
+	go func() {
+		defer close(done)
+
+		h.Start()
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Start did not end within its budget")
+	}
+
+	rec.cleanup()
+
+	rec.mu.Lock()
+	fatal := rec.fatal
+	rec.mu.Unlock()
+
+	if !strings.Contains(fatal, "300ms") || !strings.Contains(fatal, "db") || !strings.Contains(fatal, "db down") ||
+		strings.Contains(fatal, "cache") || time.Since(started) > 5*time.Second {
+		t.Fatalf("start failure %q after %v", fatal, time.Since(started))
+	}
+
+	defer func() {
+		if recover() == nil {
+			t.Error("StartBudget(0) must panic")
+		}
+	}()
+
+	backplanetest.StartBudget(0)
 }
 
 func TestEventsWithMeta(t *testing.T) {
