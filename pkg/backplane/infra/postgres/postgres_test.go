@@ -111,6 +111,36 @@ func TestPoolFollowsTheSection(t *testing.T) {
 	}
 }
 
+// Listeners hold their LISTEN sessions for good: a listen pool whose every
+// connection a listener holds is ready, its probe never waits for one to
+// come free; its idle connections are still checked.
+func TestListenPoolHeldByListenersIsReady(t *testing.T) {
+	t.Parallel()
+
+	db := live(t, postgres.Config{Listen: postgres.Listen{MaxConns: 1}})
+
+	if err := db.Ping(t.Context()); err != nil {
+		t.Fatalf("ping with an idle listen connection: %v", err)
+	}
+
+	held, err := db.ListenPool().Acquire(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer held.Release()
+
+	if _, err := held.Exec(t.Context(), "LISTEN probe_test"); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+
+	if err := db.Ping(ctx); err != nil {
+		t.Fatalf("ping with every listen connection held: %v", err)
+	}
+}
+
 // Chaos: every connection is taken. A query, a batch and a transaction
 // give up after acquire_timeout with ErrAcquireTimeout instead of waiting
 // for the caller's deadline; the listen pool is unaffected; once a

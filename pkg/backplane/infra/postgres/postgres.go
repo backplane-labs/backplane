@@ -293,8 +293,33 @@ func (db *DB) Ping(ctx context.Context) error {
 		return fmt.Errorf("postgres: ping: %w", err)
 	}
 
-	if err := db.listen.Ping(ctx); err != nil {
+	if err := pingListen(ctx, db.listen); err != nil {
 		return fmt.Errorf("postgres: ping listen pool: %w", err)
+	}
+
+	return nil
+}
+
+// pingListen checks the LISTEN pool without waiting for a connection: its
+// listeners hold their sessions for good, so a pool they hold whole is the
+// normal state, and up (a broken session ends its listener's wait, which
+// gives the connection back). Its idle connections are pinged; an empty
+// pool is pinged through a new one.
+func pingListen(ctx context.Context, p *pgxpool.Pool) error {
+	idle := p.AcquireAllIdle(ctx)
+	errs := make([]error, 0, len(idle))
+
+	for _, c := range idle {
+		errs = append(errs, c.Ping(ctx))
+		c.Release()
+	}
+
+	if len(idle) > 0 || p.Stat().AcquiredConns() > 0 {
+		return errors.Join(errs...)
+	}
+
+	if err := p.Ping(ctx); err != nil {
+		return fmt.Errorf("postgres: new listen connection: %w", err)
 	}
 
 	return nil
