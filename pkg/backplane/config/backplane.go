@@ -135,7 +135,12 @@ func (c Consul) Enabled() bool { return c.Addr != "" }
 type NATS struct {
 	URL   Secret `desc:"Server URL, or comma-separated URLs; empty: without NATS." json:"url,omitempty"`
 	Creds Secret `desc:"Content of a .creds file (user JWT and seed)."             json:"creds,omitempty"`
-	TLS   TLS    `desc:"TLS of the connection."                                    json:"tls"`
+	// User/Password or Nkey authenticate as a user of the server's
+	// configuration, without JWT; one of creds, user and password, nkey.
+	User     string `desc:"User of the server's configuration, with password; instead of creds."            json:"user,omitempty"`
+	Password Secret `desc:"Password of user."                                                               json:"password,omitempty"`
+	Nkey     Secret `desc:"User nkey seed (SU...) of the server's configuration; instead of creds or user." json:"nkey,omitempty"`
+	TLS      TLS    `desc:"TLS of the connection."                                                          json:"tls"`
 	// InboxPrefix replaces _INBOX for the connection's reply subjects
 	// (requests, JetStream API calls).
 	InboxPrefix string `desc:"Prefix of reply subjects instead of _INBOX, e.g. _INBOX_billing; no wildcards, no trailing dot." json:"inbox_prefix,omitempty"`

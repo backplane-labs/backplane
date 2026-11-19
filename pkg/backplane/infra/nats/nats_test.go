@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats-server/v2/server"
 	natsgo "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/nats-io/nkeys"
@@ -47,6 +48,15 @@ func TestValidate(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	for _, ok := range []nats.Config{
+		{URL: "nats://n:4222", User: "u", Password: "p"},
+		{URL: "nats://n:4222", Nkey: config.Secret(seed)},
+	} {
+		if err := ok.Validate(); err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	for name, c := range map[string]struct {
 		cfg  nats.Config
 		want error
@@ -58,6 +68,13 @@ func TestValidate(t *testing.T) {
 		"inbox dot":         {nats.Config{URL: "nats://n:4222", InboxPrefix: "_INBOX_billing."}, config.ErrInboxPrefix},
 		"inbox empty token": {nats.Config{URL: "nats://n:4222", InboxPrefix: "_INBOX..billing"}, config.ErrInboxPrefix},
 		"inbox space":       {nats.Config{URL: "nats://n:4222", InboxPrefix: "_INBOX billing"}, config.ErrInboxPrefix},
+		"creds and user": {
+			nats.Config{URL: "nats://n:4222", Creds: config.Secret(creds), User: "u", Password: "p"}, nats.ErrAuth,
+		},
+		"user and nkey":    {nats.Config{URL: "nats://n:4222", User: "u", Password: "p", Nkey: config.Secret(seed)}, nats.ErrAuth},
+		"user no password": {nats.Config{URL: "nats://n:4222", User: "u"}, nats.ErrAuth},
+		"password no user": {nats.Config{URL: "nats://n:4222", Password: "p"}, nats.ErrAuth},
+		"nkey garbage":     {nats.Config{URL: "nats://n:4222", Nkey: "SUjunk"}, nil},
 	} {
 		err := c.cfg.Validate()
 		if err == nil || c.want != nil && !errors.Is(err, c.want) {
@@ -457,6 +474,83 @@ func TestReconnectBuffer(t *testing.T) {
 
 			if err := conn.Publish("infra.test", []byte("x")); (err != nil) != tc.fails {
 				t.Fatalf("publish while disconnected: %v", err)
+			}
+		})
+	}
+}
+
+// A server with static users in its configuration (no operator JWT) is
+// joined by user and password or by a user nkey; a wrong password keeps
+// the connection retrying, never connected.
+func TestStaticUsers(t *testing.T) {
+	t.Parallel()
+
+	kp, err := nkeys.CreateUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	seed, err := kp.Seed()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	public, err := kp.PublicKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	srv, err := server.NewServer(&server.Options{
+		Host: "127.0.0.1", Port: -1, NoLog: true, NoSigs: true,
+		Users: []*server.User{{Username: "billing", Password: "secret"}},
+		Nkeys: []*server.NkeyUser{{Nkey: public}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	go srv.Start()
+	t.Cleanup(srv.Shutdown)
+
+	if !srv.ReadyForConnections(5 * time.Second) {
+		t.Fatal("nats server not ready")
+	}
+
+	url := config.Secret(srv.ClientURL())
+	fast := config.NATSConnection{ReconnectWait: 5 * time.Millisecond, ReconnectJitter: time.Millisecond}
+
+	tests := []struct {
+		name string
+		cfg  nats.Config
+		want bool
+	}{
+		{name: "user and password", cfg: nats.Config{URL: url, User: "billing", Password: "secret"}, want: true},
+		{name: "nkey", cfg: nats.Config{URL: url, Nkey: config.Secret(seed)}, want: true},
+		{name: "wrong password", cfg: nats.Config{URL: url, User: "billing", Password: "nope"}},
+		{name: "anonymous", cfg: nats.Config{URL: url}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			tc.cfg.NATSConnection = fast
+
+			conn, err := nats.Connect(tc.cfg, nats.Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			t.Cleanup(conn.Close)
+
+			connected := false
+			for deadline := time.Now().Add(2 * time.Second); time.Now().Before(deadline) && !connected; {
+				connected = conn.IsConnected()
+				time.Sleep(10 * time.Millisecond)
+			}
+
+			if connected != tc.want {
+				t.Fatalf("connected %v, want %v", connected, tc.want)
 			}
 		})
 	}

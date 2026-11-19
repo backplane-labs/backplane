@@ -24,7 +24,8 @@ func Driver() backplane.Option {
 		e, _ := decl.Env(scope, "nats driver")
 		transport := broker.New(broker.Params{
 			Conn: infranats.Config{
-				URL: cfg.NATS.URL, Creds: cfg.NATS.Creds, TLS: cfg.NATS.TLS, InboxPrefix: cfg.NATS.InboxPrefix,
+				URL: cfg.NATS.URL, Creds: cfg.NATS.Creds, User: cfg.NATS.User, Password: cfg.NATS.Password,
+				Nkey: cfg.NATS.Nkey, TLS: cfg.NATS.TLS, InboxPrefix: cfg.NATS.InboxPrefix,
 				NATSConnection: cfg.NATS.NATSConnection,
 			},
 			PublishTimeout: cfg.NATS.PublishTimeout,

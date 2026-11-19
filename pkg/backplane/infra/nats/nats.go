@@ -44,6 +44,9 @@ import (
 var (
 	// ErrNoURL: the section has no URL.
 	ErrNoURL = errors.New("nats: url is required")
+	// ErrAuth: more than one way to authenticate, or user without
+	// password (or the reverse).
+	ErrAuth = errors.New("nats: authenticate with one of creds, user and password, or nkey")
 	// ErrDisconnected is what the probe reports while the connection is
 	// down.
 	ErrDisconnected = errors.New("nats: not connected")
@@ -61,7 +64,14 @@ type Config struct {
 	URL config.Secret `desc:"Server URL, or comma-separated URLs." json:"url,omitempty"`
 	// Creds is the content of a .creds file (user JWT and seed).
 	Creds config.Secret `desc:"Content of a .creds file (user JWT and seed)." json:"creds,omitempty"`
-	TLS   config.TLS    `desc:"TLS of the connection."                        json:"tls"`
+	// User and Password authenticate as a user of the server's
+	// configuration (authorization or accounts users), without JWT.
+	User     string        `desc:"User of the server's configuration, with password; instead of creds." json:"user,omitempty"`
+	Password config.Secret `desc:"Password of user."                                                    json:"password,omitempty"`
+	// Nkey is a user nkey seed (SU…) the server's configuration lists by
+	// its public key.
+	Nkey config.Secret `desc:"User nkey seed (SU...) of the server's configuration; instead of creds or user." json:"nkey,omitempty"`
+	TLS  config.TLS    `desc:"TLS of the connection."                                                          json:"tls"`
 	// InboxPrefix replaces _INBOX as the prefix of the connection's reply
 	// subjects, its requests' and its JetStream API calls': a deployment
 	// that grants each identity its own prefix keeps other identities from
@@ -111,14 +121,12 @@ func (c Config) auth() ([]natsgo.Option, error) {
 		opts = append(opts, natsgo.CustomInboxPrefix(c.InboxPrefix))
 	}
 
-	if c.Creds.Reveal() != "" {
-		creds, err := credentials(c.Creds.Reveal())
-		if err != nil {
-			return nil, err
-		}
-
-		opts = append(opts, creds)
+	identity, err := c.identity()
+	if err != nil {
+		return nil, err
 	}
+
+	opts = append(opts, identity...)
 
 	tc, err := c.TLS.ClientConfig()
 	if err != nil {
@@ -130,6 +138,67 @@ func (c Config) auth() ([]natsgo.Option, error) {
 	}
 
 	return opts, nil
+}
+
+// identity is the one way the connection authenticates: a .creds file, a
+// user and password, an nkey seed, or none (no option).
+func (c Config) identity() ([]natsgo.Option, error) {
+	creds, user, password, seed := c.Creds.Reveal(), c.User, c.Password.Reveal(), c.Nkey.Reveal()
+
+	ways := 0
+
+	for _, set := range []bool{creds != "", user != "" || password != "", seed != ""} {
+		if set {
+			ways++
+		}
+	}
+
+	switch {
+	case ways > 1, (user == "") != (password == ""):
+		return nil, ErrAuth
+	case creds != "":
+		return one(credentials(creds))
+	case user != "":
+		return []natsgo.Option{natsgo.UserInfo(user, password)}, nil
+	case seed != "":
+		return one(nkeySeed(seed))
+	default:
+		return []natsgo.Option{}, nil
+	}
+}
+
+func one(opt natsgo.Option, err error) ([]natsgo.Option, error) {
+	if err != nil {
+		return nil, err
+	}
+
+	return []natsgo.Option{opt}, nil
+}
+
+// nkeySeed signs the server's nonce with the user nkey seed.
+func nkeySeed(seed string) (natsgo.Option, error) {
+	user, err := nkeys.FromSeed([]byte(seed))
+	if err != nil {
+		return nil, fmt.Errorf("nats: nkey: %w", err)
+	}
+
+	public, err := user.PublicKey()
+	if err != nil {
+		return nil, fmt.Errorf("nats: nkey: %w", err)
+	}
+
+	if !nkeys.IsValidPublicUserKey(public) {
+		return nil, fmt.Errorf("%w: nkey is not a user seed", ErrAuth)
+	}
+
+	return natsgo.Nkey(public, func(nonce []byte) ([]byte, error) {
+		signed, err := user.Sign(nonce)
+		if err != nil {
+			return nil, fmt.Errorf("nats: nkey: sign: %w", err)
+		}
+
+		return signed, nil
+	}), nil
 }
 
 // credentials turns the content of a .creds file into the user JWT and
