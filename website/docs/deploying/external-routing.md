@@ -26,6 +26,10 @@ In Kubernetes, target the application's Kubernetes Service with the gateway alre
 used by the installation. In Compose, use container DNS names and the service ports.
 Consul service discovery can also be used independently by infrastructure. Backplane
 reading the Consul catalog for console operations does not configure that discovery.
+Each instance registers its unnamed listener as the service port and every named
+listener as the tagged address `listener-<name>` (address and port), so the replicas
+of a service are found by any of its listeners: for example
+`/v1/health/service/sync?passing` and `Service.TaggedAddresses["listener-admin"]`.
 
 ## Console behind a reverse proxy
 

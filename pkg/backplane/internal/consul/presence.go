@@ -650,6 +650,9 @@ func (p *Presence) registerService(ctx context.Context) error {
 		Address: p.id.Address,
 		Port:    int(p.id.PublicPort),
 		Tags:    p.tags,
+		// A named listener is reached at its own port: replicas are found
+		// by it through the tagged address listener-<name>.
+		TaggedAddresses: p.listenerAddresses(),
 		Check: &api.AgentServiceCheck{
 			GRPC:                           net.JoinHostPort(p.id.Address, strconv.Itoa(int(p.id.PlatformPort))),
 			Interval:                       p.check.Interval.String(),
@@ -939,3 +942,21 @@ func (p *Presence) sameInstance(name string) bool {
 
 func write(ctx context.Context) *api.WriteOptions { return (&api.WriteOptions{}).WithContext(ctx) }
 func query(ctx context.Context) *api.QueryOptions { return (&api.QueryOptions{}).WithContext(ctx) }
+
+// ListenerAddress is the tagged address of the named listener name in the
+// instance's catalog registration.
+func ListenerAddress(name string) string { return "listener-" + name }
+
+// listenerAddresses are the named listeners as tagged addresses; the
+// unnamed one is the registration's port.
+func (p *Presence) listenerAddresses() map[string]api.ServiceAddress {
+	out := map[string]api.ServiceAddress{}
+
+	for name, port := range p.id.Listeners {
+		if name != "" {
+			out[ListenerAddress(name)] = api.ServiceAddress{Address: p.id.Address, Port: int(port)}
+		}
+	}
+
+	return out
+}

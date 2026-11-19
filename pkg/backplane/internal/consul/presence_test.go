@@ -716,6 +716,7 @@ func TestPresenceLifecycle(t *testing.T) {
 	c := client(t)
 	id := consul.Identity{
 		Service: "presence-test", Version: "1.2.3", Instance: "presence-test-1", Address: "127.0.0.1", PlatformPort: 1,
+		PublicPort: 8080, Listeners: map[string]uint16{"": 8080, "admin": 9091},
 	}
 	manifest := &backplanev1.Manifest{Service: id.Service, Version: id.Version}
 
@@ -757,11 +758,14 @@ func TestPresenceLifecycle(t *testing.T) {
 		t.Fatalf("session %v %v, want name %s", info, err, p.SessionName())
 	}
 
-	// Registration follows the state write.
+	// Registration follows the state write; a named listener is a tagged
+	// address of the instance, so its replicas are found by that port too.
 	eventually(t, "in catalog", func() bool {
 		services, _, err := c.Catalog().Service("presence-test", "", nil)
 
-		return err == nil && len(services) == 1
+		return err == nil && len(services) == 1 && services[0].ServicePort == 8080 &&
+			services[0].ServiceTaggedAddresses["listener-admin"].Port == 9091 &&
+			services[0].ServiceTaggedAddresses["listener-admin"].Address == "127.0.0.1"
 	})
 
 	cancel()
