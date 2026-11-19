@@ -58,6 +58,10 @@ jobs:
       # No -count=1: unchanged packages reuse successful test results.
       # Infrastructure integration suites are reserved for the full run below.
       - run: go test -race -timeout 10m ./...
+      # Chaos of the valkey connector: a Sentinel stand in docker, its
+      # primary killed.
+      - run: go test -race -count=1 -run TestSentinelFailover ./pkg/backplane/infra/valkey/
+        env: {BACKPLANE_TEST_DOCKER: "1"}
 
   web:
     needs: changes

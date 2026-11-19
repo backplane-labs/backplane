@@ -107,6 +107,7 @@ test: ## Unit tests with the race detector (integration tests skip without the s
 conformance: ## SDK contract and integration tests against platform-in-a-box (make up)
 	BACKPLANE_TEST_CONSUL=localhost:8500 BACKPLANE_TEST_NATS=localhost:4222 BACKPLANE_TEST_TEMPORAL=localhost:7233 \
 	BACKPLANE_TEST_PG="postgres://backplane:backplane@localhost:5433/backplane?sslmode=disable" \
+	BACKPLANE_TEST_DOCKER=1 \
 		go test -race -count=1 ./...
 
 .PHONY: test-m1

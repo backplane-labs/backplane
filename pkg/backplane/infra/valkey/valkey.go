@@ -90,6 +90,9 @@ type Config struct {
 	// the connection.
 	DB  int64      `desc:"Logical database; a number the server does not have fails the connection." json:"db"  schemapb:"default=0;gte=0"`
 	TLS config.TLS `desc:"TLS of the connection."                                                    json:"tls"`
+	// Sentinel finds the primary of a master set through sentinels and
+	// follows it across a failover; instead of addr.
+	Sentinel Sentinel `desc:"Sentinels of a master set, instead of addr." json:"sentinel"`
 	// DialTimeout bounds establishing one connection.
 	DialTimeout time.Duration `desc:"Bound of establishing one connection." json:"dial_timeout" schemapb:"default=5s;gt=0"`
 	// ConnWriteTimeout is the per-connection deadline of writing a command
@@ -111,14 +114,41 @@ type Config struct {
 	WriteBufferEachConn   int64         `desc:"Write buffer of each connection, bytes."                                        json:"write_buffer_each_conn"  schemapb:"default=524288;gt=0"`
 }
 
-// Enabled reports whether an address is set.
-func (c Config) Enabled() bool { return len(c.addrs()) > 0 }
+// Sentinel is the master set a connection follows through its sentinels.
+// Username, Password and TLS of the section are the data nodes'; these are
+// the sentinels' own.
+type Sentinel struct {
+	// MasterSet is the name the sentinels monitor the primary under; Addrs
+	// the sentinels, host:port comma-separated.
+	MasterSet string        `desc:"Name the sentinels monitor the primary under." json:"master_set,omitempty"`
+	Addrs     string        `desc:"Sentinels, comma-separated host:port."         json:"addrs,omitempty"`
+	Username  string        `desc:"ACL user of the sentinels."                    json:"username,omitempty"`
+	Password  config.Secret `desc:"Password of the sentinels."                    json:"password,omitempty"`
+	TLS       config.TLS    `desc:"TLS of the connections to the sentinels."      json:"tls"`
+}
+
+// Enabled reports whether the sentinels are set.
+func (s Sentinel) Enabled() bool { return len(split(s.Addrs)) > 0 }
+
+// Errors of the sentinel section.
+var (
+	// ErrSentinelAndAddr: both addr and sentinel addrs; one or the other.
+	ErrSentinelAndAddr = errors.New("valkey: addr and sentinel.addrs are exclusive")
+	// ErrNoMasterSet: sentinels without the master set they monitor.
+	ErrNoMasterSet = errors.New("valkey: sentinel.master_set is required with sentinel.addrs")
+)
+
+// Enabled reports whether an address or sentinels are set.
+func (c Config) Enabled() bool { return len(c.addrs()) > 0 || c.Sentinel.Enabled() }
 
 // addrs are the addresses of Addr.
-func (c Config) addrs() []string {
+func (c Config) addrs() []string { return split(c.Addr) }
+
+// split is a comma-separated host:port list.
+func split(list string) []string {
 	var out []string
 
-	for a := range strings.SplitSeq(c.Addr, ",") {
+	for a := range strings.SplitSeq(list, ",") {
 		if a = strings.TrimSpace(a); a != "" {
 			out = append(out, a)
 		}
@@ -130,12 +160,21 @@ func (c Config) addrs() []string {
 // Validate checks what the schema cannot: the address is set and the TLS
 // material parses.
 func (c Config) Validate() error {
-	if !c.Enabled() {
+	switch {
+	case !c.Enabled():
 		return ErrNoAddr
+	case len(c.addrs()) > 0 && c.Sentinel.Enabled():
+		return ErrSentinelAndAddr
+	case c.Sentinel.Enabled() && c.Sentinel.MasterSet == "":
+		return ErrNoMasterSet
 	}
 
 	if _, err := c.TLS.ClientConfig(); err != nil {
 		return fmt.Errorf("valkey: %w", err)
+	}
+
+	if _, err := c.Sentinel.TLS.ClientConfig(); err != nil {
+		return fmt.Errorf("valkey: sentinel: %w", err)
 	}
 
 	return nil
@@ -194,7 +233,7 @@ func (provider) Close(_ context.Context, c Client) error {
 func (c Config) clientOption() valkeygo.ClientOption {
 	tlsConfig, _ := c.TLS.ClientConfig() // Validate parsed it
 
-	return valkeygo.ClientOption{
+	opt := valkeygo.ClientOption{
 		InitAddress: c.addrs(),
 		Username:    c.Username,
 		Password:    c.Password.Reveal(),
@@ -216,6 +255,18 @@ func (c Config) clientOption() valkeygo.ClientOption {
 		ReadBufferEachConn:    int(orDefault(c.ReadBufferEachConn, DefaultBufferEachConn)),
 		WriteBufferEachConn:   int(orDefault(c.WriteBufferEachConn, DefaultBufferEachConn)),
 	}
+
+	if c.Sentinel.Enabled() {
+		sentinelTLS, _ := c.Sentinel.TLS.ClientConfig() // Validate parsed it
+
+		opt.InitAddress = split(c.Sentinel.Addrs)
+		opt.Sentinel = valkeygo.SentinelOption{
+			MasterSet: c.Sentinel.MasterSet, Username: c.Sentinel.Username,
+			Password: c.Sentinel.Password.Reveal(), TLSConfig: sentinelTLS,
+		}
+	}
+
+	return opt
 }
 
 // ErrClusterDB: a database other than 0 on a cluster without numbered
@@ -226,6 +277,10 @@ var ErrClusterDB = errors.New("valkey: a cluster has only database 0 unless it i
 func (c Config) connectError(err error) error {
 	if c.DB != 0 && strings.Contains(err.Error(), "SELECT is not allowed in cluster mode") {
 		return fmt.Errorf("%w: db %d: %w", ErrClusterDB, c.DB, err)
+	}
+
+	if c.Sentinel.Enabled() {
+		return fmt.Errorf("valkey: connect %s via sentinels %s: %w", c.Sentinel.MasterSet, c.Sentinel.Addrs, err)
 	}
 
 	return fmt.Errorf("valkey: connect %s: %w", c.Addr, err)

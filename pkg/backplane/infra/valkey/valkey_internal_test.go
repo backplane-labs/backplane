@@ -55,3 +55,19 @@ func TestClientOption(t *testing.T) {
 		})
 	}
 }
+
+// Sentinels are the initial addresses and the master set is followed; the
+// data nodes keep the section's credentials, the sentinels their own.
+func TestClientOptionSentinel(t *testing.T) {
+	t.Parallel()
+
+	o := Config{
+		Username: "app", Password: "dp",
+		Sentinel: Sentinel{MasterSet: "cache", Addrs: "s1:26379, s2:26379", Username: "sentinel", Password: "sp"},
+	}.clientOption()
+
+	if len(o.InitAddress) != 2 || o.InitAddress[1] != "s2:26379" || o.Sentinel.MasterSet != "cache" ||
+		o.Sentinel.Username != "sentinel" || o.Sentinel.Password != "sp" || o.Username != "app" || o.Password != "dp" {
+		t.Fatalf("options %+v / %+v", o.InitAddress, o.Sentinel)
+	}
+}

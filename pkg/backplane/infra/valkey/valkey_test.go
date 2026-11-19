@@ -44,6 +44,25 @@ func TestValidate(t *testing.T) {
 			t.Fatalf("%q: %v", addr, err)
 		}
 	}
+
+	sentinels := valkey.Sentinel{MasterSet: "cache", Addrs: "s1:26379,s2:26379,s3:26379", Password: "sp"}
+
+	for name, c := range map[string]struct {
+		cfg  valkey.Config
+		want error
+	}{
+		"sentinels":          {valkey.Config{Sentinel: sentinels, Password: "dp"}, nil},
+		"addr and sentinels": {valkey.Config{Addr: "v:6379", Sentinel: sentinels}, valkey.ErrSentinelAndAddr},
+		"no master set":      {valkey.Config{Sentinel: valkey.Sentinel{Addrs: "s1:26379"}}, valkey.ErrNoMasterSet},
+		"sentinel tls": {
+			valkey.Config{Sentinel: valkey.Sentinel{MasterSet: "m", Addrs: "s:1", TLS: config.TLS{Enabled: true, CA: "junk"}}},
+			config.ErrTLSCA,
+		},
+	} {
+		if err := c.cfg.Validate(); !errors.Is(err, c.want) || c.want == nil && err != nil {
+			t.Errorf("%s: %v, want %v", name, err, c.want)
+		}
+	}
 }
 
 // A Valkey 9+ cluster with cluster-databases keeps numbered databases
