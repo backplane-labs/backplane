@@ -2,12 +2,14 @@ package workflowtest_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/workflow"
 
@@ -139,5 +141,55 @@ func TestWorkerEndpointTaken(t *testing.T) {
 
 	if !strings.Contains(fatal.msg, workflowtest.ErrEndpointTaken.Error()) {
 		t.Fatalf("start: %q", fatal.msg)
+	}
+}
+
+// A server unavailable for a moment (a restart resetting the connection) is
+// called again until it answers or the deadline ends; any other answer is
+// final.
+func TestRetryUnavailable(t *testing.T) {
+	t.Parallel()
+
+	errOther := errors.New("denied")
+
+	tests := []struct {
+		name      string
+		failures  int
+		final     error
+		budget    time.Duration
+		wantCalls int
+		wantErr   bool
+	}{
+		{name: "answers at once", wantCalls: 1},
+		{name: "reset once", failures: 1, wantCalls: 2},
+		{name: "other error is final", final: errOther, wantCalls: 1, wantErr: true},
+		{name: "down past the deadline", failures: 1000, budget: 400 * time.Millisecond, wantErr: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := t.Context()
+			if tc.budget > 0 {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, tc.budget)
+				defer cancel()
+			}
+
+			calls := 0
+			err := workflowtest.RetryUnavailable(ctx, func(context.Context) error {
+				calls++
+				if calls <= tc.failures {
+					return serviceerror.NewUnavailable("connection reset by peer")
+				}
+
+				return tc.final
+			})
+
+			if (err != nil) != tc.wantErr || tc.wantCalls > 0 && calls != tc.wantCalls {
+				t.Fatalf("err %v after %d calls", err, calls)
+			}
+		})
 	}
 }

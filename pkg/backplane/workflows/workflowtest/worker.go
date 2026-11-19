@@ -26,6 +26,10 @@ var ErrEndpointTaken = errors.New("nexus endpoint taken")
 // endpointCleanup bounds the endpoint's deletion at the end of the test.
 const endpointCleanup = 10 * time.Second
 
+// unavailablePause is the wait before calling again a server that was
+// unavailable: a restarted Temporal resets the old connection once.
+const unavailablePause = 250 * time.Millisecond
+
 // WorkerOption tunes Worker.
 type WorkerOption func(o *workerOptions)
 
@@ -167,14 +171,39 @@ func deleteEndpoint(ctx context.Context, c client.Client, endpoint *nexuspb.Endp
 	ctx, cancel := context.WithTimeout(ctx, endpointCleanup)
 	defer cancel()
 
-	_, err := c.OperatorService().DeleteNexusEndpoint(ctx, &operatorservice.DeleteNexusEndpointRequest{
-		Id: endpoint.GetId(), Version: endpoint.GetVersion(),
+	err := retryUnavailable(ctx, func(ctx context.Context) error {
+		if _, err := c.OperatorService().DeleteNexusEndpoint(ctx, &operatorservice.DeleteNexusEndpointRequest{
+			Id: endpoint.GetId(), Version: endpoint.GetVersion(),
+		}); err != nil {
+			return fmt.Errorf("delete: %w", err)
+		}
+
+		return nil
 	})
 
 	var gone *serviceerror.NotFound
 	if err != nil && !errors.As(err, &gone) {
-		return fmt.Errorf("nexus endpoint %s: delete: %w", endpoint.GetSpec().GetName(), err)
+		return fmt.Errorf("nexus endpoint %s: %w", endpoint.GetSpec().GetName(), err)
 	}
 
 	return nil
+}
+
+// retryUnavailable calls fn again, after unavailablePause, while the server
+// is unavailable (a connection reset by a restart) and ctx lasts.
+func retryUnavailable(ctx context.Context, fn func(context.Context) error) error {
+	for {
+		err := fn(ctx)
+
+		var down *serviceerror.Unavailable
+		if !errors.As(err, &down) {
+			return err
+		}
+
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(unavailablePause):
+		}
+	}
 }
