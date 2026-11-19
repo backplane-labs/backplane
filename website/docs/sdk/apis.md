@@ -198,6 +198,13 @@ res, err := client.Do(req) // errors.Is(err, netguard.ErrForbiddenAddress), ErrF
   SIIT), and zoned addresses (`netguard.Forbidden`).
 - Requests go direct: through a proxy the address dialed would be the
   proxy's.
+
+To check an endpoint before keeping it (a push subscription, a configured
+service URL), `netguard.CheckURL(u, hosts)` refuses with `ErrForbiddenURL` a
+URL that is not https, carries userinfo, names a port other than 443 (or an
+empty one after `:`), names an IP literal, or a host outside `hosts` (exact
+or `*.suffix`; empty: any name). The client itself keeps any port: a webhook
+receiver may listen on one.
 - No redirect is followed unless `netguard.Redirects(n)` allows it, as a
   delivery (a webhook, a push) wants: the 3xx response comes back.
 

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -223,5 +224,62 @@ func TestClientSendsNoTrace(t *testing.T) {
 
 	if sent := <-got; sent != "" {
 		t.Fatalf("trace context sent to an untrusted URL: %q", sent)
+	}
+}
+
+func TestCheckURL(t *testing.T) {
+	t.Parallel()
+
+	hosts := []string{"fcm.googleapis.com", "*.push.apple.com"}
+
+	tests := []struct {
+		raw   string
+		hosts []string
+		ok    bool
+	}{
+		{raw: "https://fcm.googleapis.com/fcm/send/x", hosts: hosts, ok: true},
+		{raw: "https://fcm.googleapis.com:443/x", hosts: hosts, ok: true},
+		{raw: "https://FCM.googleapis.com./x", hosts: hosts, ok: true},
+		{raw: "https://a.push.apple.com/x", hosts: hosts, ok: true},
+		{raw: "https://any.example/x", ok: true},
+		{raw: "https://fcm.googleapis.com:8443/x", hosts: hosts},
+		{raw: "https://fcm.googleapis.com:/x", hosts: hosts},
+		{raw: "http://fcm.googleapis.com/x", hosts: hosts},
+		{raw: "https://u:p@fcm.googleapis.com/x", hosts: hosts},
+		{raw: "https://evilfcm.googleapis.com.attacker/x", hosts: hosts},
+		{raw: "https://push.apple.com/x", hosts: hosts},
+		{raw: "https://1.2.3.4/x"},
+		{raw: "https://[::1]/x"},
+		{raw: "https://1.2.3.4/x", hosts: []string{"1.2.3.4"}},
+		{raw: "https:///x"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.raw, func(t *testing.T) {
+			t.Parallel()
+
+			u, err := url.Parse(tc.raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = netguard.CheckURL(u, tc.hosts)
+			if tc.ok != (err == nil) || err != nil && !errors.Is(err, netguard.ErrForbiddenURL) {
+				t.Fatalf("CheckURL(%s) = %v, want ok %v", tc.raw, err, tc.ok)
+			}
+		})
+	}
+}
+
+func BenchmarkCheckURL(b *testing.B) {
+	u, err := url.Parse("https://a.push.apple.com/3/device/x")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	hosts := []string{"fcm.googleapis.com", "*.push.apple.com"}
+
+	for b.Loop() {
+		_ = netguard.CheckURL(u, hosts)
 	}
 }

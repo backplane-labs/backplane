@@ -20,6 +20,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"strings"
 	"syscall"
 	"time"
@@ -200,6 +201,36 @@ func client(base http.RoundTripper, opts []Option) *http.Client {
 			return nil
 		},
 	}
+}
+
+// CheckURL refuses (ErrForbiddenURL) an endpoint that is not a public
+// service's own: not https, with userinfo, on a port other than 443 (or an
+// empty one after ":"), at an IP literal, or at a host outside hosts
+// (exact or *.suffix; empty: any name). Only the scheme, host and port are
+// named in the error: a path or query may carry a token.
+func CheckURL(endpoint *url.URL, hosts []string) error {
+	host := endpoint.Hostname()
+
+	switch {
+	case endpoint.Scheme != "https" || host == "":
+		return fmt.Errorf("%w: %s://%s is not https", ErrForbiddenURL, endpoint.Scheme, endpoint.Host)
+	case endpoint.User != nil:
+		return fmt.Errorf("%w: %s carries userinfo", ErrForbiddenURL, host)
+	case endpoint.Port() != "" && endpoint.Port() != "443" || strings.HasSuffix(endpoint.Host, ":"):
+		return fmt.Errorf("%w: %s: port %q, want 443", ErrForbiddenURL, host, endpoint.Port())
+	case len(hosts) == 0 && isIP(host):
+		return fmt.Errorf("%w: %s is an IP address", ErrForbiddenURL, host)
+	case len(hosts) > 0 && !Allowed(host, hosts):
+		return fmt.Errorf("%w: host %s", ErrForbiddenURL, host)
+	}
+
+	return nil
+}
+
+func isIP(host string) bool {
+	_, err := netip.ParseAddr(host)
+
+	return err == nil
 }
 
 // checked refuses a request that is not https or not to an allowed host;
