@@ -1,0 +1,115 @@
+{
+  "resourceLogs":  [
+    {
+      "resource":  {
+        "attributes":  [
+          {
+            "key":  "host.name",
+            "value":  {
+              "stringValue":  "host-1"
+            }
+          },
+          {
+            "key":  "komeet.installation",
+            "value":  {
+              "stringValue":  "vendor"
+            }
+          },
+          {
+            "key":  "service.instance.id",
+            "value":  {
+              "stringValue":  "repro-1"
+            }
+          },
+          {
+            "key":  "service.name",
+            "value":  {
+              "stringValue":  "komeet-core"
+            }
+          },
+          {
+            "key":  "service.version",
+            "value":  {
+              "stringValue":  "repro"
+            }
+          },
+          {
+            "key":  "telemetry.sdk.language",
+            "value":  {
+              "stringValue":  "go"
+            }
+          },
+          {
+            "key":  "telemetry.sdk.name",
+            "value":  {
+              "stringValue":  "opentelemetry"
+            }
+          },
+          {
+            "key":  "telemetry.sdk.version",
+            "value":  {
+              "stringValue":  "1.45.0"
+            }
+          }
+        ]
+      },
+      "scopeLogs":  [
+        {
+          "scope":  {
+            "name":  "komeet-core"
+          },
+          "logRecords":  [
+            {
+              "timeUnixNano":  "1795046728088509957",
+              "observedTimeUnixNano":  "1795046728088513897",
+              "severityNumber":  "SEVERITY_NUMBER_INFO",
+              "severityText":  "info",
+              "body":  {
+                "stringValue":  "audited call"
+              },
+              "attributes":  [
+                {
+                  "key":  "backplane.audit",
+                  "value":  {
+                    "boolValue":  true
+                  }
+                },
+                {
+                  "key":  "event.name",
+                  "value":  {
+                    "stringValue":  "komeet.people.v1.ConsoleService/BlockPerson"
+                  }
+                },
+                {
+                  "key":  "backplane.audit.outcome",
+                  "value":  {
+                    "stringValue":  "succeeded"
+                  }
+                },
+                {
+                  "key":  "backplane.audit.actor",
+                  "value":  {
+                    "stringValue":  "operator/42"
+                  }
+                },
+                {
+                  "key":  "backplane.audit.subject",
+                  "value":  {
+                    "stringValue":  "person_id: 7"
+                  }
+                },
+                {
+                  "key":  "note",
+                  "value":  {
+                    "stringValue":  "repro"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "schemaUrl":  "https://opentelemetry.io/schemas/1.43.0"
+    }
+  ]
+}

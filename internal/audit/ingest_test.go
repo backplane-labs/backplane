@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
 	"testing"
 	"time"
 
@@ -13,8 +14,10 @@ import (
 	resourcepb "go.opentelemetry.io/proto/otlp/resource/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -338,4 +341,43 @@ func storeOf(t *testing.T, dsn string) *store.Store {
 	}
 
 	return st.Get()
+}
+
+// A record exactly as an SDK service sends it through the Collector (the
+// xtrace SDK's resource and scope, gzip on the wire) reaches the feed.
+func TestSDKRecordReachesFeedLive(t *testing.T) {
+	t.Parallel()
+
+	dsn := isolatedDatabase(t)
+	svc, in := ingestReplica(t, dsn, "collector-key-0123456789")
+	logs := collogspb.NewLogsServiceClient(client(t, in.Register))
+	api := consolev1.NewAuditServiceClient(client(t, func(r grpc.ServiceRegistrar) { consolev1.RegisterAuditServiceServer(r, svc) }))
+
+	raw, err := os.ReadFile("testdata/sdk-record.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var req collogspb.ExportLogsServiceRequest
+	if err := protojson.Unmarshal(raw, &req); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := metadata.AppendToOutgoingContext(t.Context(), "authorization", "Bearer collector-key-0123456789")
+	if response, err := logs.Export(ctx, &req, grpc.UseCompressor(gzip.Name)); err != nil ||
+		response.GetPartialSuccess().GetRejectedLogRecords() != 0 {
+		t.Fatalf("export: %v %v", response, err)
+	}
+
+	found, err := api.SearchAudit(t.Context(), &consolev1.SearchAuditRequest{
+		Filter: where(is(consolev1.AuditField_AUDIT_FIELD_SERVICE, "komeet-core")),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if records := found.GetRecords(); len(records) != 1 ||
+		records[0].GetAction() != "komeet.people.v1.ConsoleService/BlockPerson" || records[0].GetActor() != "operator/42" {
+		t.Fatalf("records %v", records)
+	}
 }
