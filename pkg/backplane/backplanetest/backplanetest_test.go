@@ -15,6 +15,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 	"github.com/backplane-labs/backplane/pkg/backplane/event"
 	"github.com/backplane-labs/backplane/pkg/backplane/hook"
+	"github.com/backplane-labs/backplane/pkg/backplane/workflows"
 )
 
 type (
@@ -259,5 +260,27 @@ func TestHarnessBound(t *testing.T) {
 	var unset hook.Ref[LookupIn, LookupOut]
 	if unset.Bound() {
 		t.Fatal("an undeclared Ref is bound")
+	}
+}
+
+// An activity of the service's own workflows is invoked directly, without
+// starting a workflow, with the same activity info.
+func TestOwnActivity(t *testing.T) {
+	t.Parallel()
+
+	h := backplanetest.New(t)
+	workflows.HandleActivity(h.Root(), "Greet", func(ctx context.Context, in WelcomeIn) (WelcomeOut, error) {
+		info, _ := activity.InfoOf(ctx)
+		if info.Attempt != 1 || info.Key == "" {
+			return WelcomeOut{}, errors.New("no activity info")
+		}
+
+		return WelcomeOut{Text: "hi " + in.Name}, nil
+	})
+	h.Start()
+
+	out, err := backplanetest.Activity[WelcomeIn, WelcomeOut](t.Context(), h, "Greet", WelcomeIn{Name: "Ann"})
+	if err != nil || out.Text != "hi Ann" {
+		t.Fatalf("%+v %v", out, err)
 	}
 }

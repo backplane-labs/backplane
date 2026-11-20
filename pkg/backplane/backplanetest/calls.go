@@ -37,7 +37,9 @@ func Answer[Req, Res any](h *Harness, ref hook.Ref[Req, Res], fn func(ctx contex
 // call without one.
 func CallKey(ctx context.Context) string { return env.CallKeyOf(ctx) }
 
-// Activity invokes a declared activity as a binding would, once: the
+// Activity invokes a declared activity (activity.Handle) or one of the
+// service's own workflows (workflows.HandleActivity) as a binding would,
+// once: the
 // handler's ctx carries activity.InfoOf with Attempt 1, a Key unique to
 // this call ("backplanetest/<name>/<uuid>/1") and ctx's deadline;
 // Heartbeat does nothing.
@@ -45,6 +47,12 @@ func Activity[Req, Res any](ctx context.Context, h *Harness, name string, in Req
 	var out Res
 
 	handler, ok := h.env.ActivityHandler(name)
+	if !ok {
+		// An activity of the service's own workflows (workflows.HandleActivity);
+		// a name is one or the other, never both.
+		handler, ok = h.env.OwnActivities()[name]
+	}
+
 	if !ok {
 		return out, fmt.Errorf("%w: activity %q", ErrNotDeclared, name)
 	}
