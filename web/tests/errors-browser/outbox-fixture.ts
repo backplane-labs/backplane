@@ -36,7 +36,7 @@ export function outboxFixture(name: string, url: string, limits: Partial<OutboxO
   };
 }
 
-// Exporter fixtures only: failure paths use native IndexedDB, with deterministic transport results.
+// Sender fixtures only: storage is native IndexedDB, transport results are deterministic.
 export async function processorFixture() {
   const [
     { PersistentLogProcessor },
@@ -55,27 +55,23 @@ export async function processorFixture() {
     triggers: browserTriggers(),
   });
   const diagnostics: string[] = [];
-  const bodies: string[] = [];
+  const bodies: Uint8Array[] = [];
   let succeed = false,
     reentrant = false;
   let client: ReturnType<typeof createClient> | undefined;
-  const exporter = {
-    export: (
-      records: import('@opentelemetry/sdk-logs').ReadableLogRecord[],
-      callback: (result: { code: number }) => void,
-    ) => {
-      bodies.push(...records.map((record) => String(record.body)));
-      callback({ code: succeed ? 0 : 1 });
+  const sender = {
+    send: (body: Uint8Array) => {
+      bodies.push(body);
+      return Promise.resolve(succeed ? ('accepted' as const) : ('retry' as const));
     },
-    forceFlush: async () => {},
-    shutdown: async () => {},
   };
+  const text = (body: Uint8Array) => new TextDecoder().decode(body);
   const diagnostic = (code: string) => {
     diagnostics.push(code);
     if (reentrant) client?.captureException('diagnostic recursion');
   };
   const name = `processor-${crypto.randomUUID()}`;
-  const processor = new PersistentLogProcessor(exporter, ports({ name }), browserRuntime, diagnostic);
+  const processor = new PersistentLogProcessor(sender, ports({ name }), browserRuntime, diagnostic);
   const provider = new LoggerProvider({ processors: [processor] });
   client = createClient({ loggerProvider: provider, runtime: browserRuntime });
   client.captureException('retry original');
@@ -85,8 +81,8 @@ export async function processorFixture() {
   succeed = true;
   await processor.forceFlush();
   const retryAfter = await processor.stats();
-  const bodyStable = bodies.length >= 2 && new Set(bodies).size === 1;
-  // Corrupt on-disk DTO: drop with diagnosis, never export invented fields.
+  const bodyStable = bodies.length >= 2 && bodies.every((body) => text(body) === text(bodies[0]));
+  // Rows another build wrote: an invalid envelope and a newer version. Both are dropped and counted.
   const databaseInfo = (await indexedDB.databases()).find((database) => database.name?.includes(name));
   if (!databaseInfo?.name) throw new Error('Missing native IDB');
   const databaseName = databaseInfo.name;
@@ -96,26 +92,29 @@ export async function processorFixture() {
     request.onerror = () => reject(request.error);
   });
   await new Promise<void>((resolve, reject) => {
-    const tx = database.transaction('records', 'readwrite');
-    tx.objectStore('records').put({
-      id: 'corrupt',
-      payload: '{',
-      bytes: 1,
+    const tx = database.transaction('kv', 'readwrite');
+    const row = (id: string, payload: Uint8Array) => ({
+      id,
+      payload,
+      bytes: payload.byteLength,
       created: Date.now(),
       expires: Date.now() + 60000,
       next: 0,
       attempts: 0,
     });
+    tx.objectStore('kv').put(row('corrupt', Uint8Array.of(0)), [Date.now(), 'corrupt']);
+    tx.objectStore('kv').put(row('future', Uint8Array.of(200, 10, 0)), [Date.now(), 'future']);
     tx.oncomplete = () => resolve();
     tx.onabort = () => reject(tx.error);
   });
   database.close();
   await processor.forceFlush();
+  const dropped = await processor.stats();
   client.dispose();
   await provider.shutdown();
 
   const oversized = new PersistentLogProcessor(
-    exporter,
+    sender,
     ports({ name: `${name}-small`, maxBytes: 100 }),
     browserRuntime,
     diagnostic,
@@ -123,18 +122,20 @@ export async function processorFixture() {
   const smallProvider = new LoggerProvider({ processors: [oversized] });
   client = createClient({ loggerProvider: smallProvider, runtime: browserRuntime });
   reentrant = true;
+  const before = bodies.length;
   client.captureException('oversized', { state: 'x'.repeat(100_000) });
   await oversized.forceFlush();
-  const fallbackBodyLength = bodies.at(-1)?.length ?? 0;
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  const fallbackBodyLength = bodies.at(-1)?.byteLength ?? 0;
+  const fallbackCount = bodies.length - before;
   client.dispose();
   await smallProvider.shutdown();
 
   const descriptor = Object.getOwnPropertyDescriptor(window, 'indexedDB');
   Object.defineProperty(window, 'indexedDB', { configurable: true, value: undefined });
   let storageFlushFailed = false;
-  const before = bodies.length;
   const unavailable = new PersistentLogProcessor(
-    exporter,
+    sender,
     ports({ name: `${name}-blocked` }),
     browserRuntime,
     diagnostic,
@@ -152,17 +153,18 @@ export async function processorFixture() {
   try {
     await blockedProvider.shutdown();
   } catch {
-    /* Expected failed flush, exporter still closes. */
+    /* Expected failed flush. */
   }
   if (descriptor) Object.defineProperty(window, 'indexedDB', descriptor);
   return {
     retryBefore,
     retryAfter,
     bodyStable,
+    dropped: { invalid: dropped.invalid, unknownVersion: dropped.unknownVersion },
     diagnostics,
     storageFlushFailed,
     fallbackBodyLength,
-    fallbackCount: bodies.length - before,
-    reentrantEmits: bodies.filter((body) => JSON.parse(body).exception.message === 'diagnostic recursion').length,
+    fallbackCount,
+    reentrantEmits: bodies.filter((body) => text(body).includes('diagnostic recursion')).length,
   };
 }

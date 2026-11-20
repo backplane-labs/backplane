@@ -6,6 +6,7 @@ import {
   type BatchLogRecordProcessorBrowserOptions,
   LoggerProvider,
 } from '@opentelemetry/sdk-logs';
+import { fetchSender } from './delivery.js';
 import { type ClientOptions, createClient } from './index.js';
 import { type OutboxPorts, PersistentLogProcessor } from './outbox.js';
 
@@ -15,6 +16,8 @@ export type OtlpClientOptions = Omit<ClientOptions, 'loggerProvider' | 'flush'> 
   url: string;
   headers?: Record<string, string>;
   resource?: Attributes;
+  /** The outbox's fetch (a host's own HTTP stack); the global one by default. */
+  fetch?: typeof fetch;
   /** Persist exports in storage bound to this url and account; otherwise batch in memory. */
   outbox?: OutboxPorts;
   batch?: Omit<BatchLogRecordProcessorBrowserOptions, 'exporter'>;
@@ -23,20 +26,25 @@ export type OtlpClientOptions = Omit<ClientOptions, 'loggerProvider' | 'flush'> 
 /** Owns only this provider; never installs globals or closes another provider. */
 export function createOtlpClient(options: OtlpClientOptions) {
   if (options.outbox && options.batch) throw new TypeError('outbox_and_batch_are_mutually_exclusive');
-  const exporter = new OTLPLogExporter({
-    url: options.url,
-    headers: options.headers,
-    timeoutMillis: options.outbox ? 10_000 : undefined,
-  });
+  // An outbox stores OTLP bytes and posts them itself; the batch path hands records to the exporter.
   const persistent = options.outbox
-    ? new PersistentLogProcessor(exporter, options.outbox, options.runtime, (code) =>
-        options.onDiagnostic?.({ code, stage: 'capture' }),
+    ? new PersistentLogProcessor(
+        fetchSender({ url: options.url, headers: options.headers, fetch: options.fetch }),
+        options.outbox,
+        options.runtime,
+        (code) => options.onDiagnostic?.({ code, stage: 'capture' }),
       )
     : undefined;
   const provider = new LoggerProvider({
     resource: resourceFromAttributes(options.resource ?? {}),
     logRecordLimits: { attributeValueLengthLimit: Infinity, attributeCountLimit: Infinity },
-    processors: [persistent ?? new BatchLogRecordProcessor({ ...options.batch, exporter })],
+    processors: [
+      persistent ??
+        new BatchLogRecordProcessor({
+          ...options.batch,
+          exporter: new OTLPLogExporter({ url: options.url, headers: options.headers }),
+        }),
+    ],
   });
   let client: ReturnType<typeof createClient>;
   try {

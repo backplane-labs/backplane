@@ -5,7 +5,25 @@ import type { Runtime, UncaughtSource } from './ports.js';
 import { budgetSnapshot } from './snapshot.js';
 import { SDK_VERSION } from './version.js';
 
-export { retryDelay } from './delivery.js';
+export {
+  type DeliveryOutcome,
+  type FetchSenderOptions,
+  fetchSender,
+  type OtlpSender,
+  retryDelay,
+  statusOutcome,
+} from './delivery.js';
+export {
+  compareKeys,
+  type KvEntry,
+  type KvKey,
+  type KvWrite,
+  type Locks,
+  memoryKv,
+  memoryLocks,
+  type OrderedKv,
+} from './kv.js';
+export { type KvOutboxOptions, kvOutbox } from './kv-outbox.js';
 export type {
   DeliveryTriggers,
   OutboxLimits,

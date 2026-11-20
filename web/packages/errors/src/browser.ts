@@ -1,7 +1,9 @@
 // The browser's ports (a page or a dedicated/shared worker) and the client assembled on them.
 import { context } from '@opentelemetry/api';
 import type { createClient } from './index.js';
-import { IndexedDbOutbox } from './indexeddb.js';
+import { IndexedDbKv } from './indexeddb.js';
+import type { Locks } from './kv.js';
+import { kvOutbox } from './kv-outbox.js';
 import { createOtlpClient, type OtlpClientOptions } from './otlp.js';
 import {
   type DeliveryTriggers,
@@ -9,6 +11,7 @@ import {
   type OutboxStorage,
   outboxLimits,
   type Runtime,
+  type StoredExport,
   type UncaughtSource,
 } from './ports.js';
 import type { CapturedInput } from './protocol.js';
@@ -82,16 +85,46 @@ export function browserTriggers(): DeliveryTriggers {
   };
 }
 
-/** An IndexedDB outbox bound to url and options.name, without storing the URL, headers or credentials. */
+/** Web Locks: exclusive across the tabs and workers of an origin. */
+export function webLocks(): Locks {
+  const manager = globalThis.navigator?.locks;
+  if (manager === undefined) throw new TypeError('web_locks_unavailable');
+  return {
+    // request resolves with the callback's own promise; await flattens it.
+    run: async (name, work) => await manager.request(name, { mode: 'exclusive' }, work),
+  };
+}
+
+/**
+ * An outbox in its own IndexedDB database, for a page or worker whose host
+ * has no ordered store to give: kvOutbox over IndexedDbKv and Web Locks,
+ * bound to url and options.name without storing the URL, headers or
+ * credentials. A host with its own store uses kvOutbox directly.
+ */
 export function indexedDbOutbox(url: string, options: OutboxOptions, runtime: Runtime = browserRuntime): OutboxStorage {
   const { name, ...limits } = outboxLimits(options);
   const database = crypto.subtle
     .digest('SHA-256', new TextEncoder().encode(new URL(url, location.href).href))
     .then(
       (bytes) =>
-        `backplane.errors.outbox.v1.${name}.${Array.from(new Uint8Array(bytes), (n) => n.toString(16).padStart(2, '0')).join('')}`,
+        `backplane.errors.outbox.v2.${name}.${Array.from(new Uint8Array(bytes), (n) => n.toString(16).padStart(2, '0')).join('')}`,
     );
-  return new IndexedDbOutbox(database, limits, () => runtime.now());
+  const kv = new IndexedDbKv<StoredExport>(database);
+  const storage = kvOutbox({
+    kv,
+    prefix: [],
+    limits,
+    locks: webLocks(),
+    lock: `backplane.errors.outbox.${name}`,
+    now: () => runtime.now(),
+  });
+  return {
+    ...storage,
+    close: () => {
+      storage.close();
+      kv.close();
+    },
+  };
 }
 
 export type BrowserClientOptions = Omit<OtlpClientOptions, 'runtime' | 'uncaught' | 'outbox'> & {

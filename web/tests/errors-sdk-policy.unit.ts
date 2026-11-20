@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import type { LogAttributes, LogRecord } from '@opentelemetry/api-logs';
 import Ajv from 'ajv/dist/2020';
 import { afterEach, expect, it, vi } from 'vitest';
-import { deliveryOutcome, retryDelay } from '../packages/errors/src/delivery';
+import { retryDelay } from '../packages/errors/src/delivery';
 import { type ClientOptions, createClient, createReactErrorHandler, redactKeys } from '../packages/errors/src/index';
 import type { DebugEnvelopeV1, JsonValue } from '../packages/errors/src/protocol';
 import { SDK_VERSION } from '../packages/errors/src/version';
@@ -206,23 +206,7 @@ it('reports package scope version and returns detached statistics', () => {
   expect(cleanup).toHaveBeenCalledOnce();
 });
 
-it.each([400, 401, 403, 404, 413, 500])(
-  'does not retry permanent HTTP %s failures from pinned OTel browser exporter',
-  (status) => {
-    expect(
-      deliveryOutcome({
-        code: 1,
-        error: new Error(`Fetch request failed with non-retryable status ${status}`),
-      }),
-    ).toBe('rejected');
-  },
-);
-it.each([429, 502, 503, 504])('retries HTTP %s and retains unknown failure data', (status) => {
-  expect(deliveryOutcome({ code: 1, error: Object.assign(new Error(), { code: status }) })).toBe('retry');
-});
-it('uses bounded jitter and separates receiver acceptance from retryable failure', () => {
-  expect(deliveryOutcome({ code: 0 })).toBe('accepted');
-  expect(deliveryOutcome({ code: 1 })).toBe('retry');
+it('uses bounded jitter for retries', () => {
   expect(retryDelay(1, () => 0)).toBe(1000);
   expect(retryDelay(1, () => 0.5)).toBe(1500);
   expect(retryDelay(100, () => 0.99)).toBeLessThanOrEqual(60_000);

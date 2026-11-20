@@ -37,7 +37,7 @@ const errors = createBrowserClient({
   headers: { authorization: 'Bearer <ingest key>' },
   resource: { 'service.name': 'shop-web', 'deployment.environment.name': 'production', 'service.version': '1.4.2' },
   captureUnhandled: true, // error and unhandledrejection of the window, or of a worker's self
-  outbox: { name: 'shop' }, // optional: IndexedDB queue across reloads and offline periods
+  outbox: { name: 'shop' }, // optional: IndexedDB queue across reloads and offline periods (kvOutbox over IndexedDB)
 });
 instrumentBrowser(errors, { fetch: true, xhr: true, navigation: true });
 errors.registerState('cart', { read: () => cart.summary() });
@@ -52,13 +52,16 @@ Node, a worker.
 | --- | --- | --- |
 | `runtime: Runtime` | `now()` Unix ms, `monotonic()` ms, `randomId()` a lowercase UUID v4 | `browserRuntime` |
 | `uncaught?: UncaughtSource` | `subscribe(report) → unsubscribe`: uncaught errors (`window.error`) and unhandled rejections | `globalUncaught()`, one subscriber per global scope |
-| `outbox.storage: OutboxStorage` | durable exports: `put`, `claim` (32 due entries, 30 s lease), `finish`, `stats`, `clear`, `close`; the contract is on the interface | `indexedDbOutbox(url, { name })` |
+| `outbox.storage: OutboxStorage` | durable exports: `put`, `claim` (32 due entries, 30 s lease), `finish`, `stats`, `clear`, `close`; `kvOutbox({ kv, prefix, limits, locks, lock, now })` builds it over the host's `OrderedKv` (`get`, `scan(prefix)`, atomic `write(batch)`) and `Locks` | `indexedDbOutbox(url, { name })`: `kvOutbox` over IndexedDB and Web Locks |
+| `outbox.maxBatchBytes?: number` | the largest request body the outbox posts, below the receiver's limit | 1 MiB |
 | `outbox.triggers?: DeliveryTriggers` | `subscribe(kick(urgent)) → unsubscribe`: retry now, everything when urgent | `browserTriggers()`: `online`, hidden page urgent |
 
 On any other host, the application supplies the ports itself and calls
 `createOtlpClient({ url, resource, runtime, uncaught, outbox | batch })` from
 `/otlp`. Without an outbox, exports batch in memory. The core's only host
-globals are timers and `TextEncoder`: `web/packages/errors/tsconfig.core.json`
+globals are timers, `TextEncoder` and, for an outbox's delivery, `fetch` and
+`AbortSignal.timeout` (a host passes its own `fetch` to `fetchSender`):
+`web/packages/errors/tsconfig.core.json`
 checks it without the DOM library, and the unit tests run it in Node.
 
 - `captureException(error, { handled, state, groupKey, attributes })` captures

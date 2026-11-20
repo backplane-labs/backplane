@@ -3,71 +3,95 @@ import { expect, test } from '@playwright/test';
 
 const root = resolve(import.meta.dirname, '../..');
 
-test('native IndexedDB storage: budgets, expiry, leases, clear and namespace isolation', async ({ page }) => {
+test('kvOutbox over native IndexedDB and Web Locks: budgets, expiry, leases, clear, isolation', async ({ page }) => {
   await page.goto('http://127.0.0.1:4181');
-  const result = await page.evaluate(async (modulePath) => {
-    const { IndexedDbOutbox } = await import(modulePath);
-    const name = `storage-${crypto.randomUUID()}`;
-    const limits = { maxBytes: 10, maxEntries: 2, maxAgeMs: 3600_000 };
-    const first = new IndexedDbOutbox(name, limits),
-      second = new IndexedDbOutbox(name, limits);
-    const other = new IndexedDbOutbox(`${name}-other`, limits);
-    const now = Date.now();
-    const row = (id: string, bytes = 4) => ({
-      id,
-      bytes,
-      payload: id,
-      created: now,
-      expires: now + 3600_000,
-      next: 0,
-      attempts: 0,
-    });
-    try {
+  const result = await page.evaluate(
+    async ([kvPath, outboxPath, browserPath]) => {
+      const [{ IndexedDbKv }, { kvOutbox }, { webLocks }] = await Promise.all([
+        import(kvPath),
+        import(outboxPath),
+        import(browserPath),
+      ]);
+      const name = `storage-${crypto.randomUUID()}`;
+      const limits = { maxBytes: 10, maxEntries: 2, maxAgeMs: 3600_000 };
+      // Two tabs: their own handles on one database, one lock name.
+      const tab = (db: string, prefix: (string | number)[]) =>
+        kvOutbox({ kv: new IndexedDbKv(db), prefix, limits, locks: webLocks(), lock: db, now: () => Date.now() });
+      const first = tab(name, ['HOST', 'telemetryOutbox', 'svc']),
+        second = tab(name, ['HOST', 'telemetryOutbox', 'svc']);
+      const neighbour = tab(name, ['HOST', 'telemetryOutbox', 'other']);
+      const other = tab(`${name}-other`, ['HOST', 'telemetryOutbox', 'svc']);
+      let created = Date.now();
+      const row = (id: string, bytes = 4) => ({
+        id,
+        bytes,
+        payload: Uint8Array.of(1, 10, 0),
+        created: created++,
+        expires: Date.now() + 3600_000,
+        next: 0,
+        attempts: 0,
+      });
       await first.put(row('a'));
       await first.put(row('b'));
       const evicted = await first.put(row('c'));
       const oversized = await first.put(row('oversized', 11));
+      await neighbour.put(row('n'));
       const stats = await first.stats();
-      const owner = await first.claim('first', false);
-      const competitor = await second.claim('second', true);
-      await second.finish(owner.entries, 'second', true); // a different owner cannot acknowledge
+      // Racing claims from both tabs: no entry is leased twice.
+      const [one, two] = await Promise.all([first.claim('first', true), second.claim('second', true)]);
+      const leasedTwice = one.entries.some((e: { id: string }) =>
+        two.entries.some((f: { id: string }) => f.id === e.id),
+      );
+      const owner = one.entries.length
+        ? { tab: first, name: 'first', claim: one }
+        : { tab: second, name: 'second', claim: two };
+      await (owner.tab === first ? second : first).finish(owner.claim.entries, 'intruder', true);
       const afterWrongOwner = await first.stats();
-      await first.finish(owner.entries, 'first', false);
+      await owner.tab.finish(owner.claim.entries, owner.name, false);
       const backedOff = await second.claim('second', false);
       const forced = await second.claim('second', true);
       await second.finish(forced.entries, 'second', true);
-      await first.put({ ...row('expired'), expires: now - 1 });
+      const payloadIsBytes = forced.entries.every((e: { payload: Uint8Array }) => e.payload instanceof Uint8Array);
+      await first.put({ ...row('expired'), expires: Date.now() - 1 });
       const expired = await first.claim('first', true);
       await first.put(row('clear'));
       await first.clear();
-      return {
+      const result = {
         evicted,
         oversized,
         stats,
-        competitor: competitor.entries.length,
+        leasedTwice,
+        claimedTotal: one.entries.length + two.entries.length,
         afterWrongOwner,
         backedOff: backedOff.entries.length,
         forced: forced.entries.map((r: { id: string }) => r.id),
+        payloadIsBytes,
         expired: expired.expired,
         empty: await first.stats(),
+        neighbour: await neighbour.stats(),
         other: await other.stats(),
       };
-    } finally {
-      first.close();
-      second.close();
-      other.close();
-    }
-  }, `/@fs/${root}/packages/errors/src/indexeddb.ts`);
+      for (const o of [first, second, neighbour, other]) o.close();
+      return result;
+    },
+    [
+      `/@fs/${root}/packages/errors/src/indexeddb.ts`,
+      `/@fs/${root}/packages/errors/src/kv-outbox.ts`,
+      `/@fs/${root}/packages/errors/src/browser.ts`,
+    ],
+  );
   expect(result.evicted).toEqual({ stored: true, evicted: 1 });
   expect(result.oversized.stored).toBe(false);
   expect(result.stats).toMatchObject({ entries: 2, bytes: 8 });
-  expect(result.stats.oldestAgeMs).toBeGreaterThanOrEqual(0);
+  expect(result.leasedTwice).toBe(false);
+  expect(result.claimedTotal).toBe(2);
   expect(result.afterWrongOwner).toMatchObject({ entries: 2, bytes: 8 });
-  expect(result.competitor).toBe(0);
   expect(result.backedOff).toBe(0);
   expect(result.forced).toEqual(['b', 'c']);
+  expect(result.payloadIsBytes).toBe(true);
   expect(result.expired).toBe(1);
   expect(result.empty.entries).toBe(0);
+  expect(result.neighbour.entries).toBe(1);
   expect(result.other.entries).toBe(0);
 });
 
@@ -84,6 +108,8 @@ test('processor fixtures: retry, corrupt record, recursion, oversized bypass and
   expect(result.diagnostics).toContain('outbox_capacity_bypass');
   expect(result.diagnostics).toContain('outbox_storage_failed');
   expect(result.diagnostics).toContain('outbox_invalid_record');
+  expect(result.diagnostics).toContain('outbox_unknown_version');
+  expect(result.dropped).toEqual({ invalid: 1, unknownVersion: 1 });
   expect(result.storageFlushFailed).toBe(true);
   expect(result.fallbackBodyLength).toBeGreaterThan(100_000);
   expect(result.fallbackCount).toBe(1);

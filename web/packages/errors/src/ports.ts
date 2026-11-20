@@ -38,10 +38,11 @@ export interface OutboxLimits {
   maxAgeMs: number;
 }
 
-/** One export kept by an outbox. Private format, never part of the wire contract. */
+/** One export kept by an outbox: a record envelope (outbox-record.ts) with its schedule. */
 export interface StoredExport {
   id: string;
-  payload: string;
+  /** The record envelope: a version byte, then OTLP ExportLogsServiceRequest protobuf. */
+  payload: Uint8Array;
   bytes: number;
   /** Unix ms. */
   created: number;
@@ -57,7 +58,8 @@ export interface StoredExport {
 
 /**
  * Durable storage of an outbox, one per destination and account. Every method
- * is atomic against other processors sharing the storage (tabs, workers).
+ * is atomic against other processors sharing the storage (tabs, workers):
+ * kvOutbox gives that over a host's OrderedKv and Locks.
  */
 export interface OutboxStorage {
   readonly limits: OutboxLimits;

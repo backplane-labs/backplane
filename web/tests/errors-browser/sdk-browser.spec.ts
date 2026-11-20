@@ -210,10 +210,12 @@ test('native IndexedDB stores sanitized data only and enforces whole-record budg
       r.onsuccess = () => resolve(r.result);
       r.onerror = () => reject(r.error);
     });
-    const rows = await new Promise<object[]>((resolve, reject) => {
-      const tx = database.transaction('records'),
-        request = tx.objectStore('records').getAll();
-      request.onsuccess = () => resolve(request.result);
+    // The stored payloads as text: OTLP protobuf carries the body strings as UTF-8.
+    const rows = await new Promise<string[]>((resolve, reject) => {
+      const tx = database.transaction('kv'),
+        request = tx.objectStore('kv').getAll();
+      request.onsuccess = () =>
+        resolve(request.result.map((row: { payload: Uint8Array }) => new TextDecoder().decode(row.payload)));
       request.onerror = () => reject(request.error);
     });
     database.close();
@@ -226,8 +228,8 @@ test('native IndexedDB stores sanitized data only and enforces whole-record budg
   expect(result.stats.evicted).toBeGreaterThan(0);
   expect(result.stats.persisted).toBe(20);
   expect(result.stats.oldestAgeMs).toBeGreaterThanOrEqual(0);
-  expect(JSON.stringify(result.rows)).not.toContain('SECRET_');
-  expect(JSON.stringify(result.rows)).toContain('[REDACTED]');
+  expect(result.rows.join('')).not.toContain('SECRET_');
+  expect(result.rows.join('')).toContain('[REDACTED]');
 });
 
 test('real protobuf exporter classifies HTTP rejection and recovers after a network outage', async ({ page }) => {
