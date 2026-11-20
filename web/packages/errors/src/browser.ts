@@ -105,10 +105,12 @@ export function indexedDbOutbox(url: string, options: OutboxOptions, runtime: Ru
   const { name, ...limits } = outboxLimits(options);
   const database = crypto.subtle
     .digest('SHA-256', new TextEncoder().encode(new URL(url, location.href).href))
-    .then(
-      (bytes) =>
-        `backplane.errors.outbox.v2.${name}.${Array.from(new Uint8Array(bytes), (n) => n.toString(16).padStart(2, '0')).join('')}`,
-    );
+    .then((bytes) => {
+      const hash = Array.from(new Uint8Array(bytes), (n) => n.toString(16).padStart(2, '0')).join('');
+      // The v1 outbox kept records in a database of its own: never leave its data behind.
+      indexedDB.deleteDatabase(`backplane.errors.outbox.v1.${name}.${hash}`);
+      return `backplane.errors.outbox.v2.${name}.${hash}`;
+    });
   const kv = new IndexedDbKv<StoredExport>(database);
   const storage = kvOutbox({
     kv,

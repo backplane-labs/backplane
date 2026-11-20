@@ -133,3 +133,33 @@ test('a dedicated worker runs the outbox and captures its own unhandled rejectio
   // The fixture server has no /v1/logs: the export is rejected, the records stay in IndexedDB.
   expect(result).toEqual({ captured: 'emitted', emitted: 2, diagnostics: ['outbox_export_rejected'] });
 });
+
+test('opening the outbox deletes the v1 database of the same name and URL', async ({ page }) => {
+  await page.goto('http://127.0.0.1:4181');
+  const result = await page.evaluate(async (browserPath) => {
+    const { indexedDbOutbox } = await import(browserPath);
+    const name = `legacy-${crypto.randomUUID()}`;
+    const url = 'http://localhost:14318/v1/logs';
+    const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(new URL(url, location.href).href));
+    const hash = Array.from(new Uint8Array(bytes), (n) => n.toString(16).padStart(2, '0')).join('');
+    const legacy = `backplane.errors.outbox.v1.${name}.${hash}`;
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open(legacy, 1);
+      request.onupgradeneeded = () => request.result.createObjectStore('records', { keyPath: 'id' });
+      request.onsuccess = () => {
+        request.result.close();
+        resolve();
+      };
+      request.onerror = () => reject(request.error);
+    });
+    const outbox = indexedDbOutbox(url, { name });
+    await outbox.stats();
+    outbox.close();
+    const names = (await indexedDB.databases()).map((database) => database.name ?? '');
+    return {
+      legacy: names.includes(legacy),
+      current: names.some((n) => n.startsWith(`backplane.errors.outbox.v2.${name}.`)),
+    };
+  }, `/@fs/${root}/packages/errors/src/browser.ts`);
+  expect(result).toEqual({ legacy: false, current: true });
+});
