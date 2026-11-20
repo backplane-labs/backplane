@@ -16,6 +16,7 @@ const sources = {
   'docs/releases.md': 'releases', 'examples/README.md': 'examples',
   'web/templates/module/README.md': 'module-template', 'web/README.md': 'frontend-workspace',
   'web/packages/errors/README.md': 'browser-errors', 'docs/api-reference.md': 'api',
+  'docs/metrics.md': 'metrics',
 };
 const routes = Object.fromEntries(Object.entries(sources).map(([source, id]) => [source, `reference/${id}.md`]));
 const repository = 'https://github.com/backplane-labs/backplane/blob/master/';
