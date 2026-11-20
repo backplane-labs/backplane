@@ -295,16 +295,58 @@ func (b *Broker) run(ctx context.Context, re reactor) error {
 // server (true). A missed heartbeat alone may be a network blip: the
 // consumer is looked up before it counts as gone.
 func (b *Broker) watch(ctx context.Context, re reactor, lost <-chan error) bool {
+	lag := time.NewTicker(lagInterval)
+	defer lag.Stop()
+
+	b.recordLag(ctx, re)
+
 	for {
 		select {
 		case <-ctx.Done():
 			return false
+		case <-lag.C:
+			b.recordLag(ctx, re)
 		case err := <-lost:
 			if !errors.Is(err, jetstream.ErrNoHeartbeat) || b.missing(ctx, re) {
 				return true
 			}
 		}
 	}
+}
+
+// lagInterval is how often a reactor's consumer lag is read.
+const lagInterval = 15 * time.Second
+
+// recordLag reads the consumer's pending counts from the server into
+// backplane.reactor.pending; a failed read records nothing.
+func (b *Broker) recordLag(ctx context.Context, re reactor) {
+	jet, err := b.connected()
+	if err != nil {
+		return
+	}
+
+	lctx, cancel := context.WithTimeout(ctx, b.t.publishTimeout)
+	defer cancel()
+
+	cons, err := jet.Consumer(lctx, StreamName(re.source), re.durable)
+	if err != nil {
+		return
+	}
+
+	info, err := cons.Info(lctx)
+	if err != nil {
+		return
+	}
+
+	metrics.ReactorPending(ctx, re.consumer, clampInt64(info.NumPending), int64(info.NumAckPending))
+}
+
+func clampInt64(v uint64) int64 {
+	if v > math.MaxInt64 {
+		return math.MaxInt64
+	}
+
+	return int64(v)
 }
 
 // missing reports whether the reactor's consumer is surely not on the
@@ -527,6 +569,10 @@ func (b *Broker) handle(work context.Context, re reactor, msg jetstream.Msg) {
 	if md, err := msg.Metadata(); err == nil {
 		delivered, seq = md.NumDelivered, md.Sequence.Stream
 		re.pos.delivered(seq)
+	}
+
+	if delivered > 1 {
+		metrics.ReactorRedelivered(work, re.consumer)
 	}
 
 	ctx := otel.GetTextMapPropagator().Extract(work, carrier(msg.Headers()))

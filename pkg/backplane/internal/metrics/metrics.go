@@ -40,6 +40,8 @@ type instruments struct {
 	hookDuration metric.Float64Histogram
 	published    metric.Int64Counter
 	reactor      metric.Float64Histogram
+	redelivered  metric.Int64Counter
+	pending      metric.Int64Gauge
 	activity     metric.Float64Histogram
 	transport    metric.Int64Gauge
 	panics       metric.Int64Counter
@@ -58,13 +60,18 @@ var get = sync.OnceValue(func() instruments {
 	hookDuration, _ := m.Float64Histogram("backplane.hook.call.duration", metric.WithUnit("s"))
 	published, _ := m.Int64Counter("backplane.event.published")
 	reactor, _ := m.Float64Histogram("backplane.reactor.duration", metric.WithUnit("s"))
+	redelivered, _ := m.Int64Counter("backplane.reactor.redeliveries",
+		metric.WithDescription("Deliveries of an event the consumer had been given before"))
+	pending, _ := m.Int64Gauge("backplane.reactor.pending",
+		metric.WithDescription("Events of the consumer not delivered yet (waiting) or not settled yet (unacked)"))
 	activity, _ := m.Float64Histogram("backplane.activity.duration", metric.WithUnit("s"))
 	transport, _ := m.Int64Gauge("backplane.transport.connected")
 	panics, _ := m.Int64Counter("backplane.panics")
 
 	return instruments{
 		depReady: depReady, depProvide: depProvide, cfgUpdates: cfgUpdates, cfgDegraded: cfgDegraded,
-		hookDuration: hookDuration, published: published, reactor: reactor, activity: activity,
+		hookDuration: hookDuration, published: published, reactor: reactor, redelivered: redelivered,
+		pending: pending, activity: activity,
 		transport: transport, panics: panics,
 	}
 })
@@ -114,6 +121,21 @@ func EventPublished(ctx context.Context, event, outcome string) {
 func ReactorHandled(ctx context.Context, consumer, outcome string, took time.Duration) {
 	get().reactor.Record(ctx, took.Seconds(),
 		metric.WithAttributes(attribute.String("consumer", consumer), attribute.String("outcome", outcome)))
+}
+
+// ReactorRedelivered counts a delivery of an event the consumer had been
+// given before.
+func ReactorRedelivered(ctx context.Context, consumer string) {
+	get().redelivered.Add(ctx, 1, metric.WithAttributes(attribute.String("consumer", consumer)))
+}
+
+// ReactorPending records the consumer's lag: events not delivered yet and
+// events delivered but not settled.
+func ReactorPending(ctx context.Context, consumer string, waiting, unacked int64) {
+	get().pending.Record(ctx, waiting,
+		metric.WithAttributes(attribute.String("consumer", consumer), attribute.String("state", "waiting")))
+	get().pending.Record(ctx, unacked,
+		metric.WithAttributes(attribute.String("consumer", consumer), attribute.String("state", "unacked")))
 }
 
 // ActivityHandled records an activity execution.

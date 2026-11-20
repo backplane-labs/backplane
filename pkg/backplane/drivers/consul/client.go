@@ -4,8 +4,12 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/consul/api"
+	"go.opentelemetry.io/otel"
+
+	"github.com/gopherex/xtrace/pkg/scope"
 
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/tracehttp"
 )
 
 // apiConfig maps the block onto the Consul client configuration. It starts
@@ -50,12 +54,16 @@ func newClient(c config.Consul) (*api.Client, error) {
 		return nil, err
 	}
 
-	hc, err := api.NewHttpClient(cfg.Transport, cfg.TLSConfig)
+	httpClient, err := api.NewHttpClient(cfg.Transport, cfg.TLSConfig)
 	if err != nil {
 		return nil, fmt.Errorf("consul tls: %w", err)
 	}
 
-	cfg.HttpClient = hc
+	// Calls are spans of the operations making them; the background
+	// watches start no traces of their own.
+	httpClient.Transport = tracehttp.NewTransport(httpClient.Transport,
+		tracehttp.WithTracerProvider(scope.ChildOnly(otel.GetTracerProvider())))
+	cfg.HttpClient = httpClient
 
 	client, err := api.NewClient(cfg)
 	if err != nil {

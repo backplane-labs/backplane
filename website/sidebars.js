@@ -20,7 +20,7 @@ module.exports = {
     ] },
     { type: 'category', label: 'Deployment and maintenance', items: [
       'deploying/overview', 'deploying/docker', 'deploying/external-routing', 'deploying/security', 'deploying/availability',
-      'deploying/releases', 'reference/configuration', 'reference/otlp', 'reference/development', 'reference/releases',
+      'deploying/releases', 'reference/configuration', 'reference/metrics', 'reference/otlp', 'reference/development', 'reference/releases',
     ] },
     { type: 'category', label: 'Platform API', items: [
       'reference/api', 'reference/client',
