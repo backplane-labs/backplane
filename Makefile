@@ -318,10 +318,22 @@ DEV_VERSION ?= 0.0.0+dev.$(shell date -u +%Y%m%d%H%M%S%N)
 DEV_COMPOSE = docker compose --profile full -f docker-compose.yaml -f docker-compose.observability.yaml -f docker-compose.dev.yaml
 .PHONY: dev dev-down dev-build dev-logs test-dev
 dev-build: ## Build the console, example module and static Go binaries
-	cd web
-	yarn install --immutable
-	yarn build
-	cd ..
+	# Source manifests keep development versions, while modules of other
+	# repositories require the released ones (^0.6.x) from the shell's shared
+	# singletons. Build in a worktree stamped with the latest release tag, as
+	# a release does, so they load; the checkout's manifests stay untouched.
+	stamp="$$(git describe --tags --abbrev=0 --match 'v*')"
+	tree="$$(mktemp -d)"
+	trap 'git worktree remove --force "$$tree"' EXIT
+	git worktree add --detach "$$tree" HEAD
+	rsync -a --exclude node_modules --exclude dist web/ "$$tree/web/"
+	node "$$tree/scripts/stamp-release.mjs" "$${stamp#v}"
+	(cd "$$tree/web" && yarn install && yarn build)
+	# The shell and the example module the dev installation mounts.
+	for dist in apps/console/dist templates/module/dist; do
+		mkdir -p "web/$$dist"
+		rsync -a --delete "$$tree/web/$$dist/" "web/$$dist/"
+	done
 	CGO_ENABLED=0 GOWORK=off $(MAKE) VERSION="$(DEV_VERSION)" backplane hello formatter
 	CGO_ENABLED=0 GOWORK=off go build -o "$(BIN)/setup-example" ./examples/demo/cmd/setup
 

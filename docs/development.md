@@ -38,6 +38,15 @@ Collector/Victoria stores and backplane/hello/formatter containers; waits for
 operator endpoint and all three Consul health checks; installs `hello.Greet -> formatter.Format` and the
 `hello.Greeted -> formatter.Record` rule; and sends a sample greeting.
 
+The console and the example module are built in a temporary git worktree whose
+frontend packages are stamped with the latest release tag (`git describe`), as
+a release stamps them. Modules of other repositories require the released
+platform packages (`^0.6.x`) from the shell's shared singletons, so they load
+into this console like into a released one; the checkout's manifests keep their
+development versions. Run another service (`lic`, `courier`, ...) on the host
+against this stack with `BACKPLANE_INTERNAL_SECRET=dev-internal-secret-change-me`
+and ports other than 8080-8083, 8090 and 9410.
+
 Open `http://127.0.0.1:8081/backplane/`. The local default operator token is
 `dev-admin-token-change-me`; override it with `DEV_ADMIN_TOKEN`. The development
 console uses an operator token to create a cookie session. Its centered login
