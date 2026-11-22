@@ -48,11 +48,13 @@ type Runtime[C any] struct {
 	live   [][]string
 	rt     *xconf.TypedRuntime[C]
 	// kv is the Consul layer's source; nil without Consul.
-	kv   RemoteSource
-	stop context.CancelFunc
-	wg   sync.WaitGroup
-	once sync.Once
-	log  atomic.Pointer[xlog.Logger]
+	kv RemoteSource
+	// describing: loaded only to describe the service; no Validator runs.
+	describing bool
+	stop       context.CancelFunc
+	wg         sync.WaitGroup
+	once       sync.Once
+	log        atomic.Pointer[xlog.Logger]
 
 	mu sync.Mutex
 	// applied is the snapshot whose values Value holds: a rejected update
@@ -92,6 +94,10 @@ func Open[C Backplaner](ctx context.Context, opts ...Option) (*Runtime[C], error
 		return nil, err
 	}
 
+	if st.describing {
+		schema = configrt.WithoutSecretRequired(schema)
+	}
+
 	sources, err := st.baseSources(reflect.TypeFor[C]())
 	if err != nil {
 		return nil, err
@@ -104,7 +110,7 @@ func Open[C Backplaner](ctx context.Context, opts ...Option) (*Runtime[C], error
 	}
 
 	live := configrt.LivePaths(schema)
-	r := &Runtime[C]{schema: schema, live: live}
+	r := &Runtime[C]{schema: schema, live: live, describing: st.describing}
 
 	if consul := first.BackplaneConfig().Consul; consul.Enabled() && !st.noConsul {
 		if st.remote == nil {
@@ -155,7 +161,7 @@ func (r *Runtime[C]) open(ctx context.Context, sources []xconf.Source) (*Runtime
 	}
 
 	value, err := rt.Current()
-	if err == nil {
+	if err == nil && !r.describing {
 		if err = validate(&value); err != nil {
 			err = fmt.Errorf("validate: %w", err)
 		}

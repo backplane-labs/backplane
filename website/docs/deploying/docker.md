@@ -73,7 +73,10 @@ docker run --rm --env-file courier.env ghcr.io/backplane-labs/backplane-courier:
 
 The manifest depends on the configuration (courier declares an activity per
 configured channel kind), so run it with the installation's file and
-environment. CI checks the installation's wiring against these files with
+environment. It needs no credential: secret fields are optional, no
+configuration Validator runs and a service skips its own runtime checks
+(`Root.Describing()`). Required non-secret fields stay required, since the
+declarations may depend on them. CI checks the installation's wiring against these files with
 `wiring.LoadManifests` (guides/wiring).
 
 ## Binary archive

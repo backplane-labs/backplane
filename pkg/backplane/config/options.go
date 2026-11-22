@@ -19,6 +19,7 @@ type settings struct {
 	prefixSet  bool
 	noEnv      bool
 	noConsul   bool
+	describing bool
 	extra      []xconf.Source
 	defaults   map[string]any
 	block      map[string]any
@@ -67,6 +68,14 @@ func Source(sources ...xconf.Source) Option {
 
 // WithoutConsul keeps Open off Consul KV even when the block names it.
 func WithoutConsul() Option { return func(s *settings) { s.noConsul = true } }
+
+// Describing loads the configuration only to describe the service (its
+// manifest): Consul is not reached, secret fields are optional and no
+// Validator runs, since they check a configuration fit to run and
+// declarations depend on neither.
+func Describing() Option {
+	return func(s *settings) { s.noConsul, s.describing = true, true }
+}
 
 // RemoteSource is a watched configuration layer carrying a console revision.
 type RemoteSource interface {

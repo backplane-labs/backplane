@@ -112,6 +112,23 @@ func WithoutLiveRequired(schema *sp.Schema) *sp.Schema {
 	return out
 }
 
+// WithoutSecretRequired is schema with every secret field optional: a
+// configuration loaded only to describe the service (its manifest) needs
+// no credential.
+func WithoutSecretRequired(schema *sp.Schema) *sp.Schema {
+	out, _ := proto.Clone(schema).(*sp.Schema)
+
+	walk(out, nil, func(f *sp.Schema_Field, _ []string) bool {
+		if f.GetSecret() {
+			f.Required = false
+		}
+
+		return true
+	})
+
+	return out
+}
+
 func isLive(f *sp.Schema_Field) bool { return f.GetAnnotations()[LiveAnnotation].GetBoolValue() }
 
 // walk visits fields depth-first; visit returns whether to descend.

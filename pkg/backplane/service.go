@@ -67,6 +67,8 @@ type Root[C any] struct {
 	conf *config.Runtime[C]
 	id   Identity
 	mesh *meshState
+	// describing: the binary runs as "<binary> manifest".
+	describing bool
 }
 
 // Config is a copy of the loaded configuration. Static fields never change;
@@ -104,6 +106,13 @@ func (r Root[C]) WatchConfig(fn func(revision uint64)) {
 
 // Identity of the instance.
 func (r Root[C]) Identity() Identity { return r.id }
+
+// Describing reports whether the service is only being described: the
+// binary runs as "<binary> manifest", which declares and starts nothing. A
+// constructor skips its checks of what only running needs (a credential, a
+// key); secret configuration fields are optional then and no
+// config.Validator runs.
+func (r Root[C]) Describing() bool { return r.describing }
 
 // ServiceCredentials are the gRPC credentials of a client of target's
 // api.MTLS port: this service's certificate, the server verified as target.
@@ -218,7 +227,7 @@ func Open[C config.Backplaner, St any](
 
 	if manifest {
 		o.manifest = true
-		o.config = append(o.config, config.WithoutConsul())
+		o.config = append(o.config, config.Describing())
 
 		if o.log == nil {
 			o.log = stderrLogger()
@@ -242,7 +251,7 @@ func Open[C config.Backplaner, St any](
 	}
 
 	scope := link.Scope(c.app).(deps.Component) //nolint:forcetypeassert,errcheck // deps installs it
-	root := Root[C]{Component: scope, cfg: conf.Value(), conf: conf, id: c.id, mesh: c.mesh}
+	root := Root[C]{Component: scope, cfg: conf.Value(), conf: conf, id: c.id, mesh: c.mesh, describing: o.manifest}
 
 	state, err := newState(root)
 	if err != nil {

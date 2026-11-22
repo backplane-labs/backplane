@@ -46,6 +46,10 @@ func TestManifestCommand(t *testing.T) {
 	var stdout bytes.Buffer
 
 	svc, err := backplane.Open(t.Context(), func(root backplane.Root[testConfig]) (*testState, error) {
+		if !root.Describing() {
+			t.Error("the manifest command is not describing")
+		}
+
 		hook.Declare[struct{ A string }, struct{ B string }](root, "Lookup")
 
 		return &testState{}, nil
@@ -66,4 +70,22 @@ func TestManifestCommand(t *testing.T) {
 	if m.GetService() != "svc-manifest" || len(m.GetHooks()) != 1 || m.GetHooks()[0].GetName() != "Lookup" {
 		t.Fatalf("manifest = %v", &m)
 	}
+}
+
+// A normal open is not describing.
+func TestNotDescribing(t *testing.T) {
+	t.Parallel()
+
+	svc, err := backplane.Open(t.Context(), func(root backplane.Root[testConfig]) (*testState, error) {
+		if root.Describing() {
+			t.Error("a run is describing")
+		}
+
+		return &testState{}, nil
+	}, baseOptions("svc-run", backplane.Process([]string{"svc"}, nil))...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() { _ = svc.Close() })
 }
