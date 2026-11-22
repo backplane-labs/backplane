@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
@@ -19,6 +20,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 	"github.com/backplane-labs/backplane/pkg/backplane/infra/postgres"
+	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
 )
 
 func TestValidate(t *testing.T) {
@@ -219,6 +221,73 @@ func TestAcquireTimeout(t *testing.T) {
 
 	if err := db.DB.QueryRow(ctx, "SELECT 1 WHERE false").Scan(&n); !errors.Is(err, pgx.ErrNoRows) {
 		t.Fatalf("no rows: %v", err)
+	}
+}
+
+func TestMigrationOptions(t *testing.T) {
+	t.Parallel()
+
+	run := postgres.MigrateWith(func(context.Context, *pgxpool.Pool) error { return nil })
+	files := postgres.Migrations(os.DirFS("testdata/migrations"))
+
+	for name, opts := range map[string][]postgres.Option{
+		"sqld then custom": {files, run},
+		"custom then sqld": {run, files},
+		"two runners":      {run, run},
+		"nil runner":       {postgres.MigrateWith(nil)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := postgres.Open(t.Context(), testlog.Discard(), postgres.Config{}, opts...); !errors.Is(err, postgres.ErrMigrationOptions) {
+				t.Fatalf("Open with invalid migration options = %v", err)
+			}
+		})
+	}
+}
+
+func TestCustomMigration(t *testing.T) {
+	t.Parallel()
+
+	dsn := os.Getenv("BACKPLANE_TEST_PG")
+	if dsn == "" {
+		t.Skip("BACKPLANE_TEST_PG not set")
+	}
+
+	cfg := postgres.Config{DSN: config.Secret(dsn)}
+	schema := "custom_migration_" + strconv.FormatInt(time.Now().UnixNano(), 36)
+	ctx := t.Context()
+	calls := 0
+	run := func(ctx context.Context, pool *pgxpool.Pool) error {
+		calls++
+
+		var current string
+		if err := pool.QueryRow(ctx, "SELECT current_schema()").Scan(&current); err != nil {
+			return err
+		}
+
+		if current != schema {
+			t.Errorf("migration schema = %q, want %q", current, schema)
+		}
+
+		return nil
+	}
+
+	db, err := postgres.Open(ctx, testlog.Discard(), cfg, postgres.Schema(schema), postgres.MigrateWith(run))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	if calls != 1 {
+		t.Fatalf("migration calls = %d", calls)
+	}
+
+	cause := errors.New("test migration failure")
+	if _, err := postgres.Open(ctx, testlog.Discard(), cfg, postgres.MigrateWith(func(context.Context, *pgxpool.Pool) error {
+		return cause
+	})); !errors.Is(err, cause) {
+		t.Fatalf("migration cause not preserved: %v", err)
 	}
 }
 

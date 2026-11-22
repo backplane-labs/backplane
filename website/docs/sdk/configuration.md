@@ -209,3 +209,25 @@ seal:
   values to the latest key version and leaves current ones as they are.
 
 For the operator workflow, optimistic revisions and rollback, see [change configuration](../guides/configuration.md).
+
+## PostgreSQL migrations
+
+`postgres.Migrations(fsys...)` applies sqld migrations as before. To use a
+custom runner, pass `postgres.MigrateWith` instead. The SDK calls it after
+pinging Postgres and creating the configured schema, before the dependency is
+ready. It passes the startup context and the configured pgx pool. The runner
+owns locking, retries and the migration journal; it must not close the pool.
+An error prevents the dependency from becoming ready. Configuring both options
+is rejected before connecting.
+
+For a Ratel directory (including `ratel.sum`), use `migrate.Apply` from
+`github.com/gopherex/ratel/pkg/migrate`:
+
+```go
+postgres.MigrateWith(func(ctx context.Context, pool *pgxpool.Pool) error {
+    return migrate.Apply(ctx, pool, migrations)
+})
+```
+
+`Apply` runs expand and backfill. Run Ratel's contract phase separately from
+startup. Switching runners does not migrate an existing migration journal.

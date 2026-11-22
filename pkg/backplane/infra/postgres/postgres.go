@@ -1,7 +1,7 @@
 // Package postgres is a PostgreSQL connection as a dependency: a
 // configuration section, a pgx pool traced and measured through the
 // service's OpenTelemetry providers, a query log, pgtx transactions, an
-// optional schema and sqld migrations applied at start, a ping probe.
+// optional schema and migrations applied at start, a ping probe.
 //
 //	type Config struct {
 //	    config.Backplane `json:"backplane"`
@@ -50,6 +50,8 @@ var (
 	// ErrDSN: the connection string does not parse (not quoted: it may
 	// hold a password).
 	ErrDSN = errors.New("postgres: dsn does not parse")
+	// ErrMigrationOptions: configure only one migration runner.
+	ErrMigrationOptions = errors.New("postgres: configure either Migrations or one non-nil MigrateWith runner")
 	// ErrExecMode: exec_mode names no pgx query execution mode.
 	ErrExecMode = errors.New(
 		"postgres: exec_mode: want cache_statement, cache_describe, describe_exec, exec or simple_protocol")
@@ -337,6 +339,8 @@ type Option func(o *options)
 type options struct {
 	schema       string
 	migrations   []fs.FS
+	migrator     Migrator
+	migrationErr error
 	serializable bool
 	name         string
 }
@@ -355,15 +359,43 @@ func Migrations(fsys ...fs.FS) Option {
 	return func(o *options) { o.migrations = append(o.migrations, fsys...) }
 }
 
+// Migrator applies migrations to the configured pool before it is published.
+// It owns migration locking, journaling and retries; it must not close the pool.
+type Migrator func(context.Context, *pgxpool.Pool) error
+
+// MigrateWith selects a custom migration runner instead of Migrations.
+func MigrateWith(run Migrator) Option {
+	return func(o *options) {
+		if run == nil || o.migrator != nil {
+			o.migrationErr = ErrMigrationOptions
+		}
+
+		o.migrator = run
+	}
+}
+
 // Serializable makes serializable the transaction manager's default
 // isolation (read committed without it).
 func Serializable() Option { return func(o *options) { o.serializable = true } }
 
-// Open connects, pings, creates the schema and applies the migrations.
-func Open(ctx context.Context, log *xlog.Logger, cfg Config, opts ...Option) (*DB, error) {
+func resolveOptions(opts []Option) (options, error) {
 	o := options{name: "postgres"}
 	for _, opt := range opts {
 		opt(&o)
+	}
+
+	if o.migrationErr != nil || (o.migrator != nil && len(o.migrations) > 0) {
+		return options{}, ErrMigrationOptions
+	}
+
+	return o, nil
+}
+
+// Open connects, pings, creates the schema and applies the migrations.
+func Open(ctx context.Context, log *xlog.Logger, cfg Config, opts ...Option) (*DB, error) {
+	o, err := resolveOptions(opts)
+	if err != nil {
+		return nil, err
 	}
 
 	poolCfg, err := cfg.poolConfig()
@@ -450,10 +482,8 @@ func prepare(ctx context.Context, pool *pgxpool.Pool, queries bounded, o options
 		}
 	}
 
-	if len(o.migrations) > 0 {
-		if err := migrate.Migrate(ctx, pool, o.migrations...); err != nil {
-			return nil, fmt.Errorf("postgres: %w", err)
-		}
+	if err := o.applyMigrations(ctx, pool); err != nil {
+		return nil, err
 	}
 
 	isolation := tx.ReadCommitted()
@@ -467,6 +497,21 @@ func prepare(ctx context.Context, pool *pgxpool.Pool, queries bounded, o options
 	}
 
 	return &DB{Pool: pool, Trm: trm, DB: pgtx.NewTxDB(queries)}, nil
+}
+
+func (o options) applyMigrations(ctx context.Context, pool *pgxpool.Pool) error {
+	switch {
+	case o.migrator != nil:
+		if err := o.migrator(ctx, pool); err != nil {
+			return fmt.Errorf("postgres: migrate: %w", err)
+		}
+	case len(o.migrations) > 0:
+		if err := migrate.Migrate(ctx, pool, o.migrations...); err != nil {
+			return fmt.Errorf("postgres: %w", err)
+		}
+	}
+
+	return nil
 }
 
 // New is the provider of the connection: Provide opens it (Open), the probe
