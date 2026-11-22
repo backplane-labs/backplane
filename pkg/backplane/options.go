@@ -1,6 +1,7 @@
 package backplane
 
 import (
+	"io"
 	"os"
 	"time"
 
@@ -26,7 +27,10 @@ type options struct {
 	slog      bool
 	// manifest: the binary runs as "<binary> manifest" (ManifestCommand).
 	manifest bool
-	grpc     []grpc.ServerOption
+	// args are the process's arguments (os.Args); stdout gets the manifest.
+	args   []string
+	stdout io.Writer
+	grpc   []grpc.ServerOption
 
 	requireNATS     bool
 	requireTemporal bool

@@ -1,9 +1,8 @@
 package backplane_test
 
 import (
+	"bytes"
 	"context"
-	"io"
-	"os"
 	"testing"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -44,44 +43,24 @@ func TestManifestMode(t *testing.T) {
 func TestManifestCommand(t *testing.T) {
 	t.Setenv("BACKPLANE_CONSUL_ADDR", "127.0.0.1:1")
 
-	args := os.Args
-	os.Args = []string{"svc", backplane.ManifestCommand}
-	t.Cleanup(func() { os.Args = args })
-
-	stdout := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	os.Stdout = w
-	t.Cleanup(func() { os.Stdout = stdout })
+	var stdout bytes.Buffer
 
 	svc, err := backplane.Open(t.Context(), func(root backplane.Root[testConfig]) (*testState, error) {
 		hook.Declare[struct{ A string }, struct{ B string }](root, "Lookup")
 
 		return &testState{}, nil
-	}, baseOptions("svc-manifest")...)
+	}, baseOptions("svc-manifest", backplane.Process([]string{"svc", backplane.ManifestCommand}, &stdout))...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	runErr := svc.Run(context.Background())
-	_ = w.Close()
-	os.Stdout = stdout
-
-	if runErr != nil {
-		t.Fatal(runErr)
-	}
-
-	raw, err := io.ReadAll(r)
-	if err != nil {
+	if err := svc.Run(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
 	var m backplanev1.Manifest
-	if err := protojson.Unmarshal(raw, &m); err != nil {
-		t.Fatalf("stdout is not a manifest: %v\n%s", err, raw)
+	if err := protojson.Unmarshal(stdout.Bytes(), &m); err != nil {
+		t.Fatalf("stdout is not a manifest: %v\n%s", err, stdout.String())
 	}
 
 	if m.GetService() != "svc-manifest" || len(m.GetHooks()) != 1 || m.GetHooks()[0].GetName() != "Lookup" {

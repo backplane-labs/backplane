@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -53,7 +52,7 @@ func (c *core) Run(ctx context.Context) error {
 	}
 
 	if c.opts.manifest {
-		return errors.Join(printManifest(os.Stdout, m), c.conf.Close())
+		return errors.Join(printManifest(c.opts.stdout, m), c.conf.Close())
 	}
 
 	c.tail(m)

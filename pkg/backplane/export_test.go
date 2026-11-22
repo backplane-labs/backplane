@@ -1,6 +1,7 @@
 package backplane
 
 import (
+	"io"
 	"os"
 
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
@@ -41,3 +42,9 @@ var KeepaliveParams = keepaliveParams
 
 // ManifestMode is manifestMode.
 func ManifestMode(args []string) (bool, error) { return manifestMode(args) }
+
+// Process sets the arguments and stdout Open reads instead of os.Args and
+// os.Stdout.
+func Process(args []string, stdout io.Writer) Option {
+	return func(o *options) { o.args, o.stdout = args, stdout }
+}

@@ -184,7 +184,10 @@ func (s *Service[St]) State() *St { return s.state }
 func Open[C config.Backplaner, St any](
 	ctx context.Context, newState func(root Root[C]) (*St, error), opts ...Option,
 ) (*Service[St], error) {
-	o := options{id: Identity{Service: build.Get().Service, Version: build.Get().Version}, slog: true}
+	o := options{
+		id: Identity{Service: build.Get().Service, Version: build.Get().Version}, slog: true,
+		args: os.Args, stdout: os.Stdout,
+	}
 	for _, opt := range opts {
 		opt(&o)
 	}
@@ -198,7 +201,7 @@ func Open[C config.Backplaner, St any](
 	}
 
 	// "<binary> probe [kind]": probe the service running next to it and exit.
-	if kind, ok, err := probeKind(os.Args); ok {
+	if kind, ok, err := probeKind(o.args); ok {
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(usageExit)
@@ -208,7 +211,7 @@ func Open[C config.Backplaner, St any](
 	}
 
 	// "<binary> manifest": declare, print the manifest, exit (Run).
-	manifest, err := manifestMode(os.Args)
+	manifest, err := manifestMode(o.args)
 	if err != nil {
 		return nil, err
 	}
