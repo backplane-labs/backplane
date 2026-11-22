@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
@@ -21,6 +22,8 @@ type (
 	alertIn struct {
 		Alert string `json:"alert"`
 		To    string `json:"to"`
+		// License is a TextMarshaler: a string on the wire and in the schema.
+		License uuid.UUID `json:"license"`
 	}
 	alertOut struct {
 		ID string `json:"id"`
@@ -86,6 +89,10 @@ func TestCheck(t *testing.T) {
 		want  []string // "<file> <kind> <name> <path>"
 	}{
 		{name: "valid", files: map[string]string{"relay.yaml": good}},
+		{
+			name:  "a uuid passed as a string",
+			files: map[string]string{"relay.yaml": strings.Replace(good, "text: req.alert", "text: req.license", 1)},
+		},
 		{
 			name:  "a bare word in input",
 			files: map[string]string{"relay.yaml": strings.Replace(good, "text: req.alert", "text: alert", 1)},
