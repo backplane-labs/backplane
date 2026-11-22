@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/encoding/protojson"
+
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/activity"
 	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
@@ -184,5 +186,53 @@ func BenchmarkCheck(b *testing.B) {
 		if _, err := wiring.Check(root, manifests); err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+func TestLoadManifests(t *testing.T) {
+	t.Parallel()
+
+	manifests := installation(t)
+
+	root := t.TempDir()
+	paths := make([]string, 0, len(manifests))
+
+	for _, m := range manifests {
+		raw, err := protojson.Marshal(m)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		path := filepath.Join(root, m.GetService()+".json")
+		if err := os.WriteFile(path, raw, 0o600); err != nil {
+			t.Fatal(err)
+		}
+
+		paths = append(paths, path)
+	}
+
+	loaded, err := wiring.LoadManifests(paths...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := wiring.Check(dir(t, map[string]string{"relay.yaml": good}), loaded)
+	if err != nil || len(got) != 0 {
+		t.Fatalf("Check over loaded manifests: %v %v", got, err)
+	}
+
+	bad := filepath.Join(root, "bad.json")
+	for name, text := range map[string]string{"not json": "{", "no service": "{}"} {
+		if err := os.WriteFile(bad, []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err := wiring.LoadManifests(bad); err == nil {
+			t.Fatalf("%s loaded", name)
+		}
+	}
+
+	if _, err := wiring.LoadManifests(filepath.Join(root, "missing.json")); err == nil {
+		t.Fatal("a missing file loaded")
 	}
 }

@@ -24,7 +24,9 @@ type options struct {
 	log       *xlog.Logger
 	config    []config.Option
 	slog      bool
-	grpc      []grpc.ServerOption
+	// manifest: the binary runs as "<binary> manifest" (ManifestCommand).
+	manifest bool
+	grpc     []grpc.ServerOption
 
 	requireNATS     bool
 	requireTemporal bool

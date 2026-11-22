@@ -38,3 +38,6 @@ func ProbeKind(args []string) (string, bool, error) { return probeKind(args) }
 
 // KeepaliveParams is keepaliveParams.
 var KeepaliveParams = keepaliveParams
+
+// ManifestMode is manifestMode.
+func ManifestMode(args []string) (bool, error) { return manifestMode(args) }

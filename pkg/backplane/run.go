@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -49,6 +50,10 @@ func (c *core) Run(ctx context.Context) error {
 	m, err := c.seal()
 	if err != nil {
 		return errors.Join(fmt.Errorf("backplane: manifest: %w", err), c.conf.Close())
+	}
+
+	if c.opts.manifest {
+		return errors.Join(printManifest(os.Stdout, m), c.conf.Close())
 	}
 
 	c.tail(m)

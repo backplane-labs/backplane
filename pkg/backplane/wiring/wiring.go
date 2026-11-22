@@ -10,7 +10,11 @@
 package wiring
 
 import (
+	"errors"
 	"fmt"
+	"os"
+
+	"google.golang.org/protobuf/encoding/protojson"
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
@@ -69,6 +73,37 @@ func Check(dir string, manifests []*backplanev1.Manifest, opts ...Option) ([]Vio
 	out := make([]Violation, len(found))
 	for i, f := range found {
 		out[i] = Violation{File: f.File, Kind: f.Kind, Name: f.Name, Path: f.Path, Code: f.Code, Message: f.Message}
+	}
+
+	return out, nil
+}
+
+// ErrNotManifest: a file LoadManifests reads is JSON but no manifest.
+var ErrNotManifest = errors.New("wiring: not a manifest")
+
+// LoadManifests reads manifests "<binary> manifest" printed
+// (backplane.ManifestCommand): a service's binary or image run with an
+// installation's configuration declares what it does there, the manifest to
+// check that installation's wiring against.
+func LoadManifests(paths ...string) ([]*backplanev1.Manifest, error) {
+	out := make([]*backplanev1.Manifest, 0, len(paths))
+
+	for _, path := range paths {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("wiring: %w", err)
+		}
+
+		var m backplanev1.Manifest
+		if err := protojson.Unmarshal(raw, &m); err != nil {
+			return nil, fmt.Errorf("wiring: %s: %w", path, err)
+		}
+
+		if m.GetService() == "" {
+			return nil, fmt.Errorf("%w: %s: no service", ErrNotManifest, path)
+		}
+
+		out = append(out, &m)
 	}
 
 	return out, nil

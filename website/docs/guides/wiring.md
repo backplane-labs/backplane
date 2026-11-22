@@ -207,6 +207,12 @@ func TestWiring(t *testing.T) {
 }
 ```
 
+Services the installation runs from their released images (courier,
+templates, kratos, ...) print their manifest for its configuration with
+`<binary> manifest` (deploying/docker); `wiring.LoadManifests(paths...)`
+reads those files for `Check`, next to the `Manifest()` of the services the
+test builds itself.
+
 Every binding and rule is checked against the manifests given: a service
 the wiring names but the test leaves out is a violation, as it would wait on
 a stand. Definitions that name no runtime are checked as Temporal's;

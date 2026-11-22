@@ -61,6 +61,21 @@ services:
 
 In Kubernetes use the HTTP probes on the platform port directly.
 
+## Manifest
+
+Every binary built on the SDK also prints what it declares for a
+configuration, without starting or reaching anything (Consul included):
+
+```sh
+docker run --rm --env-file courier.env ghcr.io/backplane-labs/backplane-courier:<version> \
+  /app/bin/courier manifest > manifests/courier.json   # logs go to stderr
+```
+
+The manifest depends on the configuration (courier declares an activity per
+configured channel kind), so run it with the installation's file and
+environment. CI checks the installation's wiring against these files with
+`wiring.LoadManifests` (guides/wiring).
+
 ## Binary archive
 
 Download the architecture-specific archive and `SHA256SUMS` from the same release:

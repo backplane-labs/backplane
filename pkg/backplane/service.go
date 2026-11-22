@@ -207,6 +207,21 @@ func Open[C config.Backplaner, St any](
 		runProbe[C](ctx, kind, append([]config.Option{config.Service(o.id.Service)}, o.config...))
 	}
 
+	// "<binary> manifest": declare, print the manifest, exit (Run).
+	manifest, err := manifestMode(os.Args)
+	if err != nil {
+		return nil, err
+	}
+
+	if manifest {
+		o.manifest = true
+		o.config = append(o.config, config.WithoutConsul())
+
+		if o.log == nil {
+			o.log = stderrLogger()
+		}
+	}
+
 	conf, err := config.Open[C](ctx, append([]config.Option{config.Service(o.id.Service)}, o.config...)...)
 	if err != nil {
 		return nil, fmt.Errorf("backplane: %w", err)
