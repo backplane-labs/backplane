@@ -80,3 +80,22 @@ ui/                      built module bundle and embedding
 ```
 
 Pass dependencies through constructors. Keep domain components independent of global clients. The complete [hello example](https://github.com/backplane-labs/backplane/tree/master/examples/hello) includes managed listeners, another independently served listener described in the API catalog, configuration, reactors, hooks, workflows and an embedded module.
+
+## Watch service replicas
+
+`root.WatchReplicas(ctx, service, listener, onChange)` follows the healthy
+instances of a service using the installed discovery driver. With the Consul
+driver, it uses the service's existing Consul address, TLS and ACL settings;
+the token needs read access to the watched service and its catalog nodes.
+An empty listener name selects the registered primary port. A named listener
+selects its tagged address and omits instances that do not advertise it.
+
+The callback receives a full, ordered snapshot of `[]backplane.Replica`
+(instance ID and `host:port`), including the first empty snapshot. Subsequent
+callbacks run only when the snapshot changes. A temporary catalog failure
+leaves the last successful snapshot in effect. Invalid configuration and an
+explicit ACL refusal are returned rather than retried. Run the watch in a component's
+`Go` function and pass its context to stop on shutdown. If discovery is not
+configured, the watch returns `backplane.ErrNoReplicaDiscovery`; opening the
+service is unaffected. The SDK discovers addresses but does not choose a
+replica or own the consumer's connections.

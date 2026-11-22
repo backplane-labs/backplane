@@ -67,5 +67,5 @@ func Driver() backplane.Option {
 		}), nil
 	})
 
-	return backplane.Options(remote, presence, discovery, mesh)
+	return backplane.Options(remote, presence, discovery, mesh, backplane.WithReplicaWatch(newReplicaWatch))
 }

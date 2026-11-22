@@ -69,6 +69,7 @@ type Root[C any] struct {
 	mesh *meshState
 	// describing: the binary runs as "<binary> manifest".
 	describing bool
+	replicas   func() (ReplicaWatch, error)
 }
 
 // Config is a copy of the loaded configuration. Static fields never change;
@@ -251,7 +252,10 @@ func Open[C config.Backplaner, St any](
 	}
 
 	scope := link.Scope(c.app).(deps.Component) //nolint:forcetypeassert,errcheck // deps installs it
-	root := Root[C]{Component: scope, cfg: conf.Value(), conf: conf, id: c.id, mesh: c.mesh, describing: o.manifest}
+	root := Root[C]{
+		Component: scope, cfg: conf.Value(), conf: conf, id: c.id, mesh: c.mesh,
+		describing: o.manifest, replicas: o.replicaDiscovery(block.Consul),
+	}
 
 	state, err := newState(root)
 	if err != nil {
