@@ -182,6 +182,37 @@ What the files define, the console only reads:
 
 To roll back, revert the file. History stays in the platform as for any version.
 
+### Check the files in CI
+
+`pkg/backplane/wiring` runs the platform's checks on the directory in a
+test, against the declarations the services' own code makes. A binding the
+platform would refuse then fails CI rather than waiting on a stand:
+
+```go
+func TestWiring(t *testing.T) {
+	relay := backplanetest.New(t, backplanetest.Name("relay"))
+	relayservice.Declare(relay.Root()) // the same declarations main makes
+	courier := backplanetest.New(t, backplanetest.Name("courier"))
+	courierservice.Declare(courier.Root())
+
+	violations, err := wiring.Check("deployments/wiring",
+		[]*backplanev1.Manifest{relay.Manifest(), courier.Manifest()})
+	if err != nil {
+		t.Fatal(err) // the directory does not read: YAML, an unknown key, a duplicate
+	}
+
+	for _, v := range violations {
+		t.Error(v) // "relay.yaml: binding relay.Deliver /steps/send/input/text: undeclared reference to 'alert' (in container '') (CEL_ERROR)"
+	}
+}
+```
+
+Every binding and rule is checked against the manifests given: a service
+the wiring names but the test leaves out is a violation, as it would wait on
+a stand. Definitions that name no runtime are checked as Temporal's;
+`wiring.DirectRuntime()` checks them as the direct runtime's, for an
+installation whose `BACKPLANE_WIRING_RUNTIME` resolves to direct.
+
 ### Schedules
 
 The same files hold the Temporal schedules of the services' own workflows
