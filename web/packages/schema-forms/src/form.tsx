@@ -37,8 +37,6 @@ import {
   type ValidationError,
 } from '@gopherex/schemapb';
 import { type CSSProperties, type ReactNode, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { schemaFormsEnglish } from './locales.js';
 import {
   decodeValue,
   emptyValue,
@@ -54,16 +52,12 @@ import {
   setValue,
   valueAt,
 } from './model.js';
+import { useFormLocale } from './use-form-locale.js';
 
 const stack: CSSProperties = { display: 'grid', gap: 16 };
 const row: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' };
 // A compact action under an item: its own width, not the column's.
 const itemAction: CSSProperties = { justifySelf: 'start' };
-function useText() {
-  const { t } = useTranslation('backplane.schemaForms');
-  return (key: keyof typeof schemaFormsEnglish, args?: Record<string, string | number>) =>
-    t(key, { defaultValue: schemaFormsEnglish[key], ...args });
-}
 
 export interface SchemaFormProps {
   schema: Schema;
@@ -94,7 +88,7 @@ export interface SchemaFormConfirm {
 }
 
 export function SchemaForm(props: SchemaFormProps) {
-  const t = useText();
+  const { t } = useFormLocale();
   const compiled = useMemo(() => {
     try {
       return { engine: Engine.compile(props.schema), key: toJsonString(SchemaSchema, props.schema) };
@@ -114,7 +108,7 @@ function FormBody({
   confirm,
   ...props
 }: SchemaFormProps & { engine: Engine }) {
-  const t = useText();
+  const { t, validation } = useFormLocale();
   const [baseline, setBaseline] = useState(
     () => evaluateForm(engine, scaffoldForm(engine.schema, initialValues)).resolved,
   );
@@ -217,7 +211,7 @@ function FormBody({
           <ul>
             {outcome.result.errors.map((error) => (
               <li key={`${error.path}:${error.message}`}>
-                <strong>{error.path || props.label}</strong>: {error.message}
+                <strong>{error.path || props.label}</strong>: {validation(error)}
               </li>
             ))}
           </ul>
@@ -298,7 +292,7 @@ export interface SchemaFieldsProps {
  * show once it is edited.
  */
 export function SchemaFields(props: SchemaFieldsProps) {
-  const t = useText();
+  const { t } = useFormLocale();
   const engine = useMemo(() => {
     try {
       return Engine.compile(props.schema);
@@ -356,7 +350,7 @@ function FormField({
   context: Context;
   depth?: number;
 }) {
-  const t = useText();
+  const { t, validation } = useFormLocale();
   const id = useId();
   const value = valueAt(context.values, path);
   const title = field.title || field.name || String(path[path.length - 1]);
@@ -574,7 +568,7 @@ function FormField({
         {field.description}
         {field.secret ? ` ${t('secret')}` : ''}
       </FieldDescription>
-      <FieldError id={`${id}-errors`} errors={errors} />
+      <FieldError id={`${id}-errors`} errors={errors.map((error) => ({ message: validation(error) }))} />
     </Field>
   );
 }
@@ -598,7 +592,7 @@ function ListControl({
   disabled: boolean;
   depth: number;
 }) {
-  const t = useText();
+  const { t } = useFormLocale();
   const keys = useRef<string[]>([]);
   const serial = useRef(0);
   while (keys.current.length < value.length) keys.current.push(`${id}-${serial.current++}`);
@@ -700,7 +694,7 @@ function ScalarControl({
   onChange: (value: Native | undefined) => void;
   optional?: boolean;
 }) {
-  const t = useText();
+  const { t } = useFormLocale();
   // Keep lexical edits such as '-', '1.' and leading zeros until blur.
   const [draft, setDraft] = useState<string | null>(null);
   return (
@@ -735,7 +729,7 @@ function ChoiceControl({
   onChange: (value: Native | undefined) => void;
   context: Context;
 }) {
-  const t = useText();
+  const { t } = useFormLocale();
   if (field.kind.case !== 'choice') return null;
   const choice = field.kind.value;
   const dynamic = choice.optionsExpr ? context.engine.eval(choice.optionsExpr, { root: context.values }) : undefined;
@@ -778,7 +772,7 @@ function SecretControl({
   path: FieldPath;
   context: Context;
 }) {
-  const t = useText();
+  const { t } = useFormLocale();
   const [visible, setVisible] = useState(false);
   if (props.disabled) return <Input {...props} type="text" value="***" readOnly />;
   const structured = typeof value === 'object' || typeof value === 'boolean';
@@ -819,7 +813,7 @@ function StructuredControl({
   label,
   ...props
 }: ControlProps & { path: FieldPath; context: Context; label?: string }) {
-  const t = useText();
+  const { t } = useFormLocale();
   const [draft, setDraft] = useState<string | null>(null);
   const [invalid, setInvalid] = useState(false);
   const reportInvalid = useRef(context.invalid);
@@ -858,7 +852,7 @@ function StructuredControl({
 }
 
 function MapEntry({ title, value, onAdd }: { title: string; value: NativeStruct; onAdd: (key: string) => void }) {
-  const t = useText();
+  const { t } = useFormLocale();
   const [key, setKey] = useState('');
   const exists = Object.hasOwn(value, key);
   return (
@@ -896,7 +890,7 @@ export function SchemaValuesPreview({
   values: Baked['values'];
   label?: string;
 }) {
-  const t = useText();
+  const { t } = useFormLocale();
   const safe = masked(create(BakedSchema, { schema, values }));
   return (
     // A `pre` is a generic node and carries no accessible name; the region

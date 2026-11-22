@@ -1,15 +1,8 @@
 import { Button, type DataColumn, DataTable, Timestamp } from '@backplane-labs/backplane-ui';
 import { type Native, type NativeStruct, type Schema, type Schema_Field, toNative } from '@gopherex/schemapb';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { schemaFormsEnglish } from './locales.js';
 import { encodeValue, scalarText } from './model.js';
-
-function useText() {
-  const { t } = useTranslation('backplane.schemaForms');
-  return (key: keyof typeof schemaFormsEnglish, args?: Record<string, string | number>) =>
-    t(key, { defaultValue: schemaFormsEnglish[key], ...args });
-}
+import { useFormLocale } from './use-form-locale.js';
 
 type Sortable = string | number | bigint | boolean | null | undefined;
 
@@ -78,7 +71,7 @@ export function SchemaTable({
   error,
   more,
 }: SchemaTableProps) {
-  const t = useText();
+  const { t } = useFormLocale();
   const fields = useMemo(() => new Map(schema.fields.map((field) => [field.name, field])), [schema]);
   const definitions = useMemo<DataColumn<Indexed>[]>(() => {
     const chosen = columns ?? schema.fields.filter(ownCell).map((field) => field.name);

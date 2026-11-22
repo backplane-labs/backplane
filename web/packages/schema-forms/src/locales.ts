@@ -41,3 +41,52 @@ export const schemaFormsEnglish = {
   loadMore: 'Load more',
   loadingMore: 'Loading…',
 } as const;
+
+const schemaFormsRussian: Record<keyof typeof schemaFormsEnglish, string> = {
+  save: 'Сохранить',
+  saving: 'Сохранение…',
+  reset: 'Сбросить',
+  dirty: 'Есть несохранённые изменения',
+  confirm: 'Подтвердить',
+  cancel: 'Отмена',
+  add: 'Задать значение',
+  unset: 'Убрать значение',
+  nullValue: 'Задать null',
+  null: 'Пустое значение (null)',
+  absent: 'Не задано',
+  addItem: 'Добавить элемент',
+  remove: 'Удалить: {{name}}',
+  removeItem: 'Удалить',
+  item: 'Элемент {{index}}',
+  key: 'Новый ключ: {{name}}',
+  addEntry: 'Добавить запись',
+  duplicateKey: 'Такой ключ уже есть.',
+  variant: 'Вариант: {{name}}',
+  choose: 'Выберите…',
+  deprecated: 'Устарело',
+  computed: 'Вычисляется автоматически',
+  immutable: 'Задано схемой',
+  show: 'Показать: {{name}}',
+  hide: 'Скрыть: {{name}}',
+  secret: 'Конфиденциальное значение',
+  invalidJSON: 'Введите корректное значение в типизированном JSON.',
+  typedJSON: 'Структурированное значение',
+  typedJSONHelp: 'JSON с явными типами сохраняет большие целые числа и двоичные данные.',
+  schemaError: 'Не удалось построить форму по этой схеме.',
+  submitError: 'Не удалось сохранить. Изменения не потеряны.',
+  errors: 'Результаты проверки',
+  depth: 'Для более глубоких вложений используйте редактор структурированных значений.',
+  preview: 'Значения со скрытыми секретами',
+  warning: 'Предупреждение',
+  error: 'Ошибка',
+  yes: 'Да',
+  no: 'Нет',
+  actions: 'Действия',
+  loadMore: 'Загрузить ещё',
+  loadingMore: 'Загрузка…',
+};
+
+export function schemaFormsLocale(language?: string) {
+  const russian = language?.split('-')[0]?.toLowerCase() === 'ru';
+  return { russian, messages: russian ? schemaFormsRussian : schemaFormsEnglish };
+}

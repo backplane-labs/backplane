@@ -17,8 +17,12 @@ asks. Its buttons read `confirm` and `cancel` of `backplane.schemaForms`;
 `tone: 'danger'` gives the confirm button the kit's destructive style, as
 `ConfirmAction`'s `tone` does.
 The schema must be fully linked before rendering. Invalid descriptors produce
-a schema error state. Only English resources are supplied; the exported
-`schemaFormsEnglish` namespace is `backplane.schemaForms`.
+a schema error state. Forms and tables supply English and Russian defaults
+(`ru` and regional variants) based on the host's i18next language. The
+`backplane.schemaForms` namespace still lets the host override UI strings.
+Russian forms translate built-in validation messages by schemapb code;
+custom rule messages, schema labels and explicit button labels remain the
+caller's text.
 
 The renderer supports scalar kinds, Choice and dynamic options, Object, Ref,
 OneOf, List and Map. JSON and deep structures use a typed protobuf JSON editor,
