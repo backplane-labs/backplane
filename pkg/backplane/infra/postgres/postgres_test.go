@@ -169,6 +169,16 @@ func TestAcquireTimeout(t *testing.T) {
 			return err
 		},
 		"row": func() error { var n int; return db.DB.QueryRow(ctx, "SELECT 1").Scan(&n) },
+		"batch": func() error {
+			batch := &pgx.Batch{}
+			batch.BeginTx(pgx.TxOptions{})
+			results := db.DB.SendBatch(ctx, batch)
+			if results.Tx() != nil {
+				t.Error("the refused batch did not begin a transaction")
+			}
+
+			return results.Close()
+		},
 		"transaction": func() error {
 			return tx.DoSerializable(ctx, db.Trm, func(ctx context.Context) error { _, err := db.DB.Exec(ctx, "SELECT 1"); return err })
 		},
@@ -221,6 +231,58 @@ func TestAcquireTimeout(t *testing.T) {
 
 	if err := db.DB.QueryRow(ctx, "SELECT 1 WHERE false").Scan(&n); !errors.Is(err, pgx.ErrNoRows) {
 		t.Fatalf("no rows: %v", err)
+	}
+}
+
+func TestBatchTransactionOwnsConnection(t *testing.T) {
+	t.Parallel()
+
+	for _, finish := range []string{"commit", "rollback"} {
+		t.Run(finish, func(t *testing.T) {
+			t.Parallel()
+
+			db := live(t, postgres.Config{Pool: postgres.Pool{MaxConns: 1}})
+			ctx := t.Context()
+			batch := &pgx.Batch{}
+			batch.BeginTx(pgx.TxOptions{})
+			batch.Queue("SELECT 1")
+
+			results := db.DB.SendBatch(ctx, batch)
+			defer func() { _ = results.Close() }()
+
+			transaction := results.Tx()
+			if transaction == nil {
+				t.Fatal("batch did not begin a transaction")
+			}
+
+			defer func() { _ = transaction.Rollback(ctx) }()
+
+			if err := results.Close(); err != nil {
+				t.Fatal(err)
+			}
+
+			if acquired := db.Pool.Stat().AcquiredConns(); acquired != 1 {
+				t.Fatalf("acquired after closing batch = %d, want 1", acquired)
+			}
+
+			var n int
+			if err := transaction.QueryRow(ctx, "SELECT 2").Scan(&n); err != nil || n != 2 {
+				t.Fatalf("query in batch transaction = %d, %v", n, err)
+			}
+
+			end := transaction.Commit
+			if finish == "rollback" {
+				end = transaction.Rollback
+			}
+
+			if err := end(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			if acquired := db.Pool.Stat().AcquiredConns(); acquired != 0 {
+				t.Fatalf("acquired after %s = %d, want 0", finish, acquired)
+			}
+		})
 	}
 }
 

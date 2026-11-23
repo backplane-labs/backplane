@@ -102,7 +102,13 @@ func (b bounded) SendBatch(ctx context.Context, batch *pgx.Batch) pgx.BatchResul
 		return errBatch{err: err}
 	}
 
-	return &releasingBatch{BatchResults: conn.SendBatch(ctx, batch), conn: conn}
+	results := conn.SendBatch(ctx, batch)
+	if transaction := results.Tx(); transaction != nil {
+		// As with pgxpool.SendBatch, the transaction now owns the connection.
+		return &releasingBatch{BatchResults: results, tx: &releasingTx{Tx: transaction, conn: conn}}
+	}
+
+	return &releasingBatch{BatchResults: results, conn: conn}
 }
 
 func (b bounded) CopyFrom(
@@ -189,12 +195,17 @@ type releasingBatch struct {
 	pgx.BatchResults
 
 	conn *pgxpool.Conn
+	tx   pgx.Tx
 	once sync.Once
 }
 
+func (b *releasingBatch) Tx() pgx.Tx { return b.tx }
+
 func (b *releasingBatch) Close() error {
 	err := b.BatchResults.Close()
-	b.once.Do(b.conn.Release)
+	if b.conn != nil {
+		b.once.Do(b.conn.Release)
+	}
 
 	if err != nil {
 		return fmt.Errorf("postgres: batch: %w", err)
@@ -211,6 +222,7 @@ func (b errBatch) Query() (pgx.Rows, error) { return nil, b.err }
 
 func (b errBatch) QueryRow() pgx.Row { return errRow(b) }
 func (b errBatch) Close() error      { return b.err }
+func (b errBatch) Tx() pgx.Tx        { return nil }
 
 // releasingTx gives the connection back when the transaction ends.
 type releasingTx struct {

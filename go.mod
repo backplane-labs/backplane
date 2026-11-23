@@ -7,7 +7,7 @@ require (
 	github.com/exaring/otelpgx v0.12.0
 	github.com/google/cel-go v0.30.0
 	github.com/google/uuid v1.6.0
-	github.com/gopherex/pgtx v1.1.5
+	github.com/gopherex/pgtx v1.1.6
 	github.com/gopherex/schemapb/go v1.13.2
 	github.com/gopherex/sqld v1.1.3
 	github.com/gopherex/ws-proto v1.11.1
@@ -26,7 +26,7 @@ require (
 	github.com/gopherex/xtrace/contrib/libs/xlog v1.1.6
 	github.com/gopherex/xtrace/contrib/sdk v1.2.0
 	github.com/hashicorp/consul/api v1.33.4
-	github.com/jackc/pgx/v5 v5.11.0
+	github.com/jackc/pgx/v5 v5.13.0
 	github.com/nats-io/nats-server/v2 v2.15.3
 	github.com/nats-io/nats.go v1.55.0
 	github.com/nats-io/nkeys v0.4.17
@@ -96,7 +96,7 @@ require (
 	github.com/hashicorp/serf v0.10.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/jackc/puddle/v2 v2.2.3 // indirect
 	github.com/klauspost/compress v1.20.4 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect

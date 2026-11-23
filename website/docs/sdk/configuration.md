@@ -231,3 +231,8 @@ postgres.MigrateWith(func(ctx context.Context, pool *pgxpool.Pool) error {
 
 `Apply` runs expand and backfill. Run Ratel's contract phase separately from
 startup. Switching runners does not migrate an existing migration journal.
+
+The PostgreSQL adapter uses pgx v5.13. A batch refused before it acquires a
+connection has no transaction (`BatchResults.Tx()` returns `nil`). When
+`Batch.BeginTx` starts a transaction, close the batch before using that
+transaction. The connection stays checked out until `Commit` or `Rollback`.
