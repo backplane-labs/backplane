@@ -670,3 +670,15 @@
 .backplane-map .react-flow__edge-textbg {
   rx: 3;
 }
+
+.console-module-group-trigger {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  text-align: start;
+  cursor: pointer;
+}
+.console-module-group-items[hidden] {
+  display: none;
+}

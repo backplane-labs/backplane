@@ -36,10 +36,17 @@ Copy the [template](https://github.com/backplane-labs/backplane/tree/master/web/
   "service": "hello",
   "nav": [
     { "path": "", "labelKey": "overview" },
-    { "path": "settings", "labelKey": "settings" }
+    { "path": "settings", "labelKey": "settings", "groupLabelKey": "more" }
   ]
 }
 ```
+
+Omit `groupLabelKey` for a primary sidebar link. Entries with the same key
+form one collapsible group below the primary links; the key names a title in
+the module's translation namespace (for example, `more: 'More'`). Group and
+link order follow the declaration. The host opens a group when navigation
+lands on one of its pages. Grouping does not change the routes or command
+palette. Use the same entries in `plugin.json` and the module's `Nav` export.
 
 The React definition supplies matching routes:
 

@@ -2,12 +2,15 @@ import type { ThemeMode } from '@backplane-labs/backplane-theme';
 import type { i18n } from 'i18next';
 import { createContext, type ReactNode, useContext } from 'react';
 import { type RouteObject, useNavigate, useRoutes } from 'react-router-dom';
+import { assertGroupLabelKey } from './navigation.js';
 
 export const SDK_MAJOR = 0;
 
 export interface NavEntry {
   path: string;
   labelKey: string;
+  /** Optional group title in the module namespace. Equal keys share a group. */
+  groupLabelKey?: string;
 }
 export interface PluginMetadata {
   service: string;
@@ -64,6 +67,7 @@ export function definePlugin(definition: PluginDefinition): PluginDefinition {
   const paths = new Set<string>();
   for (const entry of definition.nav) {
     assertRelativePath(entry.path);
+    assertGroupLabelKey(entry.groupLabelKey);
     if (!entry.labelKey || paths.has(entry.path))
       throw new Error('Navigation entries need unique paths and translation keys');
     paths.add(entry.path);

@@ -1,6 +1,7 @@
 import { getInstance } from '@module-federation/runtime';
 import type { ComponentType } from 'react';
 import { assertRelativePath, type NavEntry, type PluginMetadata, type PluginResources, SDK_MAJOR } from './index.js';
+import { assertGroupLabelKey } from './navigation.js';
 
 /** A descriptor from the platform catalog, never a URL supplied by module code. */
 export interface PluginDescriptor {
@@ -29,6 +30,7 @@ function validateNavigation(value: readonly NavEntry[] | undefined): asserts val
       throw new Error('Invalid plugin navigation entry');
     }
     assertRelativePath(entry.path);
+    assertGroupLabelKey(entry.groupLabelKey);
     seen.add(entry.path);
   }
 }

@@ -16,6 +16,7 @@ import {
 import { type CSSProperties, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink, useLocation } from 'react-router-dom';
+import { ModuleNavigation } from './ModuleNavigation';
 import type { ModuleEntry } from './registry';
 import { healthTone } from './services/model';
 
@@ -60,7 +61,7 @@ export function Sidebar({
   mobile: boolean;
   onClose: () => void;
 }) {
-  const { t, i18n } = useTranslation('console'),
+  const { t } = useTranslation('console'),
     location = useLocation();
   const [preferences, setPreferences] = useState(readPreferences),
     [hover, setHover] = useState(false),
@@ -246,16 +247,7 @@ export function Sidebar({
                     {expanded && opened && service.ui && (
                       <div className="console-leaves">
                         {plugin ? (
-                          plugin.navigation.nav.map((page) => (
-                            <NavLink
-                              key={page.path}
-                              to={`/s/${service.name}/${page.path}`}
-                              end={page.path === ''}
-                              className="console-page-link"
-                            >
-                              {i18n.t(page.labelKey, { ns: `module.${service.name}` })}
-                            </NavLink>
-                          ))
+                          <ModuleNavigation service={service.name} entries={plugin.navigation.nav} />
                         ) : (
                           <span className="console-tree-note">
                             {t(entry?.error ? 'failed' : entry ? 'loading' : 'unavailable')}

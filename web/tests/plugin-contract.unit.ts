@@ -28,3 +28,28 @@ test('installs nested translation trees under the module namespace', async () =>
   expect(i18n.t('sections.greeter.name', { ns: namespace })).toBe('Greeter');
   expect(i18n.t('title', { ns: namespace })).toBe('Hello');
 });
+
+test('accepts one level of optional navigation groups', () => {
+  const definition = {
+    service: 'hello',
+    english: { more: 'More' },
+    routes: [],
+    nav: [
+      { path: '', labelKey: 'overview' },
+      { path: 'settings', labelKey: 'settings', groupLabelKey: 'more' },
+      { path: 'reports', labelKey: 'reports', groupLabelKey: 'more' },
+    ],
+  };
+  expect(definePlugin(definition)).toBe(definition);
+});
+
+test.each(['', '   ', 0, null])('rejects an invalid navigation group key %s', (groupLabelKey) => {
+  const definition = {
+    service: 'hello',
+    english: {},
+    routes: [],
+    nav: [{ path: 'settings', labelKey: 'settings', groupLabelKey }],
+  };
+  const raw = JSON.stringify(definition);
+  expect(() => definePlugin(JSON.parse(raw))).toThrow('group');
+});

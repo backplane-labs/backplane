@@ -6,7 +6,7 @@ import { grafanaAssets } from './index.js';
 
 export interface ModuleBuildOptions {
   service: string;
-  nav: Array<{ path: string; labelKey: string }>;
+  nav: readonly { path: string; labelKey: string; groupLabelKey?: string }[];
   embedded?: boolean;
 }
 
