@@ -89,7 +89,7 @@ func TestMaxDeliverAndRedelivery(t *testing.T) {
 	durable := broker.Durable(sub, consumer)
 	startReactors(t, jet, recv, src, durable)
 
-	if cfg := consumerConfig(t, jet, src, durable); cfg.MaxDeliver != 2+broker.StopDeliveries {
+	if cfg := consumerConfig(t, jet, src, durable); cfg.MaxDeliver != -1 {
 		t.Fatalf("consumer max_deliver %d", cfg.MaxDeliver)
 	}
 
@@ -220,7 +220,7 @@ func TestTimeoutCancelsHandler(t *testing.T) {
 	durable := broker.Durable(sub, consumer)
 	startReactors(t, jet, recv, src, durable)
 
-	if cfg := consumerConfig(t, jet, src, durable); cfg.AckWait != timeout+15*time.Second || cfg.MaxDeliver != 1+broker.StopDeliveries {
+	if cfg := consumerConfig(t, jet, src, durable); cfg.AckWait != timeout+15*time.Second || cfg.MaxDeliver != -1 {
 		t.Fatalf("consumer ack_wait %v max_deliver %d", cfg.AckWait, cfg.MaxDeliver)
 	}
 

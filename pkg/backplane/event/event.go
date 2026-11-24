@@ -424,8 +424,9 @@ type maxDeliver int
 
 func (m maxDeliver) applyReact(r *reactSettings) { r.delivery.MaxDeliver = int(m) }
 
-// MaxDeliver bounds the deliveries of one message, the first included;
-// after the n-th failure it is dead-lettered. MaxDeliver(1) never retries.
+// MaxDeliver starts dead-lettering on a failed delivery at or above n.
+// MaxDeliver(1) starts dead-lettering after the first failure. JetStream
+// still redelivers an interrupted delivery or an unconfirmed DLQ publish.
 // It panics unless n >= 1.
 func MaxDeliver(n int) ReactOption {
 	if n < 1 {

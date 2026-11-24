@@ -31,12 +31,6 @@ const (
 	// ackMargin: the server redelivers an unacknowledged message only after
 	// the handler timeout has surely passed.
 	ackMargin = 15 * time.Second
-	// stopDeliveries: the consumer's max_deliver is the reactor's plus
-	// these. A delivery the service's stop interrupted is nacked and
-	// counts on the server, but the SDK dead-letters only after a failed
-	// last delivery; without the spare deliveries a message interrupted on
-	// its last one would never come back.
-	stopDeliveries = 5
 	// where of backplane.panics.
 	panicWhere = "reactor"
 )
@@ -459,7 +453,7 @@ func (b *Broker) startAt(
 	return cfg, nil
 }
 
-// consumerConfig: explicit acks and bounded deliveries. The consumer
+// consumerConfig: explicit acks. The consumer
 // filters on its event's subject and on its redrive subject, where
 // backplane publishes the reactor's dead letters back to it alone (§8,
 // Redrive from the console). A failed handler
@@ -467,8 +461,9 @@ func (b *Broker) startAt(
 // see handle); a message never acknowledged (the process died) comes back
 // after AckWait. The consumer's own BackOff is not used: the server measures
 // a NAK delay against AckWait, so with BackOff the delays would drift. The
-// SDK decides the dead letter; the server's MaxDeliver leaves room for
-// deliveries a stop interrupted (stopDeliveries). An ordered reactor has
+// SDK decides when to dead-letter, and JetStream must keep redelivering if
+// dead-letter publication fails or shutdown interrupts the last attempt.
+// An ordered reactor has
 // one message in flight across all instances (MaxAckPending 1).
 func (b *Broker) consumerConfig(re reactor) jetstream.ConsumerConfig {
 	pending := 0 // the server's default
@@ -483,7 +478,7 @@ func (b *Broker) consumerConfig(re reactor) jetstream.ConsumerConfig {
 		DeliverPolicy:     jetstream.DeliverNewPolicy,
 		AckPolicy:         jetstream.AckExplicitPolicy,
 		AckWait:           re.delivery.timeout + ackMargin,
-		MaxDeliver:        re.delivery.maxDeliver + stopDeliveries,
+		MaxDeliver:        -1,
 		MaxAckPending:     pending,
 		InactiveThreshold: re.delivery.inactive,
 		Metadata: map[string]string{
@@ -566,9 +561,12 @@ func (b *Broker) dispatch(re reactor, sem chan struct{}, msg jetstream.Msg) {
 // cancelled the handler.
 func (b *Broker) handle(work context.Context, re reactor, msg jetstream.Msg) {
 	delivered, seq := uint64(1), uint64(0)
+
+	var pending *pendingDeadLetter
+
 	if md, err := msg.Metadata(); err == nil {
 		delivered, seq = md.NumDelivered, md.Sequence.Stream
-		re.pos.delivered(seq)
+		pending = re.pos.delivered(seq)
 	}
 
 	if delivered > 1 {
@@ -576,7 +574,14 @@ func (b *Broker) handle(work context.Context, re reactor, msg jetstream.Msg) {
 	}
 
 	ctx := otel.GetTextMapPropagator().Extract(work, carrier(msg.Headers()))
+
 	start := time.Now()
+	if pending != nil {
+		b.settleDeadLetter(ctx, re, msg, seq, delivered, *pending, start)
+
+		return
+	}
+
 	err := b.invoke(ctx, re, msg.Subject(), msg.Data(), msg.Headers(), delivered)
 	took := time.Since(start)
 
@@ -605,9 +610,7 @@ func (b *Broker) handle(work context.Context, re reactor, msg jetstream.Msg) {
 			log.Warn(ctx, "reactor nak", re.fields(xlog.Err(err))...)
 		}
 	case errors.As(err, &terminal):
-		metrics.ReactorHandled(ctx, re.consumer, metrics.Terminal, took)
-		b.deadLetter(ctx, re, msg, err, delivered)
-		re.pos.settled(seq)
+		b.finishDeadLetter(ctx, re, msg, seq, delivered, pendingDeadLetter{cause: err, outcome: metrics.Terminal}, start)
 	case delivered < uint64(re.delivery.maxDeliver): //nolint:gosec // positive
 		metrics.ReactorHandled(ctx, re.consumer, metrics.Nak, took)
 		log.Warn(ctx, "reactor failed, redelivering", re.fields(xlog.Err(err), xlog.Uint64("delivered", delivered))...)
@@ -616,10 +619,34 @@ func (b *Broker) handle(work context.Context, re reactor, msg jetstream.Msg) {
 			log.Warn(ctx, "reactor nak", re.fields(xlog.Err(err))...)
 		}
 	default:
-		metrics.ReactorHandled(ctx, re.consumer, metrics.Dead, took)
-		b.deadLetter(ctx, re, msg, err, delivered)
-		re.pos.settled(seq)
+		b.finishDeadLetter(ctx, re, msg, seq, delivered, pendingDeadLetter{cause: err, outcome: metrics.Dead}, start)
 	}
+}
+
+type pendingDeadLetter struct {
+	cause   error
+	outcome string
+}
+
+func (b *Broker) finishDeadLetter(
+	ctx context.Context, re reactor, msg jetstream.Msg, seq, delivered uint64, pending pendingDeadLetter, start time.Time,
+) {
+	re.pos.deadLetter(seq, pending)
+	b.settleDeadLetter(ctx, re, msg, seq, delivered, pending, start)
+}
+
+func (b *Broker) settleDeadLetter(
+	ctx context.Context, re reactor, msg jetstream.Msg, seq, delivered uint64, pending pendingDeadLetter, start time.Time,
+) {
+	outcome := metrics.Nak
+
+	if b.deadLetter(ctx, re, msg, pending.cause, delivered) {
+		re.pos.settled(seq)
+
+		outcome = pending.outcome
+	}
+
+	metrics.ReactorHandled(ctx, re.consumer, outcome, time.Since(start))
 }
 
 // invoke runs the reactor's handler on one event: in a consumer span, with
@@ -651,9 +678,9 @@ func (b *Broker) invoke(
 		))
 }
 
-// deadLetter publishes the message to the reactor's dead-letter subject and
-// terminates it. It publishes even when the stop cancelled ctx.
-func (b *Broker) deadLetter(ctx context.Context, re reactor, msg jetstream.Msg, cause error, n uint64) {
+// deadLetter terminates the source only after JetStream acknowledges the new
+// record. It publishes even when shutdown cancelled ctx.
+func (b *Broker) deadLetter(ctx context.Context, re reactor, msg jetstream.Msg, cause error, n uint64) bool {
 	id := re.durable + ":" + msg.Subject()
 	if md, err := msg.Metadata(); err == nil {
 		id = re.durable + ":" + md.Stream + ":" + strconv.FormatUint(md.Sequence.Stream, 10)
@@ -674,18 +701,26 @@ func (b *Broker) deadLetter(ctx context.Context, re reactor, msg jetstream.Msg, 
 	log := b.log.Ctx()
 
 	if err != nil {
-		// The server will not deliver it again: the event stays in its
-		// stream only.
-		log.Error(ctx, "reactor gave up, dead letter not published", re.fields(
-			xlog.Err(err), xlog.String("cause", cause.Error()), xlog.String("dead_letter", id), xlog.Uint64("delivered", n))...)
-	} else {
-		log.Error(ctx, "reactor gave up, dead-lettered", re.fields(
-			xlog.Err(cause), xlog.String("subject", re.dead), xlog.Uint64("delivered", n))...)
+		log.Warn(ctx, "dead letter not confirmed, redelivering", re.fields(
+			xlog.Err(err), xlog.String("dead_letter", id), xlog.Uint64("delivered", n))...)
+
+		if err := msg.NakWithDelay(nakDelay(re.delivery.nak, n)); err != nil {
+			log.Warn(ctx, "reactor nak", re.fields(xlog.Err(err))...)
+		}
+
+		return false
 	}
 
 	if err := msg.TermWithReason("dead-lettered"); err != nil {
 		log.Warn(ctx, "reactor term", re.fields(xlog.Err(err))...)
+
+		return false
 	}
+
+	log.Error(ctx, "reactor gave up, dead-lettered", re.fields(
+		xlog.Err(cause), xlog.String("subject", re.dead), xlog.Uint64("delivered", n))...)
+
+	return true
 }
 
 // call runs h; a panic is an error, counted in backplane.panics.

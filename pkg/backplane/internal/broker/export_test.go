@@ -92,6 +92,3 @@ func Incoming(h nats.Header, consumer string, attempt uint64) env.Incoming {
 
 // PublishTimeout is the bound of a Publish without a deadline.
 func (b *Broker) PublishTimeout() time.Duration { return b.t.publishTimeout }
-
-// StopDeliveries exposes stopDeliveries.
-const StopDeliveries = stopDeliveries

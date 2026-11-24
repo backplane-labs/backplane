@@ -70,6 +70,13 @@ Delivery can repeat. Persist a processed-event identity together with the busine
 
 Return `event.Terminal(err)` when retries cannot fix the event, such as missing required domain data. Transient failures follow the configured delivery policy. Exhausted/terminal work can be inspected through the dead-letter API and redriven intentionally after correcting the cause.
 
+The SDK terminates the source delivery only after JetStream acknowledges the
+DLQ publish. Until then it requests redelivery with backoff, with no server
+attempt ceiling. A redelivery to the same running subscriber retries the DLQ
+publish without calling the handler again. Another replica or a restarted
+subscriber can run the handler again under the at-least-once contract. The
+original stream's retention still bounds how long the source record exists.
+
 `StartNew` starts with new events; it is not historical replay. Choose consumer start policy before production use and preserve the durable identity during rollout.
 
 ## Reactors versus rules

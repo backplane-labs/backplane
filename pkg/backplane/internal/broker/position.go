@@ -13,13 +13,13 @@ import (
 // which one it is in (its creation time).
 type position struct {
 	mu     sync.Mutex
-	stream time.Time           // creation of the stream the sequences are in
-	base   uint64              // ack floor of the consumer when consumption started
-	high   uint64              // newest stream sequence delivered
-	open   map[uint64]struct{} // delivered, not yet acked or terminated
+	stream time.Time                     // creation of the stream the sequences are in
+	base   uint64                        // ack floor of the consumer when consumption started
+	high   uint64                        // newest stream sequence delivered
+	open   map[uint64]*pendingDeadLetter // delivered, not settled; nil until dead-lettering
 }
 
-func newPosition() *position { return &position{open: map[uint64]struct{}{}} }
+func newPosition() *position { return &position{open: map[uint64]*pendingDeadLetter{}} }
 
 // started records the consumer's ack floor at the start of a consumption
 // in the stream created at stream; a different stream starts the position
@@ -29,7 +29,7 @@ func (p *position) started(floor uint64, stream time.Time) {
 	defer p.mu.Unlock()
 
 	if !p.stream.Equal(stream) {
-		p.stream, p.base, p.high, p.open = stream, 0, 0, map[uint64]struct{}{}
+		p.stream, p.base, p.high, p.open = stream, 0, 0, map[uint64]*pendingDeadLetter{}
 	}
 
 	p.base = max(p.base, floor)
@@ -44,13 +44,32 @@ func (p *position) in(stream time.Time) bool {
 	return p.stream.IsZero() || p.stream.Equal(stream)
 }
 
-// delivered records a delivery of stream sequence seq.
-func (p *position) delivered(seq uint64) {
+// delivered records an unsettled sequence and returns its pending dead letter.
+func (p *position) delivered(seq uint64) *pendingDeadLetter {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.open[seq] = struct{}{}
+	pending, known := p.open[seq]
+	if !known {
+		p.open[seq] = nil
+	}
+
 	p.high = max(p.high, seq)
+
+	return pending
+}
+
+// deadLetter keeps the refusal while JetStream is retrying delivery to this
+// instance. Other replicas can reprocess it under the at-least-once contract.
+func (p *position) deadLetter(seq uint64, pending pendingDeadLetter) {
+	if seq == 0 {
+		return
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.open[seq] = &pending
 }
 
 // settled records that seq was acked or terminated.

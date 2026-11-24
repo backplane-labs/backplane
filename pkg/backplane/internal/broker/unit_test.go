@@ -239,7 +239,7 @@ func TestReactorSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if def.Consumer.MaxDeliver != 5+broker.StopDeliveries || def.Consumer.MaxAckPending != 0 || def.Consumer.AckWait != 45*time.Second || def.Concurrency != 4 ||
+	if def.Consumer.MaxDeliver != -1 || def.Consumer.MaxAckPending != 0 || def.Consumer.AckWait != 45*time.Second || def.Concurrency != 4 ||
 		def.Timeout != 30*time.Second || def.Nak != (backoff.Policy{Min: time.Second, Max: time.Minute}) ||
 		def.StartAll || def.Consumer.DeliverPolicy != jetstream.DeliverNewPolicy {
 		t.Fatalf("defaults: %+v", def)
@@ -260,7 +260,7 @@ func TestReactorSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got.Consumer.MaxDeliver != 2+broker.StopDeliveries || got.Consumer.AckWait != 16*time.Second || got.Concurrency != 1 ||
+	if got.Consumer.MaxDeliver != -1 || got.Consumer.AckWait != 16*time.Second || got.Concurrency != 1 ||
 		got.Timeout != time.Second || got.Nak != (backoff.Policy{Min: time.Millisecond, Max: 10 * time.Millisecond}) ||
 		!got.StartAll {
 		t.Fatalf("declared: %+v", got)
