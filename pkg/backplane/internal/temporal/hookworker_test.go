@@ -237,12 +237,12 @@ func TestCallMemoAndAttributes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d, err := tc.DescribeWorkflowExecution(ctx, temporal.HookWorkflowID(svc, "Greet", "m1"), "")
+	d, err := tc.DescribeWorkflow(ctx, temporal.HookWorkflowID(svc, "Greet", "m1"), "")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	info := d.GetWorkflowExecutionInfo()
+	info := d.RawResponse.GetWorkflowExecutionInfo()
 
 	var source string
 	if err := converter.GetDefaultDataConverter().FromPayload(info.GetMemo().GetFields()[temporal.MemoSource], &source); err != nil ||

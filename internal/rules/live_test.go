@@ -310,7 +310,7 @@ func TestRulesLive(t *testing.T) {
 		}
 	}
 
-	if _, err := c.DescribeWorkflowExecution(ctx, run("e2"), ""); err == nil {
+	if _, err := c.DescribeWorkflow(ctx, run("e2"), ""); err == nil {
 		t.Fatal("a non-matching event started a run")
 	}
 

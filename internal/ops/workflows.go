@@ -479,12 +479,13 @@ func (a WorkflowAPI) GetRun(ctx context.Context, req *consolev1.GetRunRequest) (
 		return nil, a.o.status(ctx, err)
 	}
 
-	desc, err := c.DescribeWorkflowExecution(ctx, req.GetWorkflowId(), req.GetRunId())
-	if err == nil {
-		err = a.o.decode(ctx, desc)
+	description, err := c.DescribeWorkflow(ctx, req.GetWorkflowId(), req.GetRunId())
+	if err != nil {
+		return nil, a.o.status(ctx, err)
 	}
 
-	if err != nil {
+	desc := description.RawResponse
+	if err := a.o.decode(ctx, desc); err != nil {
 		return nil, a.o.status(ctx, err)
 	}
 
@@ -775,12 +776,12 @@ func (o *Ops) RunQueue(ctx context.Context, workflowID, runID string) (string, e
 		return "", err
 	}
 
-	desc, err := c.DescribeWorkflowExecution(ctx, workflowID, runID)
+	desc, err := c.DescribeWorkflow(ctx, workflowID, runID)
 	if err != nil {
 		return "", fmt.Errorf("describe %s: %w", workflowID, err)
 	}
 
-	return desc.GetWorkflowExecutionInfo().GetTaskQueue(), nil
+	return desc.TaskQueueName, nil
 }
 
 // CancelRun implements WorkflowService.

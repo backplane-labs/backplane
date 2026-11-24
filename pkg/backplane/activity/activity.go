@@ -75,6 +75,15 @@ func positive(d time.Duration) *durationpb.Duration {
 	return durationpb.New(d)
 }
 
+// GuardInputs installs one service-wide guard before Run. It sees read-only JSON
+// before Handle and workflows.HandleActivity decode it, and may be called
+// concurrently. A refusal is handled like a handler error. After acceptance,
+// protobuf JSON is decoded strictly; without a guard it remains lenient.
+func GuardInputs(scope deps.Scope, guard func(context.Context, string, []byte) error) {
+	e, _ := decl.Env(scope, "activity input guard")
+	e.SetActivityInputGuard(guard)
+}
+
 // Handle declares an activity and its implementation. name is CamelCase
 // ([A-Z][A-Za-z0-9]*), anything else panics. fn's ctx carries InfoOf.
 func Handle[Req, Res any](
@@ -83,8 +92,8 @@ func Handle[Req, Res any](
 	e := decl.Activity[Req, Res](scope, name, backplanev1.ActivityKind_ACTIVITY_KIND_ACTIVITY, opts)
 	e.Activity(name, func(ctx context.Context, in []byte) ([]byte, error) {
 		var req Req
-		if err := decl.Decode(in, &req); err != nil {
-			return nil, env.NonRetryableError{Err: fmt.Errorf("activity %s: decode: %w", name, err)}
+		if err := decl.DecodeActivity(ctx, e, name, in, &req); err != nil {
+			return nil, fmt.Errorf("activity %s: %w", name, err)
 		}
 
 		res, err := fn(ctx, req)

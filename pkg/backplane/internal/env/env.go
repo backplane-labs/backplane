@@ -87,15 +87,17 @@ type Env struct {
 	Service  string
 	Manifest *manifest.Builder
 
-	mu         sync.RWMutex
-	broker     Broker
-	caller     Caller
-	activities map[string]Handler
-	own        map[string]Handler // activities only the service's workflows run
-	reactors   []Reactor
-	registers  []func(registry any)
-	workflows  func() (any, error)
-	codec      any // infra/temporal Codec of workflow payloads
+	mu            sync.RWMutex
+	broker        Broker
+	caller        Caller
+	activities    map[string]Handler
+	own           map[string]Handler // activities only the service's workflows run
+	reactors      []Reactor
+	registers     []func(registry any)
+	workflows     func() (any, error)
+	codec         any // infra/temporal Codec of workflow payloads
+	activityGuard ActivityInputGuard
+	workerGuard   any
 
 	hookTimeout time.Duration // platform default of a hook call
 

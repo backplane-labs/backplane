@@ -9,7 +9,6 @@ import (
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
-	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/temporal"
 )
 
@@ -45,8 +44,8 @@ func HandleActivity[Req, Res any](
 
 	e.OwnActivity(name, func(ctx context.Context, in []byte) ([]byte, error) {
 		var req Req
-		if err := decl.Decode(in, &req); err != nil {
-			return nil, env.NonRetryableError{Err: fmt.Errorf("activity %s: decode: %w", name, err)}
+		if err := decl.DecodeActivity(ctx, e, name, in, &req); err != nil {
+			return nil, fmt.Errorf("activity %s: %w", name, err)
 		}
 
 		res, err := fn(ctx, req)

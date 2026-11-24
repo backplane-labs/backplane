@@ -87,7 +87,12 @@ func (c *Client) keep(ctx context.Context, what string, start func(onFatal func(
 // startWorker makes one attempt; a worker whose start failed is discarded.
 func (c *Client) startWorker(onFatal func(error)) error {
 	c.mu.Lock()
+
 	conn, done := c.client, c.closed || c.stopped
+	if c.guardedClient != nil {
+		conn = c.guardedClient
+	}
+
 	c.mu.Unlock()
 
 	if done || conn == nil {
@@ -269,7 +274,7 @@ func activityError(full string, err error) error {
 
 	switch {
 	case errors.As(err, &app):
-		return err
+		return app
 	case errors.As(err, &marked):
 		return final(full+": "+err.Error(), NonRetryableType)
 	case errors.As(err, &later):

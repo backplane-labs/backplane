@@ -33,6 +33,34 @@ The name shares the service queue's activity names with `activity.Handle`;
 one taken twice panics at declaration. `workflowtest.New` registers these
 activities too.
 
+## Reject newer payloads during rolling updates
+
+Declare optional guards once per service, before `Run`:
+
+```go
+activity.GuardInputs(root, checkActivityJSON)     // func(context.Context, string, []byte) error
+workflows.GuardWorkerPayloads(root, checkPayloads) // func([]*commonpb.Payload) error
+```
+
+`GuardInputs` receives the activity name and read-only JSON before either
+`activity.Handle` or `workflows.HandleActivity` decodes it. Return the same
+errors as from an activity implementation (`activity.NonRetryable`,
+`activity.RetryAfter`, or Temporal's `ApplicationError`). A refusal never
+invokes the handler. Accepted protobuf inputs use strict `protojson`
+decoding; a decode failure is final. Numeric enum values still need the
+service's own compatibility check. Without opt-in, decoding stays lenient.
+Wire encoding, per-attempt deadlines and retry policies are unchanged.
+
+`GuardWorkerPayloads` checks read-only Temporal payloads after decryption
+and before the main worker's usual decoder. It does not change encoding,
+the normal client, or the hook worker. Both guards must be safe to call
+concurrently. Treat the payload guard as a deterministic check against the
+worker's own build: no external calls or mutable state, and pass through
+payload types the service does not own. A refusal on a supported workflow
+decode path fails only the current Workflow Task, not the run. Temporal's
+signal, update argument, query and memo paths do not get task-only retry
+semantics. A retry does not guarantee a different poller.
+
 ## Calls between services of one product
 
 Services of one product are released together, so they may call each other

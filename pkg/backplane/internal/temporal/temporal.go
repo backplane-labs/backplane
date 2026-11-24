@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/operatorservice/v1"
 	"go.temporal.io/sdk/client"
@@ -93,15 +94,16 @@ type Client struct {
 	retry  backoff.Policy // between connection and worker start attempts
 	health time.Duration  // between connection checks
 
-	mu      sync.Mutex
-	client  client.Client // nil until connected
-	lastErr error         // of the last failed dial
-	closed  bool
-	worker  worker.Worker // nil until started
-	stopped bool          // StopWorker ran: a late start is undone
-	hooks   worker.Worker // the hooks worker, nil until started
-	unhook  bool          // StopHookWorker ran
-	ready   chan struct{} // closed once client is set
+	mu            sync.Mutex
+	client        client.Client // nil until connected
+	guardedClient client.Client // optional separate worker converter
+	lastErr       error         // of the last failed dial
+	closed        bool
+	worker        worker.Worker // nil until started
+	stopped       bool          // StopWorker ran: a late start is undone
+	hooks         worker.Worker // the hooks worker, nil until started
+	unhook        bool          // StopHookWorker ran
+	ready         chan struct{} // closed once client is set
 
 	connected atomic.Bool
 	endpoint  atomic.Bool  // the service's Nexus endpoint was seen
@@ -177,9 +179,27 @@ func (c *Client) Connect(ctx context.Context, g node.Group) error {
 	return nil
 }
 
+var errWorkerGuard = errors.New("temporal: invalid worker payload guard")
+
 // dial makes one connection attempt.
 func (c *Client) dial(ctx context.Context, opts client.Options) error {
 	conn, err := inftemporal.Dial(ctx, c.p.Conn, opts)
+
+	var guarded client.Client
+
+	if err == nil && c.p.Env != nil {
+		switch guard := c.p.Env.WorkerPayloadGuard().(type) {
+		case nil:
+		case func([]*commonpb.Payload) error:
+			guarded, err = c.workerClient(ctx, conn, opts, guard)
+		default:
+			err = errWorkerGuard
+		}
+
+		if err != nil {
+			conn.Close()
+		}
+	}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -188,13 +208,17 @@ func (c *Client) dial(ctx context.Context, opts client.Options) error {
 	case err != nil:
 		c.lastErr = err
 
-		return err //nolint:wrapcheck // Dial names temporal and the address
+		return err
 	case c.closed:
+		if guarded != nil {
+			guarded.Close()
+		}
+
 		conn.Close()
 
 		return nil
 	default:
-		c.client, c.lastErr = conn, nil
+		c.client, c.guardedClient, c.lastErr = conn, guarded, nil
 		close(c.ready)
 		c.setConnected(ctx, true)
 
@@ -242,6 +266,10 @@ func (c *Client) Close(ctx context.Context) error {
 	defer c.mu.Unlock()
 
 	c.closed = true
+	if c.guardedClient != nil {
+		c.guardedClient.Close()
+	}
+
 	if c.client != nil {
 		c.client.Close()
 	}

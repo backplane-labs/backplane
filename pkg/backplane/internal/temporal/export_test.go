@@ -30,3 +30,6 @@ func (c *Client) Options() (client.Options, error) { return c.options() }
 
 // DialTimeout is the bound of one connection attempt.
 func (c *Client) DialTimeout() time.Duration { return c.p.Conn.DialTimeout }
+
+// ActivityError exposes the error passed to Temporal by an activity wrapper.
+func ActivityError(name string, err error) error { return activityError(name, err) }

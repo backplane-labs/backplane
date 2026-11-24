@@ -3,9 +3,12 @@ package temporal_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	sdktemporal "go.temporal.io/sdk/temporal"
 
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/temporal"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
@@ -69,5 +72,19 @@ func TestKeepRestartsAFatalWorker(t *testing.T) {
 
 	if n := starts.Load(); n != 3 {
 		t.Fatalf("starts after cancel: %d", n)
+	}
+}
+
+func TestWrappedActivityFailure(t *testing.T) {
+	t.Parallel()
+
+	const kind = "future-input"
+
+	refusal := sdktemporal.NewApplicationErrorWithOptions("unsupported input", kind,
+		sdktemporal.ApplicationErrorOptions{NextRetryDelay: 2 * time.Second})
+	err := temporal.ActivityError("test.Inspect", fmt.Errorf("input guard: %w", refusal))
+	failure := sdktemporal.GetDefaultFailureConverter().ErrorToFailure(err).GetApplicationFailureInfo()
+	if failure.GetType() != kind || failure.GetNonRetryable() || failure.GetNextRetryDelay().AsDuration() != 2*time.Second {
+		t.Fatalf("failure: %v", failure)
 	}
 }
