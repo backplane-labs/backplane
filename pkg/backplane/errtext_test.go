@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -136,14 +137,17 @@ func TestRootsRenderErrors(t *testing.T) {
 	}
 
 	exported.mu.Lock()
-	for _, text := range exported.text {
+	texts := slices.Clone(exported.text)
+	exported.mu.Unlock()
+
+	for _, text := range texts {
 		if secret(text) {
 			leaked = append(leaked, "log: "+text)
 		}
 	}
-	exported.mu.Unlock()
 
-	for _, s := range spans.Ended() {
+	ended := spans.Ended()
+	for _, s := range ended {
 		if secret(s.Status().Description) {
 			leaked = append(leaked, "span status: "+s.Status().Description)
 		}
@@ -161,8 +165,8 @@ func TestRootsRenderErrors(t *testing.T) {
 		t.Fatalf("secrets left the service:\n%s", strings.Join(leaked, "\n"))
 	}
 
-	if len(exported.text) == 0 || len(spans.Ended()) == 0 {
-		t.Fatalf("nothing exported: %d records, %d spans", len(exported.text), len(spans.Ended()))
+	if len(texts) == 0 || len(ended) == 0 {
+		t.Fatalf("nothing exported: %d records, %d spans", len(texts), len(ended))
 	}
 }
 
