@@ -8,6 +8,8 @@ import { create, toBinary } from '@bufbuild/protobuf';
 import { FakeSocket, Kind } from '@gopherex/ws-proto-transport';
 import { afterEach, expect, test, vi } from 'vitest';
 import { BackplaneClient, type ObservableSocket, SessionHttpError } from '../packages/client/src/index';
+import { GetStatsRequestSchema } from '../templates/module/src/gen/proto/hello/console/v1/admin_pb';
+import { AdminServiceClient } from '../templates/module/src/gen/proto/hello/console/v1/admin_ws_pb';
 
 class Socket extends FakeSocket implements ObservableSocket {
   private events = new Map<string, Array<() => void>>();
@@ -130,6 +132,38 @@ test('dropped calls fail once and are not replayed after reconnect', async () =>
   sockets[1].inject({ streamId: open.streamId, kind: Kind.KIND_END });
   await expect(next).resolves.toMatchObject({ services: [] });
   expect(client.getSnapshot().connectionId).toBe(2);
+});
+
+test('loaded bundles keep their own affinity on the shared socket without changing platform calls', async () => {
+  const { client, sockets } = setup();
+  await client.start();
+  const [socket] = sockets;
+  socket.open();
+  const old = client.forBundle('hello', 'old');
+  const next = client.forBundle('hello', 'next');
+  const headers = { 'x-purpose': 'test' };
+  for (const [runtime, name, expected] of [
+    [old, 'module', 'hello/old'],
+    [next, 'module', 'hello/next'],
+    [client, 'module', undefined],
+    [old, 'platform', undefined],
+    [old, 'module', 'hello/old'],
+  ] as const) {
+    socket.sent.length = 0;
+    const pending =
+      name === 'module'
+        ? runtime.client(AdminServiceClient).getStats(create(GetStatsRequestSchema), { headers })
+        : runtime.client(CatalogServiceClient).listServices(create(ListServicesRequestSchema), { headers });
+    const open = socket.sent.find((frame) => frame.kind === Kind.KIND_OPEN);
+    if (!open) throw new Error('Expected an open frame');
+    expect(open.headers['x-backplane-ui-bundle']).toBe(expected);
+    expect(open.headers['x-purpose']).toBe('test');
+    socket.inject({ streamId: open.streamId, kind: Kind.KIND_MSG, payload: new Uint8Array() });
+    socket.inject({ streamId: open.streamId, kind: Kind.KIND_END });
+    await pending;
+  }
+  expect(headers).toEqual({ 'x-purpose': 'test' });
+  expect(sockets).toHaveLength(1);
 });
 
 test('failed logout does not falsely report that the server session was revoked', async () => {

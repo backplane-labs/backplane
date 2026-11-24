@@ -18,10 +18,12 @@ import (
 	"time"
 
 	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	helloconsolev1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1"
 	"github.com/backplane-labs/backplane/internal/console"
 	"github.com/backplane-labs/backplane/internal/otlp"
 	platformapi "github.com/backplane-labs/backplane/internal/platform"
@@ -67,9 +69,18 @@ func TestBrowserConsole(t *testing.T) {
 	var bundleRequests atomic.Int64
 
 	files := http.StripPrefix("/_backplane/ui/", http.FileServer(http.Dir(filepath.Join(web, "templates", "module", "dist", "plugin"))))
-	module := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	rpc := grpc.NewServer()
+	helloconsolev1.RegisterAdminServiceServer(rpc, &admin{})
+	t.Cleanup(rpc.Stop)
+
+	module := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get(console.SecretHTTPHeader) != "relay-secret" {
 			http.Error(w, "internal secret required", http.StatusForbidden)
+			return
+		}
+
+		if r.ProtoMajor == 2 && strings.HasPrefix(r.Header.Get("Content-Type"), "application/grpc") {
+			rpc.ServeHTTP(w, r)
 			return
 		}
 
@@ -77,11 +88,15 @@ func TestBrowserConsole(t *testing.T) {
 		w.Header().Set("ETag", `"fixture-v1"`)
 		files.ServeHTTP(w, r)
 	}))
+	module.Config.Protocols = new(http.Protocols)
+	module.Config.Protocols.SetHTTP1(true)
+	module.Config.Protocols.SetUnencryptedHTTP2(true)
+	module.Start()
 	t.Cleanup(module.Close)
 	_, portText, _ := net.SplitHostPort(module.Listener.Addr().String())
 	port, _ := strconv.Atoi(portText)
 	hub := registry.NewHub()
-	m := manifest("hello", "1.0.0")
+	m := manifest("hello", "1.0.0", "hello.console.v1.AdminService")
 	m.Ui = &backplanev1.UI{Hash: "fixture-v1", SdkMajor: 0}
 	hub.Publish(map[string]registry.Service{
 		"hello":             {Name: "hello", Manifests: map[string]*backplanev1.Manifest{"1.0.0": m}, Instances: []registry.Instance{instance("hello-1", "1.0.0", "127.0.0.1", port, serving, true)}},

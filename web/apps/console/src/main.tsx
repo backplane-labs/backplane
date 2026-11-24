@@ -73,7 +73,7 @@ function Host() {
   return (
     <ThemeContext.Provider value={createGrafanaTheme(mode)}>
       <Suspense fallback={<p role="status">{t('loading')}</p>}>
-        <Console key={connection.session.id} mode={mode} onThemeChange={setMode} onLogout={() => runtime.logout()} />
+        <Console key={connection.session.id} mode={mode} onThemeChange={setMode} client={runtime} />
       </Suspense>
       {/* One toast region for the shell and every plugin: the ui kit (and its toast store) is shared. */}
       <Toaster theme={mode} position="bottom-right" />

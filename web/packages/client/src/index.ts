@@ -134,10 +134,7 @@ export class BackplaneClient {
   private readonly socketFactory: NonNullable<ClientOptions['createSocket']>;
   private transport?: WsTransport;
   /** Generated clients run over this paused transport; its interceptor sends every call over the current session's one. */
-  private readonly forwarding = new WsTransport('wss://forwarding.invalid/', {
-    paused: true,
-    interceptors: [() => (request) => this.forward(request)],
-  });
+  private readonly forwarding = this.forwarder();
   private epoch = 0;
   private controller = new AbortController();
   private refreshInFlight?: Promise<void>;
@@ -332,12 +329,33 @@ export class BackplaneClient {
     return new clientConstructor(this.forwarding);
   }
 
-  private forward(request: AnyRequest): Promise<AnyResponse> {
+  /** Calls from this loaded module use its bundle as a replica preference, never as authorization. */
+  forBundle(service: string, hash: string): ClientRuntime {
+    const forwarding = this.forwarder(`${service}/${hash}`);
+    return {
+      getSnapshot: this.getSnapshot,
+      subscribe: this.subscribe,
+      client: (clientConstructor) => new clientConstructor(forwarding),
+    };
+  }
+
+  private forwarder(bundle?: string): WsTransport {
+    return new WsTransport('wss://forwarding.invalid/', {
+      paused: true,
+      interceptors: [() => (request) => this.forward(request, bundle)],
+    });
+  }
+
+  private forward(request: AnyRequest, bundle?: string): Promise<AnyResponse> {
     this.assertActive();
     const current = this.transport;
     if (!current || this.state.connection !== 'connected')
       return Promise.reject(new WsStatusError(CODE_UNAVAILABLE, 'Console is not connected'));
-    const call = { headers: request.header, signal: request.signal, timeoutMs: request.timeoutMs };
+    const headers =
+      bundle && !request.method.typeName.startsWith('backplane.')
+        ? { ...request.header, 'x-backplane-ui-bundle': bundle }
+        : request.header;
+    const call = { headers, signal: request.signal, timeoutMs: request.timeoutMs };
     return request.stream
       ? current.stream(request.method, request.message, call)
       : current.unary(request.method, request.message, call);

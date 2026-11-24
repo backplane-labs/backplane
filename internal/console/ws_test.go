@@ -546,6 +546,68 @@ func TestConsoleKeepsAvailableVersionDuringRollout(t *testing.T) {
 	}
 }
 
+// Two versions export the same internal RPC. Each call observes its own bundle hint.
+func TestRelayBundleAffinity(t *testing.T) {
+	t.Parallel()
+	const apiName = "hello.console.v1.AdminService"
+	for _, tc := range []struct {
+		name, hint                  string
+		oldPhase                    backplanev1.InstancePhase
+		oldHealthy, oldAPI, wantOld bool
+	}{
+		{"old module", "hello/old", serving, false, true, true},
+		{"both ready old", "hello/old", serving, true, true, true},
+		{"both ready new", "hello/new", serving, true, true, false},
+		{"stopping match", "hello/old", backplanev1.InstancePhase_INSTANCE_PHASE_STOPPING, true, true, false},
+		{"api missing on matching version", "hello/old", serving, false, false, false},
+		{"unknown hash", "hello/gone", serving, false, true, false},
+		{"different module", "another/old", serving, false, true, false},
+		{"no hint", "", serving, false, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			oldServer, oldPort := platform(t)
+			newServer, newPort := platform(t)
+			e := newEnv(t, nil)
+			old := manifest("hello", "1.0.0")
+			if tc.oldAPI {
+				old.InternalServices = []string{apiName}
+			}
+			old.Ui = &backplanev1.UI{Hash: "old"}
+			next := manifest("hello", "2.0.0", apiName)
+			next.Ui = &backplanev1.UI{Hash: "new"}
+			e.hub.Publish(map[string]registry.Service{"hello": {Name: "hello", Manifests: map[string]*backplanev1.Manifest{"1.0.0": old, "2.0.0": next}, Instances: []registry.Instance{instance("old", "1.0.0", "127.0.0.1", oldPort, tc.oldPhase, tc.oldHealthy), instance("new", "2.0.0", "127.0.0.1", newPort, serving, true)}}})
+			cc := e.mustDial(e.mustLogin())
+			hdr := map[string]string{}
+			if tc.hint != "" {
+				hdr["x-backplane-ui-bundle"] = tc.hint
+			}
+			stream, err := cc.NewStream(t.Context(), "/"+apiName+"/GetStats", hdr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = stream.Send(&helloconsolev1.GetStatsRequest{}); err != nil {
+				t.Fatal(err)
+			}
+			if err = stream.CloseSend(); err != nil {
+				t.Fatal(err)
+			}
+			if err = stream.Recv(&helloconsolev1.GetStatsResponse{}); err != nil {
+				t.Fatal(err)
+			}
+			oldMD, newMD := oldServer.md.Load(), newServer.md.Load()
+			if (oldMD != nil) != tc.wantOld || (newMD != nil) == tc.wantOld {
+				t.Fatalf("hint %q: old=%t new=%t", tc.hint, oldMD != nil, newMD != nil)
+			}
+			for _, md := range []*metadata.MD{oldMD, newMD} {
+				if md != nil && len(md.Get("x-backplane-ui-bundle")) != 0 {
+					t.Fatal("relay-only header reached upstream")
+				}
+			}
+		})
+	}
+}
+
 func TestRelayRejectsAmbiguousOwnership(t *testing.T) {
 	t.Parallel()
 

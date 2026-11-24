@@ -19,6 +19,7 @@ import (
 
 	"github.com/gopherex/ws-proto/wsrpc"
 
+	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/internal/registry"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/meshdial"
@@ -30,6 +31,9 @@ const (
 	SecretHeader = "bp-internal-secret" //nolint:gosec // a header name, not a credential
 	// SessionHeader names the console session the call comes from.
 	SessionHeader = "bp-console-session"
+
+	// uiBundleHeader is a browser hint, consumed by the relay and never sent upstream.
+	uiBundleHeader = "x-backplane-ui-bundle"
 
 	// maxRelayMessage bounds one message either way: ws-proto's read limit.
 	maxRelayMessage = 16 << 20
@@ -64,7 +68,9 @@ func newRelay(src registry.Source, secret config.Secret, platform Platform) *rel
 
 // handle is the unknown-method handler of /ws.
 func (rl *relay) handle(ctx context.Context, down *wsrpc.Stream) error {
-	service, addr, err := rl.target(down.Method())
+	headers := down.Header()
+
+	service, addr, err := rl.target(down.Method(), headers[uiBundleHeader])
 	if err != nil {
 		return err
 	}
@@ -74,7 +80,7 @@ func (rl *relay) handle(ctx context.Context, down *wsrpc.Stream) error {
 		return err
 	}
 
-	out := forwarded(down.Header())
+	out := forwarded(headers)
 	if secret := rl.secret.Reveal(); secret != "" {
 		out.Set(SecretHeader, secret)
 	}
@@ -147,7 +153,7 @@ func pumpUp(down *wsrpc.Stream, upstream grpc.ClientStream, cancel context.Cance
 // its serving instances:
 // PERMISSION_DENIED unless a service's latest manifest declares it as its
 // internal API, UNAVAILABLE without a serving instance.
-func (rl *relay) target(method string) (string, string, error) {
+func (rl *relay) target(method, bundle string) (string, string, error) {
 	name, ok := serviceOf(method)
 	if !ok {
 		return "", "", status.Errorf(codes.PermissionDenied, "%s: not a method", method)
@@ -179,16 +185,35 @@ func (rl *relay) target(method string) (string, string, error) {
 
 	svc := cat.Services[owners[0]]
 
-	preferred, fallback := serving(svc, internalService(name))
-	if len(preferred) == 0 {
-		preferred = fallback
-	}
-
-	if len(preferred) == 0 {
+	peers := rpcPeers(svc, name, bundle)
+	if len(peers) == 0 {
 		return "", "", status.Errorf(codes.Unavailable, "%s: no serving instance of %s", method, owners[0])
 	}
 
-	return owners[0], platformAddr(preferred[rand.IntN(len(preferred))]), nil //nolint:gosec // load spreading
+	return owners[0], platformAddr(peers[rand.IntN(len(peers))]), nil //nolint:gosec // load spreading
+}
+
+// rpcPeers prefers the loaded UI among replicas that actually expose the internal service.
+func rpcPeers(svc registry.Service, name, bundle string) []registry.Instance {
+	declares := internalService(name)
+
+	if hash, ok := strings.CutPrefix(bundle, svc.Name+"/"); ok && hash != "" {
+		match := func(m *backplanev1.Manifest) bool { return declares(m) && m.GetUi().GetHash() == hash }
+		if peers := bestServing(svc, match); len(peers) != 0 {
+			return peers
+		}
+	}
+
+	return bestServing(svc, declares)
+}
+
+func bestServing(svc registry.Service, match func(*backplanev1.Manifest) bool) []registry.Instance {
+	ready, other := serving(svc, match)
+	if len(ready) != 0 {
+		return ready
+	}
+
+	return other
 }
 
 // serviceOf is the full service name of "/pkg.Service/Method".
@@ -271,7 +296,7 @@ func forwarded(in map[string]string) metadata.MD {
 
 	for k, v := range in {
 		k = strings.ToLower(k)
-		if reserved(k) || k == "authorization" || strings.HasPrefix(k, "bp-") || k == "cookie" {
+		if k == uiBundleHeader || reserved(k) || k == "authorization" || strings.HasPrefix(k, "bp-") || k == "cookie" {
 			continue
 		}
 

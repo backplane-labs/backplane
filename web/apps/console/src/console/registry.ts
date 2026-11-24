@@ -3,6 +3,7 @@ import {
   ListPluginsRequestSchema,
   WatchCatalogRequestSchema,
 } from '@backplane-labs/backplane-api';
+import type { BackplaneClient, ClientRuntime } from '@backplane-labs/backplane-client';
 import { usePlatformQuery } from '@backplane-labs/backplane-platform-ui';
 import { installPluginTranslations } from '@backplane-labs/backplane-plugin-sdk';
 import { type LoadedPlugin, loadPlugin } from '@backplane-labs/backplane-plugin-sdk/host';
@@ -11,8 +12,9 @@ import { create } from '@bufbuild/protobuf';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-export type ModuleEntry = { plugin?: LoadedPlugin; error?: string };
-export function useRegistry() {
+type HostedPlugin = LoadedPlugin & { client: ClientRuntime };
+export type ModuleEntry = { plugin?: HostedPlugin; error?: string };
+export function useRegistry(runtime: BackplaneClient) {
   const client = useClient(CatalogServiceClient),
     { i18n } = useTranslation();
   const catalog = useSnapshotWatch(
@@ -21,7 +23,7 @@ export function useRegistry() {
   const descriptors = usePlatformQuery(`plugins:${catalog.value?.index}`, (signal) =>
     client.listPlugins(create(ListPluginsRequestSchema), { signal }),
   );
-  const cache = useRef(new Map<string, LoadedPlugin>());
+  const cache = useRef(new Map<string, HostedPlugin>());
   const [entries, setEntries] = useState<Record<string, ModuleEntry>>({});
   const [attempt, setAttempt] = useState(0);
   const available = descriptors.value?.plugins.filter((plugin) => plugin.available) ?? [];
@@ -49,8 +51,9 @@ export function useRegistry() {
         (plugin) => {
           if (controller.signal.aborted) return;
           installPluginTranslations(i18n, plugin.navigation);
-          cache.current.set(key, plugin);
-          setEntries((old) => ({ ...old, [key]: { plugin } }));
+          const hosted = { ...plugin, client: runtime.forBundle(descriptor.service, descriptor.hash) };
+          cache.current.set(key, hosted);
+          setEntries((old) => ({ ...old, [key]: { plugin: hosted } }));
         },
         (reason) => {
           if (!controller.signal.aborted)
@@ -62,7 +65,7 @@ export function useRegistry() {
       );
     }
     return () => controller.abort();
-  }, [signature, i18n, attempt]);
+  }, [signature, i18n, attempt, runtime]);
   // Filter synchronously: a departed module cannot render for an extra effect cycle.
   const modules = Object.fromEntries(
     available.map((descriptor) => [descriptor.service, entries[JSON.stringify(descriptor)] ?? {}]),

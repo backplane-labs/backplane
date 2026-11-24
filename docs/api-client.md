@@ -51,6 +51,12 @@ socket increments `connectionId`. Subscribe through `useConnection()` or the
 runtime external-store API. A transient error is distinct from authentication
 loss and must not open a login screen over an existing session.
 
+## Module calls during a rollout
+
+The host binds each loaded module to `runtime.forBundle(service, hash)` using the descriptor that loaded its code. These clients share the session and WebSocket. Each module RPC carries `x-backplane-ui-bundle: <service>/<hash>` on its opening frame; platform RPCs do not need the hint. Custom hosts may use the same runtime view or set that metadata per call. Do not derive the hash from a later catalog snapshot.
+
+The relay resolves the internal service's unique owner first. Within that owner's serving replicas that declare the requested internal service, it prefers the matching UI hash, healthy replicas first. If no match remains, it uses the normal healthy-first selection. Missing hints and hints for a different owner change nothing. The relay consumes the hint; it is not upstream metadata, authorization, a build identifier or an API compatibility check. Streams stay with the selected replica; an RPC failure is never replayed on another version.
+
 ## Values, errors and cancellation
 
 Every generated method accepts `CallOptions`: abort signal, deadline,

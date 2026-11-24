@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { decodeFrame, Kind } from '@gopherex/ws-proto-transport';
 import { chromium, expect } from '@playwright/test';
 
 // The Go test owns this isolated server and its in-memory registry/session store.
@@ -12,9 +13,16 @@ try {
     page = await context.newPage();
   const errors = [],
     sockets = [],
-    bundles = [];
+    bundles = [],
+    calls = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  page.on('websocket', (socket) => sockets.push(socket.url()));
+  page.on('websocket', (socket) => {
+    sockets.push(socket.url());
+    socket.on('framesent', ({ payload }) => {
+      const frame = decodeFrame(payload);
+      if (frame.kind === Kind.KIND_OPEN) calls.push([frame.method, frame.headers['x-backplane-ui-bundle']]);
+    });
+  });
   page.on('request', (req) => {
     if (new URL(req.url()).pathname.includes('/plugins/')) bundles.push(req.url());
   });
@@ -33,6 +41,11 @@ try {
   assert.equal(cookie?.path, '/backplane/');
   assert.ok(bundles.some((url) => url.endsWith('/remoteEntry.js')));
   assert.ok(bundles.every((url) => new URL(url).origin === origin));
+  await page.getByRole('link', { name: 'Overview', exact: true }).click();
+  await expect(page.getByTestId('greetings')).toHaveText('7');
+  const statsCalls = calls.filter(([method]) => method === '/hello.console.v1.AdminService/GetStats');
+  assert.ok(statsCalls.length > 0 && statsCalls.every(([, bundle]) => bundle === 'hello/fixture-v1'));
+  assert.ok(calls.filter(([method]) => method.startsWith('/backplane.')).every(([, bundle]) => bundle === undefined));
   assert.deepEqual(sockets, [new URL('ws', base).href.replace(/^http/, 'ws')]);
   // The Go server enables public ingest keys. The console reports through
   // its authenticated log endpoint, without embedding a key in the bundle.

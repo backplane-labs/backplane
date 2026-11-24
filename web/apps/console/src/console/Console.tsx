@@ -1,4 +1,5 @@
 import { PluginProvider } from '@backplane-labs/backplane-plugin-sdk';
+import { BackplaneProvider } from '@backplane-labs/backplane-react';
 import type { ThemeMode } from '@backplane-labs/backplane-theme';
 import { Button, EmptyState, ErrorBoundary, PageHeader, Skeleton, TooltipProvider } from '@backplane-labs/backplane-ui';
 import { CircleAlert, LoaderCircle, PlugZap, WifiOff } from 'lucide-react';
@@ -72,7 +73,9 @@ function ModulePage({
       }}
     >
       <ErrorBoundary resetKey={plugin} fallback={(error, reset) => failure(error.message, reset)}>
-        <plugin.Routes />
+        <BackplaneProvider client={plugin.client}>
+          <plugin.Routes />
+        </BackplaneProvider>
       </ErrorBoundary>
     </PluginProvider>
   );
