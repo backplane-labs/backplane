@@ -13,7 +13,7 @@ import (
 
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/infra/temporal"
-	"github.com/backplane-labs/backplane/pkg/backplane/internal/temporal/temporaltest"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/temporal/temporaltest"
 	"github.com/backplane-labs/backplane/pkg/backplane/seal"
 )
 

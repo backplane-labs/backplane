@@ -15,7 +15,8 @@ message GetStatsResponse {
   uint64 greetings = 1;
   string current_greeting = 2;
   // Greetings the audit reactor saw come off the event stream.
-  uint64 audited = 3;
+  reserved 3;
+  reserved "audited";
   // Whether the optional cache is there right now.
   bool cache_present = 4;
 }

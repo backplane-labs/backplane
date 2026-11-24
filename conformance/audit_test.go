@@ -32,7 +32,7 @@ func (w *replicaWorld) auditDelivered(t *testing.T) {
 		actions[entry.GetAction()] = true
 	}
 
-	for _, action := range []string{"session.create", "binding.save", "rule.save", "config.save", "hook.call"} {
+	for _, action := range []string{"session.create", "config.save"} {
 		if !actions[action] {
 			t.Fatalf("missing durable audit for %s", action)
 		}
@@ -42,7 +42,7 @@ func (w *replicaWorld) auditDelivered(t *testing.T) {
 		t.Fatal("acceptance fixture unexpectedly exceeds one audit page")
 	}
 
-	m1Until(t, m2Wait, "durable audit delivered over OTLP from both replicas", func() (bool, string) {
+	m1Until(t, m1Wait, "durable audit delivered over OTLP from both replicas", func() (bool, string) {
 		w.auditSink.mu.Lock()
 		defer w.auditSink.mu.Unlock()
 

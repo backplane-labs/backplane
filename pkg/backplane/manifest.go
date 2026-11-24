@@ -16,9 +16,7 @@ import (
 // a manifest printer: "<binary> manifest" loads the configuration as Run
 // would (file and environment; Consul is not reached), runs the service's
 // declarations, prints the manifest as JSON on stdout and exits without
-// starting anything. Its logs go to stderr. CI uses it to check wiring
-// against the services as an installation configures them
-// (pkg/backplane/wiring.LoadManifests).
+// starting anything. Its logs go to stderr.
 const ManifestCommand = "manifest"
 
 // manifestMode reports whether args ask for the manifest; extra arguments

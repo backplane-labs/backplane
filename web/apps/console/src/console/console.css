@@ -391,8 +391,9 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  right: -3px;
+  right: 0;
   width: 6px;
+  height: 100%;
   /* <hr> defaults would draw a rule through the drag surface. */
   margin: 0;
   border: none;
@@ -644,31 +645,6 @@
   .console-search {
     transition: none;
   }
-}
-
-/* System map (xyflow): chrome follows the console tokens. */
-.backplane-map {
-  --xy-background-color: transparent;
-  --xy-edge-stroke: var(--subtle);
-  --xy-controls-button-background-color: var(--chrome);
-  --xy-controls-button-background-color-hover: var(--raised);
-  --xy-controls-button-color: var(--muted-foreground);
-  --xy-controls-button-border-color: var(--border);
-}
-.backplane-map .react-flow__controls {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  box-shadow: none;
-}
-.backplane-map .react-flow__controls-button svg {
-  fill: currentColor;
-}
-.backplane-map .react-flow__node {
-  cursor: pointer;
-}
-.backplane-map .react-flow__edge-textbg {
-  rx: 3;
 }
 
 .console-module-group-trigger {

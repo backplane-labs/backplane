@@ -51,9 +51,8 @@ import { CircleAlert, CircleCheck, History, Lock, RotateCcw, SlidersHorizontal, 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { date, enumLabel } from './format.js';
 import { usePlatformText } from './locales.js';
-import { type Parsed, toNativeJSON } from './operations-model.js';
 import { usePlatformAction, usePlatformQuery } from './runtime.js';
-import { nativeJSON } from './serialization.js';
+import { nativeJSON, type Parsed, toNativeJSON } from './serialization.js';
 
 export function ConfigurationPanel({ service, mode }: { service: string; mode: 'dark' | 'light' }) {
   const client = useClient(ConfigServiceClient),

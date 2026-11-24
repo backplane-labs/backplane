@@ -5,12 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
-
-	"google.golang.org/protobuf/proto"
 
 	"github.com/gopherex/ws-proto/wsrpc"
 )
@@ -88,32 +85,4 @@ func Connect(ctx context.Context, base, token string) (*wsrpc.ClientConn, error)
 	}
 
 	return conn, nil
-}
-
-// Unary adapts a ws-proto connection to Install's call contract.
-func Unary(conn *wsrpc.ClientConn) Call {
-	return func(ctx context.Context, method string, req, res proto.Message) error {
-		stream, err := conn.NewStream(ctx, method, nil)
-		if err != nil {
-			return fmt.Errorf("open %s: %w", method, err)
-		}
-
-		if err := stream.Send(req); err != nil {
-			return fmt.Errorf("send %s: %w", method, err)
-		}
-
-		if err := stream.CloseSend(); err != nil {
-			return fmt.Errorf("close send %s: %w", method, err)
-		}
-
-		if err := stream.Recv(res); err != nil {
-			return fmt.Errorf("receive %s: %w", method, err)
-		}
-
-		if err := stream.Recv(res); !errors.Is(err, io.EOF) {
-			return fmt.Errorf("end %s: expected EOF, got %w", method, err)
-		}
-
-		return nil
-	}
 }

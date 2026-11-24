@@ -64,6 +64,22 @@ func TestConfigFromEnv(t *testing.T) {
 	}
 }
 
+// The actual runtime validates nested sections; optional health probes must not require an endpoint.
+func TestOpenMinimalConfig(t *testing.T) {
+	t.Setenv("BACKPLANE_PG_DSN", "postgres://pg/backplane")
+	t.Setenv("BACKPLANE_CONSUL_ADDR", "127.0.0.1:1")
+	t.Setenv("BACKPLANE_ADMIN_TOKEN", "admin-token-0123456789")
+	t.Setenv("BACKPLANE_NATS_URL", "")
+	t.Setenv("BACKPLANE_TEMPORAL_ADDR", "")
+	rt, err := config.Open[server.Config](t.Context(), config.Service(server.Name), config.WithoutConsul(), config.WithoutFile())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = rt.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // Without BACKPLANE_ADMIN_TOKEN the configuration does not open, and the
 // error names the variable.
 func TestConfigNoAdminToken(t *testing.T) {

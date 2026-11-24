@@ -9,7 +9,7 @@ import (
 
 	"github.com/backplane-labs/backplane/internal/server"
 	"github.com/backplane-labs/backplane/pkg/backplane"
-	"github.com/backplane-labs/backplane/pkg/backplane/drivers/standard"
+	consuldriver "github.com/backplane-labs/backplane/pkg/backplane/drivers/consul"
 )
 
 func main() {
@@ -20,7 +20,7 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	svc, err := backplane.Open(ctx, server.NewState, standard.Drivers(), backplane.Name(server.Name))
+	svc, err := backplane.Open(ctx, server.NewState, consuldriver.Driver(), backplane.Name(server.Name))
 	if err != nil {
 		return err //nolint:wrapcheck // prefixed by backplane
 	}

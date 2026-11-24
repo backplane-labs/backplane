@@ -1,33 +1,19 @@
-import { ServiceHealth } from '@backplane-labs/backplane-api';
 import {
   AuditExplorer,
   type AuditState,
-  AutomationPanel,
   ConfigurationPanel,
-  DeadLettersPanel,
   defaultAuditState,
   defaultErrorsState,
   ErrorsExplorer,
   type ErrorsState,
-  EventStreams,
   ExplorePanel,
-  SchedulesPanel,
   ServiceCatalog,
   ServiceInspector,
-  ServiceOperations,
-  SystemMap,
-  type WiringState,
-  WiringWorkspace,
-  WorkflowRuns,
-  WorkflowsPanel,
 } from '@backplane-labs/backplane-platform-ui';
 import { BackplaneProvider } from '@backplane-labs/backplane-react';
+import { Button, Checkbox, Stack } from '@backplane-labs/backplane-ui';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import '@xyflow/react/dist/base.css';
-import { ServiceAPIDocument } from '@backplane-labs/backplane-platform-ui';
-import { Button, Checkbox, Stack } from '@backplane-labs/backplane-ui';
-import { externalAPIManifest, readAPIFixtureFile } from './api-fixture';
 import { PlatformFixture } from './platform-fixture';
 
 function Fixture({ children }: { children: ReactNode }) {
@@ -90,11 +76,6 @@ type Story = StoryObj;
 const mode = (context: { globals: { theme?: string } }) =>
   context.globals.theme === 'light' ? ('light' as const) : ('dark' as const);
 export const ServicesAndHealth: Story = { render: (_, context) => <Services mode={mode(context)} /> };
-export const ExternalAPI: Story = {
-  render: (_, context) => (
-    <ServiceAPIDocument manifest={externalAPIManifest()} readFile={readAPIFixtureFile} mode={mode(context)} />
-  ),
-};
 export const Configuration: Story = {
   render: (_, context) => <ConfigurationPanel service="hello" mode={mode(context)} />,
 };
@@ -125,56 +106,3 @@ function ErrorsPage({ mode }: { mode: 'dark' | 'light' }) {
 }
 export const Errors: Story = { render: (_, context) => <ErrorsPage mode={mode(context)} /> };
 export const Explore: Story = { render: (_, context) => <ExplorePanel mode={mode(context)} /> };
-export const Operations: Story = { render: (_, context) => <ServiceOperations service="hello" mode={mode(context)} /> };
-function Wiring({ mode, initial }: { mode: 'dark' | 'light'; initial: WiringState }) {
-  const [state, setState] = useState<WiringState>(initial);
-  return (
-    <div style={{ height: 760 }}>
-      <WiringWorkspace mode={mode} state={state} onStateChange={setState} />
-    </div>
-  );
-}
-export const WiringYaml: Story = {
-  render: (_, context) => (
-    <Wiring mode={mode(context)} initial={{ target: { kind: 'binding', hook: 'hello.Greet' }, view: 'yaml' }} />
-  ),
-};
-export const WiringGraph: Story = {
-  render: (_, context) => (
-    <Wiring mode={mode(context)} initial={{ target: { kind: 'binding', hook: 'hello.Greet' }, view: 'graph' }} />
-  ),
-};
-export const WiringLoop: Story = {
-  render: (_, context) => (
-    <Wiring mode={mode(context)} initial={{ target: { kind: 'binding', hook: 'hello.Batch' }, view: 'graph' }} />
-  ),
-};
-export const WiringRule: Story = { render: (_, context) => <Wiring mode={mode(context)} initial={{ view: 'yaml' }} /> };
-export const Workflows: Story = { render: (_, context) => <WorkflowRuns service="hello" mode={mode(context)} /> };
-export const Schedules: Story = { render: (_, context) => <SchedulesPanel service="hello" mode={mode(context)} /> };
-export const EventsAndDeadLetters: Story = {
-  render: (_, context) => (
-    <>
-      <EventStreams service="hello" mode={mode(context)} />
-      <DeadLettersPanel subscriber="hello" consumer="audit" mode={mode(context)} />
-    </>
-  ),
-};
-export const Automation: Story = { render: (_, context) => <AutomationPanel service="hello" mode={mode(context)} /> };
-export const WorkflowsWorkspace: Story = {
-  render: (_, context) => <WorkflowsPanel service="hello" mode={mode(context)} />,
-};
-const mapServices = ['hello', 'formatter'].map((name) => ({
-  $typeName: 'backplane.console.v1.ServiceSummary' as const,
-  name,
-  latestVersion: '1.0.0',
-  versions: ['1.0.0'],
-  instances: 1,
-  healthy: 1,
-  health: ServiceHealth.HEALTHY,
-  internalApi: false,
-  ui: name === 'hello',
-}));
-export const SystemMapView: Story = {
-  render: (_, context) => <SystemMap services={mapServices} mode={mode(context)} height={420} />,
-};

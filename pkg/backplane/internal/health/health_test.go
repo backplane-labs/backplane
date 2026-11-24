@@ -141,7 +141,7 @@ func TestCheckBoundedByTimeout(t *testing.T) {
 func TestNodeReasonReachesHTTP(t *testing.T) {
 	t.Parallel()
 
-	root := node.New("service", testlog.Discard(), nil)
+	root := node.New("service", testlog.Discard())
 	db := probe.NewBool()
 	db.SetReason(false, "connection refused")
 	root.Child("database", node.Dependency, false).Ready(db)

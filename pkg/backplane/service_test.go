@@ -23,6 +23,7 @@ import (
 	hv1 "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/gopherex/xlog"
 
@@ -33,7 +34,7 @@ import (
 	bpapi "github.com/backplane-labs/backplane/pkg/backplane/api"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
-	"github.com/backplane-labs/backplane/pkg/backplane/drivers/standard"
+	consuldriver "github.com/backplane-labs/backplane/pkg/backplane/drivers/consul"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/guard"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
 )
@@ -80,7 +81,7 @@ func setup(t *testing.T, consul string) ports {
 
 func baseOptions(name string, extra ...backplane.Option) []backplane.Option {
 	return append([]backplane.Option{
-		standard.Drivers(), backplane.Name(name), backplane.Instance(name + "-1"), backplane.Advertise("127.0.0.1"),
+		consuldriver.Driver(), backplane.Name(name), backplane.Instance(name + "-1"), backplane.Advertise("127.0.0.1"),
 		backplane.Logger(testlog.Discard()), backplane.ConfigOptions(config.WithoutFile()),
 	}, extra...)
 }
@@ -331,7 +332,8 @@ func TestInternalAPIGate(t *testing.T) {
 	defer cancel()
 
 	done := run(ctx, svc)
-	client := helloconsolev1.NewAdminServiceClient(dial(t, p.platform))
+	conn := dial(t, p.platform)
+	client := helloconsolev1.NewAdminServiceClient(conn)
 	withSecret := metadata.AppendToOutgoingContext(ctx, guard.Header, secret)
 	call := func(ctx context.Context) error {
 		ctx, stop := context.WithTimeout(ctx, time.Second)
@@ -356,6 +358,10 @@ func TestInternalAPIGate(t *testing.T) {
 
 	if err := call(withSecret); err != nil {
 		t.Fatalf("with secret once up: %v", err)
+	}
+
+	if err := conn.Invoke(withSecret, "/backplane.v1.ActivityService/Run", &emptypb.Empty{}, &emptypb.Empty{}); status.Code(err) != codes.Unimplemented {
+		t.Fatalf("SDK served an application executor: %v", err)
 	}
 
 	if err := call(ctx); status.Code(err) != codes.PermissionDenied {
@@ -741,33 +747,6 @@ func TestOpenRejectsInvalidShutdown(t *testing.T) {
 	}, baseOptions("svc-invalid")...)
 	if !errors.Is(err, backplane.ErrConfig) {
 		t.Fatalf("drain above timeout: %v", err)
-	}
-}
-
-func TestOpenRejectsInvalidNATS(t *testing.T) {
-	for name, env := range map[string][2]string{
-		"dedup above max_age": {"BACKPLANE_NATS_DEDUP_WINDOW", "2h"},
-		"negative max_age":    {"BACKPLANE_NATS_MAX_AGE", "-1s"},
-		"negative dlq":        {"BACKPLANE_NATS_DLQ_MAX_AGE", "-1s"},
-		"zero dedup":          {"BACKPLANE_NATS_DEDUP_WINDOW", "0s"},
-		"inbox wildcard":      {"BACKPLANE_NATS_INBOX_PREFIX", "_INBOX_svc.>"},
-		"inbox trailing dot":  {"BACKPLANE_NATS_INBOX_PREFIX", "_INBOX_svc."},
-	} {
-		t.Run(name, func(t *testing.T) {
-			setup(t, "")
-			t.Setenv("BACKPLANE_NATS_URL", "nats://127.0.0.1:1")
-			t.Setenv("BACKPLANE_NATS_MAX_AGE", "1h")
-			t.Setenv(env[0], env[1])
-
-			_, err := backplane.Open(t.Context(), func(backplane.Root[testConfig]) (*testState, error) {
-				t.Fatal("constructor called with an invalid configuration")
-
-				return nil, errDown
-			}, baseOptions("svc-invalid")...)
-			if !errors.Is(err, backplane.ErrConfig) {
-				t.Fatalf("want ErrConfig, got %v", err)
-			}
-		})
 	}
 }
 

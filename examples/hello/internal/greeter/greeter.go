@@ -1,6 +1,5 @@
 // Package greeter is the service's domain component: it serves HelloService
-// over every public protocol with one implementation and raises Greeted
-// after every greeting.
+// over every public protocol with one implementation.
 package greeter
 
 import (
@@ -24,7 +23,6 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
-	"github.com/backplane-labs/backplane/pkg/backplane/event"
 )
 
 const (
@@ -66,14 +64,6 @@ func (c *Config) Validate() error {
 	return errors.Join(errs...)
 }
 
-// Greeted is published after every greeting. Payloads evolve additively:
-// Text was added after Name and Count, readers that predate it ignore it.
-type Greeted struct {
-	Name  string `json:"name"`
-	Count uint64 `json:"count"`
-	Text  string `json:"text,omitempty"`
-}
-
 // Greeter is a component: a named node with its own logger, tracer and meter.
 type Greeter struct {
 	hellov1.UnimplementedHelloServiceServer
@@ -81,7 +71,6 @@ type Greeter struct {
 
 	cfg       *Config
 	db        deps.Dependency[*store.DB]
-	greeted   event.Ref[Greeted]
 	templates deps.Singleton[*template.Template]
 	greetings metric.Int64Counter
 	// boot makes event ids unique per process: a greeting published twice
@@ -95,7 +84,6 @@ type Greeter struct {
 // the events it raises it declares itself.
 func New(parent deps.Scope, cfg *Config, db deps.Dependency[*store.DB]) (*Greeter, error) {
 	g := &Greeter{Component: deps.NewComponent(parent, "greeter"), cfg: cfg, db: db, boot: uuid.NewString()[:8]}
-	g.greeted = event.Declare[Greeted](g, "Greeted", event.Describe("a name was greeted"))
 
 	greetings, err := g.Meter().Int64Counter("hello.greetings", metric.WithDescription("Greetings served"))
 	if err != nil {
@@ -114,14 +102,10 @@ func New(parent deps.Scope, cfg *Config, db deps.Dependency[*store.DB]) (*Greete
 	return g, nil
 }
 
-// Greeted is the event the greeter raises.
-func (g *Greeter) Greeted() event.Ref[Greeted] { return g.greeted }
-
 // Register is the one registration for native gRPC and ws-proto.
 func (g *Greeter) Register(r grpc.ServiceRegistrar) { hellov1.RegisterHelloServiceServer(r, g) }
 
-// Text greets name and publishes Greeted; a publish that fails (no NATS)
-// does not fail the greeting.
+// Text renders and audits a greeting.
 func (g *Greeter) Text(ctx context.Context, name string) (string, error) {
 	text, err := deps.SpanValue(ctx, g, "greet", func(ctx context.Context) (string, error) {
 		tmpl, err := g.templates.Get(ctx)
@@ -134,7 +118,7 @@ func (g *Greeter) Text(ctx context.Context, name string) (string, error) {
 			return "", fmt.Errorf("render: %w", err)
 		}
 
-		g.Record(ctx, name, b.String())
+		g.record(ctx, name)
 
 		return b.String(), nil
 	})
@@ -145,11 +129,7 @@ func (g *Greeter) Text(ctx context.Context, name string) (string, error) {
 	return text, nil
 }
 
-// Record records the greeting actually delivered, whether rendered locally
-// or returned by a bound hook. The same metric and event path serves both.
-// Publication failure (for example, running without NATS) is logged without
-// failing the greeting, just like Text.
-func (g *Greeter) Record(ctx context.Context, name, text string) {
+func (g *Greeter) record(ctx context.Context, name string) {
 	count := g.db.Get().Inc(ctx, name)
 	g.greetings.Add(ctx, 1)
 	id := g.boot + "-" + name + "-" + strconv.FormatUint(count, 10)
@@ -159,13 +139,6 @@ func (g *Greeter) Record(ctx context.Context, name, text string) {
 		xlog.String("event.name", "greeting.delivered"), xlog.String(backplane.AuditID, id),
 		xlog.String(backplane.AuditSubject, "name/"+name), xlog.String(backplane.AuditOutcome, "succeeded"),
 		xlog.Uint64("count", count))
-
-	err := g.greeted.Publish(ctx, Greeted{Name: name, Count: count, Text: text},
-		event.Key(name), event.ID(id),
-		event.Header("excited", strconv.FormatBool(g.cfg.Excited.Get())))
-	if err != nil {
-		g.Log().Ctx().Debug(ctx, "greeted not published", xlog.Err(err))
-	}
 }
 
 // Greet implements HelloService.

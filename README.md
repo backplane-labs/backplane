@@ -4,8 +4,8 @@
 
 <br/>
 
-**A control plane for your services** — typed configuration, hooks and events,
-workflows, API discovery, telemetry and one console for the whole installation.
+**A control plane for your services** — typed configuration, service discovery,
+audit, telemetry and one operator console for the installation.
 
 <br/>
 
@@ -30,8 +30,9 @@ workflows, API discovery, telemetry and one console for the whole installation.
 ---
 
 Backplane connects services that use its Go SDK and gives operators a live view
-of their contracts, instances and configuration. Services own their APIs and UI
-modules; the platform supplies routing, a shared component kit and the console.
+of their instances and configuration. Each service owns its console API and UI
+module. The authenticated console relay forwards calls to that API; it does not
+route requests between application services or execute business workflows.
 It does not deploy services or replace your orchestrator.
 
 <img src=".github/assets/console.png" alt="Backplane console: service catalog and infrastructure health in the dark theme" width="1440" />
@@ -51,7 +52,7 @@ make dev
 
 Open **http://127.0.0.1:8081/backplane/** and sign in with the local operator
 token **`dev-admin-token-change-me`**. The installation includes backplane, hello
-and formatter, with a working hook binding and event rule. Infrastructure,
+and formatter. Infrastructure,
 including Temporal, runs in containers.
 
 For the console with only PostgreSQL and Consul:
@@ -73,9 +74,7 @@ See [development](docs/development.md) and [deployment](deployments/README.md).
 | --- | --- |
 | **Service catalog** | Live instances, readiness, versions, routes and service-owned UI pages |
 | **Configuration** | Schema forms, validation, defaults, secret masking and live overrides |
-| **API discovery** | HTTP/OpenAPI, protobuf RPC and GraphQL documents; bundled schemas and examples |
-| **Hooks and events** | Typed bindings, CEL expressions, execution history and event rules |
-| **Workflows and schedules** | Workflow runs and server-side administrative schedule management |
+| **Console modules** | A service’s UI calls its internal console API through the authenticated relay |
 | **Audit** | Durable PostgreSQL records and API queries; optional delivery as OTel logs |
 | **Observability** | OTLP admission/proxy and Victoria queries for metrics, logs, traces and errors |
 | **Infrastructure** | Component availability in the console, including disabled and failed dependencies |
@@ -88,7 +87,7 @@ go get github.com/backplane-labs/backplane
 ```
 
 The Go SDK manages identity, manifests, listeners, probes, configuration and
-lifecycle. Optional drivers supply events and workflow execution. A service
+lifecycle. Applications own their RPCs, event handling and workflows. A service
 can run without the platform; deployments opt into Consul registration, NATS,
 Temporal and OTel. Start with the [hello example](examples/hello), its
 [formatter counterpart](examples/formatter), and the [example guide](examples/README.md).
@@ -123,7 +122,7 @@ and [configuration](deployments/README.md). The publishing workflow runs on
 | [`pkg/backplane`](pkg/backplane) | Go service SDK and driver interfaces |
 | [`cmd/backplane`](cmd/backplane) | Platform server |
 | [`backplanepb`](backplanepb) | Protobuf contracts and generated Go API |
-| [`internal`](internal) | Catalog, console, configuration, wiring, audit and telemetry |
+| [`internal`](internal) | Catalog, console, configuration, audit and telemetry |
 | [`web/packages`](web/packages) | Coordinated TypeScript API, SDK and UI packages |
 | [`web/apps/console`](web/apps/console) | Production console host |
 | [`web/apps/catalog`](web/apps/catalog) | Storybook component catalog |

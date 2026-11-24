@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/jackc/pgx/v5"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	"github.com/backplane-labs/backplane/examples/demo"
@@ -50,7 +51,7 @@ func TestPlatformModes(t *testing.T) {
 				t.Skip("BACKPLANE_TEST_TEMPORAL required")
 			}
 
-			// Each deployment mode declares a different runtime contract.
+			// Give each deployment a distinct discovery manifest.
 			version := "0.0.0-modes-" + tc.name
 			bin := m1Build(t, t.TempDir(), "backplane", "../cmd/backplane", version)
 			t.Cleanup(func() { _, _ = consul.KV().Delete("backplane/services/backplane/manifests/"+version, nil) })
@@ -97,7 +98,12 @@ func TestPlatformModes(t *testing.T) {
 				enabled[capability.GetName()] = capability.GetEnabled()
 			}
 
-			if enabled["events"] != (tc.nats != "") || enabled["schedules"] != (tc.temporal != "") || enabled["rules"] != (tc.nats != "") || !enabled["audit"] {
+			for _, retired := range []string{"events", "workflows", "schedules", "bindings", "rules", "runtime_direct", "runtime_temporal"} {
+				if _, advertised := enabled[retired]; advertised {
+					t.Errorf("advertised retired feature %s", retired)
+				}
+			}
+			if !enabled["audit"] || !enabled["errors"] {
 				t.Fatalf("capabilities: %v", &caps)
 			}
 
@@ -136,11 +142,9 @@ func TestPlatformModes(t *testing.T) {
 			healthy.Store(true)
 			check(true)
 
-			var schedules consolev1.ListSchedulesResponse
-
-			err = m1Call(t.Context(), cc, consolev1.ScheduleService_ListSchedules_FullMethodName, &consolev1.ListSchedulesRequest{}, &schedules)
-			if tc.temporal == "" && m1Code(err) != codes.FailedPrecondition {
-				t.Fatalf("disabled schedule status: %v", err)
+			err = m1Call(t.Context(), cc, "/backplane.console.v1.ScheduleService/ListSchedules", &emptypb.Empty{}, &emptypb.Empty{})
+			if m1Code(err) != codes.PermissionDenied {
+				t.Fatalf("retired schedule status: %v", err)
 			}
 
 			var history consolev1.SearchAuditResponse

@@ -6,8 +6,7 @@
 //	schema.sql     declarative schema: the desired state, every object
 //	               qualified with `backplane.`
 //	migrations/    history, applied in version order at start (embedded);
-//	               `make db-migration name=<what>` writes the next one from
-//	               the schema.sql diff
+//	               `make db-init` rebuilds the pre-release baseline in isolation
 //	queries/       named queries (`-- name: X :one`); `make db` generates db/
 //	db/            generated: models and Queries (do not edit)
 //

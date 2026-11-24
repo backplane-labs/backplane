@@ -11,7 +11,6 @@ import {
   PanelLeftOpen,
   ServerCog,
   Settings2,
-  Workflow,
 } from 'lucide-react';
 import { type CSSProperties, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -107,7 +106,6 @@ export function Sidebar({
     setPreferences((old) => ({ ...old, width: Math.max(MIN, Math.min(MAX, width)), pinned: true }));
   const fixed = [
     { to: '/services', key: 'services', icon: Boxes },
-    { to: '/wiring', key: 'wiring', icon: Workflow },
     { to: '/explore', key: 'explore', icon: Compass },
     { to: '/errors', key: 'errors', icon: Bug },
     { to: '/audit', key: 'audit', icon: History },

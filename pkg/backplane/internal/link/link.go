@@ -5,7 +5,6 @@ package link
 import (
 	"net/http"
 
-	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/configrt"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/routes"
@@ -35,12 +34,6 @@ var SetLive func(live, v any) error
 //
 //nolint:gochecknoglobals // set once by api at init
 var APIs struct {
-	Decl  func(d any) (*backplanev1.API, error)
-	Files func(d any) *routes.SchemaFiles
-	// Descriptors the declaration gives (a FileDescriptorSet); nil: none.
-	Descriptors func(d any) []byte
-	// Port of the declaration's named listener (api.Port); 0 without one.
-	Port func(d any) uint16
 	GRPC func(opts any) routes.Managed
 	HTTP func(opts any) routes.Managed
 	WS   func(opts any) routes.Managed
@@ -49,4 +42,4 @@ var APIs struct {
 // MountWS serves a ws-proto endpoint on a *backplane.Service.
 //
 //nolint:gochecknoglobals // set once by backplane at init
-var MountWS func(svc any, prefix string, h http.Handler, services []string, spec routes.Managed)
+var MountWS func(svc any, prefix string, h http.Handler, spec routes.Managed)

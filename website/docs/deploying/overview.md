@@ -4,7 +4,7 @@ Backplane runs as an ordinary server process or container. It discovers services
 
 ## Minimal and full modes
 
-The minimal server needs PostgreSQL and Consul. It provides catalog, configuration, console/module hosting and durable audit. Add optional endpoints to enable events, workflows, routing and observability. The [dependency matrix](../concepts/dependencies.md) maps each capability to its runtime.
+The minimal server needs PostgreSQL and Consul. It provides catalog, configuration, console/module hosting and durable audit. Add optional health probes and observability endpoints as needed. The [dependency matrix](../concepts/dependencies.md) maps each capability to its runtime.
 
 The repository includes:
 
@@ -12,7 +12,7 @@ The repository includes:
 | --- | --- |
 | `docker-compose.yaml` | Base development infrastructure with optional profiles |
 | `docker-compose.minimal.yaml` | Minimal console without Temporal, NATS, gateway or telemetry |
-| `docker-compose.dev.yaml` | Built Backplane, hello, formatter and seeded development wiring |
+| `docker-compose.dev.yaml` | Built Backplane, hello, formatter |
 | `docker-compose.observability.yaml` | Independent Collector and Victoria stores |
 | `deployments/otel-collector.yaml` and audit overlay | Telemetry routing and trusted audit forwarding |
 

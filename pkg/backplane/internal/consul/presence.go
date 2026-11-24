@@ -24,7 +24,6 @@ import (
 	retry "github.com/cenkalti/backoff/v5"
 	"github.com/hashicorp/consul/api"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/gopherex/xlog"
@@ -163,8 +162,6 @@ type Params struct {
 	// Transports reports NATS, Temporal and OTLP; may be nil. Consul is
 	// added by the presence itself. Read like Nodes.
 	Transports func() []*backplanev1.TransportStatus
-	// Sections are the live section values; may be nil. Read like Nodes.
-	Sections func() map[string]*anypb.Any
 }
 
 // Presence is a lifecycle component.
@@ -183,7 +180,6 @@ type Presence struct {
 	config     ConfigState
 	nodes      func() []*backplanev1.NodeStatus
 	transports func() []*backplanev1.TransportStatus
-	sections   func() map[string]*anypb.Any
 	timing     timing
 	changed    chan struct{}
 	done       chan struct{}
@@ -222,7 +218,7 @@ func New(p Params) (*Presence, error) {
 	presence := &Presence{
 		client: p.Client, log: p.Log, id: p.Identity, manifest: p.Manifest, raw: raw,
 		register: p.Register, tags: slices.Clone(p.Tags), check: check,
-		config: p.Config, nodes: p.Nodes, transports: p.Transports, sections: p.Sections,
+		config: p.Config, nodes: p.Nodes, transports: p.Transports,
 		name:    p.Identity.Instance + incarnationSep + rand.Text()[:incarnationLen],
 		timing:  defaultTiming(p.SessionTTL),
 		changed: make(chan struct{}, 1), done: make(chan struct{}),
@@ -823,10 +819,6 @@ func (p *Presence) state() ([]byte, error) {
 
 	if p.nodes != nil {
 		state.Nodes = p.nodes()
-	}
-
-	if p.sections != nil {
-		state.Sections = p.sections()
 	}
 
 	if p.transports != nil {

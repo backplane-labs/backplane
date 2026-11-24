@@ -13,7 +13,6 @@ const answers = new Map<string, () => Message>([
     () =>
       create(GetStatsResponseSchema, {
         greetings: 9007199254740993n,
-        audited: 9007199254740993n,
         currentGreeting: 'Hello',
         cachePresent: true,
       }),

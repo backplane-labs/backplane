@@ -16,7 +16,7 @@ type natsSecretsConfig struct {
 
 func TestNATSCredentialsMaskedInEffectiveConfig(t *testing.T) {
 	t.Parallel()
-	path := write(t, "backplane:\n  nats:\n    url: nats://review:test-nats-password@127.0.0.1:4222\nrealtime:\n  url: nats://review:test-nats-password@127.0.0.1:4223\n")
+	path := write(t, "realtime:\n  url: nats://review:test-nats-password@127.0.0.1:4223\n")
 
 	rt, err := config.Open[natsSecretsConfig](t.Context(), config.Service("review"), config.File(path), config.WithoutEnv(), config.WithoutConsul())
 	if err != nil {
@@ -24,7 +24,7 @@ func TestNATSCredentialsMaskedInEffectiveConfig(t *testing.T) {
 	}
 	defer rt.Close()
 
-	if rt.Value().NATS.URL.Reveal() != "nats://review:test-nats-password@127.0.0.1:4222" || rt.Value().Realtime.URL.Reveal() != "nats://review:test-nats-password@127.0.0.1:4223" {
+	if rt.Value().Realtime.URL.Reveal() != "nats://review:test-nats-password@127.0.0.1:4223" {
 		t.Fatal("transport credentials were lost")
 	}
 

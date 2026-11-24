@@ -113,7 +113,7 @@ func serve(t *testing.T, id identity, addr string, calls *atomic.Int64) func() {
 
 	l := listener.New("svc", addr, g, nil, testlog.Discard(), listener.Limits{},
 		listener.TLS(mtls.ServerConfig(id)), listener.ConnContext(mtls.ConnContext))
-	n := node.New("svc", testlog.Discard(), nil)
+	n := node.New("svc", testlog.Discard())
 	n.OnStart(func(ctx context.Context) error { return l.Start(ctx, n) })
 	n.OnStop(l.Stop)
 

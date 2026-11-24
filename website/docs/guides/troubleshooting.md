@@ -12,11 +12,8 @@ Start with the failing boundary and the exact error. Infrastructure status helps
 | Assets return HTML or 404 | Console build base matches backend prefix; proxy preserves assets and plugin paths |
 | Service absent | Consul endpoint, advertised address, registration/health and version identity |
 | Saved configuration not active | Per-instance applied/rejected status and custom validator reason |
-| Hook unavailable | Temporal capability, binding existence/validity, worker health and task queue |
-| Event not processed | NATS capability, durable consumer, rule pause and DLQ; rules also require Temporal |
 | No telemetry rows | Range, source labels, Collector export, backend retention and query expression |
 | Module standalone works, embedded fails | Shared runtime versions, SDK major, relative lazy assets and production CSP |
-| API type/reference missing | Route schema, transitive descriptor imports or bundled relative `$ref` path |
 
 ## Inspect the development stack
 

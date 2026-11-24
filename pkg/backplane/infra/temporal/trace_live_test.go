@@ -24,7 +24,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	inftemporal "github.com/backplane-labs/backplane/pkg/backplane/infra/temporal"
-	"github.com/backplane-labs/backplane/pkg/backplane/internal/temporal/temporaltest"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/temporal/temporaltest"
 )
 
 // spans records what the client and its workers trace: the SDK's global

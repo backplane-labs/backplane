@@ -23,7 +23,7 @@ import {
 } from '@backplane-labs/backplane-ui';
 import { create, type JsonValue, toJson } from '@bufbuild/protobuf';
 import { timestampDate, type Value, ValueSchema } from '@bufbuild/protobuf/wkt';
-import { Boxes, ClipboardList, Minus, Plus, ShieldCheck, Waypoints, Workflow } from 'lucide-react';
+import { Boxes, ClipboardList, Minus, Plus, ShieldCheck, Waypoints } from 'lucide-react';
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
 import {
   type AuditChip,
@@ -53,9 +53,8 @@ import {
   valueLabel,
 } from './feed.js';
 import { usePlatformText } from './locales.js';
-import { RunDrawer, type RunRef } from './runs.js';
 import { usePlatformQuery } from './runtime.js';
-import { serviceColor } from './wiring/graph.js';
+import { serviceColor } from './service-color.js';
 
 /** What the audit page shows; the host keeps it in the URL. */
 export interface AuditState {
@@ -98,8 +97,7 @@ export function AuditExplorer({
     client = useClient(AuditServiceClient);
   const [tick, setTick] = useState(0),
     [pages, setPages] = useState<string[]>([]),
-    [selected, setSelected] = useState<string>(),
-    [run, setRun] = useState<RunRef>();
+    [selected, setSelected] = useState<string>();
   const chips = useMemo(
     () =>
       service ? [{ key: fieldKey('service'), op: 'is' as const, values: [service] }, ...state.chips] : state.chips,
@@ -350,7 +348,6 @@ export function AuditExplorer({
                     onOpen={() => setSelected(item.id)}
                     onAdd={add}
                     onTrace={onOpenTrace}
-                    onRun={setRun}
                   />
                 ))}
               </tbody>
@@ -389,24 +386,6 @@ export function AuditExplorer({
                   {text('openTrace')}
                 </Button>
               )}
-              {typeof record.attributes?.workflow_id === 'string' && (
-                <Button
-                  size="xs"
-                  variant="outline"
-                  onClick={() => {
-                    const attributes = record.attributes;
-                    if (!attributes) return;
-                    setRun({
-                      workflowId: String(attributes.workflow_id),
-                      runId: String(attributes.run_id ?? ''),
-                    });
-                    setSelected(undefined);
-                  }}
-                >
-                  <Workflow />
-                  {text('openRun')}
-                </Button>
-              )}
               {record.operationId && (
                 <Button
                   size="xs"
@@ -425,7 +404,6 @@ export function AuditExplorer({
       >
         {record && <RecordDetail record={record} mode={mode} onAdd={add} />}
       </DetailDrawer>
-      <RunDrawer run={run} onClose={() => setRun(undefined)} mode={mode} />
     </section>
   );
 }
@@ -437,7 +415,6 @@ function Row({
   onOpen,
   onAdd,
   onTrace,
-  onRun,
 }: {
   record: AuditRecord;
   fresh: boolean;
@@ -445,12 +422,10 @@ function Row({
   onOpen: () => void;
   onAdd: (key: string, value: JsonValue, exclude?: boolean) => void;
   onTrace?: (traceId: string) => void;
-  onRun: (run: RunRef) => void;
 }) {
   const text = usePlatformText(),
     platform = record.source === AuditSource.PLATFORM,
     facts = detailFacts(record);
-  const workflow = typeof record.attributes?.workflow_id === 'string' ? String(record.attributes.workflow_id) : '';
   const cell = (field: AuditFieldName, value: string, children: ReactNode) => (
     <button
       type="button"
@@ -537,20 +512,6 @@ function Row({
             }}
           >
             <Waypoints />
-          </Button>
-        )}
-        {workflow && (
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            aria-label={text('openRun')}
-            title={text('openRun')}
-            onClick={(event) => {
-              event.stopPropagation();
-              onRun({ workflowId: workflow, runId: String(record.attributes?.run_id ?? '') });
-            }}
-          >
-            <Workflow />
           </Button>
         )}
       </td>

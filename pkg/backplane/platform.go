@@ -7,10 +7,8 @@ import (
 	"runtime"
 
 	"github.com/gopherex/xlog"
-	"github.com/gopherex/xprobe/pkg/probe"
 
 	"github.com/backplane-labs/backplane/pkg/backplane/build"
-	"github.com/backplane-labs/backplane/pkg/backplane/internal/health"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/listener"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/mtls"
@@ -47,10 +45,6 @@ func (c *core) platformListenOptions() []listener.Option {
 
 	return []listener.Option{listener.TLSOptional(mtls.ServerConfig(p.Src)), listener.ConnContext(mtls.ConnContext)}
 }
-
-// backplaneService is backplane's own service name: the target a hook call
-// verifies over mutual TLS.
-const backplaneService = "backplane"
 
 // platformRoutes adds the SDK's own guarded endpoints: build info and,
 // when enabled, pprof.
@@ -91,18 +85,5 @@ func (c *core) info(w http.ResponseWriter, _ *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(info); err != nil {
 		c.log.Debug("info: write", xlog.Err(err))
-	}
-}
-
-// requireTransports makes the connections the author asked for part of
-// readiness (RequireNATS, RequireTemporal); Open checked they are
-// configured.
-func (c *core) requireTransports() {
-	if c.opts.requireNATS && c.broker != nil {
-		c.health.Add(health.Ready, probe.FromError(c.broker.Ready))
-	}
-
-	if c.opts.requireTemporal && c.temporal != nil {
-		c.health.Add(health.Ready, probe.FromError(c.temporal.Ready))
 	}
 }

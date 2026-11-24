@@ -18,19 +18,15 @@ try {
   await expect(sidebar.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
   assert.deepEqual(
     await sidebar.getByRole('navigation', { name: 'Platform', exact: true }).getByRole('link').allTextContents(),
-    ['Services', 'Wiring', 'Explore', 'Errors', 'Audit', 'Infrastructure'],
+    ['Services', 'Explore', 'Errors', 'Audit', 'Infrastructure'],
   );
 
-  // Services: cards, table and the system map show the same catalog.
+  // Services: cards and table show the same catalog.
   const view = page.getByRole('group', { name: 'View' });
   await view.getByRole('button', { name: 'Cards' }).click();
   await expect(page.getByRole('link', { name: 'hello', exact: true }).first()).toBeVisible();
   await view.getByRole('button', { name: 'Table' }).click();
   await expect(page.getByRole('cell', { name: 'formatter' })).toBeVisible();
-  await view.getByRole('button', { name: 'Map' }).click();
-  await expect(page.getByRole('heading', { name: /^Connections/ })).toBeVisible();
-  await expect(page.locator('.react-flow__node').filter({ hasText: 'formatter' })).toBeVisible();
-  await expect(page.locator('.react-flow__edge').first()).toBeAttached();
   await view.getByRole('button', { name: 'Cards' }).click();
   await page.screenshot({ path: '/tmp/backplane-console-dark.png' });
   assert.deepEqual(
@@ -40,29 +36,9 @@ try {
 
   // The command palette jumps to any service tab.
   await page.keyboard.press('ControlOrMeta+K');
-  await page.getByPlaceholder('Search or jump to…').last().fill('hello Automation');
+  await page.getByPlaceholder('Search or jump to…').last().fill('hello Configuration');
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(`${base}/services/hello/automation`);
-  await expect(page.getByText('formatter.Format').first()).toBeVisible();
-  // Automation links into Wiring: the binding as a graph and as YAML, checked live.
-  await page
-    .getByRole('button', { name: /hello\.Greet/ })
-    .first()
-    .click();
-  await expect(page).toHaveURL(/\/wiring\?binding=hello\.Greet/);
-  await expect(page.locator('.react-flow__node').filter({ hasText: 'formatter.Format' })).toBeVisible();
-  await expect(page.locator('.react-flow__edge').first()).toBeAttached();
-  await expect(page.getByText('No problems', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'YAML', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: 'Definition', exact: true })).toContainText(
-    'activity: formatter.Format',
-  );
-  assert.deepEqual(
-    (await new AxeBuilder({ page }).include('.console-shell').withTags(['wcag2a', 'wcag2aa']).analyze()).violations,
-    [],
-  );
-  await page.goBack();
-
+  await expect(page).toHaveURL(`${base}/services/hello/configuration`);
   // Width can be changed by keyboard or pointer, and survives reload.
   const resize = sidebar.getByRole('separator', { name: 'Navigation width' });
   await resize.focus();
@@ -112,7 +88,7 @@ try {
     .click();
   await expect(page.getByRole('switch', { name: 'Override greeter.suffix', exact: true })).toBeVisible();
   const tabs = page.getByRole('navigation', { name: 'Manage hello' });
-  for (const tab of ['Automation', 'Operations', 'Events', 'Workflows', 'Telemetry', 'Errors', 'Audit']) {
+  for (const tab of ['Telemetry', 'Errors', 'Audit']) {
     await tabs.getByRole('link', { name: tab, exact: true }).click();
     await expect(page).toHaveURL(`${base}/services/hello/${tab.toLowerCase()}`);
   }
@@ -157,7 +133,7 @@ try {
   await expect(page.getByLabel('Operator token')).toBeVisible();
   assert.deepEqual(errors, []);
   process.stdout.write(
-    'Console acceptance passed: live registry, service views and map, palette, wiring graph and YAML, service tabs, module pages, resize, collapse, persistence, themes and accessibility\n',
+    'Console acceptance passed: live registry, service views, palette, service tabs, module pages, resize, collapse, persistence, themes and accessibility\n',
   );
 } finally {
   await browser.close();

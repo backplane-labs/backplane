@@ -9,7 +9,6 @@ package backplanev1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	anypb "google.golang.org/protobuf/types/known/anypb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -209,17 +208,14 @@ type InstanceState struct {
 	// The node tree the author composed, depth-first in creation (= start)
 	// order: components, dependencies and singletons.
 	Nodes []*NodeStatus `protobuf:"bytes,13,rep,name=nodes,proto3" json:"nodes,omitempty"`
-	// Consul, NATS, Temporal, OTLP.
+	// Connectivity reported by the SDK.
 	Transports []*TransportStatus `protobuf:"bytes,14,rep,name=transports,proto3" json:"transports,omitempty"`
 	SdkVersion string             `protobuf:"bytes,15,opt,name=sdk_version,json=sdkVersion,proto3" json:"sdk_version,omitempty"`
 	Commit     string             `protobuf:"bytes,16,opt,name=commit,proto3" json:"commit,omitempty"`
-	// Live values of sections the manifest declares (sections.OfferLive), by
-	// name: they replace the manifest's value while the instance runs.
-	Sections map[string]*anypb.Any `protobuf:"bytes,17,rep,name=sections,proto3" json:"sections,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Port of the default public port's routes (API.listener empty); 0 when
+	// Port of the default public port's routes; 0 when
 	// none is served there.
 	PublicPort uint32 `protobuf:"varint,18,opt,name=public_port,json=publicPort,proto3" json:"public_port,omitempty"`
-	// Ports of the named listeners of routes (API.listener), by name.
+	// Ports of the named listeners of routes, by name.
 	Listeners     map[string]uint32 `protobuf:"bytes,19,rep,name=listeners,proto3" json:"listeners,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -365,13 +361,6 @@ func (x *InstanceState) GetCommit() string {
 		return x.Commit
 	}
 	return ""
-}
-
-func (x *InstanceState) GetSections() map[string]*anypb.Any {
-	if x != nil {
-		return x.Sections
-	}
-	return nil
 }
 
 func (x *InstanceState) GetPublicPort() uint32 {
@@ -534,7 +523,7 @@ var File_backplanepb_v1_instance_proto protoreflect.FileDescriptor
 
 const file_backplanepb_v1_instance_proto_rawDesc = "" +
 	"\n" +
-	"\x1dbackplanepb/v1/instance.proto\x12\fbackplane.v1\x1a\x19google/protobuf/any.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa5\b\n" +
+	"\x1dbackplanepb/v1/instance.proto\x12\fbackplane.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9b\a\n" +
 	"\rInstanceState\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aservice\x18\x02 \x01(\tR\aservice\x12\x18\n" +
@@ -556,20 +545,16 @@ const file_backplanepb_v1_instance_proto_rawDesc = "" +
 	"transports\x12\x1f\n" +
 	"\vsdk_version\x18\x0f \x01(\tR\n" +
 	"sdkVersion\x12\x16\n" +
-	"\x06commit\x18\x10 \x01(\tR\x06commit\x12E\n" +
-	"\bsections\x18\x11 \x03(\v2).backplane.v1.InstanceState.SectionsEntryR\bsections\x12\x1f\n" +
+	"\x06commit\x18\x10 \x01(\tR\x06commit\x12\x1f\n" +
 	"\vpublic_port\x18\x12 \x01(\rR\n" +
 	"publicPort\x12H\n" +
 	"\tlisteners\x18\x13 \x03(\v2*.backplane.v1.InstanceState.ListenersEntryR\tlisteners\x1aV\n" +
 	"\fSourcesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
-	"\x05value\x18\x02 \x01(\x0e2\x1a.backplane.v1.ConfigSourceR\x05value:\x028\x01\x1aQ\n" +
-	"\rSectionsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.google.protobuf.AnyR\x05value:\x028\x01\x1a<\n" +
+	"\x05value\x18\x02 \x01(\x0e2\x1a.backplane.v1.ConfigSourceR\x05value:\x028\x01\x1a<\n" +
 	"\x0eListenersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\"\x94\x01\n" +
+	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01J\x04\b\x11\x10\x12R\bsections\"\x94\x01\n" +
 	"\n" +
 	"NodeStatus\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x14\n" +
@@ -611,7 +596,7 @@ func file_backplanepb_v1_instance_proto_rawDescGZIP() []byte {
 }
 
 var file_backplanepb_v1_instance_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_backplanepb_v1_instance_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_backplanepb_v1_instance_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_backplanepb_v1_instance_proto_goTypes = []any{
 	(InstancePhase)(0),            // 0: backplane.v1.InstancePhase
 	(NodeKind)(0),                 // 1: backplane.v1.NodeKind
@@ -620,27 +605,23 @@ var file_backplanepb_v1_instance_proto_goTypes = []any{
 	(*NodeStatus)(nil),            // 4: backplane.v1.NodeStatus
 	(*TransportStatus)(nil),       // 5: backplane.v1.TransportStatus
 	nil,                           // 6: backplane.v1.InstanceState.SourcesEntry
-	nil,                           // 7: backplane.v1.InstanceState.SectionsEntry
-	nil,                           // 8: backplane.v1.InstanceState.ListenersEntry
-	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
-	(*anypb.Any)(nil),             // 10: google.protobuf.Any
+	nil,                           // 7: backplane.v1.InstanceState.ListenersEntry
+	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
 }
 var file_backplanepb_v1_instance_proto_depIdxs = []int32{
-	9,  // 0: backplane.v1.InstanceState.started_at:type_name -> google.protobuf.Timestamp
-	6,  // 1: backplane.v1.InstanceState.sources:type_name -> backplane.v1.InstanceState.SourcesEntry
-	0,  // 2: backplane.v1.InstanceState.phase:type_name -> backplane.v1.InstancePhase
-	4,  // 3: backplane.v1.InstanceState.nodes:type_name -> backplane.v1.NodeStatus
-	5,  // 4: backplane.v1.InstanceState.transports:type_name -> backplane.v1.TransportStatus
-	7,  // 5: backplane.v1.InstanceState.sections:type_name -> backplane.v1.InstanceState.SectionsEntry
-	8,  // 6: backplane.v1.InstanceState.listeners:type_name -> backplane.v1.InstanceState.ListenersEntry
-	1,  // 7: backplane.v1.NodeStatus.kind:type_name -> backplane.v1.NodeKind
-	2,  // 8: backplane.v1.InstanceState.SourcesEntry.value:type_name -> backplane.v1.ConfigSource
-	10, // 9: backplane.v1.InstanceState.SectionsEntry.value:type_name -> google.protobuf.Any
-	10, // [10:10] is the sub-list for method output_type
-	10, // [10:10] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	8, // 0: backplane.v1.InstanceState.started_at:type_name -> google.protobuf.Timestamp
+	6, // 1: backplane.v1.InstanceState.sources:type_name -> backplane.v1.InstanceState.SourcesEntry
+	0, // 2: backplane.v1.InstanceState.phase:type_name -> backplane.v1.InstancePhase
+	4, // 3: backplane.v1.InstanceState.nodes:type_name -> backplane.v1.NodeStatus
+	5, // 4: backplane.v1.InstanceState.transports:type_name -> backplane.v1.TransportStatus
+	7, // 5: backplane.v1.InstanceState.listeners:type_name -> backplane.v1.InstanceState.ListenersEntry
+	1, // 6: backplane.v1.NodeStatus.kind:type_name -> backplane.v1.NodeKind
+	2, // 7: backplane.v1.InstanceState.SourcesEntry.value:type_name -> backplane.v1.ConfigSource
+	8, // [8:8] is the sub-list for method output_type
+	8, // [8:8] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_backplanepb_v1_instance_proto_init() }
@@ -654,7 +635,7 @@ func file_backplanepb_v1_instance_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_backplanepb_v1_instance_proto_rawDesc), len(file_backplanepb_v1_instance_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   6,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

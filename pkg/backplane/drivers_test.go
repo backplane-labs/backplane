@@ -11,7 +11,7 @@ import (
 )
 
 // A configured backend must not silently disappear when its driver is missing.
-func TestConfiguredTransportRequiresDriver(t *testing.T) {
+func TestConsulRequiresDriver(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
@@ -19,8 +19,6 @@ func TestConfiguredTransportRequiresDriver(t *testing.T) {
 		yaml string
 		want error
 	}{
-		{"nats", "nats: {url: 'nats://127.0.0.1:1'}", backplane.ErrConfig},
-		{"temporal", "temporal: {addr: '127.0.0.1:1'}", backplane.ErrConfig},
 		{"consul", "consul: {addr: '127.0.0.1:1'}", config.ErrRemoteDriver},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

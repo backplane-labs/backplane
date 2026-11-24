@@ -40,15 +40,9 @@ Set `BACKPLANE_CONSOLE_TRUSTED_PROXIES` only to addresses/CIDRs of actual truste
 Keep secure cookies enabled for HTTPS deployments; insecure cookies are a local HTTP option.
 
 The proxy only needs to expose the console listener to serve the shell, session API,
-WebSocket API, module assets and API schema files. The console fetches module assets
+WebSocket API, and module assets. The console fetches module assets
 and calls internal APIs using service platform addresses, independently of the proxy.
 Do not publish platform ports as application endpoints.
-
-## API metadata
-
-`Manifest.apis` describes what a service serves and supplies documents for the API
-viewer. It is not a desired proxy configuration. Declaring an API does not make it
-externally reachable, and the console does not claim that publication was applied.
 
 ## Local development
 

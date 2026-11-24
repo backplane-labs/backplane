@@ -44,7 +44,6 @@ func (c *Console) routes(ws http.Handler, shell fs.FS, telemetry, sessionTelemet
 	mux.HandleFunc("GET /auth/session", c.current)
 	mux.Handle("GET /ws", c.upgrade(ws))
 	mux.HandleFunc("GET /plugins/{service}/{hash}/{path...}", c.plugin)
-	mux.HandleFunc("GET /schemas/{service}/{hash}/{path...}", c.apiFile)
 
 	if sessionTelemetry != nil {
 		logs := http.StripPrefix("/auth/telemetry", sessionTelemetry)

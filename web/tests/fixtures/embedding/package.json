@@ -25,7 +25,6 @@
     "@gopherex/schemapb": "1.12.1",
     "@grafana/data": "13.2.3",
     "@grafana/ui": "13.2.3",
-    "@xyflow/react": "12.10.2",
     "i18next": "26.4.2",
     "lucide-react": "1.48.0",
     "react": "19.3.0",

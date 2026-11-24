@@ -1,14 +1,5 @@
 import { CatalogServiceClient, GetServiceRequestSchema, type ServiceSummary } from '@backplane-labs/backplane-api';
-import {
-  AutomationPanel,
-  ConfigurationPanel,
-  EventStreams,
-  ServiceAPI,
-  ServiceInspector,
-  ServiceOperations,
-  usePlatformQuery,
-  WorkflowsPanel,
-} from '@backplane-labs/backplane-platform-ui';
+import { ConfigurationPanel, ServiceInspector, usePlatformQuery } from '@backplane-labs/backplane-platform-ui';
 import { useClient } from '@backplane-labs/backplane-react';
 import type { ThemeMode } from '@backplane-labs/backplane-theme';
 import {
@@ -25,14 +16,13 @@ import { create } from '@bufbuild/protobuf';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { AppWindow, Box, Clock, Cpu, RefreshCw, Server, Tag } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Link, NavLink, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, NavLink, useParams } from 'react-router-dom';
 import { AuditRoute } from '../AuditRoute';
 import { ErrorsRoute } from '../ErrorsRoute';
 import { ExploreRoute } from '../ExploreRoute';
 import { FeatureGate } from '../Platform';
 import { healthLabel, healthTone } from '../services/model';
 import { NotFound } from '../shell/NotFound';
-import { wiringLink } from '../WiringRoute';
 import { isServiceTab, serviceTabs } from './tabs';
 
 export function ServicePage({
@@ -45,9 +35,7 @@ export function ServicePage({
   index?: bigint;
 }) {
   const { t } = useTranslation('console'),
-    { service = '', tab = 'overview' } = useParams(),
-    navigate = useNavigate();
-  const [search, setSearch] = useSearchParams();
+    { service = '', tab = 'overview' } = useParams();
   const client = useClient(CatalogServiceClient),
     summary = services.find((entry) => entry.name === service);
   const detail = usePlatformQuery(`header:${service}:${index}`, (signal) =>
@@ -116,35 +104,7 @@ export function ServicePage({
       />
       <div className="console-detail" key={`${service}/${tab}`}>
         {tab === 'overview' && <ServiceInspector service={service} mode={mode} />}
-        {tab === 'api' && (
-          <ServiceAPI
-            service={service}
-            mode={mode}
-            state={{ api: Number(search.get('api') ?? 0), operation: search.get('operation') ?? undefined }}
-            onStateChange={(state) => {
-              const next = new URLSearchParams(search);
-              next.set('api', String(state.api));
-              if (state.operation) next.set('operation', state.operation);
-              else next.delete('operation');
-              setSearch(next);
-            }}
-          />
-        )}
         {tab === 'configuration' && <ConfigurationPanel service={service} mode={mode} />}
-        {tab === 'automation' && (
-          <AutomationPanel service={service} mode={mode} onOpenWiring={(target) => navigate(wiringLink(target))} />
-        )}
-        {tab === 'operations' && <ServiceOperations service={service} mode={mode} />}
-        {tab === 'events' && (
-          <FeatureGate feature="events">
-            <EventStreams service={service} mode={mode} />
-          </FeatureGate>
-        )}
-        {tab === 'workflows' && (
-          <FeatureGate feature="workflows">
-            <WorkflowsPanel service={service} mode={mode} />
-          </FeatureGate>
-        )}
         {tab === 'telemetry' && <ExploreRoute service={service} mode={mode} defaultSignal="metrics" />}
         {tab === 'errors' && (
           <FeatureGate feature="logs">

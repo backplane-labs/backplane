@@ -49,22 +49,11 @@ type Service struct {
 	deps.Component
 	store     deps.Dependency[*store.Store]
 	publish   func(context.Context, Entry) error
-	runQueue  RunQueueFunc
 	retention time.Duration
 }
 
-// RunQueueFunc is the task queue of a run (Temporal's
-// DescribeWorkflowExecution).
-type RunQueueFunc func(ctx context.Context, workflowID, runID string) (string, error)
-
 // Option replaces integration boundaries for acceptance testing.
 type Option func(*Service)
-
-// WithRunQueue attributes a run command whose workflow id follows no
-// Backplane convention to the service of the run's task queue.
-func WithRunQueue(fn RunQueueFunc) Option {
-	return func(s *Service) { s.runQueue = fn }
-}
 
 // WithPublisher configures acknowledged export; persistence and claiming stay real.
 func WithPublisher(publish func(context.Context, Entry) error) Option {

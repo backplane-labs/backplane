@@ -19,10 +19,6 @@ PROTOC_GEN_GO_GRPC_VERSION := v1.6.2
 GOLANGCI_LINT_VERSION      := v2.15.0
 SQLD_VERSION               := v1.1.8
 
-# Scratch database `make db-init` realizes schemas in: sqld drops every
-# non-system schema in it, so never point it at a real database.
-DB_DEV_URL ?= postgres://backplane:backplane@localhost:5433/backplane_scratch?sslmode=disable
-
 # easyp resolves protoc-gen-* plugins from PATH: put ./bin first.
 EASYP := PATH="$(CURDIR)/web/node_modules/.bin:$(BIN):$$PATH" "$(BIN)/easyp"
 
@@ -73,16 +69,20 @@ db: ## Generate the store's typed queries (internal/store/db) from schema and qu
 	"$(BIN)/sqld" migrate validate -c sqld.yaml
 
 .PHONY: db-init
-db-init: ## Regenerate the single init migration from schema.sql (pre-release: no history), then reset the local database
-	docker compose exec -T postgres dropdb -U backplane --if-exists backplane_scratch
-	docker compose exec -T postgres createdb -U backplane backplane_scratch
-	rm -f internal/store/migrations/*.sql
-	"$(BIN)/sqld" migrate generate init -c sqld.yaml --dev-url "$(DB_DEV_URL)"
-	@# The store creates the schema before migrating (sqld_migrations lives in it).
+db-init: ## Rebuild the pre-release migration baseline using disposable PostgreSQL containers
+	stage=$$(mktemp -d)
+	trap 'rm -rf "$$stage"' EXIT
+	mkdir -p "$$stage/internal/store/"{queries,migrations}
+	cp sqld.yaml "$$stage/"
+	cp internal/store/schema.sql "$$stage/internal/store/"
+	(cd "$$stage" && "$(BIN)/sqld" migrate generate init -c sqld.yaml)
+	# The store owns the schema and keeps sqld's ledger in it, including after rollback.
 	sed -i -e 's|^CREATE SCHEMA "backplane";|CREATE SCHEMA IF NOT EXISTS "backplane";|' \
-		-e '/^DROP SCHEMA "backplane";$$/d' internal/store/migrations/*_init.sql
-	"$(BIN)/sqld" migrate validate -c sqld.yaml
-	docker compose exec -T postgres psql -U backplane -d backplane -qc 'DROP SCHEMA IF EXISTS backplane CASCADE'
+		-e '/^DROP SCHEMA "backplane";$$/d' "$$stage"/internal/store/migrations/*_init.sql
+	(cd "$$stage" && "$(BIN)/sqld" migrate validate -c sqld.yaml)
+	cp "$$stage"/internal/store/migrations/*_init.sql internal/store/migrations/
+	for f in internal/store/migrations/*.sql; do test -f "$$stage/$$f" || rm "$$f"; done
+	$(MAKE) db
 
 .PHONY: lint
 lint: ## Lint proto files and Go code
@@ -115,19 +115,6 @@ test-m1: ## M1 end to end: bin backplane + hello on direct listeners — config 
 	BACKPLANE_TEST_CONSUL=localhost:8500 \
 	BACKPLANE_TEST_PG="postgres://backplane:backplane@localhost:5433/backplane?sslmode=disable" \
 		GOWORK=off go test -race -count=1 -run '^TestM1$$' -v ./conformance/
-
-.PHONY: test-m2
-test-m2: ## M2 end to end: bin backplane + hello with NATS and Temporal on direct listeners — bindings, rules, runs, one trace (make up)
-	BACKPLANE_TEST_CONSUL=localhost:8500 \
-	BACKPLANE_TEST_NATS=localhost:4222 BACKPLANE_TEST_TEMPORAL=localhost:7233 \
-	BACKPLANE_TEST_PG="postgres://backplane:backplane@localhost:5433/backplane?sslmode=disable" \
-		GOWORK=off go test -race -count=1 -timeout 20m -run '^TestM2$$' -v ./conformance/
-
-.PHONY: test-direct
-test-direct: ## Direct runtime end to end: bin backplane + hello with NATS and no Temporal — hooks over gRPC, bindings and rules in-process, recorded runs (make up)
-	BACKPLANE_TEST_CONSUL=localhost:8500 BACKPLANE_TEST_NATS=localhost:4222 \
-	BACKPLANE_TEST_PG="postgres://backplane:backplane@localhost:5433/backplane?sslmode=disable" \
-		GOWORK=off go test -race -count=1 -timeout 20m -run '^TestDirect$$' -v ./conformance/
 
 .PHONY: up down
 up: ## Start platform-in-a-box (docker compose)
@@ -285,7 +272,7 @@ release: ## Create and push a version tag; no local builds or tests
 clean: ## Remove tools, vendored protos and generated code
 	rm -rf "$(BIN)" easyp_vendor backplanepb/v1/*.pb.go
 
-.PHONY: formatter run-formatter setup-example test-replicas
+.PHONY: formatter run-formatter test-replicas
 formatter: ## Build the independent formatter companion service
 	go build -trimpath -ldflags "$(call ldflags,formatter)" -o "$(BIN)/formatter" ./examples/formatter/cmd/formatter
 
@@ -294,15 +281,7 @@ run-formatter: formatter ## Run formatter against the local stack on :8082 / :94
 	BACKPLANE_TEMPORAL_ADDR=localhost:7233 BACKPLANE_PUBLIC_PORT=8082 \
 	BACKPLANE_INTERNAL_PORT=9420 "$(BIN)/formatter"
 
-bind: ## Save binding definitions from YAML files through the console API (FILES=a.yaml b.yaml)
-	BACKPLANE_ADMIN_TOKEN="$${BACKPLANE_ADMIN_TOKEN:-$(DEV_ADMIN_TOKEN)}" \
-		go run ./examples/demo/cmd/bind $(FILES)
-
-setup-example: ## Save hello -> formatter binding and event rule through the console API
-	BACKPLANE_ADMIN_TOKEN="$${BACKPLANE_ADMIN_TOKEN:-$(DEV_ADMIN_TOKEN)}" \
-		go run ./examples/demo/cmd/setup
-
-test-replicas: ## Two backplanes + hello + formatter: crash/rejoin, config, rules, Nexus retirement (make up)
+test-replicas: ## Two backplanes + hello + formatter: crash/rejoin, config repair and audit export (make up)
 	BACKPLANE_TEST_CONSUL=localhost:8500 \
 	BACKPLANE_TEST_NATS=localhost:4222 BACKPLANE_TEST_TEMPORAL=localhost:7233 \
 	BACKPLANE_TEST_PG="postgres://backplane:backplane@localhost:5433/backplane?sslmode=disable" \
@@ -326,7 +305,7 @@ dev-build: ## Build the console, example module and static Go binaries
 	tree="$$(mktemp -d)"
 	trap 'git worktree remove --force "$$tree"' EXIT
 	git worktree add --detach "$$tree" HEAD
-	rsync -a --exclude node_modules --exclude dist web/ "$$tree/web/"
+	rsync -a --delete --exclude node_modules --exclude dist --exclude storybook-static --exclude test-results web/ "$$tree/web/"
 	node "$$tree/scripts/stamp-release.mjs" "$${stamp#v}"
 	(cd "$$tree/web" && yarn install && yarn build)
 	# The shell and the example module the dev installation mounts.
@@ -335,12 +314,10 @@ dev-build: ## Build the console, example module and static Go binaries
 		rsync -a --delete "$$tree/web/$$dist/" "web/$$dist/"
 	done
 	CGO_ENABLED=0 GOWORK=off $(MAKE) VERSION="$(DEV_VERSION)" backplane hello formatter
-	CGO_ENABLED=0 GOWORK=off go build -o "$(BIN)/setup-example" ./examples/demo/cmd/setup
 
-dev: dev-build ## Start the complete live installation with a seeded hello/formatter binding and rule
+dev: dev-build ## Start the complete live installation
 	$(DEV_COMPOSE) up -d --wait
 	node web/scripts/dev-ready.mjs
-	$(DEV_COMPOSE) run --rm seed
 	curl --fail --silent --show-error 'http://127.0.0.1:8080/hello/?name=Developer'
 	echo 'Development console: http://127.0.0.1:8081/backplane/ (DEV_ADMIN_TOKEN)'
 
@@ -363,5 +340,5 @@ dev-minimal: dev-build ## Start console with PostgreSQL and Consul only
 	echo 'Minimal console: http://127.0.0.1:8081/backplane/ (DEV_ADMIN_TOKEN)'
 
 .PHONY: verify
-verify: ## Full release verification: live race suite, browser schedules, packages and minimal Compose
+verify: ## Full release verification: live race suite, browser checks, packages and minimal Compose
 	bash scripts/verify.sh

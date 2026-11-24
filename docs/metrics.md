@@ -14,13 +14,7 @@ resource carries `service.name`, `service.version`, `service.instance.id` and
 | `backplane.dependency.provide.attempts` | counter | `node`, `outcome` | Attempts to provide a dependency |
 | `backplane.config.updates` | counter | `outcome` | Live configuration updates applied or refused |
 | `backplane.config.degraded` | gauge | — | 1 while the Consul layer is stale |
-| `backplane.hook.call.duration` | histogram, s | `hook`, `outcome` | Hook calls the service answers |
-| `backplane.event.published` | counter | `event`, `outcome` | Events published |
-| `backplane.reactor.duration` | histogram, s | `consumer`, `outcome` (`ack`, `nak`, `terminal`, `dead`) | Reactor deliveries and how each settled |
-| `backplane.reactor.redeliveries` | counter | `consumer` | Deliveries of an event the consumer had been given before |
-| `backplane.reactor.pending` | gauge | `consumer`, `state` (`waiting`, `unacked`) | Consumer lag, read from JetStream every 15s |
-| `backplane.activity.duration` | histogram, s | `activity`, `outcome` | Activity executions |
-| `backplane.transport.connected` | gauge | `transport` (`consul`, `nats`, `temporal`) | 1 while the transport is connected |
+| `backplane.transport.connected` | gauge | `transport` (`consul`) | 1 while the transport is connected |
 | `backplane.nats.connected` | gauge | `conn` | 1 while an `infra/nats` connection is up |
 | `backplane.panics` | counter | `where` | Recovered panics |
 | `backplane.postgres.acquire.timeouts` | counter | `pool` | Queries that found no free connection in time |
@@ -43,17 +37,8 @@ for a worker.
 
 | Name | Type | Labels | What |
 |---|---|---|---|
-| `backplane.binding.calls` | counter | `hook`, `outcome` | Hook calls the wiring made |
-| `backplane.binding.runs` | counter | `kind`, `source`, `outcome` | Wiring runs |
-| `backplane.binding.run.duration` | histogram, s | `kind`, `source`, `outcome` | Wiring runs |
-| `backplane.binding.step.duration` | histogram, s | `activity`, `undo`, `outcome` | Steps of a run |
-| `backplane.executor.hook_services` | gauge | — | Services answering hooks |
-| `backplane.bindings.snapshot_age` | gauge, s | — | Age of the wiring snapshot |
-| `backplane.direct.runs`, `backplane.direct.run.duration` | counter, histogram | `kind`, `outcome` | Direct (non-workflow) runs |
-| `backplane.direct.records_dropped` | counter | — | Direct-run records not kept |
 | `backplane.config.revisions` | counter | `outcome` | Configuration revisions |
 | `backplane.config.kv.rewrites`, `backplane.config.kv.failures` | counter | `reason` | Consul KV writes |
-| `backplane.rules.messages`, `backplane.rules.matched` | counter | `rule`, `outcome` | Rules over events |
 | `backplane.audit.ingest.records` | counter | `outcome` (`stored`, `duplicate`, `rejected`) | Application audit records ingested |
 | `backplane.errors.ingest.records` | counter | `outcome` | Error records ingested |
 | `backplane.errors.upstream.records` | counter | `outcome`, `reason` | Error records forwarded upstream |

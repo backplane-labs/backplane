@@ -16,10 +16,10 @@ export default defineConfig(({ command }) => {
       '@codemirror/lint', '@codemirror/merge', '@lezer/highlight',
       'uplot', '@grafana/schema',
       '@gopherex/schemapb', '@gopherex/ws-proto-transport',
-      '@tanstack/react-table', '@tanstack/react-virtual', '@xyflow/react',
+      '@tanstack/react-table', '@tanstack/react-virtual',
       'class-variance-authority', 'clsx', 'cmdk', 'date-fns/locale',
       'embla-carousel-react', 'lossless-json', 'radix-ui', 'react-day-picker',
-      'react-hook-form', 'react-resizable-panels', 'sonner', 'tailwind-merge', 'yaml',
+      'react-hook-form', 'react-resizable-panels', 'sonner', 'tailwind-merge',
     ] };
   }
   return config;

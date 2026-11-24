@@ -118,40 +118,9 @@ A `secret` mark masks a value in the console, and the direct runtime records
 runs already masked. Temporal history, NATS and service logs keep payloads as
 they were, unless history encryption is on (below).
 
-## History encryption
+## Temporal payload encryption
 
-`BACKPLANE_TEMPORAL_ENCRYPTION_*` (`backplane.temporal.encryption`, a seal
-section) encrypts the payloads of workflow history. It is off by default.
-
-```yaml
-backplane:
-  temporal:
-    encryption: {key: ${HISTORY_KEY}}      # or vault: {...}
-```
-
-- **What it seals.** A payload codec seals every payload whole, metadata
-  included: the inputs and results of workflows, activities, signals and
-  hook calls, and schedule inputs.
-- **What stays readable.** Temporal UI and `tctl` show ciphertext. The
-  console decodes and then masks as before.
-- **Hook replies.** Backplane also seals the unmasked reply it keeps for a
-  keyed hook call.
-- **Same key everywhere.** Every service of the installation and backplane
-  must carry the same section: a worker opens what a workflow sealed.
-- **Turning it on.** Payloads written before encryption pass through
-  unchanged, so it can be turned on without a migration. Turning it off
-  leaves the sealed history unreadable.
-- **Rotation.** Same as for any seal section: a new `key`, the old one in
-  `previous`.
-- **Strict mode.** `require_encryption: true` makes workers and clients
-  refuse payloads that are not sealed, so whoever reaches the Temporal API
-  without the key cannot hand a worker plain input. Turn it on once no run
-  from before encryption is left.
-- **What it protects.** Confidentiality at rest, against whoever reads
-  Temporal's database, backups or UI. A sealed payload is not bound to its
-  run (the Temporal SDK's codec sees no workflow context), so whoever can
-  write to Temporal could move one between runs; access to the Temporal API
-  stays the boundary for that.
+Applications that select `infra/temporal` may configure `Encryption` on that provider. Its codec encrypts Temporal payloads, not platform metadata. Clients and workers that exchange encrypted payloads need compatible keys. `RequireEncryption` rejects unsealed payloads; enable it only once old plaintext histories no longer need to be read. A codec does not authorize access to a namespace or bind ciphertext to a particular run.
 
 ## Sealing what a service stores
 

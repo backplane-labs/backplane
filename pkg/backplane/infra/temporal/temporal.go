@@ -1,10 +1,6 @@
 // Package temporal is a Temporal client as a dependency: a configuration
 // section, a client traced and measured through the service's OpenTelemetry
-// providers and logging through its logger, a health probe. The SDK's own
-// connection (BACKPLANE_TEMPORAL_*: hooks, activities, workflows) dials
-// through Options too.
-//
-// For a Temporal of the service's own — another cluster or namespace:
+// providers and logging through its logger, a health probe.
 //
 //	type Config struct {
 //	    config.Backplane `json:"backplane"`

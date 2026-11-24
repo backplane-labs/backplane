@@ -14,9 +14,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
-	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	"github.com/backplane-labs/backplane/internal/apperrors"
 	"github.com/backplane-labs/backplane/internal/audit"
 	liveconfig "github.com/backplane-labs/backplane/internal/config"
@@ -24,7 +22,9 @@ import (
 	"github.com/backplane-labs/backplane/internal/obs"
 	"github.com/backplane-labs/backplane/internal/otlp"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/nats"
 	"github.com/backplane-labs/backplane/pkg/backplane/infra/postgres"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/temporal"
 )
 
 // Name of the service.
@@ -34,7 +34,9 @@ const Name = "backplane"
 type Config struct {
 	config.Backplane `json:"backplane"`
 
-	// PostgreSQL, schema `backplane`: BACKPLANE_PG_DSN, _QUERY_LOG, _POOL_*.
+	// Endpoints monitored by the platform. Neither is required at startup.
+	NATS           natsProbe       `json:"nats"`
+	Temporal       temporalProbe   `json:"temporal"`
 	PG             postgres.Config `json:"pg"`
 	Infrastructure Infrastructure  `json:"infrastructure"`
 	// Console HTTP: `/`, `/ws`, `/auth`, `/plugins`, served directly or behind a deployment-owned proxy.
@@ -54,57 +56,35 @@ type Config struct {
 	OTLP otlp.Config `json:"otlp"`
 	// Live-value overrides: BACKPLANE_LIVE_CONFIG_* (§5.3).
 	LiveConfig liveconfig.Settings `json:"live_config"`
-	// Nexus endpoint reconciliation and retirement.
-	Nexus Nexus `json:"nexus"`
-	// Wiring: the runtime of bindings and rules that name none.
-	Wiring Wiring `json:"wiring"`
-	// Direct runtime: runs in backplane's process.
-	Direct Direct `json:"direct"`
 }
 
-// Wiring of the installation: BACKPLANE_WIRING_*.
-type Wiring struct {
-	// Runtime of a binding or rule that names none: "temporal", "direct",
-	// or "auto": temporal when Temporal is configured, else direct.
-	Runtime string `json:"runtime" schemapb:"default=auto"`
-	// Dir holds bindings, rules and schedules as YAML files, kept in force: the
-	// console only reads what they define (website guides/wiring.md).
-	// Empty: everything is the console's.
-	Dir string `json:"dir,omitempty"`
-	// Poll is how often Dir is read again (it is read on every new
-	// manifest too).
-	Poll time.Duration `json:"poll" schemapb:"default=5s;gt=0"`
-}
+// The native providers require an endpoint; the server only installs a probe when one is configured.
+type natsProbe struct{ nats.Config }
 
-// The runtimes Wiring.Runtime names.
-const (
-	runtimeAuto     = "auto"
-	runtimeTemporal = "temporal"
-	runtimeDirect   = "direct"
-)
-
-// Resolve is the runtime "auto" stands for.
-func (w Wiring) Resolve(temporal bool) consolev1.Runtime {
-	switch w.Runtime {
-	case runtimeTemporal:
-		return consolev1.Runtime_RUNTIME_TEMPORAL
-	case runtimeDirect:
-		return consolev1.Runtime_RUNTIME_DIRECT
+func (c natsProbe) Validate() error {
+	if !c.Enabled() {
+		return nil
 	}
 
-	if temporal {
-		return consolev1.Runtime_RUNTIME_TEMPORAL
+	if err := c.Config.Validate(); err != nil {
+		return fmt.Errorf("health probe: %w", err)
 	}
 
-	return consolev1.Runtime_RUNTIME_DIRECT
+	return nil
 }
 
-// Direct runtime settings: BACKPLANE_DIRECT_*.
-type Direct struct {
-	// RunTimeout bounds a rule's run and a hook call that brings no deadline.
-	RunTimeout time.Duration `json:"run_timeout" schemapb:"default=5m;gt=0"`
-	// Retention of recorded runs; 0 keeps them.
-	Retention time.Duration `json:"retention" schemapb:"default=168h;gte=0"`
+type temporalProbe struct{ temporal.Config }
+
+func (c temporalProbe) Validate() error {
+	if !c.Enabled() {
+		return nil
+	}
+
+	if err := c.Config.Validate(); err != nil {
+		return fmt.Errorf("health probe: %w", err)
+	}
+
+	return nil
 }
 
 // Console of the installation (§11): BACKPLANE_CONSOLE_*.
@@ -146,8 +126,6 @@ var (
 	ErrNoAdminToken = errors.New("admin_token is required (BACKPLANE_ADMIN_TOKEN): " +
 		"the console's login secret, set in the deployment")
 	ErrShortAdminToken = fmt.Errorf("want at least %d characters", console.MinAdminTokenLen)
-	ErrWiringRuntime   = errors.New("want auto, temporal or direct")
-	ErrWiringTemporal  = errors.New("wiring.runtime is temporal but temporal is not configured (BACKPLANE_TEMPORAL_ADDR)")
 )
 
 // Validate checks what the schema cannot: required connections, listen
@@ -167,16 +145,6 @@ func (c Config) Validate() error {
 
 	if err := c.adminToken(); err != nil {
 		errs = append(errs, err)
-	}
-
-	switch c.Wiring.Runtime {
-	case "", runtimeAuto, runtimeDirect:
-	case runtimeTemporal:
-		if !c.Temporal.Enabled() {
-			errs = append(errs, ErrWiringTemporal)
-		}
-	default:
-		errs = append(errs, fmt.Errorf("wiring.runtime %q: %w", c.Wiring.Runtime, ErrWiringRuntime))
 	}
 
 	errs = append(errs, c.ports()...)
@@ -275,10 +243,4 @@ func httpURL(s string) bool {
 	u, err := url.Parse(s)
 
 	return err == nil && u.Host != "" && (u.Scheme == "http" || u.Scheme == "https")
-}
-
-// Nexus controls cleanup of endpoints whose services have no instances.
-type Nexus struct {
-	AbsenceGrace      time.Duration `json:"absence_grace"      schemapb:"default=5m;gte=0"`
-	ReconcileInterval time.Duration `json:"reconcile_interval" schemapb:"default=1m;gt=0"`
 }

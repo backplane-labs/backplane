@@ -8,7 +8,7 @@ type Mesh struct {
 	// without ACLs) or deny.
 	Default string `desc:"What a caller no intention names gets: allow or deny." json:"default" schemapb:"default=allow"`
 	// Platform is mutual TLS on the platform port and on the calls to the
-	// platform ports of others (activities, hooks, the console relay):
+	// platform ports of others (including the console relay):
 	// plain, accept (served, not used: the step of a rollout) or mtls.
 	Platform string `desc:"Mutual TLS on the platform port: plain; accept (served, calls stay plain: roll it out everywhere first); mtls (calls use it, plain serves only probes)." json:"platform" schemapb:"default=plain"`
 }

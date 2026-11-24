@@ -114,7 +114,7 @@ func decode(kv *api.KVPair, kind string, cache map[string]parsed) (proto.Message
 		msg = &backplanev1.InstanceState{}
 	}
 
-	if err := proto.Unmarshal(kv.Value, msg); err != nil {
+	if err := (proto.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(kv.Value, msg); err != nil {
 		return nil, fmt.Errorf("%s: %w", kind, err)
 	}
 

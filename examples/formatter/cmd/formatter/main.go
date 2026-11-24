@@ -4,33 +4,33 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/backplane-labs/backplane/examples/formatter/internal/formatter"
 	"github.com/backplane-labs/backplane/pkg/backplane"
-	"github.com/backplane-labs/backplane/pkg/backplane/api"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
-	"github.com/backplane-labs/backplane/pkg/backplane/drivers/standard"
+	consuldriver "github.com/backplane-labs/backplane/pkg/backplane/drivers/consul"
 )
 
 type Config struct {
 	config.Backplane `json:"backplane"`
 	Formatter        formatter.Config `json:"formatter"`
 }
-type State struct{ Formatter *formatter.Formatter }
+type State struct{ Handler http.Handler }
 
 func newState(root backplane.Root[Config]) (*State, error) {
 	cfg := root.Config()
-	return &State{Formatter: formatter.New(root, &cfg.Formatter)}, nil
+	return &State{Handler: formatter.HTTP(&cfg.Formatter)}, nil
 }
 
 func run(ctx context.Context) error {
-	svc, err := backplane.Open(ctx, newState, standard.Drivers())
+	svc, err := backplane.Open(ctx, newState, consuldriver.Driver())
 	if err != nil {
 		return fmt.Errorf("formatter: %w", err)
 	}
 
-	svc.HTTP("/formatter/", svc.State().Formatter.HTTP(), api.OpenAPI(formatter.API))
+	svc.HTTP("/formatter/", svc.State().Handler)
 
 	if err := svc.Run(ctx); err != nil {
 		return fmt.Errorf("formatter: %w", err)

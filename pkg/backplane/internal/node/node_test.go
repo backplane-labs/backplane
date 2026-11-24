@@ -45,7 +45,7 @@ func TestOrder(t *testing.T) {
 	t.Parallel()
 
 	j := &journal{}
-	svc := node.New("svc", testlog.Discard(), nil)
+	svc := node.New("svc", testlog.Discard())
 	app := track(j, svc.Child("app", node.Root, false))
 	db := track(j, app.Child("db", node.Dependency, false))
 	api := track(j, app.Child("api", node.Component, false))
@@ -74,7 +74,7 @@ func TestStartFailureUnwindsStarted(t *testing.T) {
 	t.Parallel()
 
 	j := &journal{}
-	svc := node.New("svc", testlog.Discard(), nil)
+	svc := node.New("svc", testlog.Discard())
 	app := svc.Child("app", node.Root, false)
 	track(j, app.Child("a", node.Dependency, false))
 
@@ -102,7 +102,7 @@ func TestStartFailureUnwindsStarted(t *testing.T) {
 func TestGoroutinesStopBeforeEarlierNodes(t *testing.T) {
 	t.Parallel()
 
-	svc := node.New("svc", testlog.Discard(), nil)
+	svc := node.New("svc", testlog.Discard())
 	app := svc.Child("app", node.Root, false)
 
 	var closed atomic.Bool
@@ -139,7 +139,7 @@ func TestChildDuringOwnStart(t *testing.T) {
 	t.Parallel()
 
 	j := &journal{}
-	svc := node.New("svc", testlog.Discard(), nil)
+	svc := node.New("svc", testlog.Discard())
 	app := svc.Child("app", node.Root, false)
 	pool := app.Child("pool", node.Dependency, false)
 	pool.OnStart(func(context.Context) error {
@@ -165,7 +165,7 @@ func TestChildDuringOwnStart(t *testing.T) {
 func TestChildAfterStartPanics(t *testing.T) {
 	t.Parallel()
 
-	svc := node.New("svc", testlog.Discard(), nil)
+	svc := node.New("svc", testlog.Discard())
 	app := svc.Child("app", node.Root, false)
 
 	if err := svc.Start(context.Background()); err != nil {
@@ -193,7 +193,7 @@ func TestGoroutineFailureAndPanicReported(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			svc := node.New("svc", testlog.Discard(), nil)
+			svc := node.New("svc", testlog.Discard())
 			app := svc.Child("app", node.Root, false)
 			app.Child("worker", node.Component, false).Go(fn)
 
@@ -218,7 +218,7 @@ func TestGoroutineFailureAndPanicReported(t *testing.T) {
 func TestGoroutineIgnoringCancelTimesOut(t *testing.T) {
 	t.Parallel()
 
-	svc := node.New("svc", testlog.Discard(), nil)
+	svc := node.New("svc", testlog.Discard())
 
 	block := make(chan struct{})
 	defer close(block)
@@ -240,7 +240,7 @@ func TestGoroutineIgnoringCancelTimesOut(t *testing.T) {
 func TestGoAfterStopIsDropped(t *testing.T) {
 	t.Parallel()
 
-	svc := node.New("svc", testlog.Discard(), nil)
+	svc := node.New("svc", testlog.Discard())
 	app := svc.Child("app", node.Root, false)
 
 	if err := svc.Start(context.Background()); err != nil {
@@ -264,7 +264,7 @@ func TestGoAfterStopIsDropped(t *testing.T) {
 func TestReadinessIncludesLateNodes(t *testing.T) {
 	t.Parallel()
 
-	svc := node.New("svc", testlog.Discard(), nil)
+	svc := node.New("svc", testlog.Discard())
 	app := svc.Child("app", node.Root, false)
 	pool := app.Child("pool", node.Dependency, false)
 	pool.OnStart(func(context.Context) error {
@@ -294,7 +294,7 @@ func TestReadinessIncludesLateNodes(t *testing.T) {
 func TestPathsUniqueWithinRoot(t *testing.T) {
 	t.Parallel()
 
-	svc := node.New("svc", testlog.Discard(), nil)
+	svc := node.New("svc", testlog.Discard())
 	svc.Child("config", node.System, false)
 
 	app := svc.Child("app", node.Root, false)
@@ -311,7 +311,7 @@ func TestPathsUniqueWithinRoot(t *testing.T) {
 func TestBudget(t *testing.T) {
 	t.Parallel()
 
-	svc := node.New("svc", testlog.Discard(), nil)
+	svc := node.New("svc", testlog.Discard())
 	later := svc.Child("later", node.System, false)
 	narrow := svc.Child("narrow", node.System, false)
 
@@ -362,7 +362,7 @@ func TestBudget(t *testing.T) {
 func TestProbeInterval(t *testing.T) {
 	t.Parallel()
 
-	svc := node.New("svc", testlog.Discard(), nil)
+	svc := node.New("svc", testlog.Discard())
 	child := svc.Child("c", node.System, false)
 
 	if child.ProbeInterval() != node.DefaultProbeInterval {

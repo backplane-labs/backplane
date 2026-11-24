@@ -153,6 +153,11 @@ func (rl *relay) target(method string) (string, string, error) {
 		return "", "", status.Errorf(codes.PermissionDenied, "%s: not a method", method)
 	}
 
+	// Platform RPCs are served locally. A previous replica's manifest cannot re-enable one.
+	if strings.HasPrefix(name, "backplane.") {
+		return "", "", status.Errorf(codes.PermissionDenied, "%s is not a module service", name)
+	}
+
 	cat := rl.src.Current()
 
 	var owners []string

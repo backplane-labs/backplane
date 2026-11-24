@@ -38,12 +38,7 @@ function useCrumbs(modules: Record<string, ModuleEntry>): Crumb[] {
   return [
     {
       label: t(
-        root === 'explore' ||
-          root === 'audit' ||
-          root === 'errors' ||
-          root === 'dev' ||
-          root === 'wiring' ||
-          root === 'infrastructure'
+        root === 'explore' || root === 'audit' || root === 'errors' || root === 'dev' || root === 'infrastructure'
           ? root
           : 'services',
       ),

@@ -26,7 +26,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
 	sdkconfig "github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
-	"github.com/backplane-labs/backplane/pkg/backplane/drivers/standard"
+	consuldriver "github.com/backplane-labs/backplane/pkg/backplane/drivers/consul"
 	"github.com/backplane-labs/backplane/pkg/backplane/infra/postgres"
 )
 
@@ -119,7 +119,7 @@ func runService(t *testing.T, addr, name string) testConfig {
 	svc, err := backplane.Open(t.Context(), func(root backplane.Root[testConfig]) (*sdkState, error) {
 		return &sdkState{cfg: root.Config()}, nil
 	},
-		standard.Drivers(), backplane.Name(name), backplane.Instance(name+"-1"), backplane.Advertise("127.0.0.1"),
+		consuldriver.Driver(), backplane.Name(name), backplane.Instance(name+"-1"), backplane.Advertise("127.0.0.1"),
 		backplane.Logger(xlog.NewJSON(xlog.WithWriter(io.Discard))), backplane.ConfigOptions(sdkconfig.WithoutFile()))
 	if err != nil {
 		t.Fatal(err)

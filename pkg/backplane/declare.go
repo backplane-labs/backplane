@@ -15,7 +15,6 @@ import (
 
 	"github.com/gopherex/xprobe/pkg/probe"
 
-	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/api"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/apifiles"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/health"
@@ -26,15 +25,15 @@ import (
 
 //nolint:gochecknoinits // installs the private accessor for the wsproto package
 func init() {
-	link.MountWS = func(svc any, prefix string, h http.Handler, services []string, spec routes.Managed) {
+	link.MountWS = func(svc any, prefix string, h http.Handler, spec routes.Managed) {
 		m, ok := svc.(interface {
-			mountWS(prefix string, h http.Handler, services []string, spec routes.Managed)
+			mountWS(prefix string, h http.Handler, spec routes.Managed)
 		})
 		if !ok {
 			panic("backplane: wsproto.Serve needs a *backplane.Service")
 		}
 
-		m.mountWS(prefix, h, services, spec)
+		m.mountWS(prefix, h, spec)
 	}
 }
 
@@ -42,33 +41,24 @@ func init() {
 var (
 	errPrefixTaken     = errors.New("prefix served twice")
 	errReservedPackage = errors.New("is in a reserved proto package")
-	errSchemaConflict  = errors.New("api: inline and file API schemas declared together")
 	errMixedTLS        = errors.New("api.MTLS and plain routes on one port")
 	errListener        = errors.New("a listener has one name and one address")
 )
 
-// API describes an API the author serves on their own listener.
-func (c *core) API(d api.Decl) {
-	c.declare("API", func() {
-		r, err := link.APIs.Decl(d)
-		if err != nil {
-			c.env.Manifest.Fail(err)
-
+// Listener advertises a named port served by the application itself.
+func (c *core) Listener(name string, port uint16) {
+	c.declare("listener", func() {
+		if name == "" || port == 0 {
+			c.manifest.Fail(errListener)
 			return
 		}
 
-		if name := r.GetListener(); name != "" {
-			c.declareListener(name, link.APIs.Port(d))
-		}
-
-		c.env.Manifest.API(r)
-		c.env.Manifest.GiveDescriptors(link.APIs.Descriptors(d))
-		c.mountSchemaFiles(link.APIs.Files(d))
+		c.declareListener(name, port)
 	})
 }
 
 // GRPC serves gRPC services on a public port: one route per registered
-// service, descriptors derived from the registration. Registering the same
+// service. Registering the same
 // service twice on one port is a Run error; so is grpc.health.v1, which
 // every public gRPC server serves already. api.Interceptors and
 // api.StreamInterceptors wrap this registration's services only.
@@ -81,7 +71,7 @@ func (c *core) GRPC(register func(r grpc.ServiceRegistrar), opts ...api.GRPCOpti
 
 		services, err := manifest.Register(srv, register)
 		if err != nil {
-			c.env.Manifest.Fail(err)
+			c.manifest.Fail(err)
 		}
 
 		p.dispatch.Add(services, spec.Unary, spec.Stream)
@@ -91,12 +81,6 @@ func (c *core) GRPC(register func(r grpc.ServiceRegistrar), opts ...api.GRPCOpti
 
 			p.reflection = true
 		}
-
-		for _, name := range services {
-			r := &backplanev1.API{Kind: backplanev1.ApiKind_API_KIND_GRPC, Listener: p.name, Services: []string{name}}
-			setMatch(r, spec.Host, "/"+name+"/")
-			c.env.Manifest.API(r)
-		}
 	})
 }
 
@@ -105,77 +89,29 @@ func (c *core) GRPC(register func(r grpc.ServiceRegistrar), opts ...api.GRPCOpti
 // host only, so one prefix may serve several hosts. The same host and
 // prefix twice on one port is a Run error.
 func (c *core) HTTP(prefix string, h http.Handler, opts ...api.HTTPOption) {
-	c.mountHTTP("HTTP route", backplanev1.ApiKind_API_KIND_HTTP, prefix, h, link.APIs.HTTP(opts), nil)
+	c.mountHTTP("HTTP route", prefix, h, link.APIs.HTTP(opts))
 }
 
-// GraphQL serves the author's GraphQL handler under prefix on a public
-// port, announced with its introspection result (JSON; nil when none).
-func (c *core) GraphQL(prefix string, h http.Handler, introspection []byte, opts ...api.HTTPOption) {
-	var schema *backplanev1.API
-	if introspection != nil {
-		schema = &backplanev1.API{Schema: &backplanev1.API_Graphql{Graphql: introspection}}
-	}
-
-	c.mountHTTP("GraphQL route", backplanev1.ApiKind_API_KIND_GRAPHQL, prefix, h, link.APIs.HTTP(opts), schema)
+func (c *core) mountWS(prefix string, h http.Handler, spec routes.Managed) {
+	c.mountHTTP("ws-proto route", prefix, h, spec)
 }
 
-func (c *core) mountWS(prefix string, h http.Handler, services []string, spec routes.Managed) {
-	c.mountHTTP("ws-proto route", backplanev1.ApiKind_API_KIND_WS_PROTO, prefix, h, spec,
-		&backplanev1.API{Services: services})
-}
-
-// mountHTTP serves h and announces it; extra carries the kind's schema and
-// services.
-func (c *core) mountHTTP(
-	what string, kind backplanev1.ApiKind, prefix string, h http.Handler, spec routes.Managed,
-	extra *backplanev1.API,
-) {
+func (c *core) mountHTTP(what, prefix string, h http.Handler, spec routes.Managed) {
 	c.declare(what, func() {
 		p, err := routes.Prefix(prefix)
 		if err != nil {
-			c.env.Manifest.Fail(err)
+			c.manifest.Fail(err)
 
 			return
 		}
 
 		port := c.routePort(spec)
 		if !port.handle(spec.Host, p, spec.Wrap(h)) {
-			c.env.Manifest.Fail(fmt.Errorf("%s %s%s: %w on %s", what, spec.Host, p, errPrefixTaken, port.addr))
+			c.manifest.Fail(fmt.Errorf("%s %s%s: %w on %s", what, spec.Host, p, errPrefixTaken, port.addr))
 
 			return
 		}
-
-		r := &backplanev1.API{Kind: kind, Listener: port.name}
-		setMatch(r, spec.Host, p)
-
-		if spec.OpenAPI != nil {
-			r.Schema = &backplanev1.API_Openapi{Openapi: spec.OpenAPI}
-		}
-
-		if spec.SchemaFiles != nil {
-			if extra.GetSchema() != nil {
-				c.env.Manifest.Fail(errSchemaConflict)
-				return
-			}
-
-			r.Schema = &backplanev1.API_Bundle{Bundle: spec.SchemaFiles.Ref}
-			c.mountSchemaFiles(spec.SchemaFiles)
-		}
-
-		if extra != nil {
-			r.Services = extra.GetServices()
-			if extra.GetSchema() != nil {
-				r.Schema = extra.GetSchema()
-			}
-		}
-
-		c.env.Manifest.API(r)
 	})
-}
-
-// setMatch matches r by path prefix and, when given, host too.
-func setMatch(r *backplanev1.API, host, prefix string) {
-	r.Prefix, r.Host = prefix, host
 }
 
 // Internal registers the internal API: gRPC on the platform port for the
@@ -196,18 +132,18 @@ func (c *core) Internal(register func(r grpc.ServiceRegistrar), opts ...api.Inte
 	c.declare("internal API", func() {
 		services, err := manifest.Register(c.internal, register)
 		if err != nil {
-			c.env.Manifest.Fail(err)
+			c.manifest.Fail(err)
 		}
 
 		c.internals.Add(services, spec.Unary, spec.Stream)
 
 		for _, name := range services {
 			if strings.HasPrefix(name, "grpc.") || strings.HasPrefix(name, "backplane.") && c.id.Service != "backplane" {
-				c.env.Manifest.Fail(fmt.Errorf("internal API %s: %w", name, errReservedPackage))
+				c.manifest.Fail(fmt.Errorf("internal API %s: %w", name, errReservedPackage))
 			}
 		}
 
-		c.env.Manifest.Internal(services)
+		c.manifest.Internal(services)
 	})
 }
 
@@ -219,11 +155,11 @@ func (c *core) UI(bundle fs.FS) {
 	c.declare("UI", func() {
 		files, err := apifiles.Snapshot(bundle, "plugin.json")
 		if err != nil {
-			c.env.Manifest.Fail(fmt.Errorf("ui bundle: %w", err))
+			c.manifest.Fail(fmt.Errorf("ui bundle: %w", err))
 			return
 		}
 
-		c.env.Manifest.UI(files)
+		c.manifest.UI(files)
 		c.platform.Handle(uiPath, http.StripPrefix(uiPath, uiHandler(files, files.Hash())))
 	})
 }
@@ -244,34 +180,6 @@ func uiHandler(bundle fs.FS, hash string) http.Handler {
 
 		files.ServeHTTP(w, r)
 	})
-}
-
-// mountSchemaFiles reuses the platform port's internal authentication and ETags.
-func (c *core) mountSchemaFiles(bundle *routes.SchemaFiles) {
-	if bundle == nil {
-		return
-	}
-
-	if bundle.Err != nil {
-		c.env.Manifest.Fail(bundle.Err)
-		return
-	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.apiBundles == nil {
-		c.apiBundles = map[string]bool{}
-	}
-
-	hash := bundle.Ref.GetHash()
-	if c.apiBundles[hash] {
-		return
-	}
-
-	c.apiBundles[hash] = true
-	prefix := "/_backplane/api/" + hash + "/"
-	c.platform.Handle(prefix, http.StripPrefix(prefix, uiHandler(bundle.Files, hash)))
 }
 
 // LivenessProbe adds a liveness probe. Keep dependencies out of it: a dead
@@ -317,11 +225,11 @@ func (c *core) routePort(spec routes.Managed) *publicPort {
 
 		if p.mtls {
 			if _, err := c.mesh.source(); err != nil {
-				c.env.Manifest.Fail(fmt.Errorf("api.MTLS on %s: %w", p.addr, err))
+				c.manifest.Fail(fmt.Errorf("api.MTLS on %s: %w", p.addr, err))
 			}
 		}
 	case p.mtls != spec.MTLS:
-		c.env.Manifest.Fail(fmt.Errorf("%w: %s", errMixedTLS, p.addr))
+		c.manifest.Fail(fmt.Errorf("%w: %s", errMixedTLS, p.addr))
 	}
 
 	return p
@@ -335,11 +243,11 @@ func (c *core) port(name, listen string) *publicPort {
 	case name == "" && listen == "":
 		listen = listenAddr(c.cfg.PublicPort)
 	case name == "" || listen == "":
-		c.env.Manifest.Fail(fmt.Errorf("api.Listen(%q, %q): %w", name, listen, errListener))
+		c.manifest.Fail(fmt.Errorf("api.Listen(%q, %q): %w", name, listen, errListener))
 	}
 
 	if _, taken := c.declared[name]; taken && name != "" {
-		c.env.Manifest.Fail(fmt.Errorf("listener %q is both api.Listen and api.Port: %w", name, errListener))
+		c.manifest.Fail(fmt.Errorf("listener %q is both api.Listen and Listener: %w", name, errListener))
 	}
 
 	for _, p := range c.public {
@@ -348,7 +256,7 @@ func (c *core) port(name, listen string) *publicPort {
 		}
 
 		if p.addr != listen || p.name != name {
-			c.env.Manifest.Fail(fmt.Errorf("listener %q at %s and %q at %s: %w", p.name, p.addr, name, listen, errListener))
+			c.manifest.Fail(fmt.Errorf("listener %q at %s and %q at %s: %w", p.name, p.addr, name, listen, errListener))
 		}
 
 		return p
@@ -358,7 +266,7 @@ func (c *core) port(name, listen string) *publicPort {
 
 	n, err := portOf(listen)
 	if err != nil {
-		c.env.Manifest.Fail(err)
+		c.manifest.Fail(err)
 	}
 
 	p.port = n
@@ -368,16 +276,16 @@ func (c *core) port(name, listen string) *publicPort {
 }
 
 // declareListener records the port of the author's listener name
-// (api.Port); a name has one port and is not also a managed listener.
+// (Listener); a name has one port and is not also a managed listener.
 func (c *core) declareListener(name string, port uint16) {
 	for _, p := range c.public {
 		if p.name == name {
-			c.env.Manifest.Fail(fmt.Errorf("listener %q is both api.Listen and api.Port: %w", name, errListener))
+			c.manifest.Fail(fmt.Errorf("listener %q is both api.Listen and Listener: %w", name, errListener))
 		}
 	}
 
 	if have, ok := c.declared[name]; ok && have != port {
-		c.env.Manifest.Fail(fmt.Errorf("listener %q on ports %d and %d: %w", name, have, port, errListener))
+		c.manifest.Fail(fmt.Errorf("listener %q on ports %d and %d: %w", name, have, port, errListener))
 	}
 
 	if c.declared == nil {

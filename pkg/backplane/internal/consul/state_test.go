@@ -372,8 +372,6 @@ func TestManifestDiff(t *testing.T) {
 	base := func() *backplanev1.Manifest {
 		return &backplanev1.Manifest{
 			Service: "svc", Version: "1.0.0",
-			Apis:   []*backplanev1.API{{Prefix: "/"}},
-			Events: []*backplanev1.Event{{Name: "Seen"}},
 		}
 	}
 
@@ -382,11 +380,7 @@ func TestManifestDiff(t *testing.T) {
 		edit func(m *backplanev1.Manifest)
 		want string
 	}{
-		{"listener", func(m *backplanev1.Manifest) { m.Apis[0].Listener = "admin" }, "apis"},
-		{"listener and events", func(m *backplanev1.Manifest) {
-			m.Apis[0].Listener = "admin"
-			m.Events = nil
-		}, "apis,events"},
+		{"console API and version", func(m *backplanev1.Manifest) { m.Version = "2"; m.InternalServices = []string{"test.Admin"} }, "version,internal_services"},
 		{"sdk", func(m *backplanev1.Manifest) { m.SdkVersion = "v2" }, "sdk_version"},
 		// Field 1023, varint 1: unknown to this SDK.
 		{"unknown only", func(m *backplanev1.Manifest) { m.ProtoReflect().SetUnknown([]byte{0xf8, 0x3f, 0x01}) }, "unknown fields"},
@@ -405,8 +399,8 @@ func TestManifestDiff(t *testing.T) {
 }
 
 func BenchmarkManifestDiff(b *testing.B) {
-	a := &backplanev1.Manifest{Service: "svc", Version: "1.0.0", Apis: []*backplanev1.API{{Prefix: "/"}}}
-	c := &backplanev1.Manifest{Service: "svc", Version: "1.0.0", Apis: []*backplanev1.API{{Prefix: "/", Listener: "admin"}}}
+	a := &backplanev1.Manifest{Service: "svc", Version: "1.0.0", InternalServices: []string{"a"}}
+	c := &backplanev1.Manifest{Service: "svc", Version: "1.0.0", InternalServices: []string{"b"}}
 
 	for b.Loop() {
 		consul.ManifestDiff(a, c)

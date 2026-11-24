@@ -9,7 +9,7 @@ export function NotFound() {
     <div className="rounded-lg border border-border bg-card">
       <EmptyState
         icon={<MapPinOff />}
-        title={t('notFound')}
+        title={<h1>{t('notFound')}</h1>}
         description={t('notFoundHint')}
         action={
           <Button variant="outline" size="sm" asChild>

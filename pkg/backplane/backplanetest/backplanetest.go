@@ -1,26 +1,11 @@
-// Package backplanetest runs components without Open, Run, ports or
-// Consul: build them under Root, Start, and inspect what they published,
-// answer their hooks, invoke their activities and reactors, and check their
-// readiness. Native workflow tests use the optional workflows/workflowtest package.
-//
-//	h := backplanetest.New(t, backplanetest.Name("hello"))
-//	g, _ := greeter.New(h.Root(), &cfg, deps.Static(db))
-//	h.Start()
-//	backplanetest.Events(h, g.Greeted()) // what g published
-//
-// Transports are replaced by a recorder: Publish is recorded (FailPublish
-// and Unavailable make it fail), Call is answered by Answer, reactors run
-// through React and activities through Activity, both with the metadata a
-// transport puts on the handler's context (event.DeliveryOf,
-// activity.InfoOf). The optional workflows/workflowtest package builds a Temporal
-// testsuite environment with the same registrations and hook answers.
+// Package backplanetest starts and stops a service's component tree without listeners or Consul.
+// Use Root to assemble components, Config to load isolated settings, and Ready or Live to inspect health.
 package backplanetest
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -28,12 +13,9 @@ import (
 
 	"github.com/gopherex/xprobe/pkg/probe"
 
-	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
-	"github.com/backplane-labs/backplane/pkg/backplane/internal/env"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
-	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/testlog"
 )
@@ -50,8 +32,6 @@ const (
 
 // Errors.
 var (
-	// ErrNotDeclared: no activity or reactor is declared under that name.
-	ErrNotDeclared = errors.New("backplanetest: not declared")
 	// ErrNotReady: the tree's readiness is down (Ready).
 	ErrNotReady = errors.New("backplanetest: not ready")
 	// ErrNotLive: the tree's liveness is down (Live).
@@ -67,10 +47,7 @@ type options struct {
 	start   time.Duration
 }
 
-// Name is the service's name (default "test"): events are published as
-// <name>.<Event>, hooks called as <name>.<Name>, and a reactor to the
-// service's own event subscribes to "<name>.<Event>". It panics on a name
-// that is not a service name ([a-z][a-z0-9-]*).
+// Name sets the service name (default "test"); it must match [a-z][a-z0-9-]*.
 func Name(service string) Option {
 	if !validService(service) {
 		panic(fmt.Sprintf("backplanetest: service name %q must match [a-z][a-z0-9-]*", service))
@@ -114,16 +91,12 @@ func validService(s string) bool {
 
 // Harness is one service's tree, started by Start and stopped at cleanup.
 type Harness struct {
-	t      testing.TB
-	svc    *node.Node
-	app    *node.Node
-	env    *env.Env
-	rec    *recorder
-	budget time.Duration
-	start  time.Duration
-
-	mu    sync.Mutex
-	bound []string // answered hooks, short names
+	t       testing.TB
+	svc     *node.Node
+	app     *node.Node
+	service string
+	budget  time.Duration
+	start   time.Duration
 
 	stopOnce sync.Once
 }
@@ -137,32 +110,16 @@ func New(tb testing.TB, opts ...Option) *Harness {
 		opt(&o)
 	}
 
-	m := manifest.New(o.service, "0.0.0")
-	e := env.New(o.service, m)
-	rec := newRecorder()
-	e.SetBroker(rec)
-	e.SetCaller(rec)
-	e.SetBound([]string{})
-
-	svc := node.New(o.service, testlog.Discard(), e)
+	svc := node.New(o.service, testlog.Discard())
 
 	return &Harness{
-		t: tb, svc: svc, app: svc.Child(o.service, node.Root, false), env: e, rec: rec, budget: o.budget,
+		t: tb, svc: svc, app: svc.Child(o.service, node.Root, false), service: o.service, budget: o.budget,
 		start: o.start,
 	}
 }
 
-// bind marks the hook (full name) bound.
-func (h *Harness) bind(full string) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	h.bound = append(h.bound, strings.TrimPrefix(full, h.env.Service+"."))
-	h.env.SetBound(slices.Clone(h.bound))
-}
-
 // Service is the harness's service name.
-func (h *Harness) Service() string { return h.env.Service }
+func (h *Harness) Service() string { return h.service }
 
 // Root is where components and dependencies under test are created.
 func (h *Harness) Root() deps.Component {
@@ -290,18 +247,6 @@ func scopeName(scope deps.Scope) string {
 	}
 
 	return scope.Path()
-}
-
-// Manifest is what the components declared so far.
-func (h *Harness) Manifest() *backplanev1.Manifest {
-	h.t.Helper()
-
-	m, err := h.env.Manifest.Build()
-	if err != nil {
-		h.t.Fatalf("backplanetest: manifest: %v", err)
-	}
-
-	return m
 }
 
 // Ready evaluates the tree's readiness as the service's readiness probe

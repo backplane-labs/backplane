@@ -8,32 +8,23 @@ Choose checks for the boundary you changed. Fast tests of payload validation and
 | --- | --- |
 | Domain/unit | Validation, pure transformations, fallback decisions and idempotency behavior |
 | SDK/component | Startup failure, optional dependency recovery, cancellation, probes and accepted/rejected live configuration |
-| Contract | Generated clients, schemas, route documents and manifest consistency |
-| Runtime integration | JetStream delivery, Temporal execution, cookie relay and configuration reconciliation |
+| Contract | Console clients, endpoint ownership and manifest consistency |
+| Runtime integration | Native clients against configured backends, cookie relay and configuration reconciliation |
 | Deployment/browser | Real assets, deep links, CSP, theme, authentication and service registration |
-| Multiple replicas | Shared consumers, concurrent reconciliation, crash/rejoin and endpoint retirement |
+| Multiple replicas | Concurrent configuration reconciliation, crash/rejoin and audit delivery |
 
 The `pkg/backplane/backplanetest` package and repository conformance tests provide reusable examples of SDK behavior. Keep test stores and durable consumer names isolated from a development installation.
 
 ## Component harness
 
-`backplanetest.New(t, backplanetest.Name("hello"))` constructs a service tree with recording transports, without `Open`, listeners or Consul. Build your components under `h.Root()`, substitute providers with `deps.Static(value)` and call `h.Start()`. The start is bounded too (`backplanetest.StartBudget`, default 2 minutes): a required dependency not provided by then fails the test with its name and last error, instead of retrying until `go test -timeout`. Cleanup stops the tree under a bounded shutdown budget (`backplanetest.StopBudget`, default 10 seconds).
+`backplanetest.New(t, backplanetest.Name("hello"))` constructs a service tree , without `Open`, listeners or Consul. Build your components under `h.Root()`, substitute providers with `deps.Static(value)` and call `h.Start()`. The start is bounded too (`backplanetest.StartBudget`, default 2 minutes): a required dependency not provided by then fails the test with its name and last error, instead of retrying until `go test -timeout`. Cleanup stops the tree under a bounded shutdown budget (`backplanetest.StopBudget`, default 10 seconds).
 
 | Helper | Use |
 | --- | --- |
 | `Config[C](t, vars)` | Load schema defaults and explicit environment-style values without reading process env/files/Consul |
 | `Ready(h)` | Inspect readiness with required-dependency reasons |
 | `Live(h)` | Inspect liveness as the liveness probe does (dependency probes run first, so a `deps.ErrTerminal` is seen); `ErrNotLive` with the failing reasons |
-| `Answer(h, hookRef, fn)` | Supply a hook answer |
-| `Events(h, eventRef)` / `EventsWithMeta` | Inspect published payloads and IDs/keys/headers |
-| `FailPublish(h, err)` | Exercise publication failure |
-| `Unavailable(h)` / `Available(h)` | Exercise transport loss and recovery |
-| `Activity[Req, Res](ctx, h, name, input)` | Invoke a declared activity (`activity.Handle`) or one of the service's own workflows (`workflows.HandleActivity`) once, without starting a workflow |
-| `ReactConsumer(ctx, h, consumer, value)` | Deliver once to a pinned reactor; with `WithEvent(name)`, as that event (raw reactors) |
 | `SetLive(&field, value)` | Update a live field and notify its watchers |
-| `SetSections(h, name, services)` | Publish section `name` to the tree's `sections.Follow` as Backplane would: `services` by service; empty is a known empty set; a repeat signals no change |
-| `Offered(h, name)` | Section `name` as the tree offers it: the value a `sections.OfferLive` set last, else the manifest's; nil when none |
-| `h.Manifest()` | Inspect declarations and declaration errors |
 | `Stop(h, component)` | Kill one component mid-test (a projection, a consumer): its goroutines' contexts end wherever they are, its subtree's `OnStop` hooks run, the rest keeps running |
 | `Find(h, name)` | A node of the tree by name or path (`sync/fanout`), for `Stop` or inspection, without the service exporting it |
 | `h.Stop()` | Stop the whole tree now, as the cleanup would; a restarted instance is a new harness on the same state |
@@ -74,24 +65,6 @@ srv := grpc.NewServer(grpc.UnaryInterceptor(
 	}))
 ```
 
-The harness does not simulate JetStream redelivery or DLQ semantics. Its activity call executes once; retries belong in runtime integration tests. For Temporal code, use `pkg/backplane/workflows/workflowtest.New(t, h)`, which supplies a Temporal test environment with the service's registrations. This testing extension intentionally imports Temporal separately from core component tests.
-
-`workflowtest.New` runs one workflow on a simulated backend. To run the service's workflows as production does (timers, sagas, workflows started by the code under test) against a real Temporal server, give the harness a worker:
-
-```go
-c, _ := client.Dial(client.Options{HostPort: addr}) // a Temporal from testcontainers
-workflowtest.Worker(t, h, c)                         // workflowtest.Namespace(ns) when not "default"
-h.Start()
-```
-
-The worker serves the service's task queue (its name) with everything `New` registers. It is a component of the harness tree, so it starts with `Start` and stops with the tree.
-
-A service that declares hooks also gets a Nexus endpoint named after it. The endpoint routes `workflows.CallHook` to the service's queue, where the call is answered by `backplanetest.Answer` of the harness whose worker takes it. The endpoint belongs to the test, not to one harness: a `Worker` joins an endpoint that already routes to the same queue, and the endpoint is deleted when the test ends.
-
-Replicas of one service, meaning harnesses with the same name in one test, therefore share the queue and the endpoint as in production. When one replica stops, the others take its workflows and hook calls. Answer the hooks on every replica.
-
-Endpoints are cluster-wide. Separate tests that run at once on one cluster need distinct service names (`backplanetest.Name`), or they share one queue. An endpoint of the service's name that routes elsewhere fails the start with `workflowtest.ErrEndpointTaken`.
-
 ## Check declarations without starting
 
 Declaration mistakes — a prefix served twice, `api.MTLS` and plain routes on
@@ -124,11 +97,10 @@ GOWORK=off make test
 make up
 make conformance
 make test-m1
-make test-m2
 make test-replicas
 ```
 
-Run live targets sequentially without manually running examples that register the same service names. `make test-replicas` uses two Backplane processes against a scratch database and exercises shared rule delivery, configuration, bound events, crash/rejoin and Nexus retirement with retained manifests.
+Run live targets sequentially without manually running examples that register the same service names. `make test-replicas` uses two Backplane processes against a scratch database and exercises configuration repair, crash/rejoin and audit delivery with retained manifests.
 
 For frontend contracts use `make web-check` or the narrower package/unit/browser target relevant to the edit. `yarn test:packed` installs package tarballs in fresh consumers, so workspace aliases cannot hide missing exports or packaged files.
 

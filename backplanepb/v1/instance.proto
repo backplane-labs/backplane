@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package backplane.v1;
 
-import "google/protobuf/any.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/backplane-labs/backplane/backplanepb/v1;backplanev1";
@@ -32,17 +31,16 @@ message InstanceState {
   // The node tree the author composed, depth-first in creation (= start)
   // order: components, dependencies and singletons.
   repeated NodeStatus nodes = 13;
-  // Consul, NATS, Temporal, OTLP.
+  // Connectivity reported by the SDK.
   repeated TransportStatus transports = 14;
   string sdk_version = 15;
   string commit = 16;
-  // Live values of sections the manifest declares (sections.OfferLive), by
-  // name: they replace the manifest's value while the instance runs.
-  map<string, google.protobuf.Any> sections = 17;
-  // Port of the default public port's routes (API.listener empty); 0 when
+  reserved 17;
+  reserved "sections";
+  // Port of the default public port's routes; 0 when
   // none is served there.
   uint32 public_port = 18;
-  // Ports of the named listeners of routes (API.listener), by name.
+  // Ports of the named listeners of routes, by name.
   map<string, uint32> listeners = 19;
 }
 

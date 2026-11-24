@@ -15,10 +15,7 @@ import (
 
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/build"
-	"github.com/backplane-labs/backplane/pkg/backplane/config"
-	"github.com/backplane-labs/backplane/pkg/backplane/internal/manifest"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/node"
-	"github.com/backplane-labs/backplane/pkg/backplane/internal/routes"
 )
 
 const devVersion = "0.0.0"
@@ -107,7 +104,7 @@ func (c *core) Run(ctx context.Context) error {
 // stay open: call it after the last one, e.g. in a test of the function
 // that declares the service's routes.
 func (c *core) Validate() error {
-	if _, err := c.env.Manifest.Build(); err != nil {
+	if _, err := c.manifest.Build(); err != nil {
 		return fmt.Errorf("backplane: build: %w", err)
 	}
 
@@ -117,24 +114,11 @@ func (c *core) Validate() error {
 // seal ends declarations and builds the manifest; an unstamped version gets
 // the manifest's content hash so dev builds do not overwrite each other.
 func (c *core) seal() (*backplanev1.Manifest, error) {
-	c.env.Manifest.Seal()
+	c.manifest.Seal()
 
-	m, err := c.env.Manifest.Build()
+	m, err := c.manifest.Build()
 	if err != nil {
 		return nil, fmt.Errorf("build: %w", err)
-	}
-
-	// The descriptor set stays out of the manifest (a Consul KV value):
-	// the platform port serves it as an API file bundle.
-	files, ok, err := c.env.Manifest.DescriptorFiles()
-	if err != nil {
-		return nil, fmt.Errorf("build: %w", err)
-	}
-
-	if ok {
-		c.mountSchemaFiles(&routes.SchemaFiles{
-			Files: files, Ref: &backplanev1.APISchemaBundle{Hash: files.Hash(), Entry: manifest.DescriptorFile},
-		})
 	}
 
 	if m.GetVersion() == devVersion {
@@ -148,26 +132,15 @@ func (c *core) seal() (*backplanev1.Manifest, error) {
 
 // tail adds the nodes that follow the author's tree:
 //
-//	internal-api → reactors → worker → public:<addr> → drain → register → serving
-//
-// (the ones ahead of it — config, telemetry, health, platform, consul,
-// nats, temporal, hooks — are newCore's). They start in this order and
-// stop in reverse: traffic of every kind ends before the tree stops. The
-// public listeners and the internal gate share one Shutdown.Listeners
-// window, as do the reactors and the worker (traffic too), which leaves
-// Shutdown.Reserve of the budget to the tree.
+// internal API, public listeners, drain, catalog registration and readiness.
 func (c *core) tail(m *backplanev1.Manifest) {
 	sd := c.cfg.Shutdown
 	listeners := &window{d: sd.Listeners, reserve: sd.Reserve}
-
-	c.watchSections()
 
 	gn := c.svc.Child("internal-api", node.System, false)
 	gn.OnStart(func(context.Context) error { c.gate.Open(); return nil })
 	gn.OnStop(c.gate.Close)
 	gn.Budget(listeners.derive)
-
-	c.work(m, listeners)
 
 	for _, p := range c.public {
 		c.listen("public"+p.addr, p.addr, p.grpc, c.publicHandler(p), c.listenOptions(p)...).Budget(listeners.derive)
@@ -187,45 +160,6 @@ func (c *core) tail(m *backplanev1.Manifest) {
 	sn := c.svc.Child("serving", node.System, false)
 	sn.OnStart(func(ctx context.Context) error { c.health.Serving(ctx, true); return nil })
 	sn.OnStop(func(ctx context.Context) error { c.health.Serving(ctx, false); return nil })
-}
-
-// work adds the event reactors and the Temporal worker when the service
-// declared something for them; without the transport it warns.
-func (c *core) work(m *backplanev1.Manifest, listeners *window) {
-	switch {
-	case len(m.GetSubscriptions()) == 0:
-	case c.broker == nil:
-		c.log.Warn("reactors declared but NATS is not configured: events will not be consumed")
-	default:
-		n := c.svc.Child("reactors", node.System, false)
-		n.OnStart(func(ctx context.Context) error { return c.broker.StartReactors(ctx, n) })
-		n.OnStop(c.broker.StopReactors)
-		n.Budget(listeners.derive)
-	}
-
-	// Hook calls go through Temporal's Nexus or directly to backplane
-	// (hookTransport); only the first needs Temporal here.
-	if len(m.GetHooks()) > 0 && c.temporal == nil && c.cfg.Hooks.Resolve(false, c.directHooks()) == config.HooksTemporal {
-		c.log.Warn("hooks declared but Temporal is not configured: calls fail as unavailable")
-	}
-
-	// Activities are served over the platform port (ActivityService) on
-	// any runtime; the Temporal worker adds Temporal bindings and the
-	// service's own workflows.
-	switch {
-	case len(m.GetActivities()) == 0 && len(c.env.WorkerRegistrations()) == 0:
-	case c.temporal == nil && len(c.env.WorkerRegistrations()) > 0:
-		c.log.Warn("workflows registered but Temporal is not configured: they are unavailable")
-	case c.temporal == nil:
-		c.log.Info("activities served over the platform port only: Temporal is not configured")
-	case !c.cfg.Temporal.Worker.Enabled:
-		c.log.Info("temporal worker disabled on this replica: other replicas serve the task queue")
-	default:
-		n := c.svc.Child("worker", node.System, false)
-		n.OnStart(func(ctx context.Context) error { return c.temporal.StartWorker(ctx, n) })
-		n.OnStop(c.temporal.StopWorker)
-		n.Budget(listeners.derive)
-	}
 }
 
 // pause waits d or until ctx ends: load balancers catch up with the
@@ -262,16 +196,10 @@ func (c *core) presence(m *backplanev1.Manifest) Presence { //nolint:ireturn // 
 		PlatformPort: port16(c.cfg.InternalPort),
 		PrimaryPort:  c.primaryPort(), Listeners: c.listeners(),
 		Commit: build.Get().Commit, Transports: c.transports, Nodes: c.nodes,
-		Sections: c.env.LiveSections,
 	})
 	if err != nil {
 		c.log.Warn("discovery presence", xlog.Err(err))
 		return nil
-	}
-
-	// A live section is published at once, not on the next renew.
-	if changed, ok := presence.(interface{ Changed() }); ok {
-		c.env.OnSectionChange(changed.Changed)
 	}
 
 	return presence

@@ -17,6 +17,6 @@ func (c *core) TelemetrySources(selectors ...map[string]string) {
 			sources.Selectors = append(sources.Selectors, &backplanev1.TelemetrySourceSelector{Resource: maps.Clone(attributes)})
 		}
 
-		c.env.Manifest.Telemetry(sources)
+		c.manifest.Telemetry(sources)
 	})
 }

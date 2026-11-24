@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package backplane.v1;
 
-import "google/protobuf/any.proto";
-import "google/protobuf/duration.proto";
 import "schemapb/schema.proto";
 
 option go_package = "github.com/backplane-labs/backplane/backplanepb/v1;backplanev1";
@@ -20,50 +18,18 @@ message Manifest {
   ConfigSection config = 4;
   reserved 5;
   reserved "static", "dynamic";
-  // APIs served by the service. Informational: publication belongs to deployment.
-  repeated API apis = 6;
   // Internal API: full gRPC service names on the platform port; the only
   // methods the console relay forwards.
   repeated string internal_services = 7;
-  repeated Event events = 8;
-  repeated Hook hooks = 9;
-  repeated Activity activities = 10;
   UI ui = 11;
   // The node tree depends on configuration (drivers): InstanceState.nodes.
   reserved 12;
   reserved "nodes";
-  // The descriptor set is served by the SDK on the platform port, outside
-  // Consul KV: descriptors_hash.
-  reserved 13;
-  reserved "descriptors";
-  // Content hash of the service's FileDescriptorSet: every service named by
-  // an API (API.services, with descriptors registration or api.Descriptors
-  // gives) and by internal_services, with transitive imports. The SDK
-  // serves it on the platform port as file descriptors.binpb of the API
-  // file bundle with this hash, like APISchemaBundle; empty: no services.
-  string descriptors_hash = 19;
-  // Events the service reacts to.
-  repeated Subscription subscriptions = 14;
-  // Temporal Schedules of the service's own workflows.
-  repeated Schedule schedules = 15;
-  // The service's own workflows the console may start (§9).
-  repeated Workflow workflows = 16;
   // Optional telemetry view presets. Absence uses service.name convention;
   // an explicitly empty declaration disables presets, never signal ingestion.
   TelemetrySources telemetry = 17;
-  // Sections of the service's own: proto messages by name the product
-  // defines (sections.Offer). Backplane publishes those of the serving
-  // services to Consul KV `backplane/sections/<name>` (SectionSet); a
-  // service follows a name with sections.Follow — discovery without a
-  // registry of the product's.
-  map<string, google.protobuf.Any> sections = 18;
-}
-
-// SectionSet is one section name across the installation: by service,
-// the section of its highest serving version. Backplane writes it to
-// Consul KV `backplane/sections/<name>` as protobuf binary.
-message SectionSet {
-  map<string, google.protobuf.Any> services = 1;
+  reserved 6, 8, 9, 10, 13 to 16, 18, 19;
+  reserved "apis", "events", "hooks", "activities", "descriptors", "subscriptions", "schedules", "workflows", "sections", "descriptors_hash";
 }
 
 // Selectors are OR alternatives; attributes within one selector are AND exact
@@ -86,168 +52,8 @@ message ConfigSection {
   repeated string live = 3;
 }
 
-// An API served by the service. Does not configure external routing.
-message API {
-  // Path prefix ("/api/"); gRPC routes use "/<full service name>/".
-  string prefix = 1;
-  // Host header to match in addition to the prefix; empty matches any host.
-  string host = 2;
-  ApiKind kind = 3;
-  // The listener the route is served on, by the name the code gives it
-  // (api.Listen, api.Port); empty: the default public port. Its port is the
-  // instance's: InstanceState.public_port and listeners.
-  string listener = 11;
-  reserved 4;
-  reserved "port";
-  // gRPC and ws-proto: full names of the services behind the
-  // route; their descriptors are in the service's descriptor set
-  // (Manifest.descriptors_hash).
-  repeated string services = 8;
-  // Schema for the console's API tab; optional.
-  oneof schema {
-    // OpenAPI document (HTTP).
-    bytes openapi = 5;
-    // Introspection result as JSON (GraphQL).
-    bytes graphql = 7;
-    // Files served by the SDK on the platform port, outside Consul KV.
-    APISchemaBundle bundle = 10;
-  }
-  reserved 9, 6;
-  reserved "policy", "descriptors";
-}
-
-// An immutable API file snapshot, delivered separately from the manifest.
-message APISchemaBundle {
-  string hash = 1;
-  // Entry file relative to the bundle root; may reference other bundle files.
-  string entry = 2;
-  SchemaFormat format = 3;
-}
-
-enum SchemaFormat {
-  SCHEMA_FORMAT_UNSPECIFIED = 0;
-  SCHEMA_FORMAT_OPENAPI = 1;
-  SCHEMA_FORMAT_GRAPHQL = 2;
-}
-
-enum ApiKind {
-  API_KIND_UNSPECIFIED = 0;
-  API_KIND_HTTP = 1;
-  API_KIND_GRPC = 2;
-  reserved 3;
-  reserved "ROUTE_KIND_CONNECT";
-  API_KIND_WS_PROTO = 4;
-  API_KIND_GRAPHQL = 5;
-}
-
-message Event {
-  string name = 1;
-  schemapb.Schema schema = 2;
-  string description = 3;
-}
-
-// A reactor: a durable consumer of another service's event.
-message Subscription {
-  // Full event name "<service>.<Event>".
-  string event = 1;
-  // Durable consumer name, unique within the service: the node path of the
-  // reactor plus the event name.
-  string consumer = 2;
-}
-
-// An operation the service calls without implementing it.
-message Hook {
-  string name = 1;
-  schemapb.Schema input = 2;
-  schemapb.Schema output = 3;
-  // The service cannot work without a binding.
-  bool required = 4;
-  // Default deadline of a call; 0 = platform default.
-  google.protobuf.Duration timeout = 5;
-  string description = 6;
-}
-
-// An operation the service implements; a binding step target.
-message Activity {
-  string name = 1;
-  schemapb.Schema input = 2;
-  schemapb.Schema output = 3;
-  ActivityKind kind = 4;
-  // Defaults for a binding step calling it; the binding may override.
-  google.protobuf.Duration start_to_close = 5;
-  google.protobuf.Duration heartbeat = 6;
-  ActivityRetry retry = 7;
-  string description = 8;
-}
-
-// Default retries for a binding step executing this activity or workflow.
-message ActivityRetry {
-  uint32 attempts = 1;
-  google.protobuf.Duration per_try_timeout = 2;
-  reserved 3;
-  reserved "retry_on";
-}
-
-enum ActivityKind {
-  ACTIVITY_KIND_UNSPECIFIED = 0;
-  // A Temporal activity on the service's queue.
-  ACTIVITY_KIND_ACTIVITY = 1;
-  // A Temporal workflow on the service's queue, run as a child workflow.
-  ACTIVITY_KIND_WORKFLOW = 2;
-}
-
-// A workflow of the service the console may start with a form.
-message Workflow {
-  // Temporal workflow type name.
-  string name = 1;
-  schemapb.Schema input = 2;
-  schemapb.Schema output = 3;
-  string description = 4;
-}
-
 message UI {
   // Content hash of the bundle served at GET /_backplane/ui/.
   string hash = 1;
   uint32 sdk_major = 2;
-}
-
-// A Temporal Schedule the service declares; the SDK reconciles it at start.
-// Schedule id "<service>/<name>"; it starts the workflow on the service's
-// task queue with workflow id "<service>/<name>-<time>".
-message Schedule {
-  // Unique within the service: [A-Za-z][A-Za-z0-9_]*.
-  string name = 1;
-  // When the workflow starts.
-  oneof spec {
-    // Cron expression as Temporal reads it (5-7 fields, @daily, ...).
-    string cron = 2;
-    // Fixed interval.
-    google.protobuf.Duration every = 3;
-  }
-  // Workflow type started.
-  string workflow = 4;
-  ScheduleOverlap overlap = 5;
-  // Created paused.
-  bool paused = 6;
-  // IANA time zone of a cron spec; empty is UTC.
-  string time_zone = 7;
-  // Random delay up to this added to every start.
-  google.protobuf.Duration jitter = 8;
-}
-
-// What a start does while the previous run is still going.
-enum ScheduleOverlap {
-  SCHEDULE_OVERLAP_UNSPECIFIED = 0;
-  // Do not start (the default).
-  SCHEDULE_OVERLAP_SKIP = 1;
-  // Start once the running one ends; at most one waits.
-  SCHEDULE_OVERLAP_BUFFER_ONE = 2;
-  // Start every missed one after the running one ends.
-  SCHEDULE_OVERLAP_BUFFER_ALL = 3;
-  // Cancel the running one, then start.
-  SCHEDULE_OVERLAP_CANCEL_OTHER = 4;
-  // Terminate the running one, then start.
-  SCHEDULE_OVERLAP_TERMINATE_OTHER = 5;
-  // Start regardless.
-  SCHEDULE_OVERLAP_ALLOW_ALL = 6;
 }

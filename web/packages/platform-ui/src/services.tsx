@@ -1,10 +1,7 @@
 import {
-  BindingServiceClient,
-  BindingState,
   CatalogServiceClient,
   GetServiceRequestSchema,
   type Instance,
-  ListBindingsRequestSchema,
   type ServiceSummary,
   WatchCatalogRequestSchema,
 } from '@backplane-labs/backplane-api';
@@ -15,7 +12,6 @@ import {
   NodeKind,
   type NodeStatus,
 } from '@backplane-labs/backplane-api/backplanepb/v1/instance_pb';
-import { ActivityKind, ApiKind, type Manifest } from '@backplane-labs/backplane-api/backplanepb/v1/manifest_pb';
 import { JSONViewer } from '@backplane-labs/backplane-editors';
 import { useClient, useSnapshotWatch } from '@backplane-labs/backplane-react';
 import {
@@ -32,21 +28,9 @@ import {
   Timestamp,
 } from '@backplane-labs/backplane-ui';
 import { create } from '@bufbuild/protobuf';
-import {
-  Box,
-  Boxes,
-  Cable,
-  CalendarClock,
-  ChevronRight,
-  Component,
-  Link2,
-  Radio,
-  Route,
-  Workflow,
-  Zap,
-} from 'lucide-react';
+import { Box, Boxes, Cable, ChevronRight, Component } from 'lucide-react';
 import { type ReactNode, useCallback, useState } from 'react';
-import { date, durationText, enumLabel, jsonText } from './format.js';
+import { date, enumLabel, jsonText } from './format.js';
 import { usePlatformText } from './locales.js';
 import { ConnectionNotice, QueryState, usePlatformQuery } from './runtime.js';
 
@@ -82,14 +66,6 @@ const phaseTone: Record<InstancePhase, StatusTone> = {
   [InstancePhase.SERVING]: 'success',
   [InstancePhase.STOPPING]: 'warning',
 };
-const bindingTone: Record<BindingState, StatusTone> = {
-  [BindingState.UNSPECIFIED]: 'neutral',
-  [BindingState.BOUND]: 'success',
-  [BindingState.UNBOUND]: 'neutral',
-  [BindingState.REQUIRED_UNBOUND]: 'danger',
-  [BindingState.BROKEN]: 'danger',
-};
-
 /** One dense row inside a flush panel. */
 function Row({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
   const className =
@@ -117,13 +93,9 @@ function Empty({ label }: { label: string }) {
 
 export function ServiceInspector({ service, mode }: { service: string; mode: 'dark' | 'light' }) {
   const client = useClient(CatalogServiceClient),
-    bindings = useClient(BindingServiceClient),
     text = usePlatformText();
   const state = usePlatformQuery(`service:${service}`, (signal) =>
     client.getService(create(GetServiceRequestSchema, { name: service }), { signal }),
-  );
-  const bound = usePlatformQuery(`bindings:${service}`, (signal) =>
-    bindings.listBindings(create(ListBindingsRequestSchema, { service }), { signal }),
   );
   const [selected, setSelected] = useState<string>();
   const manifest = state.value?.latest,
@@ -171,7 +143,6 @@ export function ServiceInspector({ service, mode }: { service: string; mode: 'da
                 <Empty label={text('noInstances')} />
               )}
             </Panel>
-            {manifest && <Contract manifest={manifest} hooks={bound.value?.bindings} />}
           </div>
           <aside className="flex min-h-0 min-w-0 flex-col gap-4 overflow-auto">
             <Panel title={text('about')}>
@@ -409,180 +380,6 @@ function InstanceDetail({ instance, mode }: { instance: Instance; mode: 'dark' |
         ))}
       </Panel>
       <JSONViewer label={text('effective')} value={jsonText(state.config)} mode={mode} />
-    </div>
-  );
-}
-
-function Contract({ manifest, hooks }: { manifest: Manifest; hooks?: { hook: string; state: BindingState }[] }) {
-  const text = usePlatformText();
-  const state = new Map(hooks?.map((hook) => [hook.hook, hook.state]));
-  return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <Panel
-        title={
-          <>
-            <Route className="size-4 text-muted-foreground" />
-            {text('apis')}
-          </>
-        }
-        count={manifest.apis.length}
-        flush
-        maxBodyHeight={260}
-      >
-        {manifest.apis.length ? (
-          manifest.apis.map((route) => (
-            <Row key={`${route.kind}:${route.host ?? ''}:${route.prefix}`}>
-              <Badge variant="outline" className="w-20 justify-center font-mono uppercase">
-                {enumLabel(ApiKind, route.kind)}
-              </Badge>
-              <span className="min-w-0 truncate font-mono text-xs">
-                {route.host && <span className="text-muted-foreground">{route.host}</span>}
-                {route.prefix}
-              </span>
-              <span className="ml-auto shrink-0">
-                <Muted mono>
-                  {route.listener}
-                  {route.services.length ? ` ${route.services.length} svc` : ''}
-                </Muted>
-              </span>
-            </Row>
-          ))
-        ) : (
-          <Empty label={text('noAPIs')} />
-        )}
-      </Panel>
-      <Panel
-        title={
-          <>
-            <Link2 className="size-4 text-muted-foreground" />
-            {text('hooks')}
-          </>
-        }
-        count={manifest.hooks.length}
-        flush
-        maxBodyHeight={260}
-      >
-        {manifest.hooks.length ? (
-          manifest.hooks.map((hook) => {
-            const binding = state.get(`${manifest.service}.${hook.name}`) ?? state.get(hook.name);
-            return (
-              <Row key={hook.name}>
-                <span className="font-mono text-xs">{hook.name}</span>
-                {hook.required && <Badge variant="outline">{text('required')}</Badge>}
-                <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{hook.description}</span>
-                {binding !== undefined && (
-                  <StatusBadge tone={bindingTone[binding]}>{enumLabel(BindingState, binding)}</StatusBadge>
-                )}
-              </Row>
-            );
-          })
-        ) : (
-          <Empty label={text('noHooks')} />
-        )}
-      </Panel>
-      <Panel
-        title={
-          <>
-            <Zap className="size-4 text-muted-foreground" />
-            {text('activities')}
-          </>
-        }
-        count={manifest.activities.length}
-        flush
-        maxBodyHeight={260}
-      >
-        {manifest.activities.length ? (
-          manifest.activities.map((activity) => (
-            <Row key={activity.name}>
-              <span className="font-mono text-xs">{activity.name}</span>
-              <Badge variant="outline">{enumLabel(ActivityKind, activity.kind)}</Badge>
-              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{activity.description}</span>
-              {activity.startToClose && <Muted mono>{durationText(activity.startToClose)}</Muted>}
-            </Row>
-          ))
-        ) : (
-          <Empty label={text('noActivities')} />
-        )}
-      </Panel>
-      <Panel
-        title={
-          <>
-            <Radio className="size-4 text-muted-foreground" />
-            {text('events')}
-          </>
-        }
-        count={manifest.events.length + manifest.subscriptions.length}
-        flush
-        maxBodyHeight={260}
-      >
-        {manifest.events.map((event) => (
-          <Row key={`e:${event.name}`}>
-            <Badge variant="outline">{text('publishes')}</Badge>
-            <span className="font-mono text-xs">{event.name}</span>
-            <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{event.description}</span>
-          </Row>
-        ))}
-        {manifest.subscriptions.map((subscription) => (
-          <Row key={`s:${subscription.consumer}`}>
-            <Badge variant="secondary">{text('consumes')}</Badge>
-            <span className="font-mono text-xs">{subscription.event}</span>
-            <Muted mono>{subscription.consumer}</Muted>
-          </Row>
-        ))}
-        {!manifest.events.length && !manifest.subscriptions.length && <Empty label={text('noEvents')} />}
-      </Panel>
-      <Panel
-        title={
-          <>
-            <Workflow className="size-4 text-muted-foreground" />
-            {text('workflows')}
-          </>
-        }
-        count={manifest.workflows.length}
-        flush
-        maxBodyHeight={260}
-      >
-        {manifest.workflows.length ? (
-          manifest.workflows.map((workflow) => (
-            <Row key={workflow.name}>
-              <span className="font-mono text-xs">{workflow.name}</span>
-              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{workflow.description}</span>
-            </Row>
-          ))
-        ) : (
-          <Empty label={text('noWorkflows')} />
-        )}
-      </Panel>
-      <Panel
-        title={
-          <>
-            <CalendarClock className="size-4 text-muted-foreground" />
-            {text('schedules')}
-          </>
-        }
-        count={manifest.schedules.length}
-        flush
-        maxBodyHeight={260}
-      >
-        {manifest.schedules.length ? (
-          manifest.schedules.map((schedule) => (
-            <Row key={schedule.name}>
-              <span className="font-mono text-xs">{schedule.name}</span>
-              <Badge variant="outline" className="font-mono">
-                {schedule.spec.case === 'cron'
-                  ? schedule.spec.value
-                  : schedule.spec.case === 'every'
-                    ? `every ${durationText(schedule.spec.value)}`
-                    : '—'}
-              </Badge>
-              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">→ {schedule.workflow}</span>
-              {schedule.paused && <StatusBadge tone="warning">{text('paused')}</StatusBadge>}
-            </Row>
-          ))
-        ) : (
-          <Empty label={text('noSchedules')} />
-        )}
-      </Panel>
     </div>
   );
 }

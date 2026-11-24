@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -118,63 +116,4 @@ func (s *Service) GetInfrastructure(context.Context,
 	defer s.mu.RUnlock()
 
 	return proto.CloneOf(s.health), nil
-}
-
-// Gate rejects only disabled runtime methods. Definitions remain accessible.
-func Gate(register func(grpc.ServiceRegistrar),
-	disabled func(service,
-		method string) bool,
-) func(grpc.ServiceRegistrar) {
-	return func(r grpc.ServiceRegistrar) { register(gated{next: r, disabled: disabled}) }
-}
-
-type gated struct {
-	next     grpc.ServiceRegistrar
-	disabled func(string, string) bool
-}
-
-func (r gated) RegisterService(desc *grpc.ServiceDesc, impl any) {
-	wrapped := *desc
-
-	wrapped.Methods = append([]grpc.MethodDesc(nil), desc.Methods...)
-	for i, m := range wrapped.Methods {
-		if r.disabled(desc.ServiceName, m.MethodName) {
-			wrapped.Methods[i].Handler = func(server any,
-				ctx context.Context,
-				decode func(any) error,
-				interceptor grpc.UnaryServerInterceptor) (any,
-				error,
-			) {
-				return m.Handler(server,
-					ctx,
-					decode,
-					func(ctx context.Context,
-						req any,
-						info *grpc.UnaryServerInfo,
-						_ grpc.UnaryHandler) (any,
-						error,
-					) {
-						reject := func(context.Context, any) (any, error) {
-							return nil, status.Error(codes.FailedPrecondition, "feature disabled by deployment")
-						}
-						if interceptor != nil {
-							return interceptor(ctx, req, info, reject)
-						}
-
-						return reject(ctx, req)
-					})
-			}
-		}
-	}
-
-	wrapped.Streams = append([]grpc.StreamDesc(nil), desc.Streams...)
-	for i, m := range wrapped.Streams {
-		if r.disabled(desc.ServiceName, m.StreamName) {
-			wrapped.Streams[i].Handler = func(any, grpc.ServerStream) error {
-				return status.Error(codes.FailedPrecondition, "feature disabled by deployment")
-			}
-		}
-	}
-
-	r.next.RegisterService(&wrapped, impl)
 }

@@ -1,8 +1,6 @@
 # Deploying services and backplane
 
-Backplane manages platform contracts, configuration, hooks, events, workflows,
-audit and the console. External routing is entirely deployment-owned. Neither the
-server nor SDK configures a gateway or supplies xDS/EDS.
+Backplane hosts the service catalog, live configuration, operator console and telemetry. Products own their working traffic and protocols.
 
 ## A service on the SDK
 
@@ -10,7 +8,7 @@ Build with identity stamped by `make hello`, `make formatter` or your applicatio
 build. Set `BACKPLANE_ADVERTISE` to an address reachable by the Consul agent and
 Backplane. In Kubernetes use `POD_IP`; in Compose use routable container addresses.
 The platform port (`9400` by default) serves health checks, internal module RPCs,
-UI bundles and schema files. Keep it private. Managed APIs use the public port
+and UI bundles. Keep it private. Managed APIs use the public port
 (`8080` by default) or their own `api.Listen` address.
 
 The SDK registers the primary public port in Consul Catalog and checks readiness
@@ -21,7 +19,7 @@ one is kept. The manifest holds only what the code declares: routes name their
 listener (`api.Listen`, `api.Port`), while the ports and the node tree of the
 configured drivers go to the instance state. A build that declares something else
 under the same version stops with `different manifest already published for this
-version`, naming the fields that differ (`apis`, `hooks`, ...): publish it under a
+version`, naming the fields that differ (`internal_services`, `ui`, ...): publish it under a
 new version.
 If your deployment registers services itself, set `BACKPLANE_CONSUL_REGISTER=false`.
 
@@ -44,32 +42,6 @@ the instance state.
 | `BACKPLANE_CONSUL_TAGS` | — | tags of the catalog registration, JSON list |
 | `BACKPLANE_CONSUL_CHECK_INTERVAL`, `_CHECK_TIMEOUT`, `_DEREGISTER_AFTER` | `10s`, `5s`, `1m` | gRPC health check of the registration |
 | `BACKPLANE_CONSUL_SESSION_TTL` | `30s` | session of the instance state (clamped to 10s..24h) |
-| `BACKPLANE_NATS_URL` | — | NATS; empty: no events |
-| `BACKPLANE_NATS_CREDS` | — | content of a `.creds` file (secret) |
-| `BACKPLANE_NATS_INBOX_PREFIX` | `_INBOX` | prefix of the connection's reply subjects (requests, JetStream API answers), e.g. `_INBOX_billing`; no wildcards, no trailing dot. In operator mode grant each identity `<prefix>.>` alone, so no identity reads another's replies |
-| `BACKPLANE_NATS_TLS_ENABLED`, `_TLS_CA`, `_TLS_CERT`, `_TLS_KEY`, `_TLS_SERVER_NAME`, `_TLS_INSECURE_SKIP_VERIFY` | `false`, … | TLS to NATS, as for Consul |
-| `BACKPLANE_NATS_PUBLISH_TIMEOUT` | `5s` | bound of a publish whose context has no deadline |
-| `BACKPLANE_NATS_MAX_AGE`, `_MAX_BYTES` | `168h`, `0` | retention of the service's event stream `bp_<service>`; `0`: unlimited |
-| `BACKPLANE_NATS_REPLICAS` | `1` | replicas of the streams the process creates: its events, its dead letters and a missing stream it subscribes to (1..5) |
-| `BACKPLANE_NATS_DEDUP_WINDOW` | `2m` | dedup window of the event stream, at most `max_age` |
-| `BACKPLANE_NATS_DLQ_MAX_AGE` | `720h` | retention of dead letters `bp_dlq_<service>`; `0`: unlimited |
-| `BACKPLANE_NATS_CONNECT_TIMEOUT` | `2s` | bound of establishing the connection |
-| `BACKPLANE_NATS_RECONNECT_WAIT`, `_RECONNECT_JITTER` | `2s`, `1s` | pause between reconnection attempts and its random extra |
-| `BACKPLANE_NATS_PING_INTERVAL`, `_MAX_PINGS_OUT` | `2m`, `2` | client pings; that many unanswered close the connection for a reconnect |
-| `BACKPLANE_NATS_RECONNECT_BUFFER` | `0` | bytes a publish may buffer while reconnecting; `0`: none, a publish fails while disconnected |
-| `BACKPLANE_NATS_JETSTREAM_TIMEOUT` | `5s` | deadline of a JetStream API call whose context has none |
-| `BACKPLANE_TEMPORAL_ADDR` | — | Temporal frontend; empty: no hooks, activities, workflows |
-| `BACKPLANE_TEMPORAL_NS` | `default` | namespace |
-| `BACKPLANE_TEMPORAL_TLS_ENABLED`, `_TLS_CA`, `_TLS_CERT`, `_TLS_KEY`, `_TLS_SERVER_NAME`, `_TLS_INSECURE_SKIP_VERIFY` | `false`, … | TLS (mTLS) to Temporal, as for Consul |
-| `BACKPLANE_TEMPORAL_API_KEY` | — | Temporal Cloud API key (secret); turns TLS on by itself |
-| `BACKPLANE_TEMPORAL_DIAL_TIMEOUT` | `2s` | one connection attempt; later ones run in the background |
-| `BACKPLANE_TEMPORAL_HOOK_TIMEOUT` | `30s` | deadline of a hook call nothing else bounds |
-| `BACKPLANE_TEMPORAL_KEEPALIVE_TIME`, `_KEEPALIVE_TIMEOUT` | `30s`, `15s` | gRPC keepalive pings of the frontend connection |
-| `BACKPLANE_TEMPORAL_GET_SYSTEM_INFO_TIMEOUT` | `5s` | bound of the capabilities call when the client connects |
-| `BACKPLANE_TEMPORAL_MAX_PAYLOAD_SIZE` | `0` | largest gRPC message in bytes; `0`: Temporal's own |
-| `BACKPLANE_TEMPORAL_GRPC_COMPRESSION` | `gzip` | `gzip` (Temporal's default) or `none` |
-| `BACKPLANE_TEMPORAL_WORKER_ENABLED` | `true` | `false`: this replica runs no activity/workflow worker (hook calls still work) |
-| `BACKPLANE_TEMPORAL_WORKER_MAX_CONCURRENT_ACTIVITIES`, `_MAX_CONCURRENT_WORKFLOW_TASKS`, `_ACTIVITY_POLLERS`, `_WORKFLOW_POLLERS` | `0` | worker tuning; `0`: Temporal's default |
 | `BACKPLANE_SHUTDOWN_TIMEOUT` | `25s` | whole stop budget |
 | `BACKPLANE_SHUTDOWN_DRAIN` | `3s` | pause between deregistration and closing the listeners |
 | `BACKPLANE_SHUTDOWN_LISTENERS` | `10s` | in-flight requests of the listeners and the internal API |
@@ -107,14 +79,14 @@ leaves empty; only `BACKPLANE_CONSUL_ADDR` turns Consul on.
 PostgreSQL and Consul are the required server dependencies. NATS and Temporal
 are optional; observability has a separate overlay. `make up` starts infrastructure
 for host processes. `make dev` starts infrastructure, Backplane, hello, formatter
-and a seed that configures a cross-service binding and event rule.
+and the two independent example services.
 
 | Service | Local port | Role |
 |---|---|---|
 | PostgreSQL | 5433 | Durable platform state |
 | Consul | 8500 | Catalog, health, manifests and live configuration |
 | NATS | 4222 | Optional event transport |
-| Temporal | 7233 | Optional workflows and hook execution |
+| Temporal | 7233 | Optional Temporal health check and native client tests |
 | Console | 8081 | `make dev`: `/backplane/` |
 | Hello | 8080 | `make dev`: public APIs |
 | Hello own listener | 8083 | `make dev`: `/legacy/` |
@@ -146,9 +118,24 @@ control-plane listener. Production exposure and upstream discovery belong to the
 | `BACKPLANE_ADMIN_TOKEN` | — | **required**: the console's admin token (secret), at least 16 characters |
 | `BACKPLANE_OBS_METRICS_URL`, `_LOGS_URL`, `_TRACES_URL` | — | observability backends for the console |
 | `BACKPLANE_OBS_TRACEQL` | `false` | `true`: Explore runs TraceQL trace searches against `_TRACES_URL` (VictoriaTraces' Tempo API, [profile](../docs/obs-api.md)); off, traces are queried as raw spans with LogsQL only |
-| `BACKPLANE_WIRING_RUNTIME` | `auto` | runtime of bindings and rules that name none: `temporal`, `direct`, or `auto` (temporal when Temporal is configured) |
-| `BACKPLANE_WIRING_DIR` | — | directory of bindings and rules kept in force; the console only reads what it defines ([wiring files](../website/docs/guides/wiring.md#keep-wiring-in-files)) |
-| `BACKPLANE_WIRING_POLL` | `5s` | how often `BACKPLANE_WIRING_DIR` is read again; it is also read on every new manifest |
+| `BACKPLANE_NATS_URL` | — | NATS endpoint for the optional JetStream availability check |
+| `BACKPLANE_NATS_CREDS` | — | content of a `.creds` file (secret) |
+| `BACKPLANE_NATS_INBOX_PREFIX` | `_INBOX` | prefix of the connection's reply subjects (requests, JetStream API answers), e.g. `_INBOX_billing`; no wildcards, no trailing dot. In operator mode grant each identity `<prefix>.>` alone, so no identity reads another's replies |
+| `BACKPLANE_NATS_TLS_ENABLED`, `_TLS_CA`, `_TLS_CERT`, `_TLS_KEY`, `_TLS_SERVER_NAME`, `_TLS_INSECURE_SKIP_VERIFY` | `false`, … | TLS to NATS, as for Consul |
+| `BACKPLANE_NATS_CONNECT_TIMEOUT` | `2s` | bound of establishing the connection |
+| `BACKPLANE_NATS_RECONNECT_WAIT`, `_RECONNECT_JITTER` | `2s`, `1s` | pause between reconnection attempts and its random extra |
+| `BACKPLANE_NATS_PING_INTERVAL`, `_MAX_PINGS_OUT` | `2m`, `2` | client pings; that many unanswered close the connection for a reconnect |
+| `BACKPLANE_NATS_RECONNECT_BUFFER` | `0` | bytes a publish may buffer while reconnecting; `0`: none, a publish fails while disconnected |
+| `BACKPLANE_NATS_JETSTREAM_TIMEOUT` | `5s` | deadline of a JetStream API call whose context has none |
+| `BACKPLANE_TEMPORAL_ADDR` | — | Temporal frontend for the optional health check |
+| `BACKPLANE_TEMPORAL_NS` | `default` | namespace |
+| `BACKPLANE_TEMPORAL_TLS_ENABLED`, `_TLS_CA`, `_TLS_CERT`, `_TLS_KEY`, `_TLS_SERVER_NAME`, `_TLS_INSECURE_SKIP_VERIFY` | `false`, … | TLS (mTLS) to Temporal, as for Consul |
+| `BACKPLANE_TEMPORAL_API_KEY` | — | Temporal Cloud API key (secret); turns TLS on by itself |
+| `BACKPLANE_TEMPORAL_DIAL_TIMEOUT` | `2s` | one connection attempt; later ones run in the background |
+| `BACKPLANE_TEMPORAL_KEEPALIVE_TIME`, `_KEEPALIVE_TIMEOUT` | `30s`, `15s` | gRPC keepalive pings of the frontend connection |
+| `BACKPLANE_TEMPORAL_GET_SYSTEM_INFO_TIMEOUT` | `5s` | bound of the capabilities call when the client connects |
+| `BACKPLANE_TEMPORAL_MAX_PAYLOAD_SIZE` | `0` | largest gRPC message in bytes; `0`: Temporal's own |
+| `BACKPLANE_TEMPORAL_GRPC_COMPRESSION` | `gzip` | `gzip` (Temporal's default) or `none` |
 
 Listen ports must differ from each other and from the platform and public
 ports. Readiness (`/healthz/readiness` on the platform port) waits for
@@ -171,7 +158,7 @@ curl localhost:9410/healthz/readiness
 
 The console has its own HTTP listener, default `:8081`. Set
 `BACKPLANE_CONSOLE_PREFIX=/backplane` to mount all paths under that prefix.
-The shell, `/auth/*`, `/ws`, `/plugins/*`, `/schemas/*` and optional telemetry admission
+The shell, `/auth/*`, `/ws`, `/plugins/*` and optional telemetry admission
 use this listener. Module RPCs and files are fetched directly from service platform ports.
 
 Set `BACKPLANE_ADMIN_TOKEN` to a secret of at least 16 characters. Sessions are stored
@@ -204,6 +191,10 @@ upstream, and `BACKPLANE_HELLO_URL` overrides the public hello address in browse
 `make dev-minimal` starts Backplane with PostgreSQL and Consul only. Disabled
 capabilities return explicit unavailable errors and the UI reflects their status.
 
+## Existing installations
+
+Backplane does not cancel previously created Temporal schedules or runs, retire Nexus endpoints, change JetStream streams or consumers, or clear old Consul keys. Those resources can outlive their creator. Review them with their owning services before any cleanup. The PostgreSQL migration history starts with a single pre-release baseline. It creates only the current platform tables and audit view. Use a fresh database or unused `backplane` schema; databases initialized with the earlier migration history are not an upgrade target. Startup does not reset them.
+
 ## Conformance and multiple replicas
 
 Stop the development application processes before host-process conformance: suites
@@ -213,8 +204,7 @@ no external proxy is required.
 ```sh
 make up
 make test-m1       # configuration, revisions, reconciliation, relay, bundles, restart
-make test-m2       # bindings, rules, deduplication, trace context
-make test-replicas # two backplanes, crash/rejoin, cross-service calls, Nexus cleanup
+make test-replicas # two backplanes, crash/rejoin, config repair and durable audit
 make test-audit
 make test-otlp     # start the observability overlay first
 ```
@@ -226,9 +216,8 @@ checks by changed inputs and reuses cached unchanged Go test results.
 
 ## Server capabilities and infrastructure health
 
-NATS enables events; Temporal enables workflows, schedules, binding execution and
-hook/activity calls; rules need both. Storage drivers and the Collector are configured
-independently. `PlatformService` reports capabilities and infrastructure status.
+Configuring NATS or Temporal enables a bounded health check, not application execution. `PlatformService` exposes the configured capabilities and cached health of this replica.
+
 An optional `BACKPLANE_INFRASTRUCTURE_GATEWAY_URL` is only a deployment-supplied HTTP
 health check, independent of any proxy vendor; it does not enable routing control.
 Collector and storage health overrides follow the same model.

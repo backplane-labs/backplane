@@ -67,41 +67,6 @@ func TestLoadLayers(t *testing.T) {
 	}
 }
 
-func TestTemporalWorkerFromEnv(t *testing.T) {
-	t.Setenv("HELLO_POSTGRES_DSN", "x")
-
-	cfg, err := config.Load[Config](context.Background(), consuldriver.Config(), config.Service("hello"), config.WithoutFile())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if w := cfg.BackplaneConfig().Temporal.Worker; !w.Enabled || w.MaxConcurrentActivities != 0 || w.WorkflowPollers != 0 {
-		t.Fatalf("defaults: %+v", w)
-	}
-
-	t.Setenv("BACKPLANE_TEMPORAL_WORKER_ENABLED", "false")
-	t.Setenv("BACKPLANE_TEMPORAL_WORKER_MAX_CONCURRENT_ACTIVITIES", "8")
-	t.Setenv("BACKPLANE_TEMPORAL_WORKER_MAX_CONCURRENT_WORKFLOW_TASKS", "4")
-	t.Setenv("BACKPLANE_TEMPORAL_WORKER_ACTIVITY_POLLERS", "3")
-	t.Setenv("BACKPLANE_TEMPORAL_WORKER_WORKFLOW_POLLERS", "2")
-
-	cfg, err = config.Load[Config](context.Background(), consuldriver.Config(), config.Service("hello"), config.WithoutFile())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if w := cfg.BackplaneConfig().Temporal.Worker; w.Enabled || w.MaxConcurrentActivities != 8 ||
-		w.MaxConcurrentWorkflowTasks != 4 || w.ActivityPollers != 3 || w.WorkflowPollers != 2 {
-		t.Fatalf("env: %+v", w)
-	}
-
-	t.Setenv("BACKPLANE_TEMPORAL_WORKER_ACTIVITY_POLLERS", "-1")
-
-	if _, err := config.Load[Config](context.Background(), consuldriver.Config(), config.Service("hello"), config.WithoutFile()); err == nil {
-		t.Fatal("negative pollers accepted")
-	}
-}
-
 // A list variable that is not JSON fails naming the variable, never its
 // value; an empty one is unset.
 func TestEnvListErrorsAndEmpty(t *testing.T) {
@@ -362,44 +327,6 @@ func TestOpenRequiredLiveFromConsul(t *testing.T) {
 
 	if got := rt.Value().Gate.Get(); got != "open" {
 		t.Fatalf("gate: %q", got)
-	}
-}
-
-func TestNATSStreamSettings(t *testing.T) {
-	t.Setenv("HELLO_POSTGRES_DSN", "x")
-
-	cfg, err := config.Load[Config](context.Background(), consuldriver.Config(), config.Service("hello"), config.WithoutFile())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	n := cfg.BackplaneConfig().NATS
-	if n.MaxAge != 7*24*time.Hour || n.MaxBytes != 0 || n.Replicas != 1 || n.DedupWindow != 2*time.Minute ||
-		n.DLQMaxAge != 30*24*time.Hour {
-		t.Fatalf("defaults: %+v", n)
-	}
-
-	t.Setenv("BACKPLANE_NATS_MAX_AGE", "24h")
-	t.Setenv("BACKPLANE_NATS_MAX_BYTES", "1073741824")
-	t.Setenv("BACKPLANE_NATS_REPLICAS", "3")
-	t.Setenv("BACKPLANE_NATS_DEDUP_WINDOW", "5m")
-	t.Setenv("BACKPLANE_NATS_DLQ_MAX_AGE", "0s")
-
-	cfg, err = config.Load[Config](context.Background(), consuldriver.Config(), config.Service("hello"), config.WithoutFile())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	n = cfg.BackplaneConfig().NATS
-	if n.MaxAge != 24*time.Hour || n.MaxBytes != 1<<30 || n.Replicas != 3 || n.DedupWindow != 5*time.Minute ||
-		n.DLQMaxAge != 0 {
-		t.Fatalf("env: %+v", n)
-	}
-
-	t.Setenv("BACKPLANE_NATS_REPLICAS", "7")
-
-	if _, err := config.Load[Config](context.Background(), consuldriver.Config(), config.Service("hello"), config.WithoutFile()); err == nil {
-		t.Fatal("7 replicas accepted")
 	}
 }
 

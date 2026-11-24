@@ -8,7 +8,6 @@ package wsproto
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strings"
 
 	"go.opentelemetry.io/otel"
@@ -39,7 +38,7 @@ type Register interface {
 }
 
 // Serve mounts a ws-proto endpoint at prefix on a public port of svc and
-// announces it with the registered services' descriptors. origins is the
+// applies the service's configured listeners and middleware. origins is the
 // browser origin policy: the zero value admits same-origin browsers and
 // non-browser clients only.
 //
@@ -65,23 +64,7 @@ func Serve[St any, R Register](
 		register(srv)
 	}
 
-	link.MountWS(svc, prefix, srv, services(srv.Methods()), spec)
-}
-
-// services are the full names of the services the methods
-// ("/pkg.Service/Method") belong to, sorted.
-func services(methods []string) []string {
-	var out []string
-
-	for _, m := range methods {
-		if name, _, ok := strings.Cut(strings.TrimPrefix(m, "/"), "/"); ok {
-			out = append(out, name)
-		}
-	}
-
-	slices.Sort(out)
-
-	return slices.Compact(out)
+	link.MountWS(svc, prefix, srv, spec)
 }
 
 // originOption maps the policy onto wsrpc.

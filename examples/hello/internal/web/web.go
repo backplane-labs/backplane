@@ -15,40 +15,17 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	"github.com/backplane-labs/backplane/examples/hello/internal/flows"
 	"github.com/backplane-labs/backplane/examples/hello/internal/greeter"
-	"github.com/backplane-labs/backplane/pkg/backplane/hook"
 )
 
-// GreetTimeout bounds the hook call of the /hello/ handler.
-const GreetTimeout = 2 * time.Second
-
-// IdempotencyKey is the request header that makes a greeting idempotent:
-// the hook call runs once per key (hook.Key).
-const IdempotencyKey = "Idempotency-Key"
-
-// Hello serves /hello/?name=: a bound Greet hook answers first; the local
-// greeter is the fallback when there is no Temporal, no binding or no
-// answer in time.
-func Hello(greet hook.Ref[flows.GreetIn, flows.GreetOut], g *greeter.Greeter) http.Handler {
+// Hello serves a greeting using the service's current configuration.
+func Hello(g *greeter.Greeter) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
 		name := r.URL.Query().Get("name")
 		if name == "" {
 			name = "world"
-		}
-
-		opts := []hook.CallOption{hook.Timeout(GreetTimeout)}
-		if k := r.Header.Get(IdempotencyKey); k != "" {
-			opts = append(opts, hook.Key(k))
-		}
-
-		if out, err := greet.Call(r.Context(), flows.GreetIn{Name: name}, opts...); err == nil {
-			g.Record(r.Context(), name, out.Text)
-			fmt.Fprintln(w, out.Text)
-
-			return
 		}
 
 		text, err := g.Text(r.Context(), name)
@@ -61,19 +38,6 @@ func Hello(greet hook.Ref[flows.GreetIn, flows.GreetOut], g *greeter.Greeter) ht
 		fmt.Fprintln(w, text) //nolint:gosec // text/plain, not HTML
 	})
 }
-
-// Introspection is the GraphQL endpoint's introspection result, announced
-// with the api.
-//
-//nolint:gochecknoglobals // constant document
-var Introspection = []byte(`{"__schema":{"queryType":{"name":"Query"},"types":[` +
-	`{"kind":"OBJECT","name":"Query","description":"One greeting query with an inline name argument.",` +
-	`"fields":[{"name":"greeting","description":"Returns a local greeting. ` +
-	`GraphQL errors use the errors array with HTTP 200.",` +
-	`"args":[{"name":"name","description":"Name as an inline string literal.",` +
-	`"type":{"kind":"NON_NULL","ofType":` +
-	`{"kind":"SCALAR","name":"String"}}}],"type":{"kind":"SCALAR","name":"String"}}]},` +
-	`{"kind":"SCALAR","name":"String","description":"UTF-8 text."}]}}`)
 
 // query is the one query the endpoint answers: { greeting(name: "...") }.
 var query = regexp.MustCompile(`^\s*(?:query\s*)?\{\s*greeting\s*\(\s*name\s*:\s*"([^"]*)"\s*\)\s*\}\s*$`)

@@ -37,7 +37,7 @@ type service struct {
 func newService(t *testing.T) *service {
 	t.Helper()
 
-	svc := node.New("svc", testlog.Discard(), nil)
+	svc := node.New("svc", testlog.Discard())
 	app := svc.Child("svc", node.Root, false)
 
 	s := &service{svc: svc, root: link.Scope(app).(deps.Component), ready: app.Readiness()}

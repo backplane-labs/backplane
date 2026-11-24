@@ -117,7 +117,7 @@ func TestConfigDefaults(t *testing.T) {
 		Billing temporal.Config `json:"billing"`
 	}
 
-	got := backplanetest.Config[cfg](t, map[string]string{"BILLING_ADDR": "t:7233", "BACKPLANE_TEMPORAL_KEEPALIVE_TIME": "45s"})
+	got := backplanetest.Config[cfg](t, map[string]string{"BILLING_ADDR": "t:7233"})
 
 	want := config.TemporalConnection{
 		KeepAliveTime: 30 * time.Second, KeepAliveTimeout: 15 * time.Second, GetSystemInfoTimeout: 5 * time.Second,
@@ -125,9 +125,5 @@ func TestConfigDefaults(t *testing.T) {
 	}
 	if got.Billing.TemporalConnection != want {
 		t.Fatalf("billing = %+v", got.Billing.TemporalConnection)
-	}
-
-	if got.Temporal.KeepAliveTime != 45*time.Second {
-		t.Fatalf("sdk = %+v", got.Temporal.TemporalConnection)
 	}
 }

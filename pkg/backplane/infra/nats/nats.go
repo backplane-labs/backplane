@@ -1,11 +1,6 @@
 // Package nats is a NATS connection as a dependency: a configuration
 // section, a connection that never gives up (reconnecting with jitter, no
-// buffering while disconnected, transitions logged), a status probe. The
-// SDK's own event bus connects through Connect too.
-//
-// The platform's events travel on the bus of the SDK block
-// (BACKPLANE_NATS_*); this is for a NATS of the service's own — one
-// backplane does not see:
+// buffering while disconnected, transitions logged), a status probe.
 //
 //	type Config struct {
 //	    config.Backplane `json:"backplane"`

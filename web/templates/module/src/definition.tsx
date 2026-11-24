@@ -143,10 +143,6 @@ function ServiceStats() {
           label={t('greetings')}
           value={value((stats) => <span data-testid="greetings">{String(stats.greetings)}</span>)}
         />
-        <StatTile
-          label={t('audited')}
-          value={value((stats) => <span data-testid="audited">{String(stats.audited)}</span>)}
-        />
         <StatTile label={t('greeting')} value={value((stats) => stats.currentGreeting)} tone="accent" />
       </StatRow>
     </Panel>

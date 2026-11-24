@@ -6,18 +6,16 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/hashicorp/consul/api"
-	"go.temporal.io/sdk/client"
 
 	consolev1 "github.com/backplane-labs/backplane/backplanepb/console/v1"
 	"github.com/backplane-labs/backplane/internal/platform"
 	"github.com/backplane-labs/backplane/pkg/backplane"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
-	natsdriver "github.com/backplane-labs/backplane/pkg/backplane/drivers/nats"
-	"github.com/backplane-labs/backplane/pkg/backplane/workflows"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/nats"
+	"github.com/backplane-labs/backplane/pkg/backplane/infra/temporal"
 )
 
 var (
@@ -37,13 +35,6 @@ type Infrastructure struct {
 
 func capabilities(c Config) []*consolev1.Capability {
 	return []*consolev1.Capability{
-		{Name: "events", Enabled: c.NATS.Enabled()},
-		{Name: "workflows", Enabled: c.Temporal.Enabled()},
-		{Name: "schedules", Enabled: c.Temporal.Enabled()},
-		{Name: "bindings", Enabled: true},
-		{Name: "rules", Enabled: c.NATS.Enabled()},
-		{Name: "runtime_temporal", Enabled: c.Temporal.Enabled()},
-		{Name: "runtime_direct", Enabled: true},
 		{Name: "metrics", Enabled: c.Obs.MetricsURL != ""},
 		{Name: "logs", Enabled: c.Obs.LogsURL != ""},
 		{Name: "traces", Enabled: c.Obs.TracesURL != ""},
@@ -51,24 +42,6 @@ func capabilities(c Config) []*consolev1.Capability {
 		{Name: "audit", Enabled: true},
 		{Name: "errors", Enabled: true},
 		{Name: "audit_export", Enabled: c.Audit.ExportURL != ""},
-	}
-}
-
-func disabledMethods(c Config) func(string, string) bool {
-	return func(service, method string) bool {
-		switch strings.TrimPrefix(service, "backplane.console.v1.") {
-		case "WorkflowService", "ScheduleService", "CallService":
-			return !c.Temporal.Enabled()
-		case "EventService":
-			return !c.NATS.Enabled()
-		case "RuleService":
-			switch method {
-			case "TestRule", "ListRuleRuns", "GetRuleRun", "CancelRuleRun":
-				return !c.NATS.Enabled()
-			}
-		}
-
-		return false
 	}
 }
 
@@ -90,29 +63,11 @@ func (st *State) probes(root backplane.Root[Config], cfg Config) []platform.Prob
 		return err
 	}
 	if cfg.Temporal.Enabled() {
-		probes = append(probes, platform.Probe{Name: "temporal", Run: func(ctx context.Context) error {
-			c, err := workflows.Client(root)
-			if err != nil {
-				return err
-			}
-
-			_, err = c.CheckHealth(ctx, &client.CheckHealthRequest{})
-
-			return err
-		}})
+		probes = append(probes, optionalProbe(root, temporal.New(cfg.Temporal.Config)))
 	}
 
 	if cfg.NATS.Enabled() {
-		probes = append(probes, platform.Probe{Name: "nats", Run: func(ctx context.Context) error {
-			j, err := natsdriver.JetStream(root)
-			if err != nil {
-				return err
-			}
-
-			_, err = j.AccountInfo(ctx)
-
-			return err
-		}})
+		probes = append(probes, optionalProbe(root, nats.New(cfg.NATS.Config, nats.WithJetStream())))
 	}
 
 	for _, p := range []struct {
@@ -131,6 +86,20 @@ func (st *State) probes(root backplane.Root[Config], cfg Config) []platform.Prob
 	}
 
 	return probes
+}
+
+// optionalProbe connects in the background: an unavailable external system never gates the console.
+func optionalProbe[T any](root deps.Scope, provider deps.Provider[T]) platform.Probe {
+	resource := deps.NewOptional(root, provider)
+
+	return platform.Probe{Name: provider.Name(), Run: func(ctx context.Context) error {
+		value, ok := resource.Get()
+		if !ok {
+			return deps.ErrNotReady
+		}
+
+		return provider.Probe(ctx, value)
+	}}
 }
 
 // Victoria stores have /health at their origin. An explicit URL supports

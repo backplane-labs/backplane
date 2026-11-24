@@ -18,13 +18,10 @@
 //	err = svc.Run(ctx)
 //
 // Everything — the SDK's own parts and the author's tree — is one tree of
-// nodes. Run starts it in order:
+// nodes.
 //
-//	config → telemetry → health → platform → consul → nats → temporal → hooks →
-//	author's tree → internal-api → reactors → worker →
-//	public:<addr> → drain → register → serving
-//
-// so components may publish events and call hooks from OnStart to OnStop.
+// Configuration, telemetry, health and the platform listener start before the service tree.
+// The SDK then opens the internal API and public listeners, registers the instance and marks it serving.
 // It stops in exact reverse within Shutdown.Timeout: readiness drops, the
 // instance deregisters, after Shutdown.Drain the listeners and the internal
 // API finish in-flight calls within one Shutdown.Listeners window (then
@@ -32,10 +29,7 @@
 // Shutdown.Reserve is left for components, which stop before the
 // dependencies they use. A second SIGINT/SIGTERM during the stop exits at
 // once with status 1. A panicking handler fails its request (codes.Internal,
-// HTTP 500), never the process. Consul, NATS, Temporal and the telemetry
-// collector are optional. Install configured backends explicitly with drivers
-// (for example standard.Drivers). RequireNATS or RequireTemporal make a
-// configured connection part of readiness.
+// HTTP 500), never the process. Install Consul discovery explicitly with consul.Driver().
 package backplane
 
 import (
@@ -44,6 +38,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -51,7 +46,6 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane/build"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
-	"github.com/backplane-labs/backplane/pkg/backplane/internal/decl"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/link"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/telemetry"
 	"github.com/backplane-labs/backplane/pkg/backplane/meshdial"
@@ -151,7 +145,7 @@ func (r Root[C]) DialPlatform(target, addr string, opts ...grpc.DialOption) (*gr
 func (r Root[C]) ServiceTLS(target string) *tls.Config { return r.meshState().ServiceTLS(target) }
 
 // PlatformCredentials are the gRPC credentials of a call to target's
-// platform port (port 9400: its activities, internal API): mutual TLS when
+// platform port (port 9400: its internal API): mutual TLS when
 // backplane.mesh.platform is mtls, plain otherwise. What backplane and the
 // SDK dial platform ports with.
 //
@@ -206,8 +200,8 @@ func Open[C config.Backplaner, St any](
 		return nil, fmt.Errorf("backplane: %w (or pass backplane.Name())", build.ErrUnnamed)
 	}
 
-	if !decl.ServiceName.MatchString(o.id.Service) {
-		return nil, fmt.Errorf("%w: service name %q must match %s", ErrConfig, o.id.Service, decl.ServiceName)
+	if !serviceName.MatchString(o.id.Service) {
+		return nil, fmt.Errorf("%w: service name %q must match %s", ErrConfig, o.id.Service, serviceName)
 	}
 
 	// "<binary> probe [kind]": probe the service running next to it and exit.
@@ -241,7 +235,7 @@ func Open[C config.Backplaner, St any](
 	}
 
 	block := (*conf.Value()).BackplaneConfig()
-	if err := errors.Join(validate(block), o.validate(block)); err != nil {
+	if err := validate(block); err != nil {
 		return nil, errors.Join(fmt.Errorf("backplane: %w", err), conf.Close())
 	}
 
@@ -264,6 +258,8 @@ func Open[C config.Backplaner, St any](
 
 	return &Service[St]{core: c, state: state}, nil
 }
+
+var serviceName = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 
 // ErrConfig: the SDK block or the service name is unusable.
 var ErrConfig = errors.New("backplane: invalid configuration")
@@ -291,7 +287,7 @@ func validate(b config.Backplane) error {
 			fmt.Errorf("%w: mesh.platform must be plain, accept or mtls, got %q", ErrConfig, b.Mesh.Platform))
 	}
 
-	return errors.Join(validateShutdown(b.Shutdown), validateHealth(b.Health), validateNATS(b.NATS), histograms, mesh)
+	return errors.Join(validateShutdown(b.Shutdown), validateHealth(b.Health), histograms, mesh)
 }
 
 // validateShutdown: the stages fit the budget, leaving the reserve.
@@ -321,43 +317,6 @@ func validateHealth(h config.Health) error {
 		return fmt.Errorf("%w: health.interval must be positive, got %v", ErrConfig, h.Interval)
 	case h.Timeout <= 0 || h.Timeout > h.Interval:
 		return fmt.Errorf("%w: health.timeout must be in (0, interval], got %v", ErrConfig, h.Timeout)
-	}
-
-	return nil
-}
-
-// validate checks the options against the block: a required transport
-// must be configured.
-func (o options) validate(b config.Backplane) error {
-	switch {
-	case b.NATS.Enabled() && o.events == nil:
-		return fmt.Errorf("%w: nats configured without an event driver (drivers/nats.Driver)", ErrConfig)
-	case b.Temporal.Enabled() && o.workflows == nil:
-		return fmt.Errorf("%w: temporal configured without a workflow driver (drivers/temporal.Driver)", ErrConfig)
-	case o.requireNATS && !b.NATS.Enabled():
-		return fmt.Errorf("%w: RequireNATS without nats.url", ErrConfig)
-	case o.requireTemporal && !b.Temporal.Enabled():
-		return fmt.Errorf("%w: RequireTemporal without temporal.addr", ErrConfig)
-	}
-
-	return nil
-}
-
-// validateNATS checks the stream settings JetStream would reject.
-func validateNATS(n config.NATS) error {
-	switch {
-	case !n.Enabled():
-		return nil
-	case n.MaxAge < 0:
-		return fmt.Errorf("%w: nats.max_age must be >= 0 (0: unlimited), got %v", ErrConfig, n.MaxAge)
-	case n.DLQMaxAge < 0:
-		return fmt.Errorf("%w: nats.dlq_max_age must be >= 0 (0: unlimited), got %v", ErrConfig, n.DLQMaxAge)
-	case n.DedupWindow <= 0 || (n.MaxAge > 0 && n.DedupWindow > n.MaxAge):
-		return fmt.Errorf("%w: nats.dedup_window must be in (0, max_age], got %v", ErrConfig, n.DedupWindow)
-	}
-
-	if err := config.CheckInboxPrefix(n.InboxPrefix); err != nil {
-		return fmt.Errorf("%w: nats.inbox_prefix: %w", ErrConfig, err)
 	}
 
 	return nil

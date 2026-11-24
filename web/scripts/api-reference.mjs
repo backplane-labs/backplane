@@ -7,28 +7,11 @@ const profiles = {
   CatalogService: 'catalog',
   SessionService: 'session',
   ConfigService: 'config',
-  BindingService: 'binding',
-  RuleService: 'rule',
-  EventService: 'operations',
-  WorkflowService: 'operations',
-  ScheduleService: 'operations',
-  CallService: 'operations',
   AuditService: 'audit',
   ObsService: 'observability',
   ErrorService: 'errors',
-  WiringService: 'wiring',
-  HookService: 'operations',
 };
-const commands = new Set(
-  'CreateSchedule UpdateSchedule DeleteSchedule PublishTestEvent RedriveDeadLetters PurgeDeadLetters StartWorkflow CancelRun TerminateRun SignalRun PauseSchedule UnpauseSchedule TriggerSchedule CallHook RunActivity TestBinding CancelBindingRun TestRule CancelRuleRun'.split(
-    ' ',
-  ),
-);
-const mutations = new Set(
-  'SaveRevision Rollback SaveBinding RollbackBinding DeleteBinding SaveRule RollbackRule DeleteRule PauseRule ResumeRule RevokeSession RevokeOtherSessions'.split(
-    ' ',
-  ),
-);
+const mutations = new Set('SaveRevision Rollback SetErrorGroupState RevokeSession RevokeOtherSessions'.split(' '));
 const markdown = [
   '# Console API method reference',
   '',
@@ -66,13 +49,11 @@ for (const file of (await readdir(directory)).filter((name) => name.endsWith('.p
         .trim()
         .replace(/\n\s*/g, ' ');
       const mode = stream ? (rpc === 'WatchAudit' ? 'cursor deltas' : 'replacement snapshots') : 'unary';
-      const policy = commands.has(rpc)
-        ? 'External command: durable intent/result; never automatically replay. Additional audit statuses: `Unavailable` before dispatch, `Aborted` if result persistence fails.'
-        : mutations.has(rpc)
-          ? 'Database mutation: never automatically replay after an ambiguous failure.'
-          : stream
-            ? 'Long-lived read; recovery follows its stream semantics.'
-            : 'Read/validation: safe to retry after a transient failure.';
+      const policy = mutations.has(rpc)
+        ? 'Database mutation: never automatically replay after an ambiguous failure.'
+        : stream
+          ? 'Long-lived read; recovery follows its stream semantics.'
+          : 'Read/validation: safe to retry after a transient failure.';
       markdown.push(
         `### ${rpc}`,
         '',

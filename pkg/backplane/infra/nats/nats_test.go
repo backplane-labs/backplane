@@ -367,7 +367,7 @@ func TestConfigDefaults(t *testing.T) {
 	}
 
 	got := backplanetest.Config[cfg](t, map[string]string{
-		"REALTIME_URL": "nats://n:4222", "REALTIME_PING_INTERVAL": "30s", "BACKPLANE_NATS_MAX_PINGS_OUT": "5",
+		"REALTIME_URL": "nats://n:4222", "REALTIME_PING_INTERVAL": "30s",
 	})
 
 	want := config.NATSConnection{
@@ -376,10 +376,6 @@ func TestConfigDefaults(t *testing.T) {
 	}
 	if got.Realtime.NATSConnection != want {
 		t.Fatalf("realtime = %+v", got.Realtime.NATSConnection)
-	}
-
-	if bus := got.NATS.NATSConnection; bus.MaxPingsOut != 5 || bus.PingInterval != 2*time.Minute {
-		t.Fatalf("bus = %+v", bus)
 	}
 }
 

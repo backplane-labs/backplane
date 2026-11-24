@@ -16,25 +16,19 @@ import (
 type Option func(*options)
 
 type options struct {
-	presence  PresenceFactory
-	events    EventTransportFactory
-	workflows WorkflowTransportFactory
-	discovery HookDiscoveryFactory
-	replicas  ReplicaWatchFactory
-	mesh      MeshFactory
-	id        Identity
-	log       *xlog.Logger
-	config    []config.Option
-	slog      bool
+	presence PresenceFactory
+	replicas ReplicaWatchFactory
+	mesh     MeshFactory
+	id       Identity
+	log      *xlog.Logger
+	config   []config.Option
+	slog     bool
 	// manifest: the binary runs as "<binary> manifest" (ManifestCommand).
 	manifest bool
 	// args are the process's arguments (os.Args); stdout gets the manifest.
 	args   []string
 	stdout io.Writer
 	grpc   []grpc.ServerOption
-
-	requireNATS     bool
-	requireTemporal bool
 
 	signals <-chan os.Signal // tests: instead of SIGINT/SIGTERM
 	exit    func(code int)   // tests: instead of os.Exit
@@ -84,17 +78,6 @@ func KeepSlog() Option { return func(o *options) { o.slog = false } }
 func GRPCServerOptions(opts ...grpc.ServerOption) Option {
 	return func(o *options) { o.grpc = append(o.grpc, opts...) }
 }
-
-// RequireNATS makes the NATS connection part of readiness: the instance is
-// not ready while it is down or while JetStream, which carries the
-// service's events, does not answer (asked within the probe's deadline).
-// Without NATS configured, Open fails.
-func RequireNATS() Option { return func(o *options) { o.requireNATS = true } }
-
-// RequireTemporal makes the Temporal connection part of readiness: the
-// instance is not ready while it is down. Without Temporal configured,
-// Open fails.
-func RequireTemporal() Option { return func(o *options) { o.requireTemporal = true } }
 
 // Options composes explicit driver options without global registration.
 func Options(opts ...Option) Option {

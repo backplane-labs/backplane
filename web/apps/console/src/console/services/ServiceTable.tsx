@@ -10,14 +10,13 @@ import {
   TableHeader,
   TableRow,
 } from '@backplane-labs/backplane-ui';
-import { AppWindow, Box, TriangleAlert } from 'lucide-react';
+import { AppWindow, Box } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { healthLabel, healthTone, type ServiceOverview, transportTone } from './model';
 
 export function ServiceTable({ items }: { items: ServiceOverview[] }) {
   const { t } = useTranslation('console');
-  const number = (item: ServiceOverview, value: number) => (item.detail ? value : '—');
   return (
     <Table className="console-table">
       <TableHeader>
@@ -26,11 +25,6 @@ export function ServiceTable({ items }: { items: ServiceOverview[] }) {
           <TableHead>{t('health')}</TableHead>
           <TableHead>{t('version')}</TableHead>
           <TableHead className="w-40">{t('instances')}</TableHead>
-          <TableHead className="text-right">{t('apis')}</TableHead>
-          <TableHead className="text-right">{t('hooks')}</TableHead>
-          <TableHead className="text-right">{t('events')}</TableHead>
-          <TableHead className="text-right">{t('workflows')}</TableHead>
-          <TableHead>{t('bindings')}</TableHead>
           <TableHead>{t('transports')}</TableHead>
           <TableHead>{t('config')}</TableHead>
           <TableHead>{t('uptime')}</TableHead>
@@ -68,23 +62,6 @@ export function ServiceTable({ items }: { items: ServiceOverview[] }) {
                     label={t('instances')}
                   />
                 </div>
-              </TableCell>
-              <TableCell className="text-right font-mono tabular-nums">{number(item, item.contract.apis)}</TableCell>
-              <TableCell className="text-right font-mono tabular-nums">{number(item, item.contract.hooks)}</TableCell>
-              <TableCell className="text-right font-mono tabular-nums">{number(item, item.contract.events)}</TableCell>
-              <TableCell className="text-right font-mono tabular-nums">
-                {number(item, item.contract.workflows)}
-              </TableCell>
-              <TableCell className="text-xs">
-                <span className="font-mono tabular-nums">
-                  {item.bindings.bound}/{item.bindings.total}
-                </span>
-                {item.bindings.missingRequired > 0 && (
-                  <TriangleAlert
-                    className="ml-1.5 inline size-3.5 text-warning"
-                    aria-label={t('requiredUnbound', { count: item.bindings.missingRequired })}
-                  />
-                )}
               </TableCell>
               <TableCell>
                 <div className="flex gap-2">

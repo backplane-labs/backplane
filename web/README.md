@@ -104,11 +104,11 @@ session/provider. It is not an event/cursor replay helper.
 ## Live development installation
 
 From the repository root, `make dev` builds and starts the stack, backplane,
-hello and formatter with a seeded binding and event rule. Open
+hello and formatter. Open
 `http://127.0.0.1:8081/backplane/` and use `DEV_ADMIN_TOKEN` (the documented local
 default is `dev-admin-token-change-me`). `Development acceptance` opens the live
 kit composition fixture. See [development instructions](../docs/development.md).
-`make test-dev` exercises service relay, configuration, hook execution, audit and
+`make test-dev` exercises service relay, configuration, audit and
 stored telemetry in the browser. This installation is not required by authors.
 
 `yarn test:packed` writes 13 tarballs and independent consumers in a temporary

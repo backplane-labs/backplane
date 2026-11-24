@@ -21,19 +21,19 @@ try {
     .click();
   for (const theme of ['Light theme', 'Dark theme']) {
     await page.getByRole('button', { name: theme, exact: true }).click();
-    await expect(page.getByText('Workflows: Disabled', { exact: true })).toBeVisible();
-    await expect(page.getByText('Events: Disabled', { exact: true })).toBeVisible();
-    await expect(page.getByText('OK', { exact: true })).toHaveCount(3);
+    await expect(page.getByText(/Workflows:/)).toHaveCount(0);
+    await expect(page.getByText(/Events:/)).toHaveCount(0);
+    const table = page.getByRole('table', { name: 'Dependencies', exact: true });
+    await expect(table.locator('tbody tr')).toHaveCount(2);
+    for (const name of ['PostgreSQL', 'Consul']) {
+      await expect(table.getByRole('row').filter({ hasText: name }).getByText('OK', { exact: true })).toBeVisible();
+    }
   }
   await page.goto(new URL('wiring?binding=hello.Greet&view=test', base).href);
-  await expect(page.getByText('Execution is disabled in this deployment', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Test', exact: true })).toBeDisabled();
-  await expect(page.getByRole('button', { name: 'Runs', exact: true })).toBeDisabled();
-  await page.getByRole('button', { name: 'YAML', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: 'Definition', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
   assert.deepEqual(errors, []);
   process.stdout.write(
-    'Minimal Compose: login, assets, both themes, infrastructure and disabled execution with editable definitions passed\n',
+    'Minimal Compose: login, assets, both themes, infrastructure and retired operator routes passed\n',
   );
 } finally {
   await browser.close();

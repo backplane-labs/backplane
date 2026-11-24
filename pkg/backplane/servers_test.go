@@ -16,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	natsgo "github.com/nats-io/nats.go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	hv1 "google.golang.org/grpc/health/grpc_health_v1"
@@ -32,8 +31,7 @@ import (
 	"github.com/backplane-labs/backplane/pkg/backplane"
 	"github.com/backplane-labs/backplane/pkg/backplane/api"
 	"github.com/backplane-labs/backplane/pkg/backplane/deps"
-	"github.com/backplane-labs/backplane/pkg/backplane/drivers/standard"
-	"github.com/backplane-labs/backplane/pkg/backplane/event"
+	consuldriver "github.com/backplane-labs/backplane/pkg/backplane/drivers/consul"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/guard"
 	"github.com/backplane-labs/backplane/pkg/backplane/wsproto"
 )
@@ -545,8 +543,8 @@ func TestOpenValidation(t *testing.T) {
 		opts []backplane.Option
 		want string
 	}{
-		"name":              {opts: []backplane.Option{standard.Drivers(), backplane.Name("Bad_Name")}, want: "service name"},
-		"name digit":        {opts: []backplane.Option{standard.Drivers(), backplane.Name("1svc")}, want: "service name"},
+		"name":              {opts: []backplane.Option{consuldriver.Driver(), backplane.Name("Bad_Name")}, want: "service name"},
+		"name digit":        {opts: []backplane.Option{consuldriver.Driver(), backplane.Name("1svc")}, want: "service name"},
 		"stages over total": {env: map[string]string{"BACKPLANE_SHUTDOWN_TIMEOUT": "5s"}, want: "listeners + reserve"},
 		"no listeners":      {env: map[string]string{"BACKPLANE_SHUTDOWN_LISTENERS": "0s"}, want: "shutdown.listeners"},
 		"negative reserve":  {env: map[string]string{"BACKPLANE_SHUTDOWN_RESERVE": "-1s"}, want: "shutdown.reserve"},
@@ -554,10 +552,6 @@ func TestOpenValidation(t *testing.T) {
 			env: map[string]string{"BACKPLANE_HEALTH_INTERVAL": "1s", "BACKPLANE_HEALTH_TIMEOUT": "2s"}, want: "health.timeout",
 		},
 		"health interval": {env: map[string]string{"BACKPLANE_HEALTH_INTERVAL": "0s"}, want: "health.interval"},
-		"require nats":    {opts: []backplane.Option{backplane.RequireNATS()}, want: "RequireNATS"},
-		"require temporal": {
-			opts: []backplane.Option{backplane.RequireTemporal()}, want: "RequireTemporal",
-		},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -579,180 +573,13 @@ func TestOpenValidation(t *testing.T) {
 	}
 }
 
-// TestRequireTransports: a required transport that is down keeps the
-// instance unready; a live one (BACKPLANE_TEST_NATS, _TEMPORAL) lets it
-// serve.
-func TestRequireTransports(t *testing.T) {
-	cases := map[string]struct {
-		env  string
-		live string
-		opt  backplane.Option
-	}{
-		"nats":     {"BACKPLANE_NATS_URL", natsURL(os.Getenv("BACKPLANE_TEST_NATS")), backplane.RequireNATS()},
-		"temporal": {"BACKPLANE_TEMPORAL_ADDR", os.Getenv("BACKPLANE_TEST_TEMPORAL"), backplane.RequireTemporal()},
-	}
-	for name, c := range cases {
-		t.Run(name+" down", func(t *testing.T) {
-			p := setup(t, "")
-			fastHealth(t)
-			t.Setenv(c.env, "127.0.0.1:"+freePort(t))
-
-			requireServes(t, p, c.opt, false)
-		})
-
-		t.Run(name+" live", func(t *testing.T) {
-			if c.live == "" {
-				t.Skip("BACKPLANE_TEST_" + strings.ToUpper(name) + " not set")
-			}
-
-			p := setup(t, "")
-			fastHealth(t)
-			t.Setenv(c.env, c.live)
-
-			requireServes(t, p, c.opt, true)
-		})
-	}
-}
-
-// TestNATSInboxPrefix: BACKPLANE_NATS_INBOX_PREFIX reaches the SDK's own
-// connection: the JetStream API answers of its stream setup come on the
-// prefix (BACKPLANE_TEST_NATS).
-func TestNATSInboxPrefix(t *testing.T) {
-	addr := os.Getenv("BACKPLANE_TEST_NATS")
-	if addr == "" {
-		t.Skip("BACKPLANE_TEST_NATS not set")
-	}
-
-	p := setup(t, "")
-	prefix := "_INBOX_svc" + strconv.FormatInt(time.Now().UnixNano(), 36)
-
-	watcher, err := natsgo.Connect(natsURL(addr))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Cleanup(watcher.Close)
-
-	answers := make(chan string, 64)
-
-	if _, err := watcher.Subscribe(prefix+".>", func(m *natsgo.Msg) { answers <- m.Subject }); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := watcher.Flush(); err != nil {
-		t.Fatal(err)
-	}
-
-	t.Setenv("BACKPLANE_NATS_URL", natsURL(addr))
-	t.Setenv("BACKPLANE_NATS_INBOX_PREFIX", prefix)
-
-	svc, err := backplane.Open(t.Context(), func(root backplane.Root[testConfig]) (*testState, error) {
-		event.Declare[greeted](root, "Greeted")
-
-		return &testState{}, nil
-	}, baseOptions("svc-inbox"+strconv.FormatInt(time.Now().UnixNano()%1e6, 10), backplane.RequireNATS())...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-
-	done := run(ctx, svc)
-
-	eventually(t, "ready", ready(p))
-
-	select {
-	case <-answers:
-	case <-time.After(5 * time.Second):
-		t.Fatal("no JetStream answer on the inbox prefix")
-	}
-
-	cancel()
-
-	if err := wait(t, done); err != nil {
-		t.Fatalf("run: %v", err)
-	}
-}
-
-type greeted struct {
-	Name string `json:"name"`
-}
-
-// natsURL of a BACKPLANE_TEST_NATS address (host:port); "" stays "".
-func natsURL(addr string) string {
-	if addr == "" {
-		return ""
-	}
-
-	return "nats://" + addr
-}
-
-func requireServes(t *testing.T, p ports, opt backplane.Option, want bool) {
-	t.Helper()
-
-	svc, err := backplane.Open(t.Context(), func(backplane.Root[testConfig]) (*testState, error) {
-		return &testState{}, nil
-	}, baseOptions("svc-require", opt)...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-
-	done := run(ctx, svc)
-
-	eventually(t, "platform port", func() bool { code, _ := get(p.platformURL() + "/healthz/liveness"); return code != 0 })
-
-	if want {
-		eventually(t, "ready", ready(p))
-	} else {
-		time.Sleep(500 * time.Millisecond)
-
-		if ready(p)() {
-			t.Fatal("ready with the required transport down")
-		}
-	}
-
-	cancel()
-
-	if err := wait(t, done); err != nil {
-		t.Fatalf("run: %v", err)
-	}
-}
-
-// TestSystemNodeOrder: the connections and the hook worker precede the
-// author's tree, so components publish and call hooks from OnStart.
-func TestSystemNodeOrder(t *testing.T) {
-	setup(t, "")
-	t.Setenv("BACKPLANE_NATS_URL", "nats://127.0.0.1:"+freePort(t))
-	t.Setenv("BACKPLANE_TEMPORAL_ADDR", "127.0.0.1:"+freePort(t))
-
-	svc, err := backplane.Open(t.Context(), func(backplane.Root[testConfig]) (*testState, error) {
-		return &testState{}, nil
-	}, baseOptions("svc-order")...)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer svc.Close()
-
-	got := backplane.SystemNodes(svc)
-
-	at := slices.Index(got, "nats")
-	if at < slices.Index(got, "platform") || !slices.Equal(got[at:], []string{"nats", "temporal", "hooks", "svc-order"}) {
-		t.Fatalf("nodes %v: want platform ... nats, temporal, hooks, then the author's tree", got)
-	}
-}
-
 type statusState struct {
 	Store deps.Dependency[string]
 	Cache deps.Optional[string]
 }
 
 // TestListeners: a route listener has one name and one address, managed
-// (api.Listen) or the author's (api.Port); the manifest names it, the
-// instance state carries its port.
+// (api.Listen) or the author's (Listener). The instance state carries its port.
 //
 //nolint:paralleltest // t.Setenv: the SDK block reads the process environment
 func TestListeners(t *testing.T) {
@@ -768,8 +595,8 @@ func TestListeners(t *testing.T) {
 		{"one name, one address", func(svc *backplane.Service[testState]) {
 			svc.HTTP("/a/", http.NotFoundHandler(), api.Listen("admin", ":"+a))
 			svc.HTTP("/b/", http.NotFoundHandler(), api.Listen("admin", ":"+a))
-			svc.API(api.HTTP("/legacy/", api.Port("legacy", 7000)))
-			svc.API(api.HTTP("/old/", api.Port("legacy", 7000)))
+			svc.Listener("legacy", 7000)
+			svc.Listener("legacy", 7000)
 		}, true},
 		{"one name, two addresses", func(svc *backplane.Service[testState]) {
 			svc.HTTP("/a/", http.NotFoundHandler(), api.Listen("admin", ":"+a))
@@ -787,11 +614,11 @@ func TestListeners(t *testing.T) {
 		}, false},
 		{"managed and declared", func(svc *backplane.Service[testState]) {
 			svc.HTTP("/a/", http.NotFoundHandler(), api.Listen("admin", ":"+a))
-			svc.API(api.HTTP("/d/", api.Port("admin", 7000)))
+			svc.Listener("admin", 7000)
 		}, false},
 		{"declared on two ports", func(svc *backplane.Service[testState]) {
-			svc.API(api.HTTP("/a/", api.Port("legacy", 7000)))
-			svc.API(api.HTTP("/b/", api.Port("legacy", 7001)))
+			svc.Listener("legacy", 7000)
+			svc.Listener("legacy", 7001)
 		}, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -882,7 +709,7 @@ func TestInstanceStatuses(t *testing.T) {
 	})
 
 	transports := backplane.TransportStatuses(svc)
-	if len(transports) != 1 || transports[0].GetName() != "nats" || transports[0].GetConnected() {
+	if len(transports) != 0 {
 		t.Fatalf("transports: %v", transports)
 	}
 

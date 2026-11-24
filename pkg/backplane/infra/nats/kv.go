@@ -6,19 +6,7 @@ import (
 	"fmt"
 
 	"github.com/nats-io/nats.go/jetstream"
-
-	"github.com/backplane-labs/backplane/pkg/backplane/config"
 )
-
-// FromBackplane is the connection of the service's own NATS section
-// (BACKPLANE_NATS_*): a cell on the same server, with the same identity,
-// as the SDK's bus.
-func FromBackplane(n config.NATS) Config {
-	return Config{
-		URL: n.URL, Creds: n.Creds, User: n.User, Password: n.Password, Nkey: n.Nkey, TLS: n.TLS,
-		InboxPrefix: n.InboxPrefix, NATSConnection: n.NATSConnection,
-	}
-}
 
 // MintOnce is the value of key in kv, minted by mint and stored if absent:
 // replicas racing on a fresh bucket all end with the one value the first

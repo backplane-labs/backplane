@@ -13,7 +13,6 @@ The sidebar can collapse to a rail, expand on hover/focus and be pinned. Drag it
 | Page | Purpose |
 | --- | --- |
 | Services | Catalog, service status and access to administration |
-| Wiring | Connect hooks and events, edit definitions and inspect runs |
 | Explore | Query stored logs, metrics and traces across discovered sources |
 | Audit | Durable platform and trusted application history |
 | Errors | OTel exceptions, browser state/history and related telemetry |
@@ -28,22 +27,13 @@ A failed module does not hide other services or prevent platform administration.
 
 | Route | Content |
 | --- | --- |
-| `/services` | Summary tiles and the catalog as cards, a table or a system map |
-| `/services/:service` | Overview: instances, component tree, service contract and metadata |
-| `…/api` | Service API reference, schemas, types and bundled files |
+| `/services` | Summary tiles and the catalog as cards or a table |
+| `/services/:service` | Overview: instances, component tree, health and build metadata |
 | `…/configuration` | Settings, instance rollout, revisions, diff and rollback |
-| `…/automation` | Hooks, bindings and event rules, with links to Wiring |
-| `…/operations` | Call hooks, run activities, publish test events and start workflows. A hook or activity runs where its target runs: on the direct runtime without Temporal (a binding backplane executes itself, an activity called on the service), or as a Temporal run. Input is a form or JSON scaffolded from the declared schema; a running call shows its elapsed time and can be cancelled; a failure shows the handler's message and error type |
-| `…/events` | Streams, subscribers, messages and dead letters |
-| `…/workflows` | Workflows, runs and administrative schedules |
 | `…/telemetry` | Explore scoped to the service's telemetry selectors |
 | `…/errors` | Exception records attributed to the service |
 | `…/audit` | Audit entries attributed to the service |
 | `/s/:service/*` | Module-owned pages |
-
-Wiring accepts links such as `?binding=<hook>`, `?rule=<id>` and
-`?event=<event>` for a new rule. Its `view` parameter selects graph, YAML,
-versions, test or runs. Explore keeps query state in the URL.
 
 The console is a dense operator workspace built from the shared kit: semantic
 status colors, panels, summary tiles and consistent forms. Platform headers
@@ -58,7 +48,6 @@ certify dependency health or a working telemetry pipeline.
 
 - A healthy instance is not proof that every downstream workflow can complete.
 - A saved configuration revision may still be pending or rejected by an instance.
-- A successful workflow start is not a successful workflow result.
 - A telemetry query with no rows is different from an unavailable store.
 - Infrastructure OK is a bounded connectivity check, not end-to-end telemetry validation.
 
@@ -87,4 +76,4 @@ describe whether a dependency is mandatory for the installation.
 
 Actions preserve drafts after failure and suppress duplicate in-flight submissions. An uncertain mutation result requires inspection before retry. Revision conflicts show the latest state so you can reconcile changes; they must not be dismissed by repeatedly forcing the same draft.
 
-Use [configuration](configuration.md), [wiring](wiring.md), [workflow](workflows.md) and [event](events.md) guides for specific tasks. Authors can reuse these views through [platform-ui](../reference/platform-ui.md).
+See [configuration](configuration.md) for editing live values and [platform-ui](../reference/platform-ui.md) for reusable console views.

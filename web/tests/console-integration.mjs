@@ -63,12 +63,12 @@ try {
   await expect(page.getByRole('heading', { name: 'Infrastructure', exact: true })).toBeVisible();
   await expect(page.getByText('PostgreSQL', { exact: true })).toBeVisible();
   await expect(page.getByText('OK', { exact: true })).toBeVisible();
-  await expect(page.getByText('Workflows: Disabled', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Workflows:/)).toHaveCount(0);
   await page.getByRole('button', { name: 'Light theme', exact: true }).click();
   await expect(page.getByText('OK', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Dark theme', exact: true }).click();
   await page.goto(new URL('services/hello/workflows', base).href);
-  await expect(page.getByText('Disabled in this deployment', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
   await page.goto(new URL('s/hello/settings', base).href);
   await expect(page.getByLabel('Display name')).toBeVisible();
   await expect(input).toHaveCount(0);

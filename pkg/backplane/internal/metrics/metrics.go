@@ -7,7 +7,6 @@ package metrics
 import (
 	"context"
 	"sync"
-	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -19,32 +18,19 @@ const Meter = "github.com/backplane-labs/backplane"
 
 // Outcomes shared by the counters.
 const (
-	OK          = "ok"
-	Error       = "error"
-	Applied     = "applied"
-	Rejected    = "rejected"
-	Unavailable = "unavailable"
-	NoBinding   = "no_binding"
-	Timeout     = "timeout"
-	Ack         = "ack"
-	Nak         = "nak"
-	Dead        = "dead"
-	Terminal    = "terminal"
+	OK       = "ok"
+	Error    = "error"
+	Applied  = "applied"
+	Rejected = "rejected"
 )
 
 type instruments struct {
-	depReady     metric.Int64Gauge
-	depProvide   metric.Int64Counter
-	cfgUpdates   metric.Int64Counter
-	cfgDegraded  metric.Int64Gauge
-	hookDuration metric.Float64Histogram
-	published    metric.Int64Counter
-	reactor      metric.Float64Histogram
-	redelivered  metric.Int64Counter
-	pending      metric.Int64Gauge
-	activity     metric.Float64Histogram
-	transport    metric.Int64Gauge
-	panics       metric.Int64Counter
+	depReady    metric.Int64Gauge
+	depProvide  metric.Int64Counter
+	cfgUpdates  metric.Int64Counter
+	cfgDegraded metric.Int64Gauge
+	transport   metric.Int64Gauge
+	panics      metric.Int64Counter
 }
 
 //nolint:gochecknoglobals // one instrument set per process
@@ -57,21 +43,11 @@ var get = sync.OnceValue(func() instruments {
 	cfgUpdates, _ := m.Int64Counter("backplane.config.updates")
 	cfgDegraded, _ := m.Int64Gauge("backplane.config.degraded",
 		metric.WithDescription("1 while the Consul layer is stale"))
-	hookDuration, _ := m.Float64Histogram("backplane.hook.call.duration", metric.WithUnit("s"))
-	published, _ := m.Int64Counter("backplane.event.published")
-	reactor, _ := m.Float64Histogram("backplane.reactor.duration", metric.WithUnit("s"))
-	redelivered, _ := m.Int64Counter("backplane.reactor.redeliveries",
-		metric.WithDescription("Deliveries of an event the consumer had been given before"))
-	pending, _ := m.Int64Gauge("backplane.reactor.pending",
-		metric.WithDescription("Events of the consumer not delivered yet (waiting) or not settled yet (unacked)"))
-	activity, _ := m.Float64Histogram("backplane.activity.duration", metric.WithUnit("s"))
 	transport, _ := m.Int64Gauge("backplane.transport.connected")
 	panics, _ := m.Int64Counter("backplane.panics")
 
 	return instruments{
 		depReady: depReady, depProvide: depProvide, cfgUpdates: cfgUpdates, cfgDegraded: cfgDegraded,
-		hookDuration: hookDuration, published: published, reactor: reactor, redelivered: redelivered,
-		pending: pending, activity: activity,
 		transport: transport, panics: panics,
 	}
 })
@@ -105,47 +81,7 @@ func ConfigDegraded(ctx context.Context, degraded bool) {
 	get().cfgDegraded.Record(ctx, flag(degraded))
 }
 
-// HookCall records a hook call.
-func HookCall(ctx context.Context, hook, outcome string, took time.Duration) {
-	get().hookDuration.Record(ctx, took.Seconds(),
-		metric.WithAttributes(attribute.String("hook", hook), attribute.String("outcome", outcome)))
-}
-
-// EventPublished counts a publish.
-func EventPublished(ctx context.Context, event, outcome string) {
-	get().published.Add(ctx, 1,
-		metric.WithAttributes(attribute.String("event", event), attribute.String("outcome", outcome)))
-}
-
-// ReactorHandled records a reactor delivery.
-func ReactorHandled(ctx context.Context, consumer, outcome string, took time.Duration) {
-	get().reactor.Record(ctx, took.Seconds(),
-		metric.WithAttributes(attribute.String("consumer", consumer), attribute.String("outcome", outcome)))
-}
-
-// ReactorRedelivered counts a delivery of an event the consumer had been
-// given before.
-func ReactorRedelivered(ctx context.Context, consumer string) {
-	get().redelivered.Add(ctx, 1, metric.WithAttributes(attribute.String("consumer", consumer)))
-}
-
-// ReactorPending records the consumer's lag: events not delivered yet and
-// events delivered but not settled.
-func ReactorPending(ctx context.Context, consumer string, waiting, unacked int64) {
-	get().pending.Record(ctx, waiting,
-		metric.WithAttributes(attribute.String("consumer", consumer), attribute.String("state", "waiting")))
-	get().pending.Record(ctx, unacked,
-		metric.WithAttributes(attribute.String("consumer", consumer), attribute.String("state", "unacked")))
-}
-
-// ActivityHandled records an activity execution.
-func ActivityHandled(ctx context.Context, activity, outcome string, took time.Duration) {
-	get().activity.Record(ctx, took.Seconds(),
-		metric.WithAttributes(attribute.String("activity", activity), attribute.String("outcome", outcome)))
-}
-
-// TransportConnected records a transport's connection ("consul", "nats",
-// "temporal").
+// TransportConnected records SDK transport connectivity.
 func TransportConnected(ctx context.Context, transport string, connected bool) {
 	get().transport.Record(ctx, flag(connected), metric.WithAttributes(attribute.String("transport", transport)))
 }

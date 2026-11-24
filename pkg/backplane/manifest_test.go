@@ -9,7 +9,6 @@ import (
 
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane"
-	"github.com/backplane-labs/backplane/pkg/backplane/hook"
 )
 
 func TestManifestMode(t *testing.T) {
@@ -50,8 +49,6 @@ func TestManifestCommand(t *testing.T) {
 			t.Error("the manifest command is not describing")
 		}
 
-		hook.Declare[struct{ A string }, struct{ B string }](root, "Lookup")
-
 		return &testState{}, nil
 	}, baseOptions("svc-manifest", backplane.Process([]string{"svc", backplane.ManifestCommand}, &stdout))...)
 	if err != nil {
@@ -67,7 +64,7 @@ func TestManifestCommand(t *testing.T) {
 		t.Fatalf("stdout is not a manifest: %v\n%s", err, stdout.String())
 	}
 
-	if m.GetService() != "svc-manifest" || len(m.GetHooks()) != 1 || m.GetHooks()[0].GetName() != "Lookup" {
+	if m.GetService() != "svc-manifest" || m.GetConfig() == nil {
 		t.Fatalf("manifest = %v", &m)
 	}
 }

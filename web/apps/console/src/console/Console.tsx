@@ -17,8 +17,6 @@ import { ServicePage } from './service/ServicePage';
 import { ServicesPage } from './services/ServicesPage';
 import { Header } from './shell/Header';
 import { NotFound } from './shell/NotFound';
-import { WiringRoute } from './WiringRoute';
-import '@xyflow/react/dist/base.css';
 import './tailwind.css';
 import './console.css';
 
@@ -173,28 +171,12 @@ export function Console({
                   <Route
                     path="/services"
                     element={
-                      <ServicesPage
-                        services={services}
-                        index={index}
-                        loading={registry.catalog.status === 'loading'}
-                        mode={mode}
-                      />
+                      <ServicesPage services={services} index={index} loading={registry.catalog.status === 'loading'} />
                     }
                   />
                   <Route
                     path="/services/:service/:tab?"
                     element={<ServicePage mode={mode} services={services} index={index} />}
-                  />
-                  <Route
-                    path="/wiring"
-                    element={
-                      <>
-                        <PageHeader title={t('wiring')} description={t('wiringDescription')} />
-                        <div className="console-fill">
-                          <WiringRoute mode={mode} />
-                        </div>
-                      </>
-                    }
                   />
                   <Route
                     path="/explore"

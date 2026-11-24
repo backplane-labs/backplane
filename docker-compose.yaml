@@ -20,6 +20,8 @@ services:
   valkey:
     profiles: [cache]
     image: valkey/valkey:8-alpine
+    # The native-client suite exercises selection of database 4000.
+    command: [valkey-server, --databases, "4096"]
     ports: ["6379:6379"]
 
   nats:
@@ -28,7 +30,7 @@ services:
     command: -js -m 8222
     ports: ["4222:4222", "8222:8222"]
 
-  # Dev server: SQLite in memory, Nexus enabled; enough for development
+  # Dev server: SQLite in memory; enough for development
   # and conformance. Production runs a real Temporal cluster.
   temporal:
     profiles: [workflows, full]

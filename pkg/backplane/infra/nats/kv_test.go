@@ -10,20 +10,8 @@ import (
 	natsgo "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
-	"github.com/backplane-labs/backplane/pkg/backplane/config"
 	"github.com/backplane-labs/backplane/pkg/backplane/infra/nats"
 )
-
-func TestFromBackplane(t *testing.T) {
-	t.Parallel()
-
-	n := config.NATS{URL: "nats://n:4222", User: "u", Password: "p", InboxPrefix: "_INBOX_x"}
-	got := nats.FromBackplane(n)
-
-	if got.URL != n.URL || got.User != "u" || got.Password != "p" || got.InboxPrefix != "_INBOX_x" {
-		t.Fatalf("config %+v", got)
-	}
-}
 
 // Replicas racing to mint on a fresh bucket all end with the one stored
 // value; a later call reads it without minting.

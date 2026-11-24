@@ -14,7 +14,7 @@ log store only serves the logs related to an occurrence.
 | Source | Record | In the list |
 | --- | --- | --- |
 | Frontends with `@backplane-labs/backplane-errors` | one log record per capture: the exception, the app's registered state and a bounded history (breadcrumbs, state snapshots) as a JSON envelope (`app-debug` v1) in the body, the small fields as `app.debug.*` and `exception.*` attributes | origin `sdk`, one occurrence per event id (retries collapse) |
-| Services on the Go SDK | `backplane.CaptureError(ctx, log, err, fields...)`; recovered panics of gRPC, ws-proto and HTTP handlers and of activities | origin `otel_log` |
+| Services on the Go SDK | `backplane.CaptureError(ctx, log, err, fields...)`; recovered panics of gRPC, ws-proto and HTTP handlers | origin `otel_log` |
 | Anything else | any log record with `exception.type`, `exception.message`, `exception.stacktrace`, `event.name=exception` or `app.debug.kind=exception` | origin `otel_log` |
 
 ### Frontends

@@ -1,7 +1,6 @@
 import {
   Duration,
   EntityCard,
-  Figure,
   Meter,
   StatusBadge,
   StatusDot,
@@ -16,7 +15,7 @@ import { healthLabel, healthTone, type ServiceOverview, transportTone } from './
 
 export function ServiceCard({ item }: { item: ServiceOverview }) {
   const { t } = useTranslation('console'),
-    { summary, contract, bindings, rules, config } = item;
+    { summary, config } = item;
   const tone = healthTone[summary.health];
   return (
     <EntityCard
@@ -71,25 +70,6 @@ export function ServiceCard({ item }: { item: ServiceOverview }) {
           tone={tone === 'neutral' ? 'danger' : tone}
           label={t('instances')}
         />
-      </div>
-      <div className="grid grid-cols-4 gap-2">
-        <Figure label={t('apis')} value={item.detail ? contract.apis : '—'} />
-        <Figure label={t('hooks')} value={item.detail ? contract.hooks : '—'} />
-        <Figure label={t('events')} value={item.detail ? contract.events : '—'} />
-        <Figure label={t('workflows')} value={item.detail ? contract.workflows : '—'} />
-      </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
-        <span>{t('bindingsCount', { bound: bindings.bound, total: bindings.total })}</span>
-        <span>
-          {t('rulesCount', { count: rules.active + rules.paused })}
-          {rules.paused > 0 && ` · ${t('pausedCount', { count: rules.paused })}`}
-        </span>
-        {bindings.missingRequired > 0 && (
-          <span className="inline-flex items-center gap-1 text-warning">
-            <TriangleAlert className="size-3.5" />
-            {t('requiredUnbound', { count: bindings.missingRequired })}
-          </span>
-        )}
       </div>
       {(item.transports.length > 0 || config) && (
         <div className="flex flex-wrap items-center gap-1.5">

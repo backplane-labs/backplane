@@ -54,48 +54,6 @@ type BackplaneConsoleLoginAttempt struct {
 	ExpiresAt time.Time
 }
 
-type BackplaneBindingVersion struct {
-	Hook       string
-	Version    int64
-	Definition json.RawMessage
-	Author     string
-	Comment    string
-	CreatedAt  time.Time
-	RollbackOf *int64
-	ManagedBy  *string
-}
-
-type BackplaneBindingCurrent struct {
-	Hook      string
-	Version   int64
-	UpdatedAt time.Time
-}
-
-type BackplaneRule struct {
-	ID        uuid.UUID
-	Paused    bool
-	CreatedAt time.Time
-	UpdatedAt time.Time
-}
-
-type BackplaneRuleVersion struct {
-	RuleID     uuid.UUID
-	Version    int64
-	Name       string
-	Definition json.RawMessage
-	Author     string
-	Comment    string
-	CreatedAt  time.Time
-	RollbackOf *int64
-	ManagedBy  *string
-}
-
-type BackplaneRuleCurrent struct {
-	RuleID    uuid.UUID
-	Version   int64
-	UpdatedAt time.Time
-}
-
 type BackplaneAuditClock struct {
 	Singleton     bool
 	Sequence      int64
@@ -140,51 +98,6 @@ type BackplaneAppAudit struct {
 	Resource   json.RawMessage
 	TraceID    string
 	SpanID     string
-}
-
-type BackplaneDirectProgram struct {
-	Hash      string
-	Spec      json.RawMessage
-	CreatedAt time.Time
-}
-
-type BackplaneDirectRun struct {
-	ID          string
-	Kind        string
-	Source      string
-	Version     int64
-	Test        bool
-	Caller      string
-	Status      string
-	Attempt     int32
-	Input       json.RawMessage
-	Result      json.RawMessage
-	Reply       []byte
-	Error       string
-	ErrorType   string
-	ProgramHash string
-	Incomplete  bool
-	StartedAt   time.Time
-	DeadlineAt  time.Time
-	ExpireAt    *time.Time
-	ClosedAt    *time.Time
-}
-
-type BackplaneDirectRunStep struct {
-	RunID       string
-	Label       string
-	Seq         int32
-	Step        string
-	Parent      string
-	Item        *int32
-	Activity    string
-	Status      string
-	Input       json.RawMessage
-	Output      json.RawMessage
-	Error       string
-	ErrorType   string
-	ScheduledAt time.Time
-	ClosedAt    *time.Time
 }
 
 type BackplaneAppErrorGroup struct {

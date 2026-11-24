@@ -151,7 +151,7 @@ func serve(t *testing.T, src *source, g *grpc.Server) string {
 
 	l := listener.New("a", "127.0.0.1:0", g, h, testlog.Discard(), listener.Limits{},
 		listener.TLS(mtls.ServerConfig(src)), listener.ConnContext(mtls.ConnContext))
-	n := node.New("a", testlog.Discard(), nil)
+	n := node.New("a", testlog.Discard())
 	n.OnStart(func(ctx context.Context) error { return l.Start(ctx, n) })
 	n.OnStop(l.Stop)
 

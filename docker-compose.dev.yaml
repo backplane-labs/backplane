@@ -8,8 +8,6 @@ x-runtime: &runtime
     - ./web/templates/module/dist/plugin:/app/web/templates/module/dist/plugin:ro
   environment: &environment
     BACKPLANE_CONSUL_ADDR: consul:8500
-    BACKPLANE_NATS_URL: nats://nats:4222
-    BACKPLANE_TEMPORAL_ADDR: temporal:7233
     BACKPLANE_INTERNAL_SECRET: dev-internal-secret-change-me
     BACKPLANE_ENVIRONMENT: development
     OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4318
@@ -21,14 +19,10 @@ services:
     <<: *runtime
     command: [/app/bin/backplane]
     ports: ["127.0.0.1:8081:8081"]
-    volumes:
-      - ./bin:/app/bin:ro
-      - ./web/apps/console/dist:/app/web/apps/console/dist:ro
-      - ./web/templates/module/dist/plugin:/app/web/templates/module/dist/plugin:ro
-      # Local wiring files (gitignored); empty: everything is the console's.
-      - ./.dev/wiring:/app/wiring:ro
     environment:
       <<: *environment
+      BACKPLANE_NATS_URL: nats://nats:4222
+      BACKPLANE_TEMPORAL_ADDR: temporal:7233
       BACKPLANE_INSTANCE: backplane-dev
       BACKPLANE_INTERNAL_PORT: "9410"
       BACKPLANE_PUBLIC_PORT: "8090"
@@ -44,7 +38,6 @@ services:
       BACKPLANE_OBS_METRICS_URL: http://victoriametrics:8428
       BACKPLANE_OBS_TRACES_URL: http://victoriatraces:10428
       BACKPLANE_OBS_TRACEQL: "true"
-      BACKPLANE_WIRING_DIR: /app/wiring
   # The application audit pipeline (deployments/otel-collector.audit.yaml)
   # needs the contrib distribution; its queue waits out backplane restarts.
   collector:
@@ -70,13 +63,5 @@ services:
     environment:
       <<: *environment
       BACKPLANE_INSTANCE: formatter-dev
-  seed:
-    <<: *runtime
-    restart: "no"
-    profiles: [tools]
-    command: [/app/bin/setup-example]
-    environment:
-      BACKPLANE_ADMIN_TOKEN: ${DEV_ADMIN_TOKEN:-dev-admin-token-change-me}
-      BACKPLANE_DEMO_URL: http://backplane:8081/backplane
 volumes:
   collector-audit: {}

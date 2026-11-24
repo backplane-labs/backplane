@@ -2,17 +2,15 @@ package greeter_test
 
 import (
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/backplane-labs/backplane/examples/hello/internal/greeter"
 	"github.com/backplane-labs/backplane/examples/hello/internal/hellotest"
 	"github.com/backplane-labs/backplane/examples/hello/internal/store"
-	hellov1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/backplanetest"
 )
 
-func TestGreetPublishes(t *testing.T) {
+func TestGreetingUsesLiveConfig(t *testing.T) {
 	t.Parallel()
 
 	tree := hellotest.New(t, map[string]string{"SUFFIX": "?"})
@@ -28,47 +26,6 @@ func TestGreetPublishes(t *testing.T) {
 
 	if text, _ = tree.Greeter.Text(t.Context(), "ann"); text != "Hello, ann?!!" {
 		t.Fatalf("excited: %q", text)
-	}
-
-	got := backplanetest.EventsWithMeta(tree.H, tree.Greeter.Greeted())
-	if len(got) != 2 {
-		t.Fatalf("events: %+v", got)
-	}
-
-	first, second := got[0], got[1]
-	if first.Value != (greeter.Greeted{Name: "ann", Count: 1, Text: "Hello, ann?"}) || first.Key != "ann" ||
-		!strings.HasSuffix(first.ID, "-ann-1") || first.Headers["excited"] != "false" {
-		t.Errorf("first: %+v", first)
-	}
-
-	if second.Value.Count != 2 || !strings.HasSuffix(second.ID, "-ann-2") || second.Headers["excited"] != "true" {
-		t.Errorf("second: %+v", second)
-	}
-}
-
-// A greeting does not depend on the event transport.
-func TestGreetWithoutTransport(t *testing.T) {
-	t.Parallel()
-
-	tree := hellotest.New(t, nil)
-	tree.H.Start()
-
-	backplanetest.FailPublish(tree.H, errors.New("stream full"))
-
-	if text, err := tree.Greeter.Text(t.Context(), "bob"); err != nil || text != "Hello, bob!" {
-		t.Fatalf("with failing publish: %q %v", text, err)
-	}
-
-	backplanetest.FailPublish(tree.H, nil)
-	backplanetest.Unavailable(tree.H)
-
-	res, err := tree.Greeter.Greet(t.Context(), &hellov1.GreetRequest{Name: "grpc"})
-	if err != nil || res.GetGreeting() != "Hello, grpc!" {
-		t.Fatalf("grpc without NATS: %v %v", res, err)
-	}
-
-	if got := backplanetest.Events(tree.H, tree.Greeter.Greeted()); len(got) != 0 {
-		t.Fatalf("recorded: %+v", got)
 	}
 }
 

@@ -5,7 +5,6 @@ package admin
 import (
 	"context"
 
-	"github.com/backplane-labs/backplane/examples/hello/internal/audit"
 	"github.com/backplane-labs/backplane/examples/hello/internal/greeter"
 	"github.com/backplane-labs/backplane/examples/hello/internal/store"
 	helloconsolev1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1"
@@ -18,16 +17,15 @@ type Admin struct {
 	deps.Component
 
 	greeter *greeter.Greeter
-	audit   *audit.Audit
 	db      deps.Dependency[*store.DB]
 	cache   deps.Optional[*store.DB]
 }
 
 // New creates the admin component.
 func New(
-	parent deps.Scope, g *greeter.Greeter, a *audit.Audit, db deps.Dependency[*store.DB], cache deps.Optional[*store.DB],
+	parent deps.Scope, g *greeter.Greeter, db deps.Dependency[*store.DB], cache deps.Optional[*store.DB],
 ) *Admin {
-	return &Admin{Component: deps.NewComponent(parent, "admin"), greeter: g, audit: a, db: db, cache: cache}
+	return &Admin{Component: deps.NewComponent(parent, "admin"), greeter: g, db: db, cache: cache}
 }
 
 // GetStats implements AdminService.
@@ -47,6 +45,6 @@ func (a *Admin) GetStats(
 	}
 
 	return &helloconsolev1.GetStatsResponse{
-		Greetings: a.db.Get().Total(), CurrentGreeting: text, Audited: a.audit.Total(), CachePresent: present,
+		Greetings: a.db.Get().Total(), CurrentGreeting: text, CachePresent: present,
 	}, nil
 }

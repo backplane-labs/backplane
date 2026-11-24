@@ -56,26 +56,16 @@ every exported span and log record, whichever instrumentation set them. It
 is not configurable: an IP address is personal data.
 
 Every call a service makes is a client span that carries its trace on:
-gRPC through `meshdial` (`DialService`, `DialPlatform`, the hook transport)
+gRPC through `meshdial` (`DialService`, `DialPlatform`)
 in the call's metadata, outbound HTTP through `netguard.Client` (and the
 errors forwarding) in `traceparent`. An HTTP client span records the method,
 the server's host and port and the status, never the URL's path or query,
 where device tokens, webhook secrets and signed links travel: use
 `tracehttp.NewTransport(base)` (`pkg/backplane/tracehttp`) for a client of
-your own rather than otelhttp, which records the full URL. A synchronous continuation stays in the
-caller's trace: a hook call, its binding run and the activities it calls
-(either runtime), a workflow started by a call and its activities. An
-asynchronous continuation starts a new trace linked to its origin, as
-OpenTelemetry's messaging conventions say: a reactor handling an event
-(and a redrive of it) is a consumer span whose link is the publisher's
-span, a rule run is a trace of its own from the span `rule <id>` linked to
-the event, and every run of a Temporal schedule is a root, also when the
-schedule was created in a caller's span with the SDK's client. With traces
-not exported (no OTLP endpoint) no spans are made, and a reactor's handler
-and a rule run keep the event's trace id, so their logs still correlate.
+your own rather than otelhttp, which records the full URL. A synchronous RPC carries its caller's trace. Applications instrument the asynchronous work they start themselves.
 
 The SDK's PostgreSQL and Valkey clients trace a query or command only under
-an operation: it is a span of the request, event or hook that issued it. Work
+an operation: it is a span of the operation that issued it. Work
 from a context without a span (pool pings, polling and sweep loops) starts no
 trace of its own; its command metrics are still recorded. To trace such a
 loop, start a span for each iteration that matters. For a client of your own,

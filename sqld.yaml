@@ -1,6 +1,6 @@
 # sqld: backplane's PostgreSQL schema, migrations and typed queries
-# (internal/store). `make db` generates, `make db-migration name=<what>`
-# writes a migration from the schema.sql diff. Paths are relative to the
+# (internal/store). `make db` generates, `make db-init`
+# rebuilds the pre-release baseline from schema.sql. Paths are relative to the
 # repository root, where make runs.
 version: "1"
 engine: postgresql

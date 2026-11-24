@@ -16,15 +16,9 @@ An author can run a module with `yarn dev` or serve its standalone build from a 
 
 The platform provides generic API, telemetry and UI capabilities. An application can build error grouping, incident management or another domain product using them. Those domain models do not become platform requirements. The built-in Errors view reads OTel exception records; it does not imply an issue tracker or an Errotel deployment.
 
-## Optional runtimes are explicit
+## Infrastructure clients, not application contracts
 
-SDK infrastructure integrations are selected through driver options, not hidden global registration. A basic client or service need not import Temporal's SDK. Durable workflow authors use the workflows extension and Temporal types explicitly. Server capabilities report what is enabled; UI controls follow those capabilities.
-
-PostgreSQL and Consul remain mandatory for the platform server. Operators can omit Temporal, NATS or observability integrations when their capabilities are unnecessary. Unsupported operations fail explicitly instead of pretending to have succeeded.
-
-## Schedules belong to administration
-
-Services declare and execute workflows. Administrators create, update, pause and delete schedules through the platform API. An SDK process does not reconcile schedule definitions at startup, so rolling updates do not overwrite operator intent or resume paused schedules.
+Applications choose required or optional native clients through dependency providers. They own the protocols, consumers, workflows and schedules they implement. Backplane never chooses a business payload codec or provisions an application queue on a service's behalf. PostgreSQL and Consul are required by the platform server. Its NATS and Temporal connections are optional health checks.
 
 ## OpenTelemetry remains independent
 
@@ -34,7 +28,7 @@ Telemetry declarations are optional. Stored sources remain discoverable even whe
 
 ## Audit is durable and export is optional
 
-Control audit is stored in PostgreSQL. Platform mutations share a transaction with their audit record where possible; external commands use intent/result records. Optional export uses OTel Logs, independently of NATS. Trusted application logs marked `backplane.audit=true` are also persisted in PostgreSQL by a separate Collector pipeline.
+Control audit is stored in PostgreSQL. Platform mutations share a transaction with their audit record where possible. Optional export uses OTel Logs, independently of NATS. Trusted application logs marked `backplane.audit=true` are also persisted in PostgreSQL by a separate Collector pipeline.
 
 ## Delivery and releases
 

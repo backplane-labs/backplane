@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"google.golang.org/protobuf/encoding/protowire"
 
 	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/internal/registry"
@@ -72,6 +73,30 @@ func until(t *testing.T, r *registry.Registry, what string, cond func(c registry
 		case <-ctx.Done():
 			t.Fatalf("%s: last snapshot %+v", what, r.Current())
 		}
+	}
+}
+
+// Older services can publish fields that this console does not own. They stay in KV, not in the console response.
+func TestSnapshotExposesOnlyPlatformFields(t *testing.T) {
+	t.Parallel()
+	f := newFakeConsul(t)
+	m := manifest("hello", "1.0.0")
+	m.InternalServices = []string{"hello.console.v1.AdminService"}
+	legacy := func(field protowire.Number) []byte {
+		return protowire.AppendString(protowire.AppendTag(nil, field, protowire.BytesType), "old value")
+	}
+	m.ProtoReflect().SetUnknown(legacy(18))
+	in := state("hello", "hello-a", "1.0.0")
+	in.ProtoReflect().SetUnknown(legacy(17))
+	f.put(t, "backplane/services/hello/manifests/1.0.0", m)
+	f.put(t, "backplane/services/hello/instances/hello-a", in)
+	svc := synced(t, start(t, f.client(t))).Services["hello"]
+	got := svc.Manifest("1.0.0")
+	if !slices.Equal(got.GetInternalServices(), m.GetInternalServices()) || len(svc.Instances) != 1 {
+		t.Fatalf("lost console identity: %v", svc)
+	}
+	if len(got.ProtoReflect().GetUnknown()) != 0 || len(svc.Instances[0].State.ProtoReflect().GetUnknown()) != 0 {
+		t.Fatal("catalog retained application fields from KV")
 	}
 }
 

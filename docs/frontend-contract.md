@@ -81,7 +81,7 @@ relative to the module's `/s/<service>/` base. The platform controls the root
 router, its pages and the registry of module navigation entries. A module cannot
 replace the root router or register another module's paths. The SDK validates
 route/navigation declarations, supports deep links and disposes module effects
-on unmount. The shell has a header and a left navigation tree: Services, Wiring, Explore,
+on unmount. The shell has a header and a left navigation tree: Services, Explore,
 Errors, Audit and Infrastructure first, followed by services with module-owned
 page leaves. The sidebar
 supports a collapsed rail, hover/focus expansion, pinning and adjustable width.
@@ -101,7 +101,7 @@ Build output must work under a console prefix and a hashed plugin URL without
 external scripts, fonts or inline scripts forbidden by the console CSP.
 
 The platform's `make dev` is a different workflow: run the installation, backplane,
-hello and formatter with a seeded binding/rule so console developers see live
+hello and formatter so console developers see live
 data. Full installation tests validate embedding; they do not gate standalone
 module development.
 
@@ -135,9 +135,8 @@ Keep protocol comments authoritative and check reference coverage in generation.
 
 ## Audit
 
-Persist operator control actions: configuration, bindings, rules, test/manual
-runs, cancellation and other workflow commands, schedules, event redrive/purge
-and session changes. Reads and Watch subscriptions are not audit entries.
+Configuration and session mutations produce platform audit. Reads are not audit entries.
+
 Ordinary relay access logs remain distinct from semantic control audit; opaque
 service payloads are never copied into audit records.
 

@@ -10,47 +10,9 @@ It serves two separate histories:
   third parties mark `backplane.audit=true`, forwarded by the deployment's
   Collector and kept by backplane.
 
-The control audit records platform control operations only. Execution details remain
-in Temporal and event payloads remain in JetStream.
-
 ## Persistence and coverage
 
-Configuration save/rollback, binding save/delete/rollback, rule save/delete/
-rollback/pause and session create/revoke/revoke-others/expiry append an entry and
-an outbox row (when export is enabled) in the same PostgreSQL transaction as the mutation. Rejected database
-mutations create no success entry. Session touch is not a control mutation.
-
-External commands persist `intent` before dispatch: test event publication,
-dead-letter redrive/purge, workflow start/cancel/terminate/signal, schedule
-create/update/delete/pause/resume/trigger, hook calls, activity runs, binding/rule test and run cancel.
-The result has the same `operation_id` and one of these outcomes:
-
-| Outcome | Meaning |
-| --- | --- |
-| `succeeded` | The API confirmed completion or acceptance of the requested command. Starting a workflow does not mean the workflow completed. |
-| `rejected` | Invalid input, failed precondition, missing subject, an existing subject (a workflow id that is already running), permission refusal or structured validation violations. |
-| `failed` | A returned call result contains a failure, rule evaluation failed, or every attempted batch item failed. |
-| `partial` | A dead-letter batch contains both completed and failed items. |
-| `unknown` | Dispatch returned an ambiguous transport/backend failure, cancellation or deadline. |
-
-Intent without a result also means unknown. There is no distributed transaction
-with Temporal/NATS. Failure to persist intent returns `Unavailable` and does not
-dispatch. Failure to persist the result returns `Aborted` with the operation ID;
-the command may already have completed. Never automatically replay it. Consult
-the operation audit and the external run/event state.
-
-Metadata is allowlisted: actor/session UUID, operation/entry UUID, action,
-subject identifiers, revision/rollback reference, changed configuration key
-names, pause flag, fixed diagnostic code, workflow/run IDs (the started run, or
-the run a cancel/terminate/signal addresses) and affected session count. The
-operator's words on run and schedule commands are kept, cut to 256 characters:
-the signal name of `workflow.signal` (never its argument), the reason of
-`workflow.terminate` and the note of `schedule.pause`/`schedule.resume`, in
-both the intent and the result. Request/output payloads, config values,
-revision comments, credentials, tokens and arbitrary error messages/types are
-excluded. In particular, `TestRule.event` is
-payload and is never copied to the subject. Identifiers are caller-visible
-metadata; authors should not put secrets into names or run IDs.
+Session and configuration mutations record platform audit in PostgreSQL. Reads and opaque module RPC payloads are not platform audit events. A service emits its own semantic audit where the action is performed. Historical entries remain searchable and exportable regardless of whether an action is still available.
 
 ## Ordering and delivery
 
@@ -68,22 +30,7 @@ cannot acknowledge a newer claim. Delivery is at least once, can be reordered
 across replicas, and uses entry UUID as the stable OTel `backplane.audit.id` deduplication ID.
 Consumers deduplicate by ID and use sequence when ordering matters.
 
-Every entry names the service it is about in `service`: the service whose
-configuration was saved, the owner of a bound hook (`hello` for `hello.Greet`),
-the owner of the event a rule reacts to, or the service a command addresses
-(its `service`/`subscriber` field, the owner of its hook, activity or event, the
-event owner of a rule id, or the service of the run it acts on). A run's service
-comes from backplane's workflow ids — `console/<service>/…`,
-`console/activity/<service>/…`, `hook/<service>/…`, `binding/<hook>/…`,
-`test/<hook>/…`, and `rule/<id>/…`/`test/rule/<id>/…` (the rule's event owner).
-Any other id is asked of Temporal once (DescribeWorkflowExecution, bounded to
-2 s): the run's task queue `<service>` or `<service>.hooks` names the service;
-when Temporal cannot answer, a schedule run id `<service>/<Name>-<time>` still
-does. Installation-wide entries such as sessions leave it empty. The field
-is computed when the entry is written and stored in its own indexed column;
-entries written before the column existed were attributed by the same rules in
-the migration. Filtering by `service` therefore covers entries whose subject
-does not contain the service name, such as rule ids.
+The `service` field attributes a record to a service when known. Installation-wide records, including session changes, may leave it empty.
 
 Platform audit export uses OTLP Logs, independently of NATS. Set
 `BACKPLANE_AUDIT_EXPORT_URL` to the full OTLP/HTTP logs endpoint (for example
@@ -250,11 +197,4 @@ feed, every operator on fields and attributes (a platform entry's detail
 too), text, range, pages, facets, fields and the histogram. `make test-dev` reads a greeting
 hello audits through the Collector in the console.
 
-`make test-audit`: rollback atomicity, commit ordering across replicas, durable
-intent before dispatch, metadata exclusion/outcome handling, failed publisher
-recovery, expired lease takeover, stale acknowledgments, consistent pages,
-resume/filter validation and actual retention/cursor expiry against PostgreSQL.
-
-`make test-replicas`: real backplane processes, crash/rejoin, configuration,
-bindings/rules/sessions/calls and matching audit records received by an OTLP collector. `make test-m1` and `make test-m2` cover existing
-control workflows with transactional audit enabled.
+`make test-audit` exercises real PostgreSQL retention, rollback, export recovery and lease takeover. `make test-replicas` checks config repair, crash/rejoin and delivery of committed audit records to an OTLP collector.

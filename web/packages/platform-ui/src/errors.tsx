@@ -85,7 +85,7 @@ import {
 } from './feed.js';
 import { usePlatformText } from './locales.js';
 import { usePlatformQuery } from './runtime.js';
-import { serviceColor } from './wiring/graph.js';
+import { serviceColor } from './service-color.js';
 
 /** How the errors page lists: by group (one row per distinct error) or every occurrence. */
 export type ErrorsView = 'groups' | 'occurrences';

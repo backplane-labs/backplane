@@ -71,7 +71,7 @@ func (c *core) nodes() []*backplanev1.NodeStatus {
 	return out
 }
 
-// transports reports the NATS and Temporal connections and OTLP export
+// transports reports OTLP export
 // for the instance state; Consul is added by the presence.
 func (c *core) transports() []*backplanev1.TransportStatus {
 	var out []*backplanev1.TransportStatus
@@ -83,14 +83,6 @@ func (c *core) transports() []*backplanev1.TransportStatus {
 		}
 
 		out = append(out, st)
-	}
-
-	if c.broker != nil {
-		out = append(out, &backplanev1.TransportStatus{Name: "nats", Connected: c.broker.Connected()})
-	}
-
-	if c.temporal != nil {
-		out = append(out, &backplanev1.TransportStatus{Name: "temporal", Connected: c.temporal.Connected()})
 	}
 
 	return out

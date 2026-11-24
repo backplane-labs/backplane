@@ -373,7 +373,8 @@ func TestRelay(t *testing.T) {
 		"hello": {
 			Name: "hello",
 			Manifests: map[string]*backplanev1.Manifest{
-				"1.0.0": manifest("hello", "1.0.0", "hello.console.v1.AdminService", "grpc.health.v1.Health"),
+				"1.0.0": manifest("hello", "1.0.0", "hello.console.v1.AdminService", "grpc.health.v1.Health",
+					"backplane.console.v1.HookService"),
 			},
 			Instances: []registry.Instance{
 				instance("hello-1", "1.0.0", "127.0.0.1", port, serving, true),
@@ -442,6 +443,12 @@ func TestRelay(t *testing.T) {
 	var healthy hv1.HealthCheckResponse
 	if err := watch.Recv(&healthy); err != nil || healthy.GetStatus() != hv1.HealthCheckResponse_SERVING {
 		t.Fatalf("stream: %v %v", &healthy, err)
+	}
+
+	// A stale manifest cannot turn an absent platform RPC into a module RPC.
+	err = call(ctx, cc, "/backplane.console.v1.HookService/Raise", &helloconsolev1.GetStatsRequest{}, &res)
+	if code(err) != codes.PermissionDenied {
+		t.Fatalf("retired platform service: %v", err)
 	}
 
 	// Not declared by any manifest.

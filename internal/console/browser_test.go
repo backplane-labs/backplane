@@ -126,7 +126,7 @@ func TestBrowserConsole(t *testing.T) {
 
 	t.Cleanup(admission.Close)
 
-	platformAPI := platformapi.New(h.Root(), "browser-fixture", []*consolev1.Capability{{Name: "audit", Enabled: true}, {Name: "workflows", Enabled: false}}, []platformapi.Probe{
+	platformAPI := platformapi.New(h.Root(), "browser-fixture", []*consolev1.Capability{{Name: "audit", Enabled: true}}, []platformapi.Probe{
 		{Name: "postgres", Required: true, Run: func(context.Context) error { return nil }},
 	})
 	c := console.New(h.Root(), console.Settings{Prefix: "/backplane", AdminToken: adminToken, InternalSecret: "relay-secret", InsecureCookie: true}, newMemSessions(), newAttempts(), hub,

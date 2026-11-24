@@ -57,27 +57,6 @@ function setup(fetcher = vi.fn<typeof fetch>().mockImplementation(async () => Re
   return { client, sockets, urls, fetcher };
 }
 
-test('API files use the console prefix, cookies and abort signal', async () => {
-  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response('openapi: 3.0.3'));
-  const { client } = setup(fetcher),
-    signal = new AbortController().signal,
-    hash = 'a'.repeat(64);
-  expect(new TextDecoder().decode(await client.readSchemaFile('hello', hash, 'schemas/a b.yaml', signal))).toBe(
-    'openapi: 3.0.3',
-  );
-  expect(String(fetcher.mock.calls[0]?.[0])).toBe(
-    `https://console.example/backplane/schemas/hello/${hash}/schemas/a%20b.yaml`,
-  );
-  expect(fetcher.mock.calls[0]?.[1]).toMatchObject({
-    credentials: 'include',
-    redirect: 'error',
-    cache: 'no-store',
-    signal,
-  });
-  await expect(client.readSchemaFile('hello', hash, '../secret', signal)).rejects.toThrow('Invalid API bundle path');
-  expect(fetcher).toHaveBeenCalledTimes(1);
-});
-
 test('login uses cookie endpoint under console prefix; logout closes active calls', async () => {
   const { client, sockets, urls, fetcher } = setup();
   await client.login('operator-token');

@@ -14,7 +14,6 @@ func TestSDKDependencyBoundary(t *testing.T) {
 
 	cmd := exec.CommandContext(t.Context(), "go", "list", "-deps",
 		"../pkg/backplane", "../pkg/backplane/config", "../pkg/backplane/deps",
-		"../pkg/backplane/hook", "../pkg/backplane/activity", "../pkg/backplane/event",
 		"../pkg/backplane/backplanetest", "../pkg/backplane/api", "../pkg/backplane/wsproto", "../backplanepb/console/v1")
 
 	cmd.Env = append(os.Environ(), "GOWORK=off")
@@ -36,7 +35,7 @@ func TestSDKDependencyBoundary(t *testing.T) {
 	}
 }
 
-func TestPlatformDoesNotImportRedis(t *testing.T) {
+func TestPlatformDependencyBoundary(t *testing.T) {
 	t.Parallel()
 	cmd := exec.CommandContext(t.Context(), "go", "list", "-deps", "../cmd/backplane")
 
@@ -48,6 +47,16 @@ func TestPlatformDoesNotImportRedis(t *testing.T) {
 	}
 
 	for _, pkg := range strings.Fields(string(out)) {
+		switch strings.TrimPrefix(pkg, "github.com/backplane-labs/backplane/internal/") {
+		case "bindings", "rules", "ops", "direct", "executor", "sections":
+			t.Errorf("platform imports application runtime %s", pkg)
+		}
+
+		switch strings.TrimPrefix(pkg, "github.com/backplane-labs/backplane/pkg/backplane/") {
+		case "hook", "activity", "event", "workflows", "internal/broker", "internal/temporal", "internal/decl", "internal/env":
+			t.Errorf("platform imports SDK application runtime %s", pkg)
+		}
+
 		if strings.HasPrefix(pkg, "github.com/valkey-io/") || strings.HasPrefix(pkg, "github.com/redis/") {
 			t.Errorf("platform imports Redis client %s", pkg)
 		}

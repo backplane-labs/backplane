@@ -16,9 +16,6 @@ import (
 // dependency is optional for a service: an empty address means "without it".
 type Backplane struct {
 	Consul   Consul   `desc:"Service discovery, catalog registration and instance state." json:"consul"`
-	NATS     NATS     `desc:"Events, reactors and dead letters (JetStream)."              json:"nats"`
-	Temporal Temporal `desc:"Workflows, activities and hook calls."                       json:"temporal"`
-	Hooks    Hooks    `desc:"How the service calls the platform's hooks."                 json:"hooks"`
 	Shutdown Shutdown `desc:"Graceful stop budget."                                       json:"shutdown"`
 	Health   Health   `desc:"Probe evaluation."                                           json:"health"`
 	// Limits of the SDK's HTTP and gRPC servers (public and platform ports).
@@ -128,43 +125,6 @@ type Consul struct {
 // Enabled reports whether Consul is configured.
 func (c Consul) Enabled() bool { return c.Addr != "" }
 
-// NATS connection and the streams the service owns: its events
-// bp_<service> (applied when a service that declares events starts) and
-// its dead letters bp_dlq_<service> (applied when its reactors start).
-// Zero max_age, max_bytes or dlq_max_age mean unlimited.
-type NATS struct {
-	URL   Secret `desc:"Server URL, or comma-separated URLs; empty: without NATS." json:"url,omitempty"`
-	Creds Secret `desc:"Content of a .creds file (user JWT and seed)."             json:"creds,omitempty"`
-	// User/Password or Nkey authenticate as a user of the server's
-	// configuration, without JWT; one of creds, user and password, nkey.
-	User     string `desc:"User of the server's configuration, with password; instead of creds."            json:"user,omitempty"`
-	Password Secret `desc:"Password of user."                                                               json:"password,omitempty"`
-	Nkey     Secret `desc:"User nkey seed (SU...) of the server's configuration; instead of creds or user." json:"nkey,omitempty"`
-	TLS      TLS    `desc:"TLS of the connection."                                                          json:"tls"`
-	// InboxPrefix replaces _INBOX for the connection's reply subjects
-	// (requests, JetStream API calls).
-	InboxPrefix string `desc:"Prefix of reply subjects instead of _INBOX, e.g. _INBOX_billing; no wildcards, no trailing dot." json:"inbox_prefix,omitempty"`
-	// Bound of a Publish whose context has no deadline.
-	PublishTimeout time.Duration `desc:"Bound of a publish whose context has no deadline." json:"publish_timeout" schemapb:"default=5s"`
-	NATSConnection
-
-	// Retention of the service's events.
-	MaxAge time.Duration `desc:"Retention of the service's events; 0: unlimited." json:"max_age" schemapb:"default=168h"`
-	// Size of the event stream in bytes; the oldest events go first.
-	MaxBytes int64 `desc:"Size of the event stream in bytes, the oldest events go first; 0: unlimited." json:"max_bytes" schemapb:"default=0;gte=0"`
-	// Replicas of the streams the process creates: both of its own and a
-	// missing stream it subscribes to (JetStream cluster).
-	Replicas int64 `desc:"Replicas of the streams the process creates: its events, its dead letters, a missing stream it subscribes to (JetStream cluster)." json:"replicas" schemapb:"default=1;gte=1;lte=5"`
-	// Window in which a repeated publish (same ce-id) is dropped; at most
-	// max_age.
-	DedupWindow time.Duration `desc:"Window in which a repeated publish (same ce-id) is dropped; at most max_age." json:"dedup_window" schemapb:"default=2m"`
-	// Retention of the dead letters of the service's reactors.
-	DLQMaxAge time.Duration `desc:"Retention of the dead letters of the service's reactors; 0: unlimited." json:"dlq_max_age" schemapb:"default=720h"`
-}
-
-// Enabled reports whether NATS is configured.
-func (n NATS) Enabled() bool { return n.URL != "" }
-
 // NATSConnection is how a NATS connection behaves, the same for the SDK's
 // bus and infra/nats: explicit values, never derived from the node. A zero
 // field of a section built by hand reads its default (Default*).
@@ -216,84 +176,6 @@ func (c NATSConnection) Resolved() NATSConnection {
 	}
 
 	return out
-}
-
-// Temporal connection. Field is `ns`: `namespace` is a CEL reserved word.
-type Temporal struct {
-	Addr      string `desc:"Frontend host:port; empty: without Temporal." json:"addr,omitempty"`
-	Namespace string `desc:"Temporal namespace."                          json:"ns"             schemapb:"default=default"`
-	TLS       TLS    `desc:"TLS of the connection."                       json:"tls"`
-	// Temporal Cloud API key.
-	APIKey Secret `desc:"Temporal Cloud API key." json:"api_key,omitempty"`
-	// First dial attempt; later attempts run in the background.
-	DialTimeout time.Duration `desc:"Bound of the first dial; later attempts run in the background." json:"dial_timeout" schemapb:"default=2s"`
-	TemporalConnection
-	// Deadline of a hook call whose context and declaration set none.
-	HookTimeout time.Duration `desc:"Deadline of a hook call whose context and declaration set none." json:"hook_timeout" schemapb:"default=30s"`
-	Worker      Worker        `desc:"Worker on the service's task queue."                             json:"worker"`
-	// Encryption of the payloads in workflow history; empty: off. Every
-	// service of the installation and backplane need the same.
-	Encryption Seal `desc:"Encrypts payloads in workflow history (and backplane's hook replies); empty: off. The same in every service and backplane." json:"encryption"`
-	// RequireEncryption refuses payloads that are not sealed: on once no
-	// run from before encryption is left.
-	RequireEncryption bool `desc:"Refuse workflow payloads that are not sealed; turn on once no run from before encryption is left." json:"require_encryption" schemapb:"default=false"`
-}
-
-// Worker on the service's task queue: an operational setting, the same
-// code runs with any of it. A zero limit is Temporal's default.
-type Worker struct {
-	// false: this replica runs no worker (activities and the author's
-	// workflows are served by replicas that do); it still raises hooks
-	// (their own worker runs on every replica) and
-	// uses the client.
-	Enabled bool `desc:"Run a worker on this replica; off: activities and workflows are served by replicas that do, hooks are still raised." json:"enabled" schemapb:"default=true"`
-	// Activities executing at once.
-	MaxConcurrentActivities int64 `desc:"Activities executing at once; 0: Temporal's default." json:"max_concurrent_activities" schemapb:"default=0;gte=0"`
-	// Workflow tasks executing at once.
-	MaxConcurrentWorkflowTasks int64 `desc:"Workflow tasks executing at once; 0: Temporal's default." json:"max_concurrent_workflow_tasks" schemapb:"default=0;gte=0"`
-	// Pollers of the activity and workflow task queues.
-	ActivityPollers int64 `desc:"Pollers of the activity task queue; 0: Temporal's default." json:"activity_pollers" schemapb:"default=0;gte=0"`
-	WorkflowPollers int64 `desc:"Pollers of the workflow task queue; 0: Temporal's default." json:"workflow_pollers" schemapb:"default=0;gte=0"`
-}
-
-// Enabled reports whether Temporal is configured.
-func (t Temporal) Enabled() bool { return t.Addr != "" }
-
-// Hooks: how this service's hook calls reach backplane.
-type Hooks struct {
-	// Transport of hook calls: "temporal" (Nexus through the configured
-	// Temporal), "direct" (gRPC to backplane's platform port, its replicas
-	// found through Consul), or "auto": temporal when Temporal is
-	// configured, else direct when Consul is.
-	Transport string `desc:"Transport of hook calls: temporal (Nexus), direct (gRPC to backplane found through Consul) or auto (temporal when configured, else direct)." json:"transport" schemapb:"default=auto"`
-}
-
-// Transports of hook calls.
-const (
-	HooksAuto     = "auto"
-	HooksTemporal = "temporal"
-	HooksDirect   = "direct"
-)
-
-// Resolve is the transport "auto" stands for given what is configured:
-// HooksTemporal, HooksDirect or "" when neither Temporal nor Consul is.
-func (h Hooks) Resolve(temporal, consul bool) string {
-	switch h.Transport {
-	case HooksTemporal:
-		return HooksTemporal
-	case HooksDirect:
-		return HooksDirect
-	default:
-	}
-
-	switch {
-	case temporal:
-		return HooksTemporal
-	case consul:
-		return HooksDirect
-	default:
-		return ""
-	}
 }
 
 // Shutdown of the instance: readiness drops, Consul deregisters, then after

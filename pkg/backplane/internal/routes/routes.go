@@ -10,9 +10,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/gopherex/ws-proto/wsrpc"
-
-	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
-	"github.com/backplane-labs/backplane/pkg/backplane/internal/apifiles"
 )
 
 // Errors.
@@ -25,11 +22,9 @@ var (
 type Managed struct {
 	// Listener names the route's own listener (api.Listen), Listen is its
 	// address; both empty: the default public port.
-	Listener    string
-	Listen      string
-	Host        string
-	OpenAPI     []byte // HTTP
-	SchemaFiles *SchemaFiles
+	Listener string
+	Listen   string
+	Host     string
 	// gRPC and ws-proto: interceptors of this registration only.
 	Unary  []grpc.UnaryServerInterceptor
 	Stream []grpc.StreamServerInterceptor
@@ -41,13 +36,6 @@ type Managed struct {
 	Reflection bool
 	// The route's port takes services of the mesh only (mutual TLS).
 	MTLS bool
-}
-
-// SchemaFiles is a file snapshot and its manifest reference (or a declaration error).
-type SchemaFiles struct {
-	Files *apifiles.Files
-	Ref   *backplanev1.APISchemaBundle
-	Err   error
 }
 
 // Wrap applies the middleware to h, the first one outermost.

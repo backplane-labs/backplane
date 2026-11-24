@@ -4,8 +4,6 @@
 
 import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Any } from "../../google/protobuf/any_pb.js";
-import { file_google_protobuf_any } from "../../google/protobuf/any_pb.js";
 import type { Timestamp } from "../../google/protobuf/timestamp_pb.js";
 import { file_google_protobuf_timestamp } from "../../google/protobuf/timestamp_pb.js";
 import type { Message } from "@bufbuild/protobuf";
@@ -14,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file backplanepb/v1/instance.proto.
  */
 export const file_backplanepb_v1_instance: GenFile = /*@__PURE__*/
-  fileDesc("Ch1iYWNrcGxhbmVwYi92MS9pbnN0YW5jZS5wcm90bxIMYmFja3BsYW5lLnYxIrQGCg1JbnN0YW5jZVN0YXRlEgoKAmlkGAEgASgJEg8KB3NlcnZpY2UYAiABKAkSDwoHdmVyc2lvbhgDIAEoCRIPCgdhZGRyZXNzGAQgASgJEhUKDXBsYXRmb3JtX3BvcnQYBSABKA0SLgoKc3RhcnRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGY29uZmlnGAcgASgMEjkKB3NvdXJjZXMYCCADKAsyKC5iYWNrcGxhbmUudjEuSW5zdGFuY2VTdGF0ZS5Tb3VyY2VzRW50cnkSFwoPY29uZmlnX3JldmlzaW9uGAkgASgEEhQKDGNvbmZpZ19lcnJvchgKIAEoCRIgChhjb25maWdfcmVqZWN0ZWRfcmV2aXNpb24YCyABKAQSKgoFcGhhc2UYDCABKA4yGy5iYWNrcGxhbmUudjEuSW5zdGFuY2VQaGFzZRInCgVub2RlcxgNIAMoCzIYLmJhY2twbGFuZS52MS5Ob2RlU3RhdHVzEjEKCnRyYW5zcG9ydHMYDiADKAsyHS5iYWNrcGxhbmUudjEuVHJhbnNwb3J0U3RhdHVzEhMKC3Nka192ZXJzaW9uGA8gASgJEg4KBmNvbW1pdBgQIAEoCRI7CghzZWN0aW9ucxgRIAMoCzIpLmJhY2twbGFuZS52MS5JbnN0YW5jZVN0YXRlLlNlY3Rpb25zRW50cnkSEwoLcHVibGljX3BvcnQYEiABKA0SPQoJbGlzdGVuZXJzGBMgAygLMiouYmFja3BsYW5lLnYxLkluc3RhbmNlU3RhdGUuTGlzdGVuZXJzRW50cnkaSgoMU291cmNlc0VudHJ5EgsKA2tleRgBIAEoCRIpCgV2YWx1ZRgCIAEoDjIaLmJhY2twbGFuZS52MS5Db25maWdTb3VyY2U6AjgBGkUKDVNlY3Rpb25zRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuZ29vZ2xlLnByb3RvYnVmLkFueToCOAEaMAoOTGlzdGVuZXJzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgNOgI4ASJwCgpOb2RlU3RhdHVzEgwKBHBhdGgYASABKAkSDQoFcmVhZHkYAiABKAgSDQoFZXJyb3IYAyABKAkSJAoEa2luZBgEIAEoDjIWLmJhY2twbGFuZS52MS5Ob2RlS2luZBIQCghvcHRpb25hbBgFIAEoCCJBCg9UcmFuc3BvcnRTdGF0dXMSDAoEbmFtZRgBIAEoCRIRCgljb25uZWN0ZWQYAiABKAgSDQoFZXJyb3IYAyABKAkqhQEKDUluc3RhbmNlUGhhc2USHgoaSU5TVEFOQ0VfUEhBU0VfVU5TUEVDSUZJRUQQABIbChdJTlNUQU5DRV9QSEFTRV9TVEFSVElORxABEhoKFklOU1RBTkNFX1BIQVNFX1NFUlZJTkcQAhIbChdJTlNUQU5DRV9QSEFTRV9TVE9QUElORxADKnEKCE5vZGVLaW5kEhkKFU5PREVfS0lORF9VTlNQRUNJRklFRBAAEhcKE05PREVfS0lORF9DT01QT05FTlQQARIYChROT0RFX0tJTkRfREVQRU5ERU5DWRACEhcKE05PREVfS0lORF9TSU5HTEVUT04QAyqNAQoMQ29uZmlnU291cmNlEh0KGUNPTkZJR19TT1VSQ0VfVU5TUEVDSUZJRUQQABIZChVDT05GSUdfU09VUkNFX0RFRkFVTFQQARIWChJDT05GSUdfU09VUkNFX0ZJTEUQAhIVChFDT05GSUdfU09VUkNFX0VOVhADEhQKEENPTkZJR19TT1VSQ0VfS1YQBEJAWj5naXRodWIuY29tL2JhY2twbGFuZS1sYWJzL2JhY2twbGFuZS9iYWNrcGxhbmVwYi92MTtiYWNrcGxhbmV2MWIGcHJvdG8z", [file_google_protobuf_any, file_google_protobuf_timestamp]);
+  fileDesc("Ch1iYWNrcGxhbmVwYi92MS9pbnN0YW5jZS5wcm90bxIMYmFja3BsYW5lLnYxIsAFCg1JbnN0YW5jZVN0YXRlEgoKAmlkGAEgASgJEg8KB3NlcnZpY2UYAiABKAkSDwoHdmVyc2lvbhgDIAEoCRIPCgdhZGRyZXNzGAQgASgJEhUKDXBsYXRmb3JtX3BvcnQYBSABKA0SLgoKc3RhcnRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGY29uZmlnGAcgASgMEjkKB3NvdXJjZXMYCCADKAsyKC5iYWNrcGxhbmUudjEuSW5zdGFuY2VTdGF0ZS5Tb3VyY2VzRW50cnkSFwoPY29uZmlnX3JldmlzaW9uGAkgASgEEhQKDGNvbmZpZ19lcnJvchgKIAEoCRIgChhjb25maWdfcmVqZWN0ZWRfcmV2aXNpb24YCyABKAQSKgoFcGhhc2UYDCABKA4yGy5iYWNrcGxhbmUudjEuSW5zdGFuY2VQaGFzZRInCgVub2RlcxgNIAMoCzIYLmJhY2twbGFuZS52MS5Ob2RlU3RhdHVzEjEKCnRyYW5zcG9ydHMYDiADKAsyHS5iYWNrcGxhbmUudjEuVHJhbnNwb3J0U3RhdHVzEhMKC3Nka192ZXJzaW9uGA8gASgJEg4KBmNvbW1pdBgQIAEoCRITCgtwdWJsaWNfcG9ydBgSIAEoDRI9CglsaXN0ZW5lcnMYEyADKAsyKi5iYWNrcGxhbmUudjEuSW5zdGFuY2VTdGF0ZS5MaXN0ZW5lcnNFbnRyeRpKCgxTb3VyY2VzRW50cnkSCwoDa2V5GAEgASgJEikKBXZhbHVlGAIgASgOMhouYmFja3BsYW5lLnYxLkNvbmZpZ1NvdXJjZToCOAEaMAoOTGlzdGVuZXJzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgNOgI4AUoECBEQElIIc2VjdGlvbnMicAoKTm9kZVN0YXR1cxIMCgRwYXRoGAEgASgJEg0KBXJlYWR5GAIgASgIEg0KBWVycm9yGAMgASgJEiQKBGtpbmQYBCABKA4yFi5iYWNrcGxhbmUudjEuTm9kZUtpbmQSEAoIb3B0aW9uYWwYBSABKAgiQQoPVHJhbnNwb3J0U3RhdHVzEgwKBG5hbWUYASABKAkSEQoJY29ubmVjdGVkGAIgASgIEg0KBWVycm9yGAMgASgJKoUBCg1JbnN0YW5jZVBoYXNlEh4KGklOU1RBTkNFX1BIQVNFX1VOU1BFQ0lGSUVEEAASGwoXSU5TVEFOQ0VfUEhBU0VfU1RBUlRJTkcQARIaChZJTlNUQU5DRV9QSEFTRV9TRVJWSU5HEAISGwoXSU5TVEFOQ0VfUEhBU0VfU1RPUFBJTkcQAypxCghOb2RlS2luZBIZChVOT0RFX0tJTkRfVU5TUEVDSUZJRUQQABIXChNOT0RFX0tJTkRfQ09NUE9ORU5UEAESGAoUTk9ERV9LSU5EX0RFUEVOREVOQ1kQAhIXChNOT0RFX0tJTkRfU0lOR0xFVE9OEAMqjQEKDENvbmZpZ1NvdXJjZRIdChlDT05GSUdfU09VUkNFX1VOU1BFQ0lGSUVEEAASGQoVQ09ORklHX1NPVVJDRV9ERUZBVUxUEAESFgoSQ09ORklHX1NPVVJDRV9GSUxFEAISFQoRQ09ORklHX1NPVVJDRV9FTlYQAxIUChBDT05GSUdfU09VUkNFX0tWEARCQFo+Z2l0aHViLmNvbS9iYWNrcGxhbmUtbGFicy9iYWNrcGxhbmUvYmFja3BsYW5lcGIvdjE7YmFja3BsYW5ldjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * InstanceState is written by the SDK to Consul KV
@@ -104,7 +102,7 @@ export type InstanceState = Message<"backplane.v1.InstanceState"> & {
   nodes: NodeStatus[];
 
   /**
-   * Consul, NATS, Temporal, OTLP.
+   * Connectivity reported by the SDK.
    *
    * @generated from field: repeated backplane.v1.TransportStatus transports = 14;
    */
@@ -121,15 +119,7 @@ export type InstanceState = Message<"backplane.v1.InstanceState"> & {
   commit: string;
 
   /**
-   * Live values of sections the manifest declares (sections.OfferLive), by
-   * name: they replace the manifest's value while the instance runs.
-   *
-   * @generated from field: map<string, google.protobuf.Any> sections = 17;
-   */
-  sections: { [key: string]: Any };
-
-  /**
-   * Port of the default public port's routes (API.listener empty); 0 when
+   * Port of the default public port's routes; 0 when
    * none is served there.
    *
    * @generated from field: uint32 public_port = 18;
@@ -137,7 +127,7 @@ export type InstanceState = Message<"backplane.v1.InstanceState"> & {
   publicPort: number;
 
   /**
-   * Ports of the named listeners of routes (API.listener), by name.
+   * Ports of the named listeners of routes, by name.
    *
    * @generated from field: map<string, uint32> listeners = 19;
    */

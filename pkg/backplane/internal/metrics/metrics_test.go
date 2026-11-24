@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"testing"
-	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -66,21 +65,17 @@ func TestInstruments(t *testing.T) {
 
 	ctx := context.Background()
 
-	metrics.ReactorRedelivered(ctx, "billing.OnPaid")
-	metrics.ReactorRedelivered(ctx, "billing.OnPaid")
-	metrics.ReactorPending(ctx, "billing.OnPaid", 7, 2)
-	metrics.ReactorHandled(ctx, "billing.OnPaid", metrics.Ack, time.Millisecond)
-	metrics.EventPublished(ctx, "billing.Paid", "ok")
+	metrics.ConfigUpdate(ctx, metrics.Applied)
+	metrics.DependencyReady(ctx, "store", true)
+	metrics.TransportConnected(ctx, "consul", true)
 
 	tests := []struct {
 		name, attrs string
 		want        int64
 	}{
-		{name: "backplane.reactor.redeliveries", attrs: "consumer=billing.OnPaid", want: 2},
-		{name: "backplane.reactor.pending", attrs: "consumer=billing.OnPaid,state=waiting", want: 7},
-		{name: "backplane.reactor.pending", attrs: "consumer=billing.OnPaid,state=unacked", want: 2},
-		{name: "backplane.reactor.duration", attrs: "consumer=billing.OnPaid,outcome=ack", want: 1},
-		{name: "backplane.event.published", attrs: "event=billing.Paid,outcome=ok", want: 1},
+		{name: "backplane.config.updates", attrs: "outcome=applied", want: 1},
+		{name: "backplane.dependency.ready", attrs: "node=store", want: 1},
+		{name: "backplane.transport.connected", attrs: "transport=consul", want: 1},
 	}
 
 	for _, tc := range tests {

@@ -5,7 +5,6 @@ go 1.27.4
 require (
 	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/exaring/otelpgx v0.12.0
-	github.com/google/cel-go v0.30.0
 	github.com/google/uuid v1.6.0
 	github.com/gopherex/pgtx v1.1.6
 	github.com/gopherex/schemapb/go v1.13.2
@@ -30,10 +29,8 @@ require (
 	github.com/nats-io/nats-server/v2 v2.15.3
 	github.com/nats-io/nats.go v1.55.0
 	github.com/nats-io/nkeys v0.4.17
-	github.com/nexus-rpc/sdk-go v0.7.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/soheilhy/cmux v0.1.5
-	github.com/stretchr/testify v1.11.1
 	github.com/valkey-io/valkey-go v1.0.79
 	github.com/valkey-io/valkey-go/valkeyaside v1.0.79
 	github.com/valkey-io/valkey-go/valkeyotel v1.0.79
@@ -50,7 +47,6 @@ require (
 	go.temporal.io/api v1.64.3
 	go.temporal.io/sdk v1.51.0
 	go.temporal.io/sdk/contrib/opentelemetry v0.8.1
-	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/mod v0.41.0
 	golang.org/x/sync v0.24.0
 	golang.org/x/time v0.16.0
@@ -82,6 +78,7 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/mock v1.6.0 // indirect
+	github.com/google/cel-go v0.30.0 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
 	github.com/gopherex/xlog/contrib/libs/otel v1.2.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2 // indirect
@@ -106,12 +103,14 @@ require (
 	github.com/nats-io/jwt/v2 v2.8.3 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/nexus-rpc/nexus-proto-annotations v0.1.0 // indirect
+	github.com/nexus-rpc/sdk-go v0.7.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/robfig/cron v1.2.0 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.26.3 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
+	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
@@ -124,6 +123,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.45.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/exp v0.0.0-20250808145144-a408d31f581a // indirect
 	golang.org/x/net v0.60.0 // indirect

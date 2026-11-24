@@ -1,5 +1,5 @@
 -- Declarative schema of backplane: the desired state of schema `backplane`.
--- Edit this file, then `make db-migration name=<what>` writes the migration
+-- Edit this file, then `bin/sqld migrate generate <name> -c sqld.yaml` writes the migration
 -- that takes the history to it, and `make db` regenerates the queries.
 -- Every object is schema-qualified.
 
@@ -70,68 +70,6 @@ CREATE TABLE backplane.console_login_attempt (
 
 CREATE INDEX console_login_attempt_expires_at_idx ON backplane.console_login_attempt (expires_at);
 
--- Bindings (§7.1): versions of the binding of each hook ("<service>.<Hook>"),
--- append-only; versions count from 1 per hook, a rollback is a new version
--- copying an older one's definition (rollback_of), a delete is a tombstone
--- (definition NULL). definition: protojson of backplane.console.v1.BindingDefinition
--- (steps keyed by name, values as JSON trees of CEL expressions).
--- managed_by: the wiring file (BACKPLANE_WIRING_DIR) the version came from;
--- while the current version has one, the console cannot change the binding.
-CREATE TABLE backplane.binding_version (
-  hook        text        NOT NULL,
-  version     bigint      NOT NULL CHECK (version > 0),
-  definition  jsonb,
-  author      text        NOT NULL,
-  comment     text        NOT NULL DEFAULT '',
-  created_at  timestamptz NOT NULL DEFAULT now(),
-  rollback_of bigint,
-  managed_by  text,
-  PRIMARY KEY (hook, version),
-  FOREIGN KEY (hook, rollback_of) REFERENCES backplane.binding_version (hook, version)
-);
-
--- The version of each hook's binding in force: the latest one.
-CREATE TABLE backplane.binding_current (
-  hook       text        PRIMARY KEY,
-  version    bigint      NOT NULL,
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  FOREIGN KEY (hook, version) REFERENCES backplane.binding_version (hook, version)
-);
-
--- Rules (§8.1): event -> steps. The row is the rule's identity and its
--- pause, which is not versioned.
-CREATE TABLE backplane.rule (
-  id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  paused     boolean     NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-
--- Versions of a rule, as binding_version: name and definition (protojson of
--- backplane.console.v1.RuleDefinition; NULL: the tombstone of a delete),
--- managed_by as binding_version's.
-CREATE TABLE backplane.rule_version (
-  rule_id     uuid        NOT NULL REFERENCES backplane.rule (id),
-  version     bigint      NOT NULL CHECK (version > 0),
-  name        text        NOT NULL,
-  definition  jsonb,
-  author      text        NOT NULL,
-  comment     text        NOT NULL DEFAULT '',
-  created_at  timestamptz NOT NULL DEFAULT now(),
-  rollback_of bigint,
-  managed_by  text,
-  PRIMARY KEY (rule_id, version),
-  FOREIGN KEY (rule_id, rollback_of) REFERENCES backplane.rule_version (rule_id, version)
-);
-
--- The version of each rule in force: the latest one.
-CREATE TABLE backplane.rule_current (
-  rule_id    uuid        PRIMARY KEY REFERENCES backplane.rule (id),
-  version    bigint      NOT NULL,
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  FOREIGN KEY (rule_id, version) REFERENCES backplane.rule_version (rule_id, version)
-);
-
 -- Updating this singleton locks audit sequence allocation until transaction
 -- commit. A committed higher sequence can never overtake an uncommitted lower
 -- one. retained_after records the expired prefix for resumable watch cursors.
@@ -151,9 +89,7 @@ CREATE TABLE backplane.audit_entry (
   outcome text NOT NULL,
   operation_id uuid NOT NULL,
   detail jsonb NOT NULL DEFAULT '{}',
-  -- The service the entry is about (its configuration, the binding of one of
-  -- its hooks, a rule on one of its events, a command addressed to it); empty
-  -- for installation-wide entries such as sessions.
+  -- The service whose configuration changed; empty for installation-wide session actions.
   service text NOT NULL DEFAULT ''
 );
 
@@ -222,86 +158,6 @@ CREATE VIEW backplane.audit_feed AS
   SELECT 'application'::text, a.id, a.time, a.received_at, a.service, a.actor, a.action, a.subject, a.outcome,
     a.body, ''::text, 0::bigint, a.attributes, a.resource, a.severity, a.trace_id, a.span_id
   FROM backplane.app_audit a;
-
--- Runs of the direct runtime (internal/direct): bindings and rules executed
--- in backplane's own process, without Temporal. The rows are the console's
--- view of a run — payloads are stored masked by the program's schemas, so
--- no secret lands here, as json so their text shows as written — and the
--- dedup of a rule's event (one run per
--- event id; a failed run may be claimed again by a redelivery). Retention
--- is deployment-controlled (direct.retention).
--- The programs direct runs ran, by content: a run keeps the definition it
--- ran (whatever the binding says now) without carrying its own copy.
-CREATE TABLE backplane.direct_program (
-  -- hex SHA-256 of spec
-  hash       text        PRIMARY KEY,
-  -- The marshaled bindings.Program.
-  spec       json        NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT clock_timestamp()
-);
-
-CREATE TABLE backplane.direct_run (
-  id         text        PRIMARY KEY,
-  -- binding | rule
-  kind       text        NOT NULL,
-  -- The hook ("<service>.<Hook>") or the rule id.
-  source     text        NOT NULL,
-  version    bigint      NOT NULL DEFAULT 0,
-  test       boolean     NOT NULL DEFAULT false,
-  -- Who raised it: a service instance, a console session, "rule:<id>".
-  caller     text        NOT NULL DEFAULT '',
-  -- running | completed | failed | canceled
-  status     text        NOT NULL,
-  attempt    integer     NOT NULL DEFAULT 1 CHECK (attempt > 0),
-  input      json,
-  result     json,
-  -- The unmasked result of a hook call made with a key: a repeated call
-  -- with the key answers it. NULL for every other run; never shown.
-  reply      bytea,
-  error      text        NOT NULL DEFAULT '',
-  error_type text        NOT NULL DEFAULT '',
-  program_hash text      NOT NULL REFERENCES backplane.direct_program (hash),
-  -- The record is not the whole run: step records were lost to a full
-  -- write queue, or the run's end was never recorded and the sweeper
-  -- closed it.
-  incomplete boolean     NOT NULL DEFAULT false,
-  started_at timestamptz NOT NULL DEFAULT clock_timestamp(),
-  -- The end of a running run is recorded by then: its deadline plus the
-  -- time the record may take. Still running past it, the run is running
-  -- nowhere (its replica died): it is claimed again or swept.
-  deadline_at timestamptz NOT NULL DEFAULT clock_timestamp(),
-  -- When the run is deleted, by its definition's own retention (history);
-  -- NULL: the installation's retention.
-  expire_at  timestamptz,
-  closed_at  timestamptz
-);
-
-CREATE INDEX direct_run_source_idx ON backplane.direct_run (kind, source, test, started_at DESC, id DESC);
-CREATE INDEX direct_run_started_at_idx ON backplane.direct_run (started_at) WHERE expire_at IS NULL;
-CREATE INDEX direct_run_expire_idx ON backplane.direct_run (expire_at) WHERE expire_at IS NOT NULL;
-CREATE INDEX direct_run_deadline_idx ON backplane.direct_run (deadline_at) WHERE status = 'running';
-
--- One call of a run: a step, an item of a for-each step or a body step
--- of one, by its call label ("send", "each[2]", "users[1].send").
-CREATE TABLE backplane.direct_run_step (
-  run_id       text        NOT NULL REFERENCES backplane.direct_run (id) ON DELETE CASCADE,
-  label        text        NOT NULL,
-  -- Scheduling order within the run.
-  seq          integer     NOT NULL,
-  step         text        NOT NULL,
-  parent       text        NOT NULL DEFAULT '',
-  item         integer,
-  activity     text        NOT NULL,
-  -- scheduled | started | completed | failed | timed_out | canceled
-  status       text        NOT NULL,
-  input        json,
-  output       json,
-  error        text        NOT NULL DEFAULT '',
-  error_type   text        NOT NULL DEFAULT '',
-  scheduled_at timestamptz NOT NULL,
-  closed_at    timestamptz,
-  PRIMARY KEY (run_id, label)
-);
 
 -- Application errors (internal/apperrors): every exception record the
 -- deployment's Collector forwards to backplane's listener, kept whole —

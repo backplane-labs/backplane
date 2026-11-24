@@ -61,8 +61,6 @@ type GetStatsResponse struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Greetings       uint64                 `protobuf:"varint,1,opt,name=greetings,proto3" json:"greetings,omitempty"`
 	CurrentGreeting string                 `protobuf:"bytes,2,opt,name=current_greeting,json=currentGreeting,proto3" json:"current_greeting,omitempty"`
-	// Greetings the audit reactor saw come off the event stream.
-	Audited uint64 `protobuf:"varint,3,opt,name=audited,proto3" json:"audited,omitempty"`
 	// Whether the optional cache is there right now.
 	CachePresent  bool `protobuf:"varint,4,opt,name=cache_present,json=cachePresent,proto3" json:"cache_present,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -113,13 +111,6 @@ func (x *GetStatsResponse) GetCurrentGreeting() string {
 	return ""
 }
 
-func (x *GetStatsResponse) GetAudited() uint64 {
-	if x != nil {
-		return x.Audited
-	}
-	return 0
-}
-
 func (x *GetStatsResponse) GetCachePresent() bool {
 	if x != nil {
 		return x.CachePresent
@@ -132,12 +123,11 @@ var File_proto_hello_console_v1_admin_proto protoreflect.FileDescriptor
 const file_proto_hello_console_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"\"proto/hello/console/v1/admin.proto\x12\x10hello.console.v1\"\x11\n" +
-	"\x0fGetStatsRequest\"\x9a\x01\n" +
+	"\x0fGetStatsRequest\"\x8f\x01\n" +
 	"\x10GetStatsResponse\x12\x1c\n" +
 	"\tgreetings\x18\x01 \x01(\x04R\tgreetings\x12)\n" +
-	"\x10current_greeting\x18\x02 \x01(\tR\x0fcurrentGreeting\x12\x18\n" +
-	"\aaudited\x18\x03 \x01(\x04R\aaudited\x12#\n" +
-	"\rcache_present\x18\x04 \x01(\bR\fcachePresent2a\n" +
+	"\x10current_greeting\x18\x02 \x01(\tR\x0fcurrentGreeting\x12#\n" +
+	"\rcache_present\x18\x04 \x01(\bR\fcachePresentJ\x04\b\x03\x10\x04R\aaudited2a\n" +
 	"\fAdminService\x12Q\n" +
 	"\bGetStats\x12!.hello.console.v1.GetStatsRequest\x1a\".hello.console.v1.GetStatsResponseBZZXgithub.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1;helloconsolev1b\x06proto3"
 

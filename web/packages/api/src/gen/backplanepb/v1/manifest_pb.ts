@@ -2,12 +2,8 @@
 // @generated from file backplanepb/v1/manifest.proto (package backplane.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Any } from "../../google/protobuf/any_pb.js";
-import { file_google_protobuf_any } from "../../google/protobuf/any_pb.js";
-import type { Duration } from "../../google/protobuf/duration_pb.js";
-import { file_google_protobuf_duration } from "../../google/protobuf/duration_pb.js";
+import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Schema } from "../../schemapb/schema_pb.js";
 import { file_schemapb_schema } from "../../schemapb/schema_pb.js";
 import type { Message } from "@bufbuild/protobuf";
@@ -16,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file backplanepb/v1/manifest.proto.
  */
 export const file_backplanepb_v1_manifest: GenFile = /*@__PURE__*/
-  fileDesc("Ch1iYWNrcGxhbmVwYi92MS9tYW5pZmVzdC5wcm90bxIMYmFja3BsYW5lLnYxIsgFCghNYW5pZmVzdBIPCgdzZXJ2aWNlGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSEwoLc2RrX3ZlcnNpb24YAyABKAkSKwoGY29uZmlnGAQgASgLMhsuYmFja3BsYW5lLnYxLkNvbmZpZ1NlY3Rpb24SHwoEYXBpcxgGIAMoCzIRLmJhY2twbGFuZS52MS5BUEkSGQoRaW50ZXJuYWxfc2VydmljZXMYByADKAkSIwoGZXZlbnRzGAggAygLMhMuYmFja3BsYW5lLnYxLkV2ZW50EiEKBWhvb2tzGAkgAygLMhIuYmFja3BsYW5lLnYxLkhvb2sSKgoKYWN0aXZpdGllcxgKIAMoCzIWLmJhY2twbGFuZS52MS5BY3Rpdml0eRIcCgJ1aRgLIAEoCzIQLmJhY2twbGFuZS52MS5VSRIYChBkZXNjcmlwdG9yc19oYXNoGBMgASgJEjEKDXN1YnNjcmlwdGlvbnMYDiADKAsyGi5iYWNrcGxhbmUudjEuU3Vic2NyaXB0aW9uEikKCXNjaGVkdWxlcxgPIAMoCzIWLmJhY2twbGFuZS52MS5TY2hlZHVsZRIpCgl3b3JrZmxvd3MYECADKAsyFi5iYWNrcGxhbmUudjEuV29ya2Zsb3cSMQoJdGVsZW1ldHJ5GBEgASgLMh4uYmFja3BsYW5lLnYxLlRlbGVtZXRyeVNvdXJjZXMSNgoIc2VjdGlvbnMYEiADKAsyJC5iYWNrcGxhbmUudjEuTWFuaWZlc3QuU2VjdGlvbnNFbnRyeRpFCg1TZWN0aW9uc0VudHJ5EgsKA2tleRgBIAEoCRIjCgV2YWx1ZRgCIAEoCzIULmdvb2dsZS5wcm90b2J1Zi5Bbnk6AjgBSgQIBRAGSgQIDBANSgQIDRAOUgZzdGF0aWNSB2R5bmFtaWNSBW5vZGVzUgtkZXNjcmlwdG9ycyKNAQoKU2VjdGlvblNldBI4CghzZXJ2aWNlcxgBIAMoCzImLmJhY2twbGFuZS52MS5TZWN0aW9uU2V0LlNlcnZpY2VzRW50cnkaRQoNU2VydmljZXNFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5nb29nbGUucHJvdG9idWYuQW55OgI4ASKRAQoXVGVsZW1ldHJ5U291cmNlU2VsZWN0b3ISRQoIcmVzb3VyY2UYASADKAsyMy5iYWNrcGxhbmUudjEuVGVsZW1ldHJ5U291cmNlU2VsZWN0b3IuUmVzb3VyY2VFbnRyeRovCg1SZXNvdXJjZUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiTAoQVGVsZW1ldHJ5U291cmNlcxI4CglzZWxlY3RvcnMYASADKAsyJS5iYWNrcGxhbmUudjEuVGVsZW1ldHJ5U291cmNlU2VsZWN0b3IiTQoNQ29uZmlnU2VjdGlvbhIMCgRrZXlzGAEgAygJEiAKBnNjaGVtYRgCIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIMCgRsaXZlGAMgAygJIvoBCgNBUEkSDgoGcHJlZml4GAEgASgJEgwKBGhvc3QYAiABKAkSIwoEa2luZBgDIAEoDjIVLmJhY2twbGFuZS52MS5BcGlLaW5kEhAKCGxpc3RlbmVyGAsgASgJEhAKCHNlcnZpY2VzGAggAygJEhEKB29wZW5hcGkYBSABKAxIABIRCgdncmFwaHFsGAcgASgMSAASLwoGYnVuZGxlGAogASgLMh0uYmFja3BsYW5lLnYxLkFQSVNjaGVtYUJ1bmRsZUgAQggKBnNjaGVtYUoECAQQBUoECAkQCkoECAYQB1IEcG9ydFIGcG9saWN5UgtkZXNjcmlwdG9ycyJaCg9BUElTY2hlbWFCdW5kbGUSDAoEaGFzaBgBIAEoCRINCgVlbnRyeRgCIAEoCRIqCgZmb3JtYXQYAyABKA4yGi5iYWNrcGxhbmUudjEuU2NoZW1hRm9ybWF0IkwKBUV2ZW50EgwKBG5hbWUYASABKAkSIAoGc2NoZW1hGAIgASgLMhAuc2NoZW1hcGIuU2NoZW1hEhMKC2Rlc2NyaXB0aW9uGAMgASgJIi8KDFN1YnNjcmlwdGlvbhINCgVldmVudBgBIAEoCRIQCghjb25zdW1lchgCIAEoCSKqAQoESG9vaxIMCgRuYW1lGAEgASgJEh8KBWlucHV0GAIgASgLMhAuc2NoZW1hcGIuU2NoZW1hEiAKBm91dHB1dBgDIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIQCghyZXF1aXJlZBgEIAEoCBIqCgd0aW1lb3V0GAUgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhMKC2Rlc2NyaXB0aW9uGAYgASgJIqcCCghBY3Rpdml0eRIMCgRuYW1lGAEgASgJEh8KBWlucHV0GAIgASgLMhAuc2NoZW1hcGIuU2NoZW1hEiAKBm91dHB1dBgDIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIoCgRraW5kGAQgASgOMhouYmFja3BsYW5lLnYxLkFjdGl2aXR5S2luZBIxCg5zdGFydF90b19jbG9zZRgFIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIsCgloZWFydGJlYXQYBiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SKgoFcmV0cnkYByABKAsyGy5iYWNrcGxhbmUudjEuQWN0aXZpdHlSZXRyeRITCgtkZXNjcmlwdGlvbhgIIAEoCSJlCg1BY3Rpdml0eVJldHJ5EhAKCGF0dGVtcHRzGAEgASgNEjIKD3Blcl90cnlfdGltZW91dBgCIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbkoECAMQBFIIcmV0cnlfb24icAoIV29ya2Zsb3cSDAoEbmFtZRgBIAEoCRIfCgVpbnB1dBgCIAEoCzIQLnNjaGVtYXBiLlNjaGVtYRIgCgZvdXRwdXQYAyABKAsyEC5zY2hlbWFwYi5TY2hlbWESEwoLZGVzY3JpcHRpb24YBCABKAkiJQoCVUkSDAoEaGFzaBgBIAEoCRIRCglzZGtfbWFqb3IYAiABKA0i7AEKCFNjaGVkdWxlEgwKBG5hbWUYASABKAkSDgoEY3JvbhgCIAEoCUgAEioKBWV2ZXJ5GAMgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uSAASEAoId29ya2Zsb3cYBCABKAkSLgoHb3ZlcmxhcBgFIAEoDjIdLmJhY2twbGFuZS52MS5TY2hlZHVsZU92ZXJsYXASDgoGcGF1c2VkGAYgASgIEhEKCXRpbWVfem9uZRgHIAEoCRIpCgZqaXR0ZXIYCCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb25CBgoEc3BlYypjCgxTY2hlbWFGb3JtYXQSHQoZU0NIRU1BX0ZPUk1BVF9VTlNQRUNJRklFRBAAEhkKFVNDSEVNQV9GT1JNQVRfT1BFTkFQSRABEhkKFVNDSEVNQV9GT1JNQVRfR1JBUEhRTBACKpABCgdBcGlLaW5kEhgKFEFQSV9LSU5EX1VOU1BFQ0lGSUVEEAASEQoNQVBJX0tJTkRfSFRUUBABEhEKDUFQSV9LSU5EX0dSUEMQAhIVChFBUElfS0lORF9XU19QUk9UTxAEEhQKEEFQSV9LSU5EX0dSQVBIUUwQBSIECAMQAyoSUk9VVEVfS0lORF9DT05ORUNUKmUKDEFjdGl2aXR5S2luZBIdChlBQ1RJVklUWV9LSU5EX1VOU1BFQ0lGSUVEEAASGgoWQUNUSVZJVFlfS0lORF9BQ1RJVklUWRABEhoKFkFDVElWSVRZX0tJTkRfV09SS0ZMT1cQAir5AQoPU2NoZWR1bGVPdmVybGFwEiAKHFNDSEVEVUxFX09WRVJMQVBfVU5TUEVDSUZJRUQQABIZChVTQ0hFRFVMRV9PVkVSTEFQX1NLSVAQARIfChtTQ0hFRFVMRV9PVkVSTEFQX0JVRkZFUl9PTkUQAhIfChtTQ0hFRFVMRV9PVkVSTEFQX0JVRkZFUl9BTEwQAxIhCh1TQ0hFRFVMRV9PVkVSTEFQX0NBTkNFTF9PVEhFUhAEEiQKIFNDSEVEVUxFX09WRVJMQVBfVEVSTUlOQVRFX09USEVSEAUSHgoaU0NIRURVTEVfT1ZFUkxBUF9BTExPV19BTEwQBkJAWj5naXRodWIuY29tL2JhY2twbGFuZS1sYWJzL2JhY2twbGFuZS9iYWNrcGxhbmVwYi92MTtiYWNrcGxhbmV2MWIGcHJvdG8z", [file_google_protobuf_any, file_google_protobuf_duration, file_schemapb_schema]);
+  fileDesc("Ch1iYWNrcGxhbmVwYi92MS9tYW5pZmVzdC5wcm90bxIMYmFja3BsYW5lLnYxIpcDCghNYW5pZmVzdBIPCgdzZXJ2aWNlGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSEwoLc2RrX3ZlcnNpb24YAyABKAkSKwoGY29uZmlnGAQgASgLMhsuYmFja3BsYW5lLnYxLkNvbmZpZ1NlY3Rpb24SGQoRaW50ZXJuYWxfc2VydmljZXMYByADKAkSHAoCdWkYCyABKAsyEC5iYWNrcGxhbmUudjEuVUkSMQoJdGVsZW1ldHJ5GBEgASgLMh4uYmFja3BsYW5lLnYxLlRlbGVtZXRyeVNvdXJjZXNKBAgFEAZKBAgMEA1KBAgGEAdKBAgIEAlKBAgJEApKBAgKEAtKBAgNEBFKBAgSEBNKBAgTEBRSBnN0YXRpY1IHZHluYW1pY1IFbm9kZXNSBGFwaXNSBmV2ZW50c1IFaG9va3NSCmFjdGl2aXRpZXNSC2Rlc2NyaXB0b3JzUg1zdWJzY3JpcHRpb25zUglzY2hlZHVsZXNSCXdvcmtmbG93c1IIc2VjdGlvbnNSEGRlc2NyaXB0b3JzX2hhc2gikQEKF1RlbGVtZXRyeVNvdXJjZVNlbGVjdG9yEkUKCHJlc291cmNlGAEgAygLMjMuYmFja3BsYW5lLnYxLlRlbGVtZXRyeVNvdXJjZVNlbGVjdG9yLlJlc291cmNlRW50cnkaLwoNUmVzb3VyY2VFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkwKEFRlbGVtZXRyeVNvdXJjZXMSOAoJc2VsZWN0b3JzGAEgAygLMiUuYmFja3BsYW5lLnYxLlRlbGVtZXRyeVNvdXJjZVNlbGVjdG9yIk0KDUNvbmZpZ1NlY3Rpb24SDAoEa2V5cxgBIAMoCRIgCgZzY2hlbWEYAiABKAsyEC5zY2hlbWFwYi5TY2hlbWESDAoEbGl2ZRgDIAMoCSIlCgJVSRIMCgRoYXNoGAEgASgJEhEKCXNka19tYWpvchgCIAEoDUJAWj5naXRodWIuY29tL2JhY2twbGFuZS1sYWJzL2JhY2twbGFuZS9iYWNrcGxhbmVwYi92MTtiYWNrcGxhbmV2MWIGcHJvdG8z", [file_schemapb_schema]);
 
 /**
  * Manifest is everything a service declares. The SDK assembles it at start
@@ -50,13 +46,6 @@ export type Manifest = Message<"backplane.v1.Manifest"> & {
   config?: ConfigSection | undefined;
 
   /**
-   * APIs served by the service. Informational: publication belongs to deployment.
-   *
-   * @generated from field: repeated backplane.v1.API apis = 6;
-   */
-  apis: API[];
-
-  /**
    * Internal API: full gRPC service names on the platform port; the only
    * methods the console relay forwards.
    *
@@ -65,56 +54,9 @@ export type Manifest = Message<"backplane.v1.Manifest"> & {
   internalServices: string[];
 
   /**
-   * @generated from field: repeated backplane.v1.Event events = 8;
-   */
-  events: Event[];
-
-  /**
-   * @generated from field: repeated backplane.v1.Hook hooks = 9;
-   */
-  hooks: Hook[];
-
-  /**
-   * @generated from field: repeated backplane.v1.Activity activities = 10;
-   */
-  activities: Activity[];
-
-  /**
    * @generated from field: backplane.v1.UI ui = 11;
    */
   ui?: UI | undefined;
-
-  /**
-   * Content hash of the service's FileDescriptorSet: every service named by
-   * an API (API.services, with descriptors registration or api.Descriptors
-   * gives) and by internal_services, with transitive imports. The SDK
-   * serves it on the platform port as file descriptors.binpb of the API
-   * file bundle with this hash, like APISchemaBundle; empty: no services.
-   *
-   * @generated from field: string descriptors_hash = 19;
-   */
-  descriptorsHash: string;
-
-  /**
-   * Events the service reacts to.
-   *
-   * @generated from field: repeated backplane.v1.Subscription subscriptions = 14;
-   */
-  subscriptions: Subscription[];
-
-  /**
-   * Temporal Schedules of the service's own workflows.
-   *
-   * @generated from field: repeated backplane.v1.Schedule schedules = 15;
-   */
-  schedules: Schedule[];
-
-  /**
-   * The service's own workflows the console may start (§9).
-   *
-   * @generated from field: repeated backplane.v1.Workflow workflows = 16;
-   */
-  workflows: Workflow[];
 
   /**
    * Optional telemetry view presets. Absence uses service.name convention;
@@ -123,17 +65,6 @@ export type Manifest = Message<"backplane.v1.Manifest"> & {
    * @generated from field: backplane.v1.TelemetrySources telemetry = 17;
    */
   telemetry?: TelemetrySources | undefined;
-
-  /**
-   * Sections of the service's own: proto messages by name the product
-   * defines (sections.Offer). Backplane publishes those of the serving
-   * services to Consul KV `backplane/sections/<name>` (SectionSet); a
-   * service follows a name with sections.Follow — discovery without a
-   * registry of the product's.
-   *
-   * @generated from field: map<string, google.protobuf.Any> sections = 18;
-   */
-  sections: { [key: string]: Any };
 };
 
 /**
@@ -142,27 +73,6 @@ export type Manifest = Message<"backplane.v1.Manifest"> & {
  */
 export const ManifestSchema: GenMessage<Manifest> = /*@__PURE__*/
   messageDesc(file_backplanepb_v1_manifest, 0);
-
-/**
- * SectionSet is one section name across the installation: by service,
- * the section of its highest serving version. Backplane writes it to
- * Consul KV `backplane/sections/<name>` as protobuf binary.
- *
- * @generated from message backplane.v1.SectionSet
- */
-export type SectionSet = Message<"backplane.v1.SectionSet"> & {
-  /**
-   * @generated from field: map<string, google.protobuf.Any> services = 1;
-   */
-  services: { [key: string]: Any };
-};
-
-/**
- * Describes the message backplane.v1.SectionSet.
- * Use `create(SectionSetSchema)` to create a new message.
- */
-export const SectionSetSchema: GenMessage<SectionSet> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 1);
 
 /**
  * Selectors are OR alternatives; attributes within one selector are AND exact
@@ -183,7 +93,7 @@ export type TelemetrySourceSelector = Message<"backplane.v1.TelemetrySourceSelec
  * Use `create(TelemetrySourceSelectorSchema)` to create a new message.
  */
 export const TelemetrySourceSelectorSchema: GenMessage<TelemetrySourceSelector> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 2);
+  messageDesc(file_backplanepb_v1_manifest, 1);
 
 /**
  * @generated from message backplane.v1.TelemetrySources
@@ -200,7 +110,7 @@ export type TelemetrySources = Message<"backplane.v1.TelemetrySources"> & {
  * Use `create(TelemetrySourcesSchema)` to create a new message.
  */
 export const TelemetrySourcesSchema: GenMessage<TelemetrySources> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 3);
+  messageDesc(file_backplanepb_v1_manifest, 2);
 
 /**
  * The configuration. `keys` is the declaration; `schema` is optional and,
@@ -232,340 +142,7 @@ export type ConfigSection = Message<"backplane.v1.ConfigSection"> & {
  * Use `create(ConfigSectionSchema)` to create a new message.
  */
 export const ConfigSectionSchema: GenMessage<ConfigSection> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 4);
-
-/**
- * An API served by the service. Does not configure external routing.
- *
- * @generated from message backplane.v1.API
- */
-export type API = Message<"backplane.v1.API"> & {
-  /**
-   * Path prefix ("/api/"); gRPC routes use "/<full service name>/".
-   *
-   * @generated from field: string prefix = 1;
-   */
-  prefix: string;
-
-  /**
-   * Host header to match in addition to the prefix; empty matches any host.
-   *
-   * @generated from field: string host = 2;
-   */
-  host: string;
-
-  /**
-   * @generated from field: backplane.v1.ApiKind kind = 3;
-   */
-  kind: ApiKind;
-
-  /**
-   * The listener the route is served on, by the name the code gives it
-   * (api.Listen, api.Port); empty: the default public port. Its port is the
-   * instance's: InstanceState.public_port and listeners.
-   *
-   * @generated from field: string listener = 11;
-   */
-  listener: string;
-
-  /**
-   * gRPC and ws-proto: full names of the services behind the
-   * route; their descriptors are in the service's descriptor set
-   * (Manifest.descriptors_hash).
-   *
-   * @generated from field: repeated string services = 8;
-   */
-  services: string[];
-
-  /**
-   * Schema for the console's API tab; optional.
-   *
-   * @generated from oneof backplane.v1.API.schema
-   */
-  schema: {
-    /**
-     * OpenAPI document (HTTP).
-     *
-     * @generated from field: bytes openapi = 5;
-     */
-    value: Uint8Array;
-    case: "openapi";
-  } | {
-    /**
-     * Introspection result as JSON (GraphQL).
-     *
-     * @generated from field: bytes graphql = 7;
-     */
-    value: Uint8Array;
-    case: "graphql";
-  } | {
-    /**
-     * Files served by the SDK on the platform port, outside Consul KV.
-     *
-     * @generated from field: backplane.v1.APISchemaBundle bundle = 10;
-     */
-    value: APISchemaBundle;
-    case: "bundle";
-  } | { case: undefined; value?: undefined };
-};
-
-/**
- * Describes the message backplane.v1.API.
- * Use `create(APISchema)` to create a new message.
- */
-export const APISchema: GenMessage<API> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 5);
-
-/**
- * An immutable API file snapshot, delivered separately from the manifest.
- *
- * @generated from message backplane.v1.APISchemaBundle
- */
-export type APISchemaBundle = Message<"backplane.v1.APISchemaBundle"> & {
-  /**
-   * @generated from field: string hash = 1;
-   */
-  hash: string;
-
-  /**
-   * Entry file relative to the bundle root; may reference other bundle files.
-   *
-   * @generated from field: string entry = 2;
-   */
-  entry: string;
-
-  /**
-   * @generated from field: backplane.v1.SchemaFormat format = 3;
-   */
-  format: SchemaFormat;
-};
-
-/**
- * Describes the message backplane.v1.APISchemaBundle.
- * Use `create(APISchemaBundleSchema)` to create a new message.
- */
-export const APISchemaBundleSchema: GenMessage<APISchemaBundle> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 6);
-
-/**
- * @generated from message backplane.v1.Event
- */
-export type Event = Message<"backplane.v1.Event"> & {
-  /**
-   * @generated from field: string name = 1;
-   */
-  name: string;
-
-  /**
-   * @generated from field: schemapb.Schema schema = 2;
-   */
-  schema?: Schema | undefined;
-
-  /**
-   * @generated from field: string description = 3;
-   */
-  description: string;
-};
-
-/**
- * Describes the message backplane.v1.Event.
- * Use `create(EventSchema)` to create a new message.
- */
-export const EventSchema: GenMessage<Event> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 7);
-
-/**
- * A reactor: a durable consumer of another service's event.
- *
- * @generated from message backplane.v1.Subscription
- */
-export type Subscription = Message<"backplane.v1.Subscription"> & {
-  /**
-   * Full event name "<service>.<Event>".
-   *
-   * @generated from field: string event = 1;
-   */
-  event: string;
-
-  /**
-   * Durable consumer name, unique within the service: the node path of the
-   * reactor plus the event name.
-   *
-   * @generated from field: string consumer = 2;
-   */
-  consumer: string;
-};
-
-/**
- * Describes the message backplane.v1.Subscription.
- * Use `create(SubscriptionSchema)` to create a new message.
- */
-export const SubscriptionSchema: GenMessage<Subscription> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 8);
-
-/**
- * An operation the service calls without implementing it.
- *
- * @generated from message backplane.v1.Hook
- */
-export type Hook = Message<"backplane.v1.Hook"> & {
-  /**
-   * @generated from field: string name = 1;
-   */
-  name: string;
-
-  /**
-   * @generated from field: schemapb.Schema input = 2;
-   */
-  input?: Schema | undefined;
-
-  /**
-   * @generated from field: schemapb.Schema output = 3;
-   */
-  output?: Schema | undefined;
-
-  /**
-   * The service cannot work without a binding.
-   *
-   * @generated from field: bool required = 4;
-   */
-  required: boolean;
-
-  /**
-   * Default deadline of a call; 0 = platform default.
-   *
-   * @generated from field: google.protobuf.Duration timeout = 5;
-   */
-  timeout?: Duration | undefined;
-
-  /**
-   * @generated from field: string description = 6;
-   */
-  description: string;
-};
-
-/**
- * Describes the message backplane.v1.Hook.
- * Use `create(HookSchema)` to create a new message.
- */
-export const HookSchema: GenMessage<Hook> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 9);
-
-/**
- * An operation the service implements; a binding step target.
- *
- * @generated from message backplane.v1.Activity
- */
-export type Activity = Message<"backplane.v1.Activity"> & {
-  /**
-   * @generated from field: string name = 1;
-   */
-  name: string;
-
-  /**
-   * @generated from field: schemapb.Schema input = 2;
-   */
-  input?: Schema | undefined;
-
-  /**
-   * @generated from field: schemapb.Schema output = 3;
-   */
-  output?: Schema | undefined;
-
-  /**
-   * @generated from field: backplane.v1.ActivityKind kind = 4;
-   */
-  kind: ActivityKind;
-
-  /**
-   * Defaults for a binding step calling it; the binding may override.
-   *
-   * @generated from field: google.protobuf.Duration start_to_close = 5;
-   */
-  startToClose?: Duration | undefined;
-
-  /**
-   * @generated from field: google.protobuf.Duration heartbeat = 6;
-   */
-  heartbeat?: Duration | undefined;
-
-  /**
-   * @generated from field: backplane.v1.ActivityRetry retry = 7;
-   */
-  retry?: ActivityRetry | undefined;
-
-  /**
-   * @generated from field: string description = 8;
-   */
-  description: string;
-};
-
-/**
- * Describes the message backplane.v1.Activity.
- * Use `create(ActivitySchema)` to create a new message.
- */
-export const ActivitySchema: GenMessage<Activity> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 10);
-
-/**
- * Default retries for a binding step executing this activity or workflow.
- *
- * @generated from message backplane.v1.ActivityRetry
- */
-export type ActivityRetry = Message<"backplane.v1.ActivityRetry"> & {
-  /**
-   * @generated from field: uint32 attempts = 1;
-   */
-  attempts: number;
-
-  /**
-   * @generated from field: google.protobuf.Duration per_try_timeout = 2;
-   */
-  perTryTimeout?: Duration | undefined;
-};
-
-/**
- * Describes the message backplane.v1.ActivityRetry.
- * Use `create(ActivityRetrySchema)` to create a new message.
- */
-export const ActivityRetrySchema: GenMessage<ActivityRetry> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 11);
-
-/**
- * A workflow of the service the console may start with a form.
- *
- * @generated from message backplane.v1.Workflow
- */
-export type Workflow = Message<"backplane.v1.Workflow"> & {
-  /**
-   * Temporal workflow type name.
-   *
-   * @generated from field: string name = 1;
-   */
-  name: string;
-
-  /**
-   * @generated from field: schemapb.Schema input = 2;
-   */
-  input?: Schema | undefined;
-
-  /**
-   * @generated from field: schemapb.Schema output = 3;
-   */
-  output?: Schema | undefined;
-
-  /**
-   * @generated from field: string description = 4;
-   */
-  description: string;
-};
-
-/**
- * Describes the message backplane.v1.Workflow.
- * Use `create(WorkflowSchema)` to create a new message.
- */
-export const WorkflowSchema: GenMessage<Workflow> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 12);
+  messageDesc(file_backplanepb_v1_manifest, 3);
 
 /**
  * @generated from message backplane.v1.UI
@@ -589,236 +166,5 @@ export type UI = Message<"backplane.v1.UI"> & {
  * Use `create(UISchema)` to create a new message.
  */
 export const UISchema: GenMessage<UI> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 13);
-
-/**
- * A Temporal Schedule the service declares; the SDK reconciles it at start.
- * Schedule id "<service>/<name>"; it starts the workflow on the service's
- * task queue with workflow id "<service>/<name>-<time>".
- *
- * @generated from message backplane.v1.Schedule
- */
-export type Schedule = Message<"backplane.v1.Schedule"> & {
-  /**
-   * Unique within the service: [A-Za-z][A-Za-z0-9_]*.
-   *
-   * @generated from field: string name = 1;
-   */
-  name: string;
-
-  /**
-   * When the workflow starts.
-   *
-   * @generated from oneof backplane.v1.Schedule.spec
-   */
-  spec: {
-    /**
-     * Cron expression as Temporal reads it (5-7 fields, @daily, ...).
-     *
-     * @generated from field: string cron = 2;
-     */
-    value: string;
-    case: "cron";
-  } | {
-    /**
-     * Fixed interval.
-     *
-     * @generated from field: google.protobuf.Duration every = 3;
-     */
-    value: Duration;
-    case: "every";
-  } | { case: undefined; value?: undefined };
-
-  /**
-   * Workflow type started.
-   *
-   * @generated from field: string workflow = 4;
-   */
-  workflow: string;
-
-  /**
-   * @generated from field: backplane.v1.ScheduleOverlap overlap = 5;
-   */
-  overlap: ScheduleOverlap;
-
-  /**
-   * Created paused.
-   *
-   * @generated from field: bool paused = 6;
-   */
-  paused: boolean;
-
-  /**
-   * IANA time zone of a cron spec; empty is UTC.
-   *
-   * @generated from field: string time_zone = 7;
-   */
-  timeZone: string;
-
-  /**
-   * Random delay up to this added to every start.
-   *
-   * @generated from field: google.protobuf.Duration jitter = 8;
-   */
-  jitter?: Duration | undefined;
-};
-
-/**
- * Describes the message backplane.v1.Schedule.
- * Use `create(ScheduleSchema)` to create a new message.
- */
-export const ScheduleSchema: GenMessage<Schedule> = /*@__PURE__*/
-  messageDesc(file_backplanepb_v1_manifest, 14);
-
-/**
- * @generated from enum backplane.v1.SchemaFormat
- */
-export enum SchemaFormat {
-  /**
-   * @generated from enum value: SCHEMA_FORMAT_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: SCHEMA_FORMAT_OPENAPI = 1;
-   */
-  OPENAPI = 1,
-
-  /**
-   * @generated from enum value: SCHEMA_FORMAT_GRAPHQL = 2;
-   */
-  GRAPHQL = 2,
-}
-
-/**
- * Describes the enum backplane.v1.SchemaFormat.
- */
-export const SchemaFormatSchema: GenEnum<SchemaFormat> = /*@__PURE__*/
-  enumDesc(file_backplanepb_v1_manifest, 0);
-
-/**
- * @generated from enum backplane.v1.ApiKind
- */
-export enum ApiKind {
-  /**
-   * @generated from enum value: API_KIND_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: API_KIND_HTTP = 1;
-   */
-  HTTP = 1,
-
-  /**
-   * @generated from enum value: API_KIND_GRPC = 2;
-   */
-  GRPC = 2,
-
-  /**
-   * @generated from enum value: API_KIND_WS_PROTO = 4;
-   */
-  WS_PROTO = 4,
-
-  /**
-   * @generated from enum value: API_KIND_GRAPHQL = 5;
-   */
-  GRAPHQL = 5,
-}
-
-/**
- * Describes the enum backplane.v1.ApiKind.
- */
-export const ApiKindSchema: GenEnum<ApiKind> = /*@__PURE__*/
-  enumDesc(file_backplanepb_v1_manifest, 1);
-
-/**
- * @generated from enum backplane.v1.ActivityKind
- */
-export enum ActivityKind {
-  /**
-   * @generated from enum value: ACTIVITY_KIND_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * A Temporal activity on the service's queue.
-   *
-   * @generated from enum value: ACTIVITY_KIND_ACTIVITY = 1;
-   */
-  ACTIVITY = 1,
-
-  /**
-   * A Temporal workflow on the service's queue, run as a child workflow.
-   *
-   * @generated from enum value: ACTIVITY_KIND_WORKFLOW = 2;
-   */
-  WORKFLOW = 2,
-}
-
-/**
- * Describes the enum backplane.v1.ActivityKind.
- */
-export const ActivityKindSchema: GenEnum<ActivityKind> = /*@__PURE__*/
-  enumDesc(file_backplanepb_v1_manifest, 2);
-
-/**
- * What a start does while the previous run is still going.
- *
- * @generated from enum backplane.v1.ScheduleOverlap
- */
-export enum ScheduleOverlap {
-  /**
-   * @generated from enum value: SCHEDULE_OVERLAP_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * Do not start (the default).
-   *
-   * @generated from enum value: SCHEDULE_OVERLAP_SKIP = 1;
-   */
-  SKIP = 1,
-
-  /**
-   * Start once the running one ends; at most one waits.
-   *
-   * @generated from enum value: SCHEDULE_OVERLAP_BUFFER_ONE = 2;
-   */
-  BUFFER_ONE = 2,
-
-  /**
-   * Start every missed one after the running one ends.
-   *
-   * @generated from enum value: SCHEDULE_OVERLAP_BUFFER_ALL = 3;
-   */
-  BUFFER_ALL = 3,
-
-  /**
-   * Cancel the running one, then start.
-   *
-   * @generated from enum value: SCHEDULE_OVERLAP_CANCEL_OTHER = 4;
-   */
-  CANCEL_OTHER = 4,
-
-  /**
-   * Terminate the running one, then start.
-   *
-   * @generated from enum value: SCHEDULE_OVERLAP_TERMINATE_OTHER = 5;
-   */
-  TERMINATE_OTHER = 5,
-
-  /**
-   * Start regardless.
-   *
-   * @generated from enum value: SCHEDULE_OVERLAP_ALLOW_ALL = 6;
-   */
-  ALLOW_ALL = 6,
-}
-
-/**
- * Describes the enum backplane.v1.ScheduleOverlap.
- */
-export const ScheduleOverlapSchema: GenEnum<ScheduleOverlap> = /*@__PURE__*/
-  enumDesc(file_backplanepb_v1_manifest, 3);
+  messageDesc(file_backplanepb_v1_manifest, 4);
 

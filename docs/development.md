@@ -35,8 +35,7 @@ package-manager configuration. `make configure` installs pinned generators.
 The command builds packages, the standalone/remote module and the live platform
 console; builds static Go binaries; starts the base stack plus independent OTel
 Collector/Victoria stores and backplane/hello/formatter containers; waits for
-operator endpoint and all three Consul health checks; installs `hello.Greet -> formatter.Format` and the
-`hello.Greeted -> formatter.Record` rule; and sends a sample greeting.
+the operator endpoint and all three Consul health checks, then sends a sample greeting.
 
 The console and the example module are built in a temporary git worktree whose
 frontend packages are stamped with the latest release tag (`git describe`), as
@@ -57,7 +56,7 @@ The token is not prefilled or saved in browser storage.
 The development
 host loads the hello plugin from hello's platform port through backplane's
 protected, hashed bundle proxy. Its internal `GetStats` client and the platform
-clients share one WebSocket. The landing page is Services; Wiring, Explore, Errors, Audit and Infrastructure
+clients share one WebSocket. The landing page is Services; Explore, Errors, Audit and Infrastructure
 are the remaining platform entries in the left navigation. Service groups contain pages
 declared by their modules. Service administration is under `/services/:service`.
 The technical kit acceptance fixture remains directly accessible at
@@ -79,8 +78,7 @@ To run it through Vite, use
 it temporarily edits and restores shell TSX/CSS, so do not edit those files
 concurrently.
 `make dev-down` stops the installation and keeps database/telemetry volumes.
-Running `make dev` again rebuilds the services and reapplies the named example
-binding/rule; it does not delete stored data. Configuration edits made in the
+Running `make dev` again rebuilds the services ; it does not delete stored data. Configuration edits made in the
 fixture persist. Server validation checks the schema; service-specific live
 validators may still reject a revision. Check per-instance applied/rejected
 status before treating it as deployed. The fixture's settings page explicitly saves only local state.
@@ -114,8 +112,7 @@ For the console without optional infrastructure, use `make dev-minimal`.
 PostgreSQL and Consul remain required. The **Infrastructure** page shows
 configured dependencies as OK/NO/Stale and separately lists deployment capabilities.
 See [deployment modes](../deployments/README.md#server-capabilities-and-infrastructure-health) for
-Compose profiles and endpoints. Service **Workflows** includes administrative
-schedule creation, editing and deletion; module SDKs never reconcile schedules.
+Compose profiles and endpoints.
 
 ## CI and release verification
 
@@ -141,7 +138,7 @@ After `make configure` and `cd web && yarn playwright install --with-deps chromi
 run `make verify` from a clean committed checkout. The CI workflow's manual
 **Run workflow** action runs the same full verification, as does `make check`.
 Full verification runs only when explicitly requested. It checks generated files, lint,
-Go race tests with the full containerized infrastructure, browser schedule CRUD
+Go race tests with the full containerized infrastructure, browser checks
 and timer execution, frontend suites, packed consumers, and the minimal Compose
 installation in both themes. The runner owns only the `backplane-verify` Compose
 project and stops it on exit; infrastructure ports used by the development stack must be free. The minimal

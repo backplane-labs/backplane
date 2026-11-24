@@ -1,11 +1,4 @@
-import {
-  BindingState,
-  type GetServiceResponse,
-  type HookBinding,
-  type Rule,
-  ServiceHealth,
-  type ServiceSummary,
-} from '@backplane-labs/backplane-api';
+import { type GetServiceResponse, ServiceHealth, type ServiceSummary } from '@backplane-labs/backplane-api';
 import { InstancePhase } from '@backplane-labs/backplane-api/backplanepb/v1/instance_pb';
 import type { StatusTone } from '@backplane-labs/backplane-ui';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
@@ -37,29 +30,16 @@ export interface ServiceOverview {
   summary: ServiceSummary;
   detail?: GetServiceResponse;
   failed: boolean;
-  contract: {
-    apis: number;
-    hooks: number;
-    activities: number;
-    events: number;
-    subscriptions: number;
-    workflows: number;
-    schedules: number;
-  };
   transports: TransportHealth[];
   config?: ConfigHealth;
   sdk?: string;
   startedAt?: Date;
-  bindings: { bound: number; total: number; missingRequired: number };
-  rules: { active: number; paused: number };
 }
 
 export function overview(
   summary: ServiceSummary,
   detail: GetServiceResponse | undefined,
   failed: boolean,
-  bindings: HookBinding[],
-  rules: Rule[],
 ): ServiceOverview {
   const manifest = detail?.latest,
     states = detail?.instances.flatMap((instance) => (instance.state ? [instance.state] : [])) ?? [];
@@ -77,21 +57,10 @@ export function overview(
   const started = states
     .flatMap((state) => (state.startedAt ? [timestampDate(state.startedAt)] : []))
     .sort((a, b) => a.getTime() - b.getTime())[0];
-  const own = bindings.filter((binding) => binding.service === summary.name);
-  const ownRules = rules.filter((rule) => rule.current?.definition?.event.startsWith(`${summary.name}.`));
   return {
     summary,
     detail,
     failed,
-    contract: {
-      apis: manifest?.apis.length ?? 0,
-      hooks: manifest?.hooks.length ?? 0,
-      activities: manifest?.activities.length ?? 0,
-      events: manifest?.events.length ?? 0,
-      subscriptions: manifest?.subscriptions.length ?? 0,
-      workflows: manifest?.workflows.length ?? 0,
-      schedules: manifest?.schedules.length ?? 0,
-    },
     transports: [...transports.values()].sort((a, b) => a.name.localeCompare(b.name)),
     config: states.length
       ? {
@@ -101,15 +70,6 @@ export function overview(
       : undefined,
     sdk: manifest?.sdkVersion || states[0]?.sdkVersion || undefined,
     startedAt: started,
-    bindings: {
-      bound: own.filter((binding) => binding.state === BindingState.BOUND).length,
-      total: own.length,
-      missingRequired: own.filter((binding) => binding.state === BindingState.REQUIRED_UNBOUND).length,
-    },
-    rules: {
-      active: ownRules.filter((rule) => !rule.paused).length,
-      paused: ownRules.filter((rule) => rule.paused).length,
-    },
   };
 }
 

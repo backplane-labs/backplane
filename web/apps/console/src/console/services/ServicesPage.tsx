@@ -1,22 +1,18 @@
 import { ServiceHealth, type ServiceSummary } from '@backplane-labs/backplane-api';
-import { SystemMap } from '@backplane-labs/backplane-platform-ui';
-import type { ThemeMode } from '@backplane-labs/backplane-theme';
 import { EmptyState, Input, PageHeader, Skeleton, StatRow, StatTile, ViewToggle } from '@backplane-labs/backplane-ui';
-import { Activity, Boxes, Cable, LayoutGrid, Network, Rows3, SearchX, Server, Workflow, Zap } from 'lucide-react';
+import { Activity, Boxes, LayoutGrid, Rows3, SearchX, Server } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
-import { wiringLink } from '../WiringRoute';
 import { ServiceCard } from './ServiceCard';
 import { ServiceTable } from './ServiceTable';
 import { useServicesOverview } from './useOverview';
 
-type View = 'cards' | 'table' | 'map';
+type View = 'cards' | 'table';
 const VIEW_KEY = 'backplane.services.view';
 function readView(): View {
   try {
     const value = localStorage.getItem(VIEW_KEY);
-    return value === 'table' || value === 'map' ? value : 'cards';
+    return value === 'table' ? value : 'cards';
   } catch {
     return 'cards';
   }
@@ -26,15 +22,12 @@ export function ServicesPage({
   services,
   index,
   loading,
-  mode,
 }: {
   services: ServiceSummary[];
   index?: bigint;
   loading: boolean;
-  mode: ThemeMode;
 }) {
-  const { t } = useTranslation('console'),
-    navigate = useNavigate();
+  const { t } = useTranslation('console');
   const [view, setView] = useState<View>(readView),
     [filter, setFilter] = useState('');
   useEffect(() => {
@@ -52,15 +45,6 @@ export function ServicesPage({
   const unhealthy = services.filter(
     (service) => service.health === ServiceHealth.DEGRADED || service.health === ServiceHealth.DOWN,
   ).length;
-  const bindings = overview.items.reduce(
-    (sum, item) => ({ bound: sum.bound + item.bindings.bound, total: sum.total + item.bindings.total }),
-    { bound: 0, total: 0 },
-  );
-  const rules = overview.items.reduce(
-    (sum, item) => ({ active: sum.active + item.rules.active, paused: sum.paused + item.rules.paused }),
-    { active: 0, paused: 0 },
-  );
-  const automation = (value: string) => (overview.automationLoaded ? value : '—');
   return (
     <>
       <PageHeader
@@ -83,7 +67,6 @@ export function ServicesPage({
               options={[
                 { value: 'cards', label: t('cards'), icon: <LayoutGrid /> },
                 { value: 'table', label: t('table'), icon: <Rows3 /> },
-                { value: 'map', label: t('map'), icon: <Network /> },
               ]}
             />
           </>
@@ -115,24 +98,6 @@ export function ServicesPage({
           hint={t('degradedOrDown')}
           tone={unhealthy ? 'danger' : 'neutral'}
         />
-        <StatTile
-          icon={<Cable />}
-          label={t('bindings')}
-          value={automation(`${bindings.bound}/${bindings.total}`)}
-          hint={t('hooksBound')}
-        />
-        <StatTile
-          icon={<Zap />}
-          label={t('rules')}
-          value={automation(String(rules.active))}
-          hint={rules.paused ? t('pausedCount', { count: rules.paused }) : t('allActive')}
-        />
-        <StatTile
-          icon={<Workflow />}
-          label={t('workflows')}
-          value={overview.loading ? '—' : overview.items.reduce((sum, item) => sum + item.contract.workflows, 0)}
-          hint={t('declared')}
-        />
       </StatRow>
       <div className="console-fill console-services-body" data-view={view}>
         {loading && !services.length ? (
@@ -149,13 +114,6 @@ export function ServicesPage({
               description={services.length ? t('emptyHint') : t('noServicesHint')}
             />
           </div>
-        ) : view === 'map' ? (
-          <SystemMap
-            services={visible.map((item) => item.summary)}
-            mode={mode}
-            onOpenService={(name) => navigate(`/services/${name}`)}
-            onOpenWiring={(target) => navigate(wiringLink(target))}
-          />
         ) : view === 'cards' ? (
           <div className="console-card-grid">
             {visible.map((item) => (

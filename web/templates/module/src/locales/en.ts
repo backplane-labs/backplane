@@ -2,7 +2,6 @@ export const english = {
   stats: 'Service statistics',
   refresh: 'Refresh statistics',
   greetings: 'Greetings',
-  audited: 'Audited greetings',
   greeting: 'Current greeting',
   workbench: 'Kit workbench',
   query: 'Trace query',

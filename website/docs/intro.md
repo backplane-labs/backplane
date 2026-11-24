@@ -6,7 +6,7 @@ description: Build, connect and operate independent services with a shared Go SD
 
 ![Backplane](/img/banner.svg)
 
-Backplane connects independently developed services into an operable installation. Services describe what they expose; operators connect hooks to activities, react to events, change live configuration and inspect the resulting runs. The console combines platform administration with pages supplied by those services.
+Backplane connects independently developed services into an operable installation. Operators inspect instances, change live configuration and investigate telemetry. The console combines platform administration with pages supplied by those services.
 
 ![The Backplane service catalog](/img/console.png)
 
@@ -17,15 +17,14 @@ Backplane connects independently developed services into an operable installatio
 | See a working installation | [Run hello and formatter](quickstart.md) |
 | Build a Go service | [Service SDK](sdk/go.md), then [components](sdk/components.md) |
 | Build a module's console pages | [Frontend packages](sdk/frontend.md) and [standalone module development](sdk/modules.md) |
-| Connect existing capabilities | [Bindings and rules](guides/wiring.md) |
 | Deploy only the infrastructure you need | [Deployment modes](deploying/overview.md) |
 | Call the platform programmatically | [Generated clients](reference/client.md) and [RPC reference](reference/api.md) |
 | Investigate an incident | [Telemetry](guides/telemetry.md), [audit](guides/audit.md), [errors](guides/errors.md) |
 
 ## What the platform provides
 
-- A Go lifecycle and dependency tree, typed configuration, optional infrastructure drivers, public route declarations and an internal service API.
-- Catalog and instance status, revisioned configuration, hook bindings, event rules, workflow runs and administrative schedules.
+- A Go lifecycle and dependency tree, typed configuration, optional infrastructure drivers, managed listeners and an internal service API.
+- Catalog and instance status, revisioned configuration and authenticated module calls.
 - A React component system, schema forms, editors, charts, observability views and a module contract with standalone development.
 - Durable PostgreSQL audit, bounded OTLP forwarding and read access to independently operated telemetry stores.
 - A cookie-authenticated console and generated TypeScript clients for every `backplane.console.v1` service.

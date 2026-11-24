@@ -53,34 +53,33 @@ export function InfrastructurePage() {
         : count('checking') || !checks.length
           ? 'checking'
           : 'healthy';
+  const refreshing = health.loading || capabilities.loading;
   const refresh = () => {
+    if (refreshing) return;
     health.refresh();
     capabilities.refresh();
   };
   return (
     <>
-      <PageHeader
-        title={t('infrastructure')}
-        description={t('infrastructureDescription')}
-        actions={
-          <Button variant="outline" onClick={refresh} disabled={health.loading || capabilities.loading}>
+      <PageHeader title={t('infrastructure')} description={t('infrastructureDescription')} />
+      <section aria-label={t('infrastructure')} className="console-scroll grid content-start gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <MetaList>
+            <MetaItem icon={<Radio />}>
+              <StatusBadge tone={overall === 'healthy' ? 'success' : overall === 'degraded' ? 'danger' : 'neutral'}>
+                {t(overall)}
+              </StatusBadge>
+            </MetaItem>
+            <MetaItem icon={<Server />}>
+              {health.value ? t('checkedBy', { instance: health.value.instanceId }) : t('loading')}
+            </MetaItem>
+            <MetaItem icon={<Clock3 />}>{t('infraRefreshCadence')}</MetaItem>
+          </MetaList>
+          <Button variant="outline" onClick={refresh} aria-disabled={refreshing} aria-busy={refreshing}>
             <RefreshCw className={health.loading ? 'size-3.5 animate-spin' : 'size-3.5'} />
             {t('refresh')}
           </Button>
-        }
-      />
-      <section aria-label={t('infrastructure')} className="console-scroll grid content-start gap-4">
-        <MetaList>
-          <MetaItem icon={<Radio />}>
-            <StatusBadge tone={overall === 'healthy' ? 'success' : overall === 'degraded' ? 'danger' : 'neutral'}>
-              {t(overall)}
-            </StatusBadge>
-          </MetaItem>
-          <MetaItem icon={<Server />}>
-            {health.value ? t('checkedBy', { instance: health.value.instanceId }) : t('loading')}
-          </MetaItem>
-          <MetaItem icon={<Clock3 />}>{t('infraRefreshCadence')}</MetaItem>
-        </MetaList>
+        </div>
         {health.stale && (
           <p role="status" className="console-banner" data-tone="warning">
             <CircleAlert className="size-4 shrink-0" />

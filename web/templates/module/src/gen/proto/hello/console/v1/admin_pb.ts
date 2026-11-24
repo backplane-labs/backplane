@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file proto/hello/console/v1/admin.proto.
  */
 export const file_proto_hello_console_v1_admin: GenFile = /*@__PURE__*/
-  fileDesc("CiJwcm90by9oZWxsby9jb25zb2xlL3YxL2FkbWluLnByb3RvEhBoZWxsby5jb25zb2xlLnYxIhEKD0dldFN0YXRzUmVxdWVzdCJnChBHZXRTdGF0c1Jlc3BvbnNlEhEKCWdyZWV0aW5ncxgBIAEoBBIYChBjdXJyZW50X2dyZWV0aW5nGAIgASgJEg8KB2F1ZGl0ZWQYAyABKAQSFQoNY2FjaGVfcHJlc2VudBgEIAEoCDJhCgxBZG1pblNlcnZpY2USUQoIR2V0U3RhdHMSIS5oZWxsby5jb25zb2xlLnYxLkdldFN0YXRzUmVxdWVzdBoiLmhlbGxvLmNvbnNvbGUudjEuR2V0U3RhdHNSZXNwb25zZUJaWlhnaXRodWIuY29tL2JhY2twbGFuZS1sYWJzL2JhY2twbGFuZS9leGFtcGxlcy9oZWxsby9wcm90by9oZWxsby9jb25zb2xlL3YxO2hlbGxvY29uc29sZXYxYgZwcm90bzM");
+  fileDesc("CiJwcm90by9oZWxsby9jb25zb2xlL3YxL2FkbWluLnByb3RvEhBoZWxsby5jb25zb2xlLnYxIhEKD0dldFN0YXRzUmVxdWVzdCJlChBHZXRTdGF0c1Jlc3BvbnNlEhEKCWdyZWV0aW5ncxgBIAEoBBIYChBjdXJyZW50X2dyZWV0aW5nGAIgASgJEhUKDWNhY2hlX3ByZXNlbnQYBCABKAhKBAgDEARSB2F1ZGl0ZWQyYQoMQWRtaW5TZXJ2aWNlElEKCEdldFN0YXRzEiEuaGVsbG8uY29uc29sZS52MS5HZXRTdGF0c1JlcXVlc3QaIi5oZWxsby5jb25zb2xlLnYxLkdldFN0YXRzUmVzcG9uc2VCWlpYZ2l0aHViLmNvbS9iYWNrcGxhbmUtbGFicy9iYWNrcGxhbmUvZXhhbXBsZXMvaGVsbG8vcHJvdG8vaGVsbG8vY29uc29sZS92MTtoZWxsb2NvbnNvbGV2MWIGcHJvdG8z");
 
 /**
  * @generated from message hello.console.v1.GetStatsRequest
@@ -38,13 +38,6 @@ export type GetStatsResponse = Message<"hello.console.v1.GetStatsResponse"> & {
    * @generated from field: string current_greeting = 2;
    */
   currentGreeting: string;
-
-  /**
-   * Greetings the audit reactor saw come off the event stream.
-   *
-   * @generated from field: uint64 audited = 3;
-   */
-  audited: bigint;
 
   /**
    * Whether the optional cache is there right now.

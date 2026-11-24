@@ -57,13 +57,7 @@ Build identity is normally set by your build pipeline. The repository demonstrat
 
 ## Add infrastructure intentionally
 
-For the standard integrations, import `github.com/backplane-labs/backplane/pkg/backplane/drivers/standard` and call:
-
-```go
-svc, err := backplane.Open(ctx, NewState, standard.Drivers())
-```
-
-Then configure the endpoints your deployment provides. Empty optional endpoints disable those runtimes. Register individual drivers when you want only a subset; the [dependency guide](../concepts/dependencies.md) explains the import boundary.
+Install Consul with `consul.Driver()` from `pkg/backplane/drivers/consul`. A service that needs a database, NATS or Temporal adds the corresponding `pkg/backplane/infra` provider to its own dependency tree. The provider supplies a native client.
 
 `Open` can fail during configuration, schema construction or tree creation. Return the error. After successful construction, `Run` owns startup and shutdown. If setup fails before `Run`, close the service before returning, as the hello example does when its UI filesystem cannot be opened.
 
@@ -72,14 +66,14 @@ Then configure the endpoints your deployment provides. Empty optional endpoints 
 ```text
 cmd/service/main.go       configuration, NewState, endpoint registration
 internal/store/          dependency providers
-internal/domain/         components, hooks, events and activities
+internal/domain/         application logic
 internal/flows/          Temporal workflows, if required
 internal/web/            HTTP handlers and API documents
 proto/                   public and internal RPC contracts
 ui/                      built module bundle and embedding
 ```
 
-Pass dependencies through constructors. Keep domain components independent of global clients. The complete [hello example](https://github.com/backplane-labs/backplane/tree/master/examples/hello) includes managed listeners, another independently served listener described in the API catalog, configuration, reactors, hooks, workflows and an embedded module.
+Pass dependencies through constructors. Keep domain components independent of global clients. The complete [hello example](https://github.com/backplane-labs/backplane/tree/master/examples/hello) includes managed listeners, an independently served listener, live configuration and an embedded module.
 
 ## Watch service replicas
 

@@ -71,13 +71,7 @@ docker run --rm --env-file courier.env ghcr.io/backplane-labs/backplane-courier:
   /app/bin/courier manifest > manifests/courier.json   # logs go to stderr
 ```
 
-The manifest depends on the configuration (courier declares an activity per
-configured channel kind), so run it with the installation's file and
-environment. It needs no credential: secret fields are optional, no
-configuration Validator runs and a service skips its own runtime checks
-(`Root.Describing()`). Required non-secret fields stay required, since the
-declarations may depend on them. CI checks the installation's wiring against these files with
-`wiring.LoadManifests` (guides/wiring).
+The result describes the binary's platform identity, console services, UI, telemetry selectors and configuration schema. It contains no runtime configuration values. Services can consult `Root.Describing()` to avoid runtime-only work in their constructor.
 
 ## Binary archive
 

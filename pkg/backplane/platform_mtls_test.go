@@ -17,16 +17,11 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
+	helloconsolev1 "github.com/backplane-labs/backplane/examples/hello/proto/hello/console/v1"
 	"github.com/backplane-labs/backplane/internal/testhttp"
 	"github.com/backplane-labs/backplane/pkg/backplane"
-	"github.com/backplane-labs/backplane/pkg/backplane/activity"
 	"github.com/backplane-labs/backplane/pkg/backplane/internal/guard"
 )
-
-type echoIn struct {
-	Text string `json:"text"`
-}
 
 // With backplane.mesh.platform=mtls the platform port serves the probes
 // plain and everything else to a service certificate only; a service dials
@@ -58,27 +53,23 @@ func TestPlatformMutualTLS(t *testing.T) {
 	t.Setenv("BACKPLANE_MESH_PLATFORM", "mtls")
 
 	a, err := backplane.Open(t.Context(), func(root backplane.Root[testConfig]) (*testState, error) {
-		activity.Handle(root, "Echo", func(_ context.Context, in echoIn) (echoIn, error) { return in, nil })
-
 		return &testState{}, nil
 	}, baseOptions(server)...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	a.Internal(func(r grpc.ServiceRegistrar) { helloconsolev1.RegisterAdminServiceServer(r, admin{}) })
 	run(ctx, a)
 	eventually(t, "server ready", ready(serverPorts))
 
 	platform := "127.0.0.1:" + serverPorts.platform
 	withSecret := metadata.AppendToOutgoingContext(ctx, guard.Header, secret)
-	echo := func(conn *grpc.ClientConn) error {
+	stats := func(conn *grpc.ClientConn) error {
 		cctx, ccancel := context.WithTimeout(withSecret, 3*time.Second)
 		defer ccancel()
 
-		_, err := backplanev1.NewActivityServiceClient(conn).Run(cctx, &backplanev1.RunRequest{
-			Call: &backplanev1.ActivityCall{Activity: server + ".Echo", Payload: []byte(`{"text":"hi"}`)},
-		})
-
+		_, err := helloconsolev1.NewAdminServiceClient(conn).GetStats(cctx, &helloconsolev1.GetStatsRequest{})
 		return err
 	}
 
@@ -93,8 +84,8 @@ func TestPlatformMutualTLS(t *testing.T) {
 		t.Fatalf("plain gRPC health: %v", err)
 	}
 
-	if err := echo(plain); status.Code(err) != codes.Unauthenticated {
-		t.Fatalf("plain activity call: %v", err)
+	if err := stats(plain); status.Code(err) != codes.Unauthenticated {
+		t.Fatalf("plain console API call: %v", err)
 	}
 
 	get := func(client *http.Client, url string) int {
@@ -139,7 +130,7 @@ func TestPlatformMutualTLS(t *testing.T) {
 	}
 	defer mutual.Close()
 
-	eventually(t, "b calls a's activity over mTLS", func() bool { return echo(mutual) == nil })
+	eventually(t, "console API reachable over mTLS", func() bool { return stats(mutual) == nil })
 
 	tlsClient := &http.Client{Transport: &http.Transport{TLSClientConfig: b.PlatformTLS(server)}, Timeout: 3 * time.Second}
 	if code := get(tlsClient, "https://"+platform+"/_backplane/info"); code != http.StatusOK {

@@ -19,7 +19,6 @@ import (
 
 	"github.com/gopherex/xlog"
 
-	backplanev1 "github.com/backplane-labs/backplane/backplanepb/v1"
 	"github.com/backplane-labs/backplane/pkg/backplane/config"
 )
 
@@ -50,29 +49,6 @@ var (
 // plugin serves /plugins/<service>/<hash>/<path>: from the cache, else
 // from a live instance serving that hash.
 func (c *Console) plugin(w http.ResponseWriter, r *http.Request) {
-	c.serveBundle(w, r, uiPath, uiHash(r.PathValue("hash")), "", immutable)
-}
-
-func (c *Console) apiFile(w http.ResponseWriter, r *http.Request) {
-	hash := r.PathValue("hash")
-	c.serveBundle(w, r, "/_backplane/api/"+hash, func(m *backplanev1.Manifest) bool {
-		if hash != "" && m.GetDescriptorsHash() == hash {
-			return true
-		}
-
-		for _, route := range m.GetApis() {
-			if route.GetBundle().GetHash() == hash && hash != "" {
-				return true
-			}
-		}
-
-		return false
-	}, "api/", "private, no-store")
-}
-
-func (c *Console) serveBundle(w http.ResponseWriter, r *http.Request, prefix string,
-	match func(*backplanev1.Manifest) bool, namespace, cacheControl string,
-) {
 	if _, ok := c.authorized(w, r); !ok {
 		return
 	}
@@ -86,7 +62,7 @@ func (c *Console) serveBundle(w http.ResponseWriter, r *http.Request, prefix str
 		return
 	}
 
-	key := namespace + name + "/" + hash + clean
+	key := name + "/" + hash + clean
 
 	f, ok := c.bundles.cached(key)
 	if !ok {
@@ -97,11 +73,11 @@ func (c *Console) serveBundle(w http.ResponseWriter, r *http.Request, prefix str
 			return
 		}
 
-		preferred, fallback := serving(svc, match)
+		preferred, fallback := serving(svc, uiHash(hash))
 
 		var err error
 
-		f, err = c.bundles.fetchAt(r.Context(), name, key, hash, clean, prefix, platformAddrs(append(preferred, fallback...)))
+		f, err = c.bundles.fetchAt(r.Context(), name, key, hash, clean, uiPath, platformAddrs(append(preferred, fallback...)))
 
 		switch {
 		case errors.Is(err, errBundleNotFound), errors.Is(err, errNoInstance):
@@ -117,14 +93,10 @@ func (c *Console) serveBundle(w http.ResponseWriter, r *http.Request, prefix str
 	}
 
 	h := w.Header()
-	h.Set("Cache-Control", cacheControl)
+	h.Set("Cache-Control", immutable)
 	h.Set("ETag", `"`+hash+`"`)
 	h.Set("Content-Type", f.contentType)
 
-	if namespace != "" {
-		h.Set("Content-Type", "application/octet-stream")
-		h.Set("Content-Disposition", "attachment")
-	}
 	// ServeContent answers If-None-Match with 304 against the ETag.
 	http.ServeContent(w, r, clean, time.Time{}, bytes.NewReader(f.body))
 }

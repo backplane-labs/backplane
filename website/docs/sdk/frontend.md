@@ -13,7 +13,7 @@ All public packages use the `@backplane-labs` scope and GitHub Packages. They sh
 | `@backplane-labs/backplane-editors` | Lazy code/structured editors and language integrations |
 | `@backplane-labs/backplane-charts` | Charts, graphs and exact-value representations |
 | `@backplane-labs/backplane-observability-ui` | Reusable logs, metrics and trace views |
-| `@backplane-labs/backplane-platform-ui` | Catalog, configuration, wiring, runs, API reference and investigation compositions |
+| `@backplane-labs/backplane-platform-ui` | Catalog, configuration and investigation views |
 | `@backplane-labs/backplane-plugin-sdk` | Module routes, context, navigation, host contract and error reporting |
 | `@backplane-labs/backplane-plugin-build` | Vite/Module Federation build contract and shared dependency policy |
 | `@backplane-labs/backplane-errors` | Exception capture, state/breadcrumbs and OTLP delivery; host APIs behind ports, browser ports in `/browser` |
@@ -53,7 +53,7 @@ const result = await catalog.listServices(create(ListServicesRequestSchema));
 
 The host wraps its content in `BackplaneProvider client={runtime}`. A page calls `useClient(CatalogServiceClient)`; it must not create another connection or dispose the host's client. Abort requests when a page unmounts or its selection changes.
 
-`useSnapshotWatch` is for full-snapshot catalog/configuration/wiring streams. Reconnection replaces the snapshot; it is not durable event replay. Audit and Errors use paginated queries and refresh. Mutations are never automatically replayed after an uncertain network outcome.
+`useSnapshotWatch` is for full-snapshot catalog/configuration streams. Reconnection replaces the snapshot; it is not durable event replay. Audit and Errors use paginated queries and refresh. Mutations are never automatically replayed after an uncertain network outcome.
 
 ## Tables from a schema
 

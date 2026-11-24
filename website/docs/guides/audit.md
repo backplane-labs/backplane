@@ -4,19 +4,7 @@ Audit combines platform control entries and trusted application audit records in
 
 ## Platform operations
 
-Database mutations such as configuration or binding saves commit their audit entry in the same transaction. External commands such as starting a workflow first persist an intent, then dispatch, then persist the result. There is no distributed transaction with Temporal or NATS.
-
-| Outcome | Interpretation |
-| --- | --- |
-| `succeeded` | The API confirmed completion or acceptance; a started workflow may still fail later |
-| `rejected` | Input, permission or precondition prevented the command |
-| `failed` | The returned operation result reports failure |
-| `partial` | A batch contains both completed and failed items |
-| `unknown` | Transport/cancellation/deadline left the outcome ambiguous |
-
-An intent with no result is also unknown. Search by operation ID, inspect the target run/event/schedule and decide whether another command is appropriate. Automatic retry can duplicate effects.
-
-Control audit stores allowlisted metadata, not payloads, configuration values or credentials. Optional export sends OTel Logs through a durable outbox with stable entry IDs. It does not publish `AuditEntry` into NATS.
+Configuration changes and session mutations write their platform audit record in the same database transaction. Historical records remain readable. A module reports application decisions from its own service; the authenticated relay never decodes the payload for audit.
 
 ## Application audit through OTel
 

@@ -15,8 +15,5 @@ func Declare(svc *backplane.Service[State]) {
 		svc.Internal(svc.State().Obs.Register)
 	}
 
-	// HookService: the direct transport of the services' hook calls.
-	svc.Internal(svc.State().Direct.Register)
-
 	svc.ReadinessProbe(probe.FromError(svc.State().Ready))
 }

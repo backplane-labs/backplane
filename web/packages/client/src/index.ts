@@ -123,28 +123,10 @@ export interface ClientRuntime {
   getSnapshot(): ClientState;
   subscribe(listener: () => void): () => void;
   client<T extends object>(clientConstructor: ClientConstructor<T>): T;
-  /** Optional for standalone fixtures that do not provide API file bundles. */
-  readSchemaFile?(service: string, hash: string, file: string, signal?: AbortSignal): Promise<Uint8Array>;
 }
 
 /** A session owns a transport. Reconnection never replays a completed/failed RPC. */
 export class BackplaneClient {
-  /** Fetch through the authenticated console base, including its deployment prefix. */
-  async readSchemaFile(service: string, hash: string, file: string, signal?: AbortSignal): Promise<Uint8Array> {
-    if (!/^[a-f0-9]{64}$/.test(hash) || !file || file.split('/').some((part) => !part || part === '.' || part === '..'))
-      throw new Error('Invalid API bundle path');
-    const path = ['schemas', service, hash, ...file.split('/')].map(encodeURIComponent).join('/');
-    const response = await this.fetcher(new URL(path, this.base), {
-      credentials: 'include',
-      redirect: 'error',
-      cache: 'no-store',
-      signal,
-    });
-    if (!response.ok) throw new SessionHttpError(response.status, undefined);
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.length > 32 * 1024 * 1024) throw new Error('API document is too large');
-    return bytes;
-  }
   private state: ClientState = { connection: 'idle', session: null, connectionId: 0 };
   private readonly listeners = new Set<() => void>();
   private readonly base: URL;

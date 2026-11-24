@@ -42,10 +42,8 @@
     "@backplane-labs/backplane-schema-forms": "0.1.1",
     "@backplane-labs/backplane-ui": "0.1.1",
     "@bufbuild/protobuf": "2.16.0",
-    "@xyflow/react": "12.10.2",
     "lossless-json": "4.3.1",
-    "lucide-react": "1.48.0",
-    "yaml": "2.9.1"
+    "lucide-react": "1.48.0"
   },
   "devDependencies": {
     "@gopherex/schemapb": "1.12.1",

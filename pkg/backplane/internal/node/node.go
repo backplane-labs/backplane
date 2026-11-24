@@ -50,7 +50,6 @@ const (
 type Tree struct {
 	service string
 	log     *xlog.Logger
-	env     any
 
 	mu       sync.Mutex
 	interval time.Duration
@@ -86,10 +85,9 @@ type namespace struct {
 	paths map[string]bool
 }
 
-// New creates a tree and returns its service root. env is service-wide data
-// any node can reach through Env.
-func New(service string, log *xlog.Logger, env any) *Node {
-	t := &Tree{service: service, log: log, env: env}
+// New creates the service root of a lifecycle tree.
+func New(service string, log *xlog.Logger) *Node {
+	t := &Tree{service: service, log: log}
 
 	return &Node{
 		tree: t, ns: &namespace{paths: map[string]bool{}}, name: service, kind: System,
@@ -193,9 +191,6 @@ func (n *Node) Log() *xlog.Logger { return n.log }
 
 // Scope is the node's instrumentation scope.
 func (n *Node) Scope() *xtrace.Scope { return n.scope }
-
-// Env is the service-wide data given to New.
-func (n *Node) Env() any { return n.tree.env }
 
 func (n *Node) label() string {
 	switch {

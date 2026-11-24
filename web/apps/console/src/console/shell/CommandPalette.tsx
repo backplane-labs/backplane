@@ -11,7 +11,7 @@ import {
   CommandShortcut,
   Kbd,
 } from '@backplane-labs/backplane-ui';
-import { AppWindow, Box, Bug, Compass, History, type LucideIcon, Moon, Search, Sun, Workflow } from 'lucide-react';
+import { AppWindow, Box, Bug, Compass, History, type LucideIcon, Moon, Search, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -73,7 +73,6 @@ export function CommandPalette({
             <CommandEmpty>{t('searchEmpty')}</CommandEmpty>
             <CommandGroup heading={t('platform')}>
               {item('nav-services', '/services', Box, t('services'))}
-              {item('nav-wiring', '/wiring', Workflow, t('wiring'))}
               {item('nav-explore', '/explore', Compass, t('explore'))}
               {item('nav-errors', '/errors', Bug, t('errors'))}
               {item('nav-audit', '/audit', History, t('audit'))}

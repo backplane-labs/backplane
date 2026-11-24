@@ -1,9 +1,6 @@
 # Service APIs and internal APIs
 
-The SDK serves APIs on the service's own listeners and describes them in
-`Manifest.apis`. Descriptions feed the console API viewer. External publication,
-proxy configuration and protocol conversion belong to application code and deployment.
-Registering an API never publishes it through a gateway.
+Managed listeners serve the application's handlers. The application chooses its published protocols and documents its own APIs. The platform does not collect their descriptors.
 
 ## Managed listeners
 
@@ -15,8 +12,8 @@ import (
 
 svc.GRPC(st.Greeter.Register, api.Reflection())
 wsproto.Serve(svc, "/ws/", api.Origins{}, st.Greeter.Register)
-svc.HTTP("/hello/", handler, api.OpenAPIFS(apiFiles, "openapi.yaml"))
-svc.GraphQL("/graphql/", graphqlHandler, introspection)
+svc.HTTP("/hello/", handler)
+svc.HTTP("/graphql/", graphqlHandler)
 ```
 
 These methods serve native gRPC, ws-proto, HTTP and the author's GraphQL handler.
@@ -24,8 +21,7 @@ They do not create Connect, gRPC-Web or REST/JSON conversion around gRPC.
 If those protocols are needed, the author implements them or configures them in deployment.
 
 `api.Listen("admin", cfg.AdminListen)` selects a separate managed listener: its name is
-fixed in code, its address usually comes from configuration. The manifest records the
-route's listener by name; the instance state records the port of every listener
+fixed in code, its address usually comes from configuration. The instance state records the port of every listener
 (`public_port` for the default one, `listeners` by name), so the manifest of a version
 does not depend on configuration. A name has one address and an address one name, or
 `Run` fails. `api.Host("api.example.com")`
@@ -101,7 +97,7 @@ resolver waits 30 s between lookups; nothing process-wide is changed.
 Calls are not retried: a call made while the channel reconnects fails
 with `Unavailable`, unless it waits for readiness with
 `grpc.WaitForReady(true)` and a deadline. Backplane and the SDK dial their
-own channels (hooks, activities, the console relay) the same way
+own channels (including the console relay) the same way
 (`pkg/backplane/meshdial`).
 
 Nothing is configured for it beyond Consul, which the Consul driver already
@@ -149,11 +145,7 @@ certificate for `feed` (a token with `service:write` on it) is `feed`.
 
 ### The platform port
 
-The platform port (`BACKPLANE_INTERNAL_PORT`, 9400) carries backplane's calls
-of the service's activities, the services' hook calls to backplane and the
-console's relay to internal APIs. Without TLS, the internal secret every
-call presents travels in clear text. `BACKPLANE_MESH_PLATFORM` puts the port
-under the same mutual TLS:
+The platform port (`BACKPLANE_INTERNAL_PORT`, default 9400) serves health, the console API and module bundle. `BACKPLANE_MESH_PLATFORM` controls transport security:
 
 - `plain` (default): no TLS, as before.
 - `accept`: the port serves mutual TLS next to plain connections; the
@@ -163,8 +155,7 @@ under the same mutual TLS:
   (`/healthz/*` and `grpc.health.v1.Health`, which kubelet and Consul checks
   use). Anything else plain is 401 (HTTP) or `Unauthenticated` (gRPC).
 
-Who may call is the same intentions as above (backplane calls every service;
-every service calling hooks calls backplane). The internal secret stays
+Consul intentions control which services may call the platform port. The internal secret stays
 required on top. A setting other than `plain` needs the Consul driver and
 Consul with Connect enabled, or Open fails.
 
@@ -212,22 +203,9 @@ The client's `*url.Error` names the whole URL: scrub it before logging when
 the URL may carry a token. `netguard.Transport()` is the guarded transport
 alone, for a client that checks URLs itself.
 
-## Independently served APIs
+## Independently served listeners
 
-Describe an API that your own server already serves:
-
-```go
-svc.API(api.HTTP("/legacy/",
-    api.Port("legacy", legacy.Port()),
-    api.OpenAPI(document)))
-```
-
-This only adds catalog metadata and optional schema files. It does not start a
-listener, check reachability, create routes, or choose a public URL. `api.Port`
-names the author's listener and gives its port, which goes to the instance state
-like a managed listener's; without it the route is on the default public port. The
-name is not also an `api.Listen` name, and has one port. `api.GRPC`, `api.GraphQL`
-and `api.WSProto` provide the corresponding declarations.
+Call `svc.Listener("legacy", st.Legacy.Port())` to advertise an application-owned listener. Its name and port enter instance state and service discovery, not a catalog of operations. Backplane does not start that listener. The same name cannot select two ports or also belong to an SDK-managed listener.
 
 ## Internal module API
 
@@ -241,7 +219,7 @@ svc.UI(bundle)
 Internal RPCs live on the platform port, in any protobuf package except `grpc.*`
 and the platform's own `backplane.*`. The console's authenticated WebSocket
 relay sends each method to the service whose manifest declares it (a method two
-services declare is refused) and calls it directly; UI bundles and API files are fetched directly from that port.
+services declare is refused) and calls it directly; UI bundles are fetched directly from that port.
 The public API is excluded from this relay.
 
 `api.Interceptors` and `api.StreamInterceptors` give the internal API its own
@@ -263,8 +241,7 @@ A relayed call names the operator's console session, and
 uses (see [application audit](../reference/audit.md#application-audit)). The
 console signs in with the installation's admin token, so the session is all
 there is to know of the person; the console's session menu lists each one's
-address and user agent. Calls the console did not relay for a session
-(backplane's own activity calls) have no operator.
+address and user agent. Calls outside an operator session have no operator.
 
 The session is backplane's word, not the browser's: the relay drops every
 `bp-*` key the browser sends and sets the session itself, and the platform port
@@ -272,12 +249,3 @@ admits only calls presenting the internal secret. That holds while
 `BACKPLANE_INTERNAL_SECRET` is set and the platform port is unreachable to
 anyone but backplane. Without a secret the port is open, and the session is
 whatever the caller claims.
-
-## API documents
-
-HTTP APIs accept OpenAPI, gRPC/ws-proto use descriptor sets, and GraphQL uses
-introspection JSON. Multi-file documents can be embedded as a filesystem.
-[Publishing service API documents](service-api.md) covers packaging, limits and reference resolution.
-
-The declared path and port describe the service listener. External routing may rewrite
-paths or select another hostname; the platform does not infer that configuration.

@@ -28,7 +28,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/descriptorpb"
 
 	"github.com/gopherex/ws-proto/wsrpc"
 
@@ -135,7 +134,7 @@ func start(t *testing.T) *env {
 	}
 
 	platformPort, publicPort, host := freePort(t), freePort(t), advertise(t)
-	e := &env{consul: c, host: host, platform: host + ":" + platformPort, public: host + ":" + publicPort, logs: &bytes.Buffer{}}
+	e := &env{consul: c, host: host, platform: net.JoinHostPort("127.0.0.1", platformPort), public: net.JoinHostPort("127.0.0.1", publicPort), logs: &bytes.Buffer{}}
 	e.cmd = exec.Command(bin)
 
 	e.cmd.Env = append(os.Environ(),
@@ -262,75 +261,13 @@ func (e *env) manifest(t *testing.T) {
 		t.Fatalf("identity: %s@%s", m.GetService(), m.GetVersion())
 	}
 
-	kinds := map[backplanev1.ApiKind]bool{}
-	for _, r := range m.GetApis() {
-		kinds[r.GetKind()] = true
-		if k := r.GetKind(); k != backplanev1.ApiKind_API_KIND_HTTP && k != backplanev1.ApiKind_API_KIND_GRAPHQL &&
-			len(r.GetServices()) == 0 {
-			t.Errorf("route %v without services", r)
-		}
-	}
-
-	// gRPC, Connect, ws-proto and internal services share one descriptor
-	// set, served on the platform port outside the manifest by its hash.
-	code, set := httpGet("http://"+e.platform+"/_backplane/api/"+m.GetDescriptorsHash()+"/descriptors.binpb",
-		"Bp-Internal-Secret", secret)
-	if code != http.StatusOK || len(m.GetDescriptorsHash()) != 64 {
-		t.Fatalf("descriptor set %q: %d", m.GetDescriptorsHash(), code)
-	}
-
-	described := describedServices(t, []byte(set))
-	for _, name := range []string{"hello.v1.HelloService", "hello.console.v1.AdminService"} {
-		if !described[name] {
-			t.Errorf("descriptors lack %s", name)
-		}
-	}
-
-	for _, k := range []backplanev1.ApiKind{
-		backplanev1.ApiKind_API_KIND_GRPC, backplanev1.ApiKind_API_KIND_WS_PROTO,
-		backplanev1.ApiKind_API_KIND_HTTP, backplanev1.ApiKind_API_KIND_GRAPHQL,
-	} {
-		if !kinds[k] {
-			t.Errorf("no %v route", k)
-		}
-	}
-
 	if len(m.GetInternalServices()) != 1 || m.GetInternalServices()[0] != "hello.console.v1.AdminService" {
 		t.Errorf("internal services: %v", m.GetInternalServices())
-	}
-
-	if len(m.GetHooks()) != 1 || !m.GetHooks()[0].GetRequired() || len(m.GetActivities()) != 2 || len(m.GetEvents()) != 1 {
-		t.Errorf("hooks %v activities %v events %v", m.GetHooks(), m.GetActivities(), m.GetEvents())
 	}
 
 	if m.GetConfig().GetSchema() == nil || !slices.Contains(m.GetConfig().GetLive(), "greeter.suffix") || len(m.GetUi().GetHash()) != 64 {
 		t.Errorf("config %v or ui missing", m.GetConfig().GetLive())
 	}
-
-	for _, r := range m.GetApis() {
-		if r.GetListener() != "" && r.GetListener() != "legacy" {
-			t.Errorf("route %v on listener %q", r, r.GetListener())
-		}
-	}
-}
-
-func describedServices(t *testing.T, raw []byte) map[string]bool {
-	t.Helper()
-
-	var set descriptorpb.FileDescriptorSet
-	if err := proto.Unmarshal(raw, &set); err != nil {
-		t.Fatalf("descriptors: %v", err)
-	}
-
-	out := map[string]bool{}
-
-	for _, f := range set.GetFile() {
-		for _, svc := range f.GetService() {
-			out[f.GetPackage()+"."+svc.GetName()] = true
-		}
-	}
-
-	return out
 }
 
 func (e *env) state(t *testing.T) {
@@ -368,7 +305,7 @@ func (e *env) state(t *testing.T) {
 		}
 	}
 
-	want := []string{"store", "cache", "greeter", "greeter/templates", "audit", "flows", "admin", "legacy"}
+	want := []string{"store", "cache", "greeter", "greeter/templates", "admin", "legacy"}
 	if !slices.Equal(paths, want) {
 		t.Errorf("nodes %v, want %v", paths, want)
 	}

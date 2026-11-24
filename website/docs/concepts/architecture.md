@@ -8,7 +8,7 @@ flowchart TB
   BP --> PG[(PostgreSQL state and login limits)]
   BP <--> Consul[Consul catalog and live configuration]
   Service[Go services] <--> Consul
-  BP -->|Optional| Temporal[Temporal workflows and Nexus]
+  BP -->|Optional| Temporal[Temporal health]
   Service <--> Temporal
   BP -->|Optional| NATS[NATS JetStream]
   Service <--> NATS
@@ -27,11 +27,11 @@ flowchart TB
 | Owner | Responsible for |
 | --- | --- |
 | Service author | Domain behavior, payloads, schemas, activities, hooks, events, workflows, public APIs, module pages |
-| Platform | Discovery, versioned intent, reconciliation, API authentication, wiring execution, control audit, console host |
+| Platform | Discovery, versioned intent, reconciliation, API authentication, control audit, console host |
 | Deployment | Processes and containers, credentials, TLS, routing boundaries, enabled runtimes, Collector pipelines, retention and storage capacity |
-| Operator | Live configuration, binding/rule definitions, workflow and schedule commands, investigation |
+| Operator | Live configuration, investigation |
 
-Services are independently built. A consumer can define compatible JSON payload types without importing another service's Go package. The hello/formatter examples exercise that boundary.
+Services are independently built. Each product owns its inter-service protocols. Adding a product method does not change the platform API.
 
 ## Control plane and data plane
 
@@ -39,7 +39,7 @@ PostgreSQL stores authoritative control state and audit. Consul supplies registr
 
 External publication and routing belong to deployment; application requests reach the services' own public listeners. The console's authenticated internal API relay is a separate path. The server proxies module assets so embedded modules load from the console origin; it does not build or deploy those modules.
 
-Temporal provides durable workflow execution and Nexus dispatch when enabled. NATS JetStream provides durable event delivery when enabled. Neither is required to run the core SDK in standalone mode. [Dependency modes](dependencies.md) explain which platform capabilities disappear when a runtime is absent.
+NATS and Temporal endpoints, when configured on the platform server, are probed for availability. Working traffic stays between the application and its chosen infrastructure.
 
 ## Independent telemetry
 
@@ -47,6 +47,6 @@ The Collector and Victoria stores form an independently managed OTel deployment.
 
 ## Identity and versions
 
-Service names identify contract owners. Instances identify running processes. A versioned manifest describes public routes, schemas, hooks, activities, events, workflows, internal RPCs and optional UI/telemetry declarations. Build identity is stamped into the service binary; its version must change when its manifest changes. Versions with build metadata follow the same immutability rule. A conflicting manifest stops startup rather than letting a new process run under old declarations.
+Service names identify contract owners. Instances identify running processes. A versioned manifest describes configuration, console API ownership, UI and telemetry selectors. Build identity is stamped into the service binary; its version must change when its manifest changes. Versions with build metadata follow the same immutability rule. A conflicting manifest stops startup rather than letting a new process run under old declarations.
 
-Current and historical manifests can coexist during rolling updates. The catalog prefers the highest version with a registered, healthy instance in the serving phase. A starting, unhealthy or stopping newer replica does not replace a working older version in the console. If no version is available, known declarations remain visible for offline inspection, and plugins are marked unavailable. Stopping a service does not delete its historical manifest. Owned Nexus endpoints are retired only after confirmed absence and a grace period; unhealthy instances still count as present. See [availability](../deploying/availability.md).
+Current and historical manifests can coexist during rolling updates. The catalog prefers the highest version with a registered, healthy instance in the serving phase. A starting, unhealthy or stopping newer replica does not replace a working older version in the console. If no version is available, known declarations remain visible for offline inspection, and plugins are marked unavailable. Stopping a service does not delete its historical manifest. See [availability](../deploying/availability.md).

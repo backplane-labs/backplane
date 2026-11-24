@@ -1,12 +1,4 @@
-import {
-  BindingServiceClient,
-  CatalogServiceClient,
-  GetServiceRequestSchema,
-  ListBindingsRequestSchema,
-  ListRulesRequestSchema,
-  RuleServiceClient,
-  type ServiceSummary,
-} from '@backplane-labs/backplane-api';
+import { CatalogServiceClient, GetServiceRequestSchema, type ServiceSummary } from '@backplane-labs/backplane-api';
 import { usePlatformQuery } from '@backplane-labs/backplane-platform-ui';
 import { useClient } from '@backplane-labs/backplane-react';
 import { create } from '@bufbuild/protobuf';
@@ -19,9 +11,7 @@ import { overview, type ServiceOverview } from './model';
  * service does not hide the others.
  */
 export function useServicesOverview(services: ServiceSummary[], index: bigint | undefined) {
-  const catalog = useClient(CatalogServiceClient),
-    bindings = useClient(BindingServiceClient),
-    rules = useClient(RuleServiceClient);
+  const catalog = useClient(CatalogServiceClient);
   const names = services.map((service) => service.name).join(',');
   const details = usePlatformQuery(`overview:${index}:${names}`, (signal) =>
     Promise.allSettled(
@@ -29,12 +19,6 @@ export function useServicesOverview(services: ServiceSummary[], index: bigint | 
         ? names.split(',').map((name) => catalog.getService(create(GetServiceRequestSchema, { name }), { signal }))
         : [],
     ),
-  );
-  const automation = usePlatformQuery(`automation:${index}`, (signal) =>
-    Promise.all([
-      bindings.listBindings(create(ListBindingsRequestSchema), { signal }),
-      rules.listRules(create(ListRulesRequestSchema), { signal }),
-    ]),
   );
   const items = useMemo<ServiceOverview[]>(
     () =>
@@ -44,19 +28,9 @@ export function useServicesOverview(services: ServiceSummary[], index: bigint | 
           summary,
           result?.status === 'fulfilled' ? result.value : undefined,
           result?.status === 'rejected',
-          automation.value?.[0].bindings ?? [],
-          automation.value?.[1].rules ?? [],
         );
       }),
-    [services, details.value, automation.value],
+    [services, details.value],
   );
-  return {
-    items,
-    loading: details.loading && !details.value,
-    automationLoaded: !!automation.value,
-    refresh: () => {
-      details.refresh();
-      automation.refresh();
-    },
-  };
+  return { items };
 }
