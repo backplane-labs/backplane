@@ -48,7 +48,10 @@ connection-oriented, and the options follow the connection:
 wsproto.Serve(svc, "/ws/", origins,
     func(s *wsrpc.Server) { gatewayv1.RegisterGatewayHandler(s, gw) },
     api.Middleware(gw.Connection), // once per connection
-    api.CallMiddleware(gw.Call),   // every call on it
+    api.CallMiddleware(gw.Call),   // registered handlers and the fallback
+    api.UnknownHandler(func(_ context.Context, s *wsrpc.Stream) error {
+        return status.Errorf(codes.Unimplemented, "unknown method %s", s.Method())
+    }),
     api.Keepalive(20*time.Second, 10*time.Second))
 ```
 
@@ -58,8 +61,11 @@ wsproto.Serve(svc, "/ws/", origins,
     call's context derives from it, so identity attached once is visible to every
     call, and canceling it closes the socket (for example, on session revocation);
   - `next` returns when the connection closes.
-- **`api.CallMiddleware`** (`wsrpc.Middleware`) wraps every call, whichever way the
-  services were registered. It runs inside the SDK's panic recovery and tracing.
+- **`api.CallMiddleware`** (`wsrpc.Middleware`) wraps registered handlers, including the
+  optional fallback. It runs inside the SDK's panic recovery and tracing.
+- **`api.UnknownHandler`** (`wsrpc.Handler`) handles unregistered methods. With it, call
+  middleware can send response metadata before the fallback returns `Unimplemented`.
+  Without it, ws-proto returns `Unimplemented` before running call middleware.
 - **`api.Interceptors`** and **`api.StreamInterceptors`** wrap only gRPC-registered
   services.
 - **`api.Keepalive`** tunes pings. The default is every 20s with a 10s timeout.

@@ -59,6 +59,10 @@ func (g *gateway) call(next wsrpc.Handler) wsrpc.Handler {
 		g.calls = append(g.calls, user+" "+s.Method())
 		g.mu.Unlock()
 
+		if err := s.SendHeader(map[string]string{"contract-layer": "42"}); err != nil {
+			return status.Errorf(codes.Internal, "send response header: %v", err)
+		}
+
 		return next(ctx, s)
 	}
 }
@@ -108,7 +112,10 @@ func TestWSProtoConnections(t *testing.T) {
 	gate := &gateway{closed: make(chan struct{})}
 	wsproto.Serve(svc, "/ws/", api.AnyOrigin(),
 		func(s *wsrpc.Server) { s.Register(hellov1.HelloService_Greet_FullMethodName, greet) },
-		api.Middleware(gate.connection), api.CallMiddleware(gate.call))
+		api.Middleware(gate.connection), api.CallMiddleware(gate.call),
+		api.UnknownHandler(func(_ context.Context, s *wsrpc.Stream) error {
+			return status.Error(codes.Unimplemented, s.Method())
+		}))
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -158,6 +165,26 @@ func TestWSProtoConnections(t *testing.T) {
 	method := "u1 " + hellov1.HelloService_Greet_FullMethodName
 	if got := gate.seen(); !slices.Equal(got, []string{method, method}) {
 		t.Fatalf("calls seen: %v", got)
+	}
+
+	const unknown = "/hello.v1.HelloService/NotRegistered"
+
+	s, err := cc.NewStream(ctx, unknown, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = s.RecvRawContext(t.Context())
+	if status.Code(err) != codes.Unimplemented || status.Convert(err).Message() != unknown {
+		t.Errorf("unknown method returned %v, want fallback Unimplemented for %s", err, unknown)
+	}
+
+	if header := s.Header()["contract-layer"]; header != "42" {
+		t.Errorf("unknown method HEADER: %q, want 42", header)
+	}
+
+	if got := gate.seen(); !slices.Equal(got, []string{method, method, "u1 " + unknown}) {
+		t.Errorf("calls seen: %v", got)
 	}
 
 	gate.breakConnection()

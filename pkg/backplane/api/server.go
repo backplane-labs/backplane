@@ -66,12 +66,18 @@ type wsServer []wsrpc.ServerOption
 
 func (o wsServer) applyWS(m *routes.Managed) { m.WS = append(m.WS, o...) }
 
-// CallMiddleware wraps every call of a ws-proto endpoint, however its
-// services were registered, the first outermost, inside the SDK's recovery
-// and tracing. Its context is the call's, derived from the connection's
-// (see Middleware).
+// CallMiddleware wraps registered handlers and the optional UnknownHandler,
+// the first outermost, inside the SDK's recovery and tracing. Its context
+// is the call's, derived from the connection's (see Middleware).
 func CallMiddleware(mw ...wsrpc.Middleware) WSProtoOption {
 	return wsServer{wsrpc.WithMiddleware(mw...)}
+}
+
+// UnknownHandler handles calls to unregistered methods. It runs through
+// CallMiddleware. Without it, unregistered methods return Unimplemented
+// before call middleware runs.
+func UnknownHandler(h wsrpc.Handler) WSProtoOption {
+	return wsServer{wsrpc.WithUnknownHandler(h)}
 }
 
 // Keepalive pings the clients of a ws-proto endpoint every interval and

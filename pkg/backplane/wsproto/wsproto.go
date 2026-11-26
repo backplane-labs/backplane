@@ -44,8 +44,9 @@ type Register interface {
 //
 // api.Middleware wraps the endpoint once per connection: the connection's
 // context is the one it passes on (see api.Middleware). api.CallMiddleware
-// wraps every call; api.Interceptors and api.StreamInterceptors wrap the
-// calls of gRPC-registered services only. api.Keepalive tunes pings.
+// wraps registered handlers and the optional api.UnknownHandler;
+// api.Interceptors and api.StreamInterceptors wrap gRPC-registered handlers
+// only. api.Keepalive tunes pings.
 func Serve[St any, R Register](
 	svc *backplane.Service[St], prefix string, origins api.Origins, register R, opts ...api.WSProtoOption,
 ) {
